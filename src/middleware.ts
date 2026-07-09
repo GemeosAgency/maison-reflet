@@ -80,6 +80,31 @@ const HOLDING_PAGE = `<!doctype html>
         font-size: clamp(1rem, 2.6vw, 1.35rem); max-width: 30rem;
         margin-top: 2.4rem;
       }
+      .signup {
+        margin-top: 2.4rem; width: 100%; max-width: 30rem;
+        display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center;
+      }
+      .signup input {
+        flex: 1 1 15rem; min-width: 0;
+        background: rgba(239, 230, 216, 0.06);
+        border: 1px solid rgba(239, 230, 216, 0.35);
+        color: #efe6d8; font-family: inherit; font-size: 1rem;
+        padding: 0.85rem 1.1rem; border-radius: 2px; outline: none;
+      }
+      .signup input::placeholder { color: rgba(239, 230, 216, 0.55); }
+      .signup input:focus { border-color: #b7a861; }
+      .signup button {
+        background: #efe6d8; color: #1c1714; border: none;
+        font-family: inherit; font-size: 1rem; letter-spacing: 0.04em;
+        padding: 0.85rem 1.6rem; border-radius: 2px; cursor: pointer;
+        transition: background 0.2s ease;
+      }
+      .signup button:hover { background: #b7a861; }
+      .signup button:disabled { opacity: 0.6; cursor: default; }
+      .signup-msg {
+        margin-top: 1rem; min-height: 1.3em;
+        font-size: 0.95rem; opacity: 0.9;
+      }
       .fadein { opacity: 0; animation: rise 1.6s ease forwards; }
       .fadein:nth-child(2) { animation-delay: 0.15s; }
       .fadein:nth-child(3) { animation-delay: 0.3s; }
@@ -111,15 +136,57 @@ const HOLDING_PAGE = `<!doctype html>
       <h1 class="bientot fadein">Bientôt</h1>
       <p class="ar fadein" dir="rtl" lang="ar">قريبًا</p>
       <p class="tag fadein">Six parfums, six reflets d'une identité franco-arabe.</p>
+      <form class="signup fadein" id="signup">
+        <input type="email" name="email" required placeholder="Votre adresse email" aria-label="Votre adresse email" />
+        <button type="submit">Prévenez-moi</button>
+      </form>
+      <p class="signup-msg" id="signup-msg" role="status" aria-live="polite"></p>
     </main>
+    <script>
+      (function () {
+        var f = document.getElementById("signup");
+        var msg = document.getElementById("signup-msg");
+        if (!f) return;
+        f.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var input = f.querySelector("input[name=email]");
+          var btn = f.querySelector("button");
+          var email = (input.value || "").trim();
+          if (!email) return;
+          btn.disabled = true;
+          msg.textContent = "Un instant…";
+          fetch("/api/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email }),
+          })
+            .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+            .then(function (res) {
+              if (res.ok && res.d && res.d.ok) {
+                f.style.display = "none";
+                msg.textContent = "Merci. Vous serez parmi les premiers prévenus.";
+              } else {
+                msg.textContent = (res.d && res.d.error) || "Une erreur est survenue.";
+                btn.disabled = false;
+              }
+            })
+            .catch(function () {
+              msg.textContent = "Vérifiez votre connexion et réessayez.";
+              btn.disabled = false;
+            });
+        });
+      })();
+    </script>
   </body>
 </html>
 `;
 
 export const onRequest = defineMiddleware((context, next) => {
   // On ne remplace que les routes de pages : les fichiers (images du teaser,
-  // robots.txt, css…) ont une extension et passent normalement.
-  const isAsset = /\.[a-z0-9]+$/i.test(context.url.pathname);
+  // robots.txt, css…) ont une extension et passent normalement, et l'API de
+  // collecte d'emails (/api/*) doit rester joignable même en mode teaser.
+  const path = context.url.pathname;
+  const isAsset = /\.[a-z0-9]+$/i.test(path) || path.startsWith("/api/");
   if (COMING_SOON && !isAsset) {
     return new Response(HOLDING_PAGE, {
       status: 200,

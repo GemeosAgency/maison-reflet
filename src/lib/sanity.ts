@@ -28,6 +28,40 @@ export const sanityClient = createClient({
   useCdn: !import.meta.env.SANITY_READ_TOKEN,
 });
 
+// Client d'écriture (liste d'attente) — lazy, nécessite SANITY_WRITE_TOKEN.
+// Séparé du client de lecture : les écritures ne passent jamais par le CDN.
+let _writeClient: ReturnType<typeof createClient> | null = null;
+function getWriteClient() {
+  // import.meta.env au build, process.env au runtime serverless (Vercel)
+  const token =
+    import.meta.env.SANITY_WRITE_TOKEN ||
+    (typeof process !== "undefined" ? process.env.SANITY_WRITE_TOKEN : undefined);
+  if (!token) throw new Error("SANITY_WRITE_TOKEN manquant (token d'écriture Sanity)");
+  if (!_writeClient) {
+    _writeClient = createClient({
+      projectId: import.meta.env.SANITY_PROJECT_ID,
+      dataset: import.meta.env.SANITY_DATASET || "production",
+      apiVersion: import.meta.env.SANITY_API_VERSION || "2025-01-01",
+      token,
+      useCdn: false,
+    });
+  }
+  return _writeClient;
+}
+
+/** Ajoute un email à la liste d'attente. _id déterministe => pas de doublon. */
+export async function createSubscriber(email: string, source = "teaser") {
+  const clean = email.trim().toLowerCase();
+  const safe = clean.replace(/[^a-z0-9]/g, "-");
+  return getWriteClient().createIfNotExists({
+    _id: `subscriber-${safe}`,
+    _type: "subscriber",
+    email: clean,
+    createdAt: new Date().toISOString(),
+    source,
+  });
+}
+
 const builder = createImageUrlBuilder(sanityClient);
 
 /** Génère une URL d'image optimisée à partir d'une référence d'image Sanity */
