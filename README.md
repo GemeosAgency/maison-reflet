@@ -35,7 +35,7 @@ Ce qui reste à faire avant que ça tourne : créer les comptes Shopify et Sanit
    - `unauthenticated_read_checkouts`
    - `unauthenticated_write_checkouts` (**indispensable** : les mutations de la Cart API — création du panier, ajout/retrait de lignes — échouent sans ce scope d'écriture)
 6. Installer l'app, puis récupérer le **token Storefront API** (pas le token Admin, ils sont différents)
-7. Créer les produits de la collection "Les 10 Reflets" dans l'admin Shopify (titre, prix, variantes, images, description courte)
+7. Créer les produits de la collection "Les 6 Reflets" dans l'admin Shopify (titre, prix, variantes, images, description courte)
 
 Le `handle` de chaque produit (visible dans l'URL du produit côté admin) devra être identique au `shopifyHandle` que tu renseigneras dans Sanity — c'est le lien entre les deux systèmes.
 

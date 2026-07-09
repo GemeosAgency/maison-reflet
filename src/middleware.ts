@@ -14,7 +14,7 @@ const HOLDING_PAGE = `<!doctype html>
     <meta name="robots" content="noindex, nofollow" />
     <title>Maison Reflet — Bientôt</title>
     <meta property="og:title" content="Maison Reflet — Bientôt" />
-    <meta property="og:description" content="Dix parfums, dix reflets d'une identité franco-arabe." />
+    <meta property="og:description" content="Six parfums, six reflets d'une identité franco-arabe." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
@@ -32,19 +32,23 @@ const HOLDING_PAGE = `<!doctype html>
         position: absolute; inset: 0;
         background-size: cover; background-position: center;
         opacity: 0;
-        animation: fade 40s infinite;
+        animation: fade 63s infinite;
         will-change: opacity, transform;
       }
       .slide:nth-child(1) { background-image: url("/teaser/t1.jpg"); animation-delay: 0s; }
-      .slide:nth-child(2) { background-image: url("/teaser/t2.jpg"); animation-delay: 8s; }
-      .slide:nth-child(3) { background-image: url("/teaser/t3.jpg"); animation-delay: 16s; }
-      .slide:nth-child(4) { background-image: url("/teaser/t4.jpg"); animation-delay: 24s; }
-      .slide:nth-child(5) { background-image: url("/teaser/t5.jpg"); animation-delay: 32s; }
+      .slide:nth-child(2) { background-image: url("/teaser/t2.jpg"); animation-delay: 7s; }
+      .slide:nth-child(3) { background-image: url("/teaser/t3.jpg"); animation-delay: 14s; }
+      .slide:nth-child(4) { background-image: url("/teaser/t4.jpg"); animation-delay: 21s; }
+      .slide:nth-child(5) { background-image: url("/teaser/t5.jpg"); animation-delay: 28s; }
+      .slide:nth-child(6) { background-image: url("/teaser/t6.jpg"); animation-delay: 35s; }
+      .slide:nth-child(7) { background-image: url("/teaser/t7.jpg"); animation-delay: 42s; }
+      .slide:nth-child(8) { background-image: url("/teaser/t8.jpg"); animation-delay: 49s; }
+      .slide:nth-child(9) { background-image: url("/teaser/t9.jpg"); animation-delay: 56s; }
       @keyframes fade {
         0%   { opacity: 0; transform: scale(1.06); }
-        3%   { opacity: 1; }
-        18%  { opacity: 1; }
-        22%  { opacity: 0; transform: scale(1.12); }
+        2%   { opacity: 1; }
+        11%  { opacity: 1; }
+        14%  { opacity: 0; transform: scale(1.12); }
         100% { opacity: 0; transform: scale(1.12); }
       }
       .overlay {
@@ -96,6 +100,10 @@ const HOLDING_PAGE = `<!doctype html>
       <div class="slide"></div>
       <div class="slide"></div>
       <div class="slide"></div>
+      <div class="slide"></div>
+      <div class="slide"></div>
+      <div class="slide"></div>
+      <div class="slide"></div>
     </div>
     <div class="overlay" aria-hidden="true"></div>
     <main class="content">
@@ -103,7 +111,7 @@ const HOLDING_PAGE = `<!doctype html>
       <h1 class="bientot fadein">Bientôt</h1>
       <p class="ar fadein" dir="rtl" lang="ar">قريبًا</p>
       <div class="rule fadein"></div>
-      <p class="tag fadein">Dix parfums, dix reflets d'une identité franco-arabe.</p>
+      <p class="tag fadein">Six parfums, six reflets d'une identité franco-arabe.</p>
     </main>
   </body>
 </html>

@@ -184,7 +184,7 @@ const PRODUCT_FRAGMENT = /* GraphQL */ `
   }
 `;
 
-/** Récupère tous les produits de la collection "Les 10 Reflets" (ou toute la boutique si pas de collection dédiée) */
+/** Récupère tous les produits de la collection "Les 6 Reflets" (ou toute la boutique si pas de collection dédiée) */
 export async function getAllProducts(first = 20) {
   const query = /* GraphQL */ `
     ${PRODUCT_FRAGMENT}

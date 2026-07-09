@@ -4,7 +4,7 @@ interface Props {
   description?: string;
 }
 
-const { title, description = "Maison Reflet — Parfums franco-arabes, collection Les 10 Reflets" } =
+const { title, description = "Maison Reflet — Parfums franco-arabes, collection Les 6 Reflets" } =
   Astro.props;
 
 // Indexation contrôlée par variable d'env : tant que PUBLIC_ALLOW_INDEXING
@@ -26,7 +26,7 @@ const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
     <header>
       <a href="/">Maison Reflet</a>
       <nav>
-        <a href="/parfums">Les 10 Reflets</a>
+        <a href="/parfums">Les 6 Reflets</a>
         <a href="/maison">La Maison</a>
         <a href="/panier">Panier<span data-cart-count></span></a>
       </nav>

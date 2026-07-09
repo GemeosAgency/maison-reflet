@@ -64,9 +64,9 @@ const pageMaison = {
       "normal",
       "b3"
     ),
-    block("Les 10 Reflets", "h2", "b4"),
+    block("Les 6 Reflets", "h2", "b4"),
     block(
-      "La collection Les 10 Reflets compose un pont olfactif entre la France et le monde arabe. Dix fragrances, dix états d'une même identité : ni tout à fait l'une, ni tout à fait l'autre, profondément les deux. Chaque flacon porte son numéro, gravé comme une signature.",
+      "La collection Les 6 Reflets compose un pont olfactif entre la France et le monde arabe. Six fragrances, six états d'une même identité : ni tout à fait l'une, ni tout à fait l'autre, profondément les deux. Chaque flacon porte son numéro, gravé comme une signature.",
       "normal",
       "b5"
     ),
