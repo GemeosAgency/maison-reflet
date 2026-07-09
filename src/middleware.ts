@@ -1,8 +1,8 @@
 import { defineMiddleware } from "astro:middleware";
 
 // Mode « site en cours de développement » : quand PUBLIC_COMING_SOON === "true"
-// (activé sur la prod uniquement), toutes les pages HTML renvoient un holding
-// page. Le staging n'a pas la variable → il sert le site complet.
+// (activé sur la prod uniquement), toutes les pages HTML renvoient un teaser.
+// Le staging n'a pas la variable → il sert le site complet.
 // Le jour du lancement : retirer PUBLIC_COMING_SOON de la prod.
 const COMING_SOON = import.meta.env.PUBLIC_COMING_SOON === "true";
 
@@ -13,65 +13,107 @@ const HOLDING_PAGE = `<!doctype html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Maison Reflet — Bientôt</title>
+    <meta property="og:title" content="Maison Reflet — Bientôt" />
+    <meta property="og:description" content="Dix parfums, dix reflets d'une identité franco-arabe." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
     <style>
-      :root { color-scheme: dark; }
       * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { height: 100%; }
       body {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #0b0b0c;
-        color: #f4f1ea;
-        font-family: "Times New Roman", Georgia, serif;
-        text-align: center;
-        padding: 2rem;
+        background: #1c1714;
+        color: #efe6d8;
+        font-family: "Cormorant Garamond", Georgia, serif;
+        overflow: hidden;
       }
-      .wrap { max-width: 34rem; }
-      .brand {
-        font-size: clamp(2rem, 6vw, 3.25rem);
-        letter-spacing: 0.28em;
-        text-transform: uppercase;
-        font-weight: 400;
+      .stage { position: fixed; inset: 0; z-index: 0; }
+      .slide {
+        position: absolute; inset: 0;
+        background-size: cover; background-position: center;
+        opacity: 0;
+        animation: fade 40s infinite;
+        will-change: opacity, transform;
       }
-      .rule {
-        width: 3rem;
-        height: 1px;
-        background: #b9a779;
-        margin: 2rem auto;
+      .slide:nth-child(1) { background-image: url("/teaser/t1.jpg"); animation-delay: 0s; }
+      .slide:nth-child(2) { background-image: url("/teaser/t2.jpg"); animation-delay: 8s; }
+      .slide:nth-child(3) { background-image: url("/teaser/t3.jpg"); animation-delay: 16s; }
+      .slide:nth-child(4) { background-image: url("/teaser/t4.jpg"); animation-delay: 24s; }
+      .slide:nth-child(5) { background-image: url("/teaser/t5.jpg"); animation-delay: 32s; }
+      @keyframes fade {
+        0%   { opacity: 0; transform: scale(1.06); }
+        3%   { opacity: 1; }
+        18%  { opacity: 1; }
+        22%  { opacity: 0; transform: scale(1.12); }
+        100% { opacity: 0; transform: scale(1.12); }
       }
-      .tagline {
-        font-size: 1.05rem;
-        letter-spacing: 0.05em;
-        line-height: 1.7;
-        color: #cfc9bd;
+      .overlay {
+        position: fixed; inset: 0; z-index: 1;
+        background: radial-gradient(ellipse at center, rgba(20,16,14,0.30) 0%, rgba(20,16,14,0.74) 100%);
       }
-      .soon {
-        margin-top: 2.5rem;
-        font-size: 0.8rem;
-        letter-spacing: 0.35em;
-        text-transform: uppercase;
-        color: #b9a779;
+      .content {
+        position: fixed; inset: 0; z-index: 2;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        text-align: center; padding: 2rem;
+      }
+      .kicker {
+        letter-spacing: 0.5em; text-transform: uppercase;
+        font-size: clamp(0.7rem, 2vw, 0.95rem);
+        opacity: 0.85; margin-bottom: 2rem; padding-left: 0.5em;
+      }
+      .bientot {
+        font-weight: 300; line-height: 1; letter-spacing: 0.02em;
+        font-size: clamp(3.4rem, 13vw, 7.5rem);
+      }
+      .ar {
+        font-family: "Amiri", serif;
+        font-size: clamp(2rem, 7vw, 3.6rem);
+        margin-top: 0.5rem; opacity: 0.95;
+      }
+      .rule { width: 64px; height: 1px; background: #b7a861; margin: 2rem auto; }
+      .tag {
+        font-weight: 300; line-height: 1.6; opacity: 0.9;
+        font-size: clamp(1rem, 2.6vw, 1.35rem); max-width: 30rem;
+      }
+      .fadein { opacity: 0; animation: rise 1.6s ease forwards; }
+      .fadein:nth-child(2) { animation-delay: 0.15s; }
+      .fadein:nth-child(3) { animation-delay: 0.3s; }
+      .fadein:nth-child(4) { animation-delay: 0.45s; }
+      .fadein:nth-child(5) { animation-delay: 0.6s; }
+      @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+      @media (prefers-reduced-motion: reduce) {
+        .slide { animation: none; }
+        .slide:nth-child(1) { opacity: 1; }
+        .fadein { animation: none; opacity: 1; }
       }
     </style>
   </head>
   <body>
-    <main class="wrap">
-      <h1 class="brand">Maison Reflet</h1>
-      <div class="rule"></div>
-      <p class="tagline">
-        Dix parfums, dix reflets d'une identité franco-arabe.<br />
-        Une maison en train de voir le jour.
-      </p>
-      <p class="soon">Bientôt / قريبًا</p>
+    <div class="stage" aria-hidden="true">
+      <div class="slide"></div>
+      <div class="slide"></div>
+      <div class="slide"></div>
+      <div class="slide"></div>
+      <div class="slide"></div>
+    </div>
+    <div class="overlay" aria-hidden="true"></div>
+    <main class="content">
+      <p class="kicker fadein">Maison Reflet</p>
+      <h1 class="bientot fadein">Bientôt</h1>
+      <p class="ar fadein" dir="rtl" lang="ar">قريبًا</p>
+      <div class="rule fadein"></div>
+      <p class="tag fadein">Dix parfums, dix reflets d'une identité franco-arabe.</p>
     </main>
   </body>
 </html>
 `;
 
 export const onRequest = defineMiddleware((context, next) => {
-  // On laisse passer robots.txt pour garder le contrôle d'indexation intact.
-  if (COMING_SOON && !context.url.pathname.startsWith("/robots")) {
+  // On ne remplace que les routes de pages : les fichiers (images du teaser,
+  // robots.txt, css…) ont une extension et passent normalement.
+  const isAsset = /\.[a-z0-9]+$/i.test(context.url.pathname);
+  if (COMING_SOON && !isAsset) {
     return new Response(HOLDING_PAGE, {
       status: 200,
       headers: { "Content-Type": "text/html; charset=utf-8" },
