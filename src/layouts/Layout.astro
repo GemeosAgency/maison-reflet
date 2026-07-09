@@ -6,6 +6,11 @@ interface Props {
 
 const { title, description = "Maison Reflet — Parfums franco-arabes, collection Les 10 Reflets" } =
   Astro.props;
+
+// Indexation contrôlée par variable d'env : tant que PUBLIC_ALLOW_INDEXING
+// n'est pas "true", tout le site est en noindex (pré-lancement). Le jour du
+// lancement, on met PUBLIC_ALLOW_INDEXING=true sur la prod uniquement.
+const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
 ---
 
 <!doctype html>
@@ -14,6 +19,7 @@ const { title, description = "Maison Reflet — Parfums franco-arabes, collectio
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
+    {!indexable && <meta name="robots" content="noindex, nofollow" />}
     <title>{title} | Maison Reflet</title>
   </head>
   <body>
