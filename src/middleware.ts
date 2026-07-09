@@ -12,6 +12,8 @@ const HOLDING_PAGE = `<!doctype html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
     <title>Maison Reflet — Bientôt</title>
     <meta property="og:title" content="Maison Reflet — Bientôt" />
     <meta property="og:description" content="Six parfums, six reflets d'une identité franco-arabe." />
