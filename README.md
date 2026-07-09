@@ -106,3 +106,10 @@ Dans l'ordre logique pour continuer le build (idéal à faire avec Claude Code e
 - **Rate limits Storefront API** : les requêtes au build sont généralement safe, mais si tu ajoutes du fetch runtime (ex: stock en temps réel), prévoir du caching.
 - **Versions API à surveiller** : `PUBLIC_SHOPIFY_API_VERSION` expire après ~1 an, à mettre à jour tous les 3 mois par sécurité.
 - **Variables Shopify préfixées `PUBLIC_`** : le token Storefront est public par conception (lecture + panier, rate-limité) ; le préfixe permet au flux panier d'appeler la Cart API directement depuis le navigateur. Le token Admin, lui, ne doit jamais apparaître dans ces variables.
+
+## Déploiement
+
+- **Production** : push sur `main` → https://maison-reflet.vercel.app
+- **Staging** : push sur `staging` → déploiement préview automatique
+
+Hébergé sur Vercel (équipe GemeosAgency), connecté au repo `GemeosAgency/maison-reflet`.
