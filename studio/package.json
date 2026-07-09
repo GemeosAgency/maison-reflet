@@ -1,0 +1,12 @@
+{
+  "name": "maison-reflet-studio",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sanity Studio — contenu éditorial Maison Reflet",
+  "scripts": {
+    "dev": "sanity dev",
+    "build": "sanity build",
+    "deploy": "sanity deploy"
+  },
+  "license": "UNLICENSED"
+}

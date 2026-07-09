@@ -1,0 +1,60 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Maison Reflet — Parfums franco-arabes, collection Les 10 Reflets" } =
+  Astro.props;
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title} | Maison Reflet</title>
+  </head>
+  <body>
+    <header>
+      <a href="/">Maison Reflet</a>
+      <nav>
+        <a href="/parfums">Les 10 Reflets</a>
+        <a href="/maison">La Maison</a>
+        <a href="/panier">Panier<span data-cart-count></span></a>
+      </nav>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer>
+      <p>&copy; {new Date().getFullYear()} Maison Reflet</p>
+    </footer>
+
+    <script>
+      import { loadCart, type CartUpdatedEvent } from "../lib/cart";
+      import type { ShopifyCart } from "../lib/shopify";
+
+      const countEl = document.querySelector<HTMLElement>("[data-cart-count]");
+
+      function renderCount(cart: ShopifyCart | null) {
+        if (!countEl) return;
+        const quantity = cart?.totalQuantity ?? 0;
+        countEl.textContent = quantity > 0 ? ` (${quantity})` : "";
+      }
+
+      document.addEventListener("cart:updated", (event) => {
+        renderCount((event as CartUpdatedEvent).detail.cart);
+      });
+
+      loadCart()
+        .then(renderCount)
+        .catch(() => {
+          // Réseau ou API indisponible : on laisse le compteur vide, sans casser la page
+        });
+    </script>
+  </body>
+</html>

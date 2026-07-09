@@ -1,0 +1,81 @@
+---
+import { formatPrice, type ShopifyProduct } from "../lib/shopify";
+
+interface Props {
+  variants: ShopifyProduct["variants"]["nodes"];
+}
+
+const { variants } = Astro.props;
+
+// Une seule variante ("Default Title" chez Shopify) : rien à choisir
+const showSelect = variants.length > 1;
+const anyAvailable = variants.some((v) => v.availableForSale);
+const defaultVariant = variants.find((v) => v.availableForSale) ?? variants[0];
+---
+
+<div class="cart-form" data-cart-form>
+  {
+    showSelect && (
+      <label>
+        Contenance
+        <select data-cart-variant>
+          {variants.map((variant) => (
+            <option value={variant.id} disabled={!variant.availableForSale}>
+              {variant.title} — {formatPrice(variant.price.amount, variant.price.currencyCode)}
+              {!variant.availableForSale && " (épuisé)"}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  }
+
+  <button
+    type="button"
+    data-add-to-cart
+    data-variant-id={!showSelect ? defaultVariant?.id : undefined}
+    disabled={!anyAvailable}
+  >
+    {anyAvailable ? "Ajouter au panier" : "Épuisé"}
+  </button>
+
+  <p data-cart-feedback role="status" aria-live="polite"></p>
+</div>
+
+<script>
+  import { addToCart } from "../lib/cart";
+
+  for (const form of document.querySelectorAll<HTMLElement>("[data-cart-form]")) {
+    const button = form.querySelector<HTMLButtonElement>("[data-add-to-cart]");
+    const select = form.querySelector<HTMLSelectElement>("select[data-cart-variant]");
+    const feedback = form.querySelector<HTMLElement>("[data-cart-feedback]");
+    if (!button || button.disabled) continue;
+
+    button.addEventListener("click", async () => {
+      const variantId = select ? select.value : button.dataset.variantId;
+      if (!variantId || !feedback) return;
+
+      button.disabled = true;
+      feedback.textContent = "Ajout en cours…";
+
+      try {
+        await addToCart(variantId, 1);
+        feedback.innerHTML = 'Ajouté au panier ✓ — <a href="/panier">Voir le panier</a>';
+      } catch (error) {
+        console.error(error);
+        feedback.textContent = "Impossible d'ajouter au panier. Réessaie dans un instant.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+</script>
+
+<style>
+  .cart-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+</style>

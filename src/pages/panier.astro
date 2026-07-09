@@ -1,0 +1,158 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+// Page 100% statique : le contenu du panier est lu côté client via la Cart API
+// (le panier vit chez Shopify, seul son id est persisté en localStorage).
+---
+
+<Layout title="Panier" description="Votre panier Maison Reflet">
+  <section aria-labelledby="cart-title">
+    <h1 id="cart-title">Votre panier</h1>
+
+    <p data-cart-status role="status">Chargement du panier…</p>
+
+    <ul data-cart-lines hidden></ul>
+
+    <p data-cart-subtotal hidden>
+      Sous-total : <strong data-cart-subtotal-amount></strong>
+    </p>
+
+    <p>
+      <a data-checkout-link hidden href="#">Passer au paiement</a>
+    </p>
+
+    <template data-cart-line-template>
+      <li class="cart-line">
+        <img data-line-image alt="" width="96" height="96" hidden />
+        <div class="cart-line-details">
+          <p><strong data-line-title></strong></p>
+          <p data-line-variant hidden></p>
+          <p data-line-price></p>
+          <button type="button" data-line-remove>Retirer</button>
+        </div>
+      </li>
+    </template>
+  </section>
+</Layout>
+
+<script>
+  import { loadCart, removeFromCart } from "../lib/cart";
+  import { formatPrice, type ShopifyCart } from "../lib/shopify";
+
+  const status = document.querySelector<HTMLElement>("[data-cart-status]");
+  const linesList = document.querySelector<HTMLElement>("[data-cart-lines]");
+  const subtotalBlock = document.querySelector<HTMLElement>("[data-cart-subtotal]");
+  const subtotalAmount = document.querySelector<HTMLElement>("[data-cart-subtotal-amount]");
+  const checkoutLink = document.querySelector<HTMLAnchorElement>("[data-checkout-link]");
+  const lineTemplate = document.querySelector<HTMLTemplateElement>("[data-cart-line-template]");
+
+  function render(cart: ShopifyCart | null) {
+    if (!status || !linesList || !subtotalBlock || !subtotalAmount || !checkoutLink || !lineTemplate)
+      return;
+
+    linesList.replaceChildren();
+
+    if (!cart || cart.lines.nodes.length === 0) {
+      status.innerHTML = 'Votre panier est vide. <a href="/parfums">Découvrir la collection</a>';
+      status.hidden = false;
+      linesList.hidden = true;
+      subtotalBlock.hidden = true;
+      checkoutLink.hidden = true;
+      return;
+    }
+
+    for (const line of cart.lines.nodes) {
+      const fragment = lineTemplate.content.cloneNode(true) as DocumentFragment;
+
+      const image = fragment.querySelector<HTMLImageElement>("[data-line-image]");
+      const title = fragment.querySelector<HTMLElement>("[data-line-title]");
+      const variant = fragment.querySelector<HTMLElement>("[data-line-variant]");
+      const price = fragment.querySelector<HTMLElement>("[data-line-price]");
+      const removeButton = fragment.querySelector<HTMLButtonElement>("[data-line-remove]");
+
+      const featuredImage = line.merchandise.product.featuredImage;
+      if (image && featuredImage) {
+        image.src = featuredImage.url;
+        image.alt = featuredImage.altText ?? line.merchandise.product.title;
+        image.hidden = false;
+      }
+
+      if (title) title.textContent = line.merchandise.product.title;
+
+      // "Default Title" = produit sans déclinaison, rien à afficher
+      if (variant && line.merchandise.title !== "Default Title") {
+        variant.textContent = line.merchandise.title;
+        variant.hidden = false;
+      }
+
+      if (price) {
+        const unitPrice = formatPrice(
+          line.merchandise.price.amount,
+          line.merchandise.price.currencyCode
+        );
+        price.textContent =
+          line.quantity > 1 ? `${unitPrice} × ${line.quantity}` : unitPrice;
+      }
+
+      removeButton?.addEventListener("click", async () => {
+        // Un seul retrait à la fois : deux retraits concurrents rendraient
+        // un état obsolète (le dernier render écraserait le premier)
+        const allRemoveButtons =
+          linesList.querySelectorAll<HTMLButtonElement>("[data-line-remove]");
+        allRemoveButtons.forEach((b) => (b.disabled = true));
+        try {
+          render(await removeFromCart(line.id));
+        } catch (error) {
+          console.error(error);
+          if (status) {
+            status.textContent = "Impossible de retirer cet article. Recharge la page.";
+            status.hidden = false;
+          }
+          allRemoveButtons.forEach((b) => (b.disabled = false));
+        }
+      });
+
+      linesList.appendChild(fragment);
+    }
+
+    subtotalAmount.textContent = formatPrice(
+      cart.cost.subtotalAmount.amount,
+      cart.cost.subtotalAmount.currencyCode
+    );
+
+    checkoutLink.href = cart.checkoutUrl;
+
+    status.hidden = true;
+    linesList.hidden = false;
+    subtotalBlock.hidden = false;
+    checkoutLink.hidden = false;
+  }
+
+  loadCart()
+    .then(render)
+    .catch((error) => {
+      console.error(error);
+      if (status) status.textContent = "Impossible de charger le panier. Recharge la page.";
+    });
+</script>
+
+<style>
+  [data-cart-lines] {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .cart-line {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  .cart-line img {
+    object-fit: cover;
+  }
+  .cart-line-details p {
+    margin: 0 0 0.25rem;
+  }
+</style>

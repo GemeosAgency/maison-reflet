@@ -1,0 +1,127 @@
+/**
+ * État du panier côté client (navigateur uniquement).
+ *
+ * Principe : Shopify reste la source de vérité du panier (lignes, prix,
+ * checkoutUrl). On ne persiste ici que l'id du panier dans localStorage ;
+ * tout le reste est relu via la Cart API à chaque besoin. Les appels API
+ * restent centralisés dans ./shopify — ce module ne fait qu'orchestrer.
+ *
+ * Chaque mutation émet un CustomEvent "cart:updated" sur document, avec le
+ * panier à jour en detail — c'est ce qu'écoute le compteur du header.
+ */
+
+import {
+  createCart,
+  getCart,
+  addCartLine,
+  removeCartLine,
+  type ShopifyCart,
+} from "./shopify";
+
+const CART_ID_KEY = "maison-reflet:cartId";
+
+export type CartUpdatedEvent = CustomEvent<{ cart: ShopifyCart | null }>;
+
+// Repli mémoire quand localStorage est inaccessible (cookies bloqués,
+// certaines webviews) : le panier survit alors le temps de la page.
+let memoryCartId: string | null = null;
+
+function getStoredCartId(): string | null {
+  try {
+    return localStorage.getItem(CART_ID_KEY) ?? memoryCartId;
+  } catch {
+    return memoryCartId;
+  }
+}
+
+function storeCartId(id: string) {
+  memoryCartId = id;
+  try {
+    localStorage.setItem(CART_ID_KEY, id);
+  } catch {
+    // storage indisponible : le repli mémoire prend le relais
+  }
+}
+
+function clearStoredCart() {
+  memoryCartId = null;
+  try {
+    localStorage.removeItem(CART_ID_KEY);
+  } catch {
+    // rien à nettoyer si le storage est inaccessible
+  }
+}
+
+function notifyCartUpdated(cart: ShopifyCart | null) {
+  document.dispatchEvent(
+    new CustomEvent("cart:updated", { detail: { cart } }) satisfies CartUpdatedEvent
+  );
+}
+
+/** Recharge le panier courant depuis Shopify — null si aucun panier ou panier expiré */
+export async function loadCart(): Promise<ShopifyCart | null> {
+  const cartId = getStoredCartId();
+  if (!cartId) return null;
+
+  const cart = await getCart(cartId);
+  if (!cart) clearStoredCart(); // panier expiré côté Shopify (~10 jours d'inactivité)
+  return cart;
+}
+
+/** Ajoute une variante au panier, en créant le panier au premier ajout */
+export async function addToCart(variantId: string, quantity = 1): Promise<ShopifyCart> {
+  const cartId = getStoredCartId();
+  let cart: ShopifyCart | null = null;
+
+  if (cartId) {
+    try {
+      cart = await addCartLine(cartId, variantId, quantity);
+    } catch (error) {
+      // Ne repartir sur un panier neuf que si le panier n'existe vraiment
+      // plus côté Shopify. Toute autre erreur (réseau, rate-limit, userError
+      // métier) remonte telle quelle SANS détruire la référence au panier :
+      // effacer l'id ici ferait perdre son panier au client sur une simple
+      // coupure réseau.
+      let existing: ShopifyCart | null;
+      try {
+        existing = await getCart(cartId);
+      } catch {
+        throw error;
+      }
+      if (existing) throw error;
+      clearStoredCart();
+    }
+  }
+
+  if (!cart) {
+    const created = await createCart(variantId, quantity);
+    if (!created) throw new Error("Impossible de créer le panier Shopify");
+    cart = created;
+
+    // Un autre onglet a pu créer un panier pendant le createCart : on fusionne
+    // l'article dans ce panier-là plutôt que d'écraser sa référence (le panier
+    // créé ici est alors abandonné et expirera de lui-même côté Shopify).
+    const concurrentId = getStoredCartId();
+    if (concurrentId && concurrentId !== created.id) {
+      try {
+        cart = (await addCartLine(concurrentId, variantId, quantity)) ?? created;
+      } catch {
+        cart = created;
+      }
+    }
+    if (cart === created) storeCartId(created.id);
+  }
+
+  notifyCartUpdated(cart);
+  return cart;
+}
+
+/** Retire une ligne du panier courant */
+export async function removeFromCart(lineId: string): Promise<ShopifyCart | null> {
+  const cartId = getStoredCartId();
+  if (!cartId) return null;
+
+  const cart = await removeCartLine(cartId, lineId);
+  notifyCartUpdated(cart);
+  return cart;
+}
