@@ -75,10 +75,10 @@ const HOLDING_PAGE = `<!doctype html>
         font-size: clamp(2rem, 7vw, 3.6rem);
         margin-top: 0.5rem; opacity: 0.95;
       }
-      .rule { width: 64px; height: 1px; background: #b7a861; margin: 2rem auto; }
       .tag {
         font-weight: 300; line-height: 1.6; opacity: 0.9;
         font-size: clamp(1rem, 2.6vw, 1.35rem); max-width: 30rem;
+        margin-top: 2.4rem;
       }
       .fadein { opacity: 0; animation: rise 1.6s ease forwards; }
       .fadein:nth-child(2) { animation-delay: 0.15s; }
@@ -110,7 +110,6 @@ const HOLDING_PAGE = `<!doctype html>
       <p class="kicker fadein">Maison Reflet</p>
       <h1 class="bientot fadein">Bientôt</h1>
       <p class="ar fadein" dir="rtl" lang="ar">قريبًا</p>
-      <div class="rule fadein"></div>
       <p class="tag fadein">Six parfums, six reflets d'une identité franco-arabe.</p>
     </main>
   </body>
