@@ -100,8 +100,11 @@ const parfumsUrl = localePath(lang, "/parfums");
         variant.hidden = false;
       }
       if (price) {
-        const unit = formatPrice(line.merchandise.price.amount, line.merchandise.price.currencyCode);
-        price.textContent = line.quantity > 1 ? `${unit} × ${line.quantity}` : unit;
+        // cost.totalAmount reflète le prix réel après remise (ex : Buy 2 Get 1
+        // Free → 0 pour la ligne offerte), contrairement à merchandise.price
+        // qui est le prix de base de la variante, non remisé.
+        const total = formatPrice(line.cost.totalAmount.amount, line.cost.totalAmount.currencyCode);
+        price.textContent = line.quantity > 1 ? `${total} (× ${line.quantity})` : total;
       }
       removeButton?.addEventListener("click", async () => {
         const all = linesList.querySelectorAll<HTMLButtonElement>("[data-line-remove]");
