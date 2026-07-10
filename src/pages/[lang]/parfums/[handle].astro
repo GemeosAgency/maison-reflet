@@ -127,12 +127,6 @@ const reco = products
           </div>
         </details>
         <details>
-          <summary>{t("product.notes")}<img src="/brand/chevron.svg" alt="" width="8" height="8" /></summary>
-          <div class="acc-body">
-            {parfum?.histoire && <p>{parfum.histoire}</p>}
-          </div>
-        </details>
-        <details>
           <summary>{t("product.ingredients")}<img src="/brand/chevron.svg" alt="" width="8" height="8" /></summary>
           <div class="acc-body">
             <p>{allNotes.join(" · ")}</p>
@@ -141,6 +135,36 @@ const reco = products
       </div>
     </aside>
   </div>
+
+  <!-- Blocs éditoriaux (histoire + inspiration, en alterné) -->
+  {
+    (parfum?.histoire || parfum?.inspiration) && (
+      <section class="story-blocks">
+        {parfum?.histoire && (
+          <div class="story-row">
+            <div class="story-text">
+              <h2>{t("product.story")}</h2>
+              <p>{parfum.histoire}</p>
+            </div>
+            <div class="story-img">
+              <img src={gallery[0]} alt={product.title} loading="lazy" />
+            </div>
+          </div>
+        )}
+        {parfum?.inspiration && (
+          <div class="story-row reverse">
+            <div class="story-img">
+              <img src={gallery[1] ?? gallery[0]} alt={product.title} loading="lazy" />
+            </div>
+            <div class="story-text">
+              <h2>{t("product.inspiration")}</h2>
+              <p>{parfum.inspiration}</p>
+            </div>
+          </div>
+        )}
+      </section>
+    )
+  }
 
   <!-- Vous aimerez aussi -->
   {
@@ -265,6 +289,16 @@ const reco = products
   .acc-body { padding-bottom: 24px; font-size: 15px; line-height: 1.5; }
   .acc-body p { margin: 0 0 8px; }
 
+  /* Blocs éditoriaux alternés (d'après le Figma) */
+  .story-blocks { display: flex; flex-direction: column; gap: 72px; padding: 72px; }
+  .story-row { display: flex; gap: 64px; align-items: flex-end; }
+  .story-text { flex: 1 0 0; min-width: 0; padding-bottom: 40px; color: #0a1215; }
+  .story-row:not(.reverse) .story-text { padding-right: 56px; }
+  .story-text h2 { margin: 0 0 24px; font-size: 40px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  .story-text p { margin: 0; font-size: 18px; line-height: 1.36; }
+  .story-img { width: 816px; max-width: 60%; height: 560px; background: #dec9b8; overflow: hidden; flex-shrink: 0; }
+  .story-img img { width: 100%; height: 100%; object-fit: cover; }
+
   /* Sections recommandées */
   .reco, .boxes { display: flex; flex-direction: column; align-items: center; }
   .reco h2, .boxes h2 {
@@ -298,5 +332,11 @@ const reco = products
     .reco-grid, .boxes-grid { flex-wrap: wrap; height: auto; }
     .reco-card, .box-card { flex: 1 1 45%; min-height: 320px; }
     .reco h2, .boxes h2 { padding: 56px 20px 32px; font-size: 28px; }
+    .story-blocks { padding: 40px 20px; gap: 48px; }
+    .story-row, .story-row.reverse { flex-direction: column; align-items: stretch; gap: 20px; }
+    .story-row.reverse { flex-direction: column-reverse; }
+    .story-text { padding: 0 !important; }
+    .story-text h2 { font-size: 28px; }
+    .story-img { width: 100%; max-width: 100%; height: auto; aspect-ratio: 816 / 560; }
   }
 </style>
