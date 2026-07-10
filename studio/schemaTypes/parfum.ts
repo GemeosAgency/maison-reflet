@@ -34,6 +34,13 @@ export default defineType({
     }),
     defineField({ name: "accroche", title: "Accroche", type: "localeString", group: "contenu" }),
     defineField({
+      name: "description",
+      title: "Description du produit",
+      description: "Texte riche affiché dans l'accordéon « Description du produit » (paragraphes, listes à puces…).",
+      type: "localeBlock",
+      group: "contenu",
+    }),
+    defineField({
       name: "inspiredBy",
       title: "Inspiré de",
       type: "string",

@@ -83,6 +83,7 @@ export type ReassuranceItem = {
 
 export type ParfumContent = {
   accroche: string | null;
+  description: unknown[] | null;
   inspiredBy: string | null;
   blocs: BlocEditorial[];
   familleOlfactive: string | null;
@@ -103,6 +104,7 @@ export async function getParfumContent(
   const noteCards = `[]->{ "nom": coalesce(nom.${l}, nom.fr), famille, "histoire": coalesce(histoire.${l}, histoire.fr), image }`;
   const query = `*[_type == "parfum" && shopifyHandle == $handle][0]{
     "accroche": coalesce(accroche.${l}, accroche.fr),
+    "description": coalesce(description.${l}, description.fr),
     inspiredBy,
     "blocs": blocs[]{
       "titre": coalesce(titre.${l}, titre.fr),

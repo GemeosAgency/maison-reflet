@@ -1,4 +1,5 @@
 ---
+import { toHTML, type PortableTextComponents } from "@portabletext/to-html";
 import Layout from "../../../layouts/Layout.astro";
 import { formatPrice, getAllProducts, isCoffret, type ShopifyProduct } from "../../../lib/shopify";
 import {
@@ -59,6 +60,16 @@ const tete = names(parfum?.notes.tete);
 const coeur = names(parfum?.notes.coeur);
 const fond = names(parfum?.notes.fond);
 const ingredients = (parfum?.ingredients ?? []).filter(Boolean) as string[];
+
+const portableTextComponents: Partial<PortableTextComponents> = {
+  types: {
+    image: ({ value }) => `<img src="${urlForImage(value as any).width(1000).url()}" alt="" loading="lazy" />`,
+  },
+};
+const descriptionHtml =
+  parfum?.description && Array.isArray(parfum.description)
+    ? toHTML(parfum.description as any, { components: portableTextComponents })
+    : "";
 
 const inspiredBy = parfum?.inspiredBy ?? null;
 const blocs = parfum?.blocs ?? [];
@@ -148,7 +159,18 @@ const coffrets = coffretContent
       <p class="feedback" data-feedback role="status" aria-live="polite"></p>
 
       <div class="accordions">
-        <details open>
+        {
+          descriptionHtml && (
+            <details open>
+              <summary>
+                {t("product.description")}
+                <img src="/brand/chevron.svg" alt="" width="8" height="8" />
+              </summary>
+              <div class="acc-body" set:html={descriptionHtml} />
+            </details>
+          )
+        }
+        <details open={!descriptionHtml}>
           <summary>{t("product.pyramid")}<img src="/brand/chevron.svg" alt="" width="8" height="8" /></summary>
           <div class="acc-body">
             {tete.length > 0 && <p><strong>{t("product.notes.tete")}</strong> — {tete.join(", ")}</p>}
@@ -388,6 +410,9 @@ const coffrets = coffretContent
   .accordions details[open] summary img { transform: rotate(180deg); }
   .acc-body { padding-bottom: 24px; font-size: 15px; line-height: 1.5; }
   .acc-body p { margin: 0 0 8px; }
+  .acc-body ul, .acc-body ol { margin: 0 0 12px; padding-left: 20px; }
+  .acc-body li { margin-bottom: 4px; }
+  .acc-body strong { font-weight: 500; }
 
   /* Blocs éditoriaux alternés (d'après le Figma) */
   .story-blocks { display: flex; flex-direction: column; gap: 72px; padding: 72px; }
