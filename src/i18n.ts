@@ -113,3 +113,28 @@ type UIKey = keyof (typeof ui)["fr"];
 export function useTranslations(locale: Locale) {
   return (key: UIKey): string => ui[locale][key] ?? ui.fr[key] ?? key;
 }
+
+function isLocale(value: string | null | undefined): value is Locale {
+  return !!value && (locales as readonly string[]).includes(value);
+}
+
+/**
+ * Choisit la langue à servir sur la racine : d'abord un choix manuel mémorisé
+ * (cookie), sinon la préférence du navigateur (Accept-Language), sinon FR.
+ */
+export function detectLocale(acceptLanguage: string | null, cookieLang?: string | null): Locale {
+  if (isLocale(cookieLang)) return cookieLang;
+  if (acceptLanguage) {
+    const ranked = acceptLanguage
+      .split(",")
+      .map((part) => {
+        const [tag, q] = part.trim().split(";q=");
+        return { base: tag.toLowerCase().split("-")[0], q: q ? parseFloat(q) : 1 };
+      })
+      .sort((a, b) => b.q - a.q);
+    for (const { base } of ranked) {
+      if (isLocale(base)) return base;
+    }
+  }
+  return defaultLocale;
+}

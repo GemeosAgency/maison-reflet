@@ -1,4 +1,13 @@
 ---
-// Racine : redirige vers la langue par défaut.
-return Astro.redirect("/fr/");
+// Racine : rendu à la demande pour lire la langue du visiteur.
+// Priorité : choix manuel mémorisé (cookie) > préférence navigateur > FR.
+export const prerender = false;
+
+import { detectLocale, localePath } from "../i18n";
+
+const cookieLang = Astro.cookies.get("lang")?.value ?? null;
+const acceptLanguage = Astro.request.headers.get("accept-language");
+const locale = detectLocale(acceptLanguage, cookieLang);
+
+return Astro.redirect(localePath(locale, "/"), 302);
 ---

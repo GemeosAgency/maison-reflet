@@ -50,6 +50,11 @@ const rest = Astro.url.pathname.replace(/^\/(fr|ar|en)/, "") || "/";
       </ul>
     </header>
 
+    <!-- Mémorise la langue courante pour que la racine "/" respecte le dernier choix -->
+    <script is:inline define:vars={{ lang }}>
+      document.cookie = "lang=" + lang + ";path=/;max-age=31536000;samesite=lax";
+    </script>
+
     <main>
       <slot />
     </main>
