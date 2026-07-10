@@ -7,6 +7,7 @@ import seo from "./seo";
 // Documents
 import settings from "./settings";
 import note from "./note";
+import ingredient from "./ingredient";
 import parfum from "./parfum";
 import coffret from "./coffret";
 import reassurance from "./reassurance";
@@ -22,6 +23,7 @@ export const schemaTypes = [
   // documents
   settings,
   note,
+  ingredient,
   parfum,
   coffret,
   reassurance,

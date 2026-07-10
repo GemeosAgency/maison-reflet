@@ -120,6 +120,14 @@ export default defineType({
       group: "notes",
     }),
     defineField({
+      name: "ingredients",
+      title: "Ingrédients",
+      description: "Liste réglementaire affichée dans « Voir tous les ingrédients ».",
+      type: "array",
+      of: [{ type: "reference", to: [{ type: "ingredient" }] }],
+      group: "notes",
+    }),
+    defineField({
       name: "imageRecommandation",
       title: "Image — « Vous aimerez aussi »",
       type: "image",

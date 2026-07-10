@@ -91,6 +91,7 @@ export type ParfumContent = {
   notes: { tete: NoteCard[]; coeur: NoteCard[]; fond: NoteCard[] };
   images: { _key: string; asset: unknown; alt: string | null }[];
   reassurances: ReassuranceItem[];
+  ingredients: (string | null)[];
 };
 
 /** Contenu éditorial d'un parfum dans une langue donnée (repli FR). */
@@ -121,7 +122,8 @@ export async function getParfumContent(
     "reassurances": reassurances[]->{
       icone,
       "texte": coalesce(texte.${l}, texte.fr)
-    }
+    },
+    "ingredients": ingredients[]->{ "nom": coalesce(nom.${l}, nom.fr) }.nom
   }`;
   return sanityClient.fetch(query, { handle });
 }

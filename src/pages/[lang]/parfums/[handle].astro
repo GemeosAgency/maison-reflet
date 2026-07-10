@@ -58,7 +58,7 @@ const names = (arr: { nom: string | null }[] | undefined) =>
 const tete = names(parfum?.notes.tete);
 const coeur = names(parfum?.notes.coeur);
 const fond = names(parfum?.notes.fond);
-const allNotes = [...tete, ...coeur, ...fond];
+const ingredients = (parfum?.ingredients ?? []).filter(Boolean) as string[];
 
 const inspiredBy = parfum?.inspiredBy ?? null;
 const blocs = parfum?.blocs ?? [];
@@ -156,12 +156,19 @@ const coffrets = coffretContent
             {fond.length > 0 && <p><strong>{t("product.notes.fond")}</strong> — {fond.join(", ")}</p>}
           </div>
         </details>
-        <details>
-          <summary>{t("product.ingredients")}<img src="/brand/chevron.svg" alt="" width="8" height="8" /></summary>
-          <div class="acc-body">
-            <p>{allNotes.join(" · ")}</p>
-          </div>
-        </details>
+        {
+          ingredients.length > 0 && (
+            <details>
+              <summary>
+                {t("product.ingredients")}
+                <img src="/brand/chevron.svg" alt="" width="8" height="8" />
+              </summary>
+              <div class="acc-body">
+                <p>{ingredients.join(" · ")}</p>
+              </div>
+            </details>
+          )
+        }
       </div>
     </aside>
   </div>
