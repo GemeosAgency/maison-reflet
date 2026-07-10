@@ -92,6 +92,7 @@ export type ShopifyProduct = {
   description: string;
   descriptionHtml: string;
   productType: string;
+  category: { id: string; name: string } | null;
   featuredImage: ShopifyImage | null;
   images: { nodes: ShopifyImage[] };
   priceRange: {
@@ -144,6 +145,10 @@ const PRODUCT_FRAGMENT = /* GraphQL */ `
     description
     descriptionHtml
     productType
+    category {
+      id
+      name
+    }
     featuredImage {
       url
       altText
@@ -203,12 +208,19 @@ export async function getAllProducts(first = 20) {
   return data.products.nodes;
 }
 
+// Mots-clés de la catégorie Shopify (taxonomie standard) qui signalent un coffret/set,
+// par opposition à un parfum vendu à l'unité (ex : "Perfume Sample & Discovery Sets").
+const COFFRET_CATEGORY_KEYWORDS = ["sample", "discovery", "gift set", "coffret", "set"];
+
 /**
- * Un coffret (set multi-parfums) n'est pas un parfum classique : distingué par le champ
- * "Type de produit" dans Shopify (à renseigner à "Coffret" sur la fiche produit).
+ * Un coffret (set multi-parfums) n'est pas un parfum classique : distingué soit par le
+ * champ "Type de produit" ("Coffret"), soit par la Category Shopify standard (ex :
+ * "Perfume Sample & Discovery Sets") — les deux fonctionnent, selon celui rempli côté fiche produit.
  */
-export function isCoffret(product: Pick<ShopifyProduct, "productType">) {
-  return product.productType?.trim().toLowerCase() === "coffret";
+export function isCoffret(product: Pick<ShopifyProduct, "productType" | "category">) {
+  if (product.productType?.trim().toLowerCase() === "coffret") return true;
+  const categoryName = product.category?.name?.toLowerCase() ?? "";
+  return COFFRET_CATEGORY_KEYWORDS.some((k) => categoryName.includes(k));
 }
 
 /** Récupère un produit par son handle (slug Shopify) */
