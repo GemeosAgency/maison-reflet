@@ -91,6 +91,7 @@ export type ShopifyProduct = {
   title: string;
   description: string;
   descriptionHtml: string;
+  productType: string;
   featuredImage: ShopifyImage | null;
   images: { nodes: ShopifyImage[] };
   priceRange: {
@@ -142,6 +143,7 @@ const PRODUCT_FRAGMENT = /* GraphQL */ `
     title
     description
     descriptionHtml
+    productType
     featuredImage {
       url
       altText
@@ -199,6 +201,14 @@ export async function getAllProducts(first = 20) {
 
   const data = await shopifyFetch<{ products: { nodes: ShopifyProduct[] } }>(query, { first });
   return data.products.nodes;
+}
+
+/**
+ * Un coffret (set multi-parfums) n'est pas un parfum classique : distingué par le champ
+ * "Type de produit" dans Shopify (à renseigner à "Coffret" sur la fiche produit).
+ */
+export function isCoffret(product: Pick<ShopifyProduct, "productType">) {
+  return product.productType?.trim().toLowerCase() === "coffret";
 }
 
 /** Récupère un produit par son handle (slug Shopify) */

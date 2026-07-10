@@ -8,6 +8,7 @@ import seo from "./seo";
 import settings from "./settings";
 import note from "./note";
 import parfum from "./parfum";
+import coffret from "./coffret";
 import page from "./page";
 import subscriber from "./subscriber";
 
@@ -21,6 +22,7 @@ export const schemaTypes = [
   settings,
   note,
   parfum,
+  coffret,
   page,
   subscriber,
 ];

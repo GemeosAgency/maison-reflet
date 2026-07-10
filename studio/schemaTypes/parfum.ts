@@ -111,6 +111,15 @@ export default defineType({
       group: "notes",
     }),
     defineField({
+      name: "imageRecommandation",
+      title: "Image — « Vous aimerez aussi »",
+      type: "image",
+      options: { hotspot: true },
+      description:
+        "Image dédiée (format portrait) utilisée dans la section « Vous aimerez aussi ». Si vide, l'image du produit Shopify est utilisée.",
+      group: "medias",
+    }),
+    defineField({
       name: "imagesEditoriales",
       title: "Galerie du parfum",
       description:

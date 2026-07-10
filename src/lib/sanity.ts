@@ -136,6 +136,33 @@ export async function getInspiredByMap(): Promise<Record<string, string>> {
   return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.inspiredBy]));
 }
 
+/** Map handle -> image dédiée "Vous aimerez aussi" pour tous les parfums qui en ont une. */
+export async function getRecoImages(): Promise<Record<string, unknown>> {
+  const rows = await sanityClient.fetch<{ shopifyHandle: string; imageRecommandation: unknown }[]>(
+    `*[_type == "parfum" && defined(imageRecommandation)]{ shopifyHandle, imageRecommandation }`
+  );
+  return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.imageRecommandation]));
+}
+
+export type CoffretContent = {
+  shopifyHandle: string;
+  titre: string | null;
+  description: string | null;
+  image: unknown | null;
+};
+
+/** Coffrets (sets multi-parfums) dans une langue donnée (repli FR), triés par "ordre". */
+export async function getCoffrets(locale: Locale): Promise<CoffretContent[]> {
+  const l = safeLocale(locale);
+  const query = `*[_type == "coffret"] | order(ordre asc){
+    shopifyHandle,
+    "titre": coalesce(titre.${l}, titre.fr),
+    "description": coalesce(description.${l}, description.fr),
+    image
+  }`;
+  return sanityClient.fetch(query);
+}
+
 export type SiteSettings = {
   brandName: string | null;
   baseline: string | null;
