@@ -1,6 +1,6 @@
 import { defineType, defineField } from "sanity";
 
-/** Schéma "page" : pages de contenu libre (La Maison, À propos, etc.) */
+/** Page de contenu libre (La Maison, etc.), titre et contenu localisés. */
 export default defineType({
   name: "page",
   title: "Page",
@@ -9,30 +9,20 @@ export default defineType({
     defineField({
       name: "title",
       title: "Titre",
-      type: "string",
+      type: "localeString",
       validation: (Rule) => Rule.required(),
     }),
     defineField({
       name: "slug",
       title: "Slug",
       type: "slug",
-      options: { source: "title" },
+      options: { source: "title.fr" },
       validation: (Rule) => Rule.required(),
     }),
-    defineField({
-      name: "content",
-      title: "Contenu",
-      type: "array",
-      of: [
-        { type: "block" },
-        { type: "image", options: { hotspot: true } },
-      ],
-    }),
+    defineField({ name: "content", title: "Contenu", type: "localeBlock" }),
+    defineField({ name: "seo", title: "SEO", type: "seo" }),
   ],
   preview: {
-    select: {
-      title: "title",
-      subtitle: "slug.current",
-    },
+    select: { title: "title.fr", subtitle: "slug.current" },
   },
 });
