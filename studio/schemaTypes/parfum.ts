@@ -73,6 +73,15 @@ export default defineType({
       ],
     }),
     defineField({
+      name: "reassurances",
+      title: "Réassurance",
+      description:
+        "Arguments affichés sous le bouton d'achat (livraison, paiement, échantillons…). Choisis lesquels afficher et dans quel ordre.",
+      type: "array",
+      group: "contenu",
+      of: [{ type: "reference", to: [{ type: "reassurance" }] }],
+    }),
+    defineField({
       name: "familleOlfactive",
       title: "Famille olfactive",
       type: "string",

@@ -9,6 +9,7 @@ import settings from "./settings";
 import note from "./note";
 import parfum from "./parfum";
 import coffret from "./coffret";
+import reassurance from "./reassurance";
 import page from "./page";
 import subscriber from "./subscriber";
 
@@ -23,6 +24,7 @@ export const schemaTypes = [
   note,
   parfum,
   coffret,
+  reassurance,
   page,
   subscriber,
 ];

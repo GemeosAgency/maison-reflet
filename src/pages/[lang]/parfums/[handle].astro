@@ -62,6 +62,11 @@ const allNotes = [...tete, ...coeur, ...fond];
 
 const inspiredBy = parfum?.inspiredBy ?? null;
 const blocs = parfum?.blocs ?? [];
+// Bandeau de réassurance (livraison, paiement…) : sélectionné et ordonné dans Sanity.
+const reassurances = (parfum?.reassurances ?? []).map((r) => ({
+  icone: r.icone ? urlForImage(r.icone as any).width(80).url() : null,
+  lignes: (r.texte ?? "").split("\n").filter(Boolean),
+}));
 const inspiredMap = await getInspiredByMap();
 const recoImages = await getRecoImages();
 // Note / avis : placeholders (pas encore de système d'avis).
@@ -142,12 +147,6 @@ const coffrets = coffretContent
       </button>
       <p class="feedback" data-feedback role="status" aria-live="polite"></p>
 
-      <ul class="perks">
-        <li><img src="/brand/gift.svg" alt="" width="20" height="20" />{t("product.perk1")}</li>
-        <li><img src="/brand/shipment.svg" alt="" width="20" height="20" />{t("product.perk2")}</li>
-        <li><img src="/brand/love.svg" alt="" width="20" height="20" />{t("product.perk3")}</li>
-      </ul>
-
       <div class="accordions">
         <details open>
           <summary>{t("product.pyramid")}<img src="/brand/chevron.svg" alt="" width="8" height="8" /></summary>
@@ -166,6 +165,27 @@ const coffrets = coffretContent
       </div>
     </aside>
   </div>
+
+  <!-- Réassurance (icône + texte, sélectionnés par parfum dans Sanity) -->
+  {
+    reassurances.length > 0 && (
+      <section class="reassurance">
+        {reassurances.map((r) => (
+          <div class="reassurance-item">
+            {r.icone && <img src={r.icone} alt="" width="40" height="40" />}
+            <p>
+              {r.lignes.map((ligne) => (
+                <>
+                  {ligne}
+                  <br />
+                </>
+              ))}
+            </p>
+          </div>
+        ))}
+      </section>
+    )
+  }
 
   <!-- Blocs éditoriaux (administrables dans Sanity, en alterné) -->
   {
@@ -335,8 +355,20 @@ const coffrets = coffretContent
   .add-to-bag:disabled { opacity: 0.6; }
   .feedback { margin: -20px 0 0; min-height: 1em; color: var(--rose); }
 
-  .perks { list-style: none; margin: 0; padding: 0 8px; display: flex; flex-direction: column; gap: 10px; }
-  .perks li { display: flex; gap: 8px; align-items: center; font-size: 16px; }
+  /* Réassurance (bandeau pleine largeur, d'après le Figma) */
+  .reassurance {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 24px; padding: 64px; background: #e9dac9;
+  }
+  .reassurance-item {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    width: 200px; flex-shrink: 0;
+  }
+  .reassurance-item img { width: 40px; height: 40px; }
+  .reassurance-item p {
+    margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase;
+    text-align: center; line-height: 1.28; color: #0a1215;
+  }
 
   .accordions { display: flex; flex-direction: column; border-top: 1px solid rgba(0,0,0,0.15); }
   .accordions details { border-bottom: 1px solid rgba(0,0,0,0.15); }
@@ -399,6 +431,7 @@ const coffrets = coffretContent
     .produit { flex-direction: column; }
     .gallery { width: 100%; max-width: 100%; }
     .info { position: static; padding: 32px 20px; width: 100%; }
+    .reassurance { flex-wrap: wrap; justify-content: center; padding: 32px 20px; gap: 32px; }
     .reco-grid, .boxes-grid { flex-wrap: wrap; height: auto; }
     .reco-card, .box-card { flex: 1 1 45%; min-height: 320px; }
     .reco h2, .boxes h2 { padding: 56px 20px 32px; font-size: 28px; }

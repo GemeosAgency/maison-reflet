@@ -76,6 +76,11 @@ export type BlocEditorial = {
   imageAGauche: boolean | null;
 };
 
+export type ReassuranceItem = {
+  icone: unknown;
+  texte: string | null;
+};
+
 export type ParfumContent = {
   accroche: string | null;
   inspiredBy: string | null;
@@ -85,6 +90,7 @@ export type ParfumContent = {
   couleurSignature: string | null;
   notes: { tete: NoteCard[]; coeur: NoteCard[]; fond: NoteCard[] };
   images: { _key: string; asset: unknown; alt: string | null }[];
+  reassurances: ReassuranceItem[];
 };
 
 /** Contenu éditorial d'un parfum dans une langue donnée (repli FR). */
@@ -111,7 +117,11 @@ export async function getParfumContent(
       "coeur": notesCoeur${noteCards},
       "fond": notesFond${noteCards}
     },
-    "images": imagesEditoriales[]{ _key, asset, "alt": coalesce(alt.${l}, alt.fr) }
+    "images": imagesEditoriales[]{ _key, asset, "alt": coalesce(alt.${l}, alt.fr) },
+    "reassurances": reassurances[]->{
+      icone,
+      "texte": coalesce(texte.${l}, texte.fr)
+    }
   }`;
   return sanityClient.fetch(query, { handle });
 }
