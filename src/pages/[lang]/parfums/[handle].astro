@@ -32,6 +32,28 @@ const parfum = await getParfumContent(product.handle, lang);
 const variant = product.variants.nodes.find((v) => v.availableForSale) ?? product.variants.nodes[0];
 const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
 
+// Lot "Buy 2 Get 1 Free" : catalogue complet des parfums (autres produits déjà
+// filtrés des coffrets par getStaticPaths) pour les 3 sélecteurs. La vraie remise
+// (article le moins cher offert) est appliquée par Shopify au checkout — voir
+// la remise automatique "Buy X Get Y" configurée sur la collection Eaux de Parfum.
+const bundleCatalog = products.map((p) => {
+  const v = p.variants.nodes.find((x) => x.availableForSale) ?? p.variants.nodes[0];
+  return {
+    handle: p.handle,
+    title: p.title,
+    img: p.featuredImage?.url ?? null,
+    variantId: v.id,
+    price: Number(v.price.amount),
+  };
+});
+const currentIndex = Math.max(
+  0,
+  products.findIndex((p) => p.handle === product.handle)
+);
+const defaultBundle = [0, 1, 2].map(
+  (i) => products[(currentIndex + i) % products.length].handle
+);
+
 // Galerie spécifique au parfum :
 // 1) images éditoriales Sanity (curées par parfum) → 2) images produit Shopify
 // (propres à chaque produit) → 3) visuels du design (placeholder de secours).
@@ -153,10 +175,65 @@ const coffrets = coffretContent
         </div>
       </div>
 
-      <button type="button" class="add-to-bag" data-add-to-cart data-variant-id={variant.id}>
+      <div class="qty-select" data-qty-select>
+        <h3 class="qty-title">{t("product.selectQuantity")}</h3>
+
+        <label class="qty-option is-active">
+          <input type="radio" name="qty-mode" value="1" checked />
+          {product.featuredImage && <img src={product.featuredImage.url} alt="" />}
+          <span class="qty-option-label">{t("product.oneUnit")}</span>
+          <span class="qty-option-price">
+            <strong>{priceLabel}</strong>
+            <small>{t("product.perUnit")}</small>
+          </span>
+        </label>
+
+        <label class="qty-option qty-bundle">
+          <input type="radio" name="qty-mode" value="3" />
+          <span class="qty-bundle-thumbs">
+            {[0, 1, 2].map((i) => (
+              <img
+                data-bundle-img={i}
+                src={bundleCatalog.find((p) => p.handle === defaultBundle[i])?.img ?? ""}
+                alt=""
+              />
+            ))}
+          </span>
+          <span class="qty-option-label">{t("product.buy2get1")}</span>
+          <span class="qty-option-price">
+            <strong data-bundle-unit-price>—</strong>
+            <small>{t("product.perUnit")}</small>
+          </span>
+        </label>
+
+        <div class="bundle-slots" data-bundle-slots hidden>
+          {[0, 1, 2].map((i) => (
+            <div class="bundle-slot">
+              <img data-bundle-slot-img={i} src={bundleCatalog.find((p) => p.handle === defaultBundle[i])?.img ?? ""} alt="" />
+              <select data-bundle-slot-select={i}>
+                {bundleCatalog.map((p) => (
+                  <option value={p.handle} selected={p.handle === defaultBundle[i]}>
+                    {p.title.toUpperCase()} 70 ML
+                  </option>
+                ))}
+              </select>
+              <img src="/brand/chevron.svg" alt="" class="chev" width="8" height="8" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="add-to-bag"
+        data-main-add-to-cart
+        data-variant-id={variant.id}
+        data-single-price={variant.price.amount}
+        data-currency={variant.price.currencyCode}
+      >
         ADD TO BAG · {priceLabel}
       </button>
-      <p class="feedback" data-feedback role="status" aria-live="polite"></p>
+      <p class="feedback" data-main-feedback role="status" aria-live="polite"></p>
 
       <div class="accordions">
         {
@@ -318,8 +395,17 @@ const coffrets = coffretContent
   </section>
 </Layout>
 
+<script type="application/json" id="bundle-catalog" is:inline set:html={JSON.stringify(bundleCatalog)} />
+
 <script>
-  import { addToCart } from "../../../lib/cart";
+  import { addToCart, addManyToCart } from "../../../lib/cart";
+
+  type BundleCatalogEntry = { handle: string; title: string; img: string | null; variantId: string; price: number };
+  const bundleCatalog: BundleCatalogEntry[] = JSON.parse(
+    document.getElementById("bundle-catalog")?.textContent ?? "[]"
+  );
+
+  // Boutons génériques (coffrets) : ajoutent leur unique variante.
   document.querySelectorAll<HTMLButtonElement>("[data-add-to-cart]").forEach((btn) => {
     const feedback = btn.parentElement?.querySelector<HTMLElement>("[data-feedback]") ?? null;
     btn.addEventListener("click", async () => {
@@ -337,6 +423,90 @@ const coffrets = coffretContent
       }
     });
   });
+
+  // Sélecteur "1 parfum / lot Buy 2 Get 1 Free" de la fiche produit.
+  const qtySelectEl = document.querySelector<HTMLElement>("[data-qty-select]");
+  const mainAddBtn = document.querySelector<HTMLButtonElement>("[data-main-add-to-cart]");
+  if (qtySelectEl && mainAddBtn) {
+    // Constantes fraîches, non-nullables : le narrowing du if ne traverse pas
+    // les fermetures des fonctions imbriquées ci-dessous.
+    const qtySelect = qtySelectEl;
+    const mainBtn = mainAddBtn;
+    const mainFeedback = document.querySelector<HTMLElement>("[data-main-feedback]");
+    const bundleSlotsEl = qtySelect.querySelector<HTMLElement>("[data-bundle-slots]");
+    const selects = Array.from(qtySelect.querySelectorAll<HTMLSelectElement>("[data-bundle-slot-select]"));
+    const unitPriceEl = qtySelect.querySelector<HTMLElement>("[data-bundle-unit-price]");
+    const modeRadios = Array.from(qtySelect.querySelectorAll<HTMLInputElement>('input[name="qty-mode"]'));
+
+    const currentPrice = Number(mainBtn.dataset.singlePrice);
+    const currency = mainBtn.dataset.currency;
+    const fmt = (amount: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(amount);
+    const catalogByHandle = Object.fromEntries(bundleCatalog.map((p) => [p.handle, p]));
+
+    function currentMode(): string {
+      return modeRadios.find((r) => r.checked)?.value ?? "1";
+    }
+
+    function updateBundlePricing() {
+      const chosen = selects.map((s) => catalogByHandle[s.value]).filter(Boolean);
+      // Chaque slot a 2 vignettes à synchroniser : la miniature de la ligne et
+      // celle du récapitulatif dans l'intitulé "2 achetés, le 3e offert".
+      selects.forEach((s, i) => {
+        const p = catalogByHandle[s.value];
+        if (!p) return;
+        qtySelect
+          .querySelectorAll<HTMLImageElement>(`[data-bundle-img="${i}"], [data-bundle-slot-img="${i}"]`)
+          .forEach((img) => {
+            img.src = p.img ?? "";
+          });
+      });
+      if (chosen.length < 3) return;
+      const prices = chosen.map((p) => p.price);
+      const total = prices.reduce((a, b) => a + b, 0) - Math.min(...prices);
+      if (unitPriceEl) unitPriceEl.textContent = fmt(total / 3);
+      mainBtn.dataset.bundlePrice = String(total);
+      mainBtn.dataset.bundleVariants = JSON.stringify(chosen.map((p) => p.variantId));
+      updateButtonLabel();
+    }
+
+    function updateButtonLabel() {
+      const total =
+        currentMode() === "3" ? Number(mainBtn.dataset.bundlePrice ?? currentPrice * 3) : currentPrice;
+      mainBtn.textContent = `ADD TO BAG · ${fmt(total)}`;
+    }
+
+    modeRadios.forEach((radio) =>
+      radio.addEventListener("change", () => {
+        qtySelect.querySelectorAll(".qty-option").forEach((el) => el.classList.remove("is-active"));
+        radio.closest(".qty-option")?.classList.add("is-active");
+        if (bundleSlotsEl) bundleSlotsEl.hidden = radio.value !== "3";
+        updateButtonLabel();
+      })
+    );
+
+    selects.forEach((s) => s.addEventListener("change", updateBundlePricing));
+
+    updateBundlePricing();
+    updateButtonLabel();
+
+    mainBtn.addEventListener("click", async () => {
+      mainBtn.disabled = true;
+      try {
+        if (currentMode() === "3") {
+          const variantIds: string[] = JSON.parse(mainBtn.dataset.bundleVariants ?? "[]");
+          await addManyToCart(variantIds.map((id) => ({ variantId: id, quantity: 1 })));
+        } else if (mainBtn.dataset.variantId) {
+          await addToCart(mainBtn.dataset.variantId, 1);
+        }
+        if (mainFeedback) mainFeedback.textContent = "✓";
+      } catch (e) {
+        console.error(e);
+        if (mainFeedback) mainFeedback.textContent = "×";
+      } finally {
+        mainBtn.disabled = false;
+      }
+    });
+  }
 </script>
 
 <style>
@@ -366,6 +536,35 @@ const coffrets = coffretContent
   .stars { display: inline-flex; gap: 2px; }
   .score { font-size: 16px; font-weight: 500; }
   .reviews { font-size: 14px; }
+
+  /* Sélecteur de quantité (1 parfum / lot Buy 2 Get 1 Free) */
+  .qty-select { display: flex; flex-direction: column; gap: 12px; border-top: 1px solid rgba(0,0,0,0.15); padding-top: 24px; }
+  .qty-title { margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em; }
+  .qty-option {
+    position: relative; display: flex; align-items: center; gap: 16px; padding: 12px 16px;
+    background: #e5d3be; border-radius: 12px; border: 1.5px solid transparent;
+    cursor: pointer; transition: border-color 0.15s;
+  }
+  .qty-option input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+  .qty-option.is-active { border-color: var(--rose); background: #f2e8dc; }
+  .qty-option img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; background: #d8c3ab; flex-shrink: 0; }
+  .qty-bundle-thumbs { display: flex; flex-shrink: 0; }
+  .qty-bundle-thumbs img { width: 44px; height: 44px; margin-left: -14px; border: 2px solid #e5d3be; }
+  .qty-bundle-thumbs img:first-child { margin-left: 0; }
+  .qty-option.is-active .qty-bundle-thumbs img { border-color: #f2e8dc; }
+  .qty-option-label { flex: 1 0 0; min-width: 0; font-size: 16px; }
+  .qty-option-price { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+  .qty-option-price strong { font-size: 18px; font-weight: 500; }
+  .qty-option-price small { font-size: 12px; opacity: 0.6; }
+
+  .bundle-slots { display: flex; flex-direction: column; gap: 2px; margin-top: -4px; }
+  .bundle-slot { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: #efe3d3; position: relative; }
+  .bundle-slot img.chev { position: absolute; right: 16px; pointer-events: none; }
+  .bundle-slot img:not(.chev) { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; background: #d8c3ab; flex-shrink: 0; }
+  .bundle-slot select {
+    flex: 1 0 0; min-width: 0; appearance: none; border: 0; background: transparent;
+    font: inherit; font-size: 15px; text-transform: uppercase; padding-right: 20px; cursor: pointer;
+  }
 
   .add-to-bag {
     height: 56px;

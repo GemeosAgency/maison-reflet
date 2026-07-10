@@ -300,8 +300,10 @@ function assertNoStockWarnings(warnings: CartWarning[] | undefined) {
   }
 }
 
-/** Crée un panier Shopify (Cart API) avec une première ligne */
-export async function createCart(merchandiseId: string, quantity = 1) {
+export type CartLineInput = { merchandiseId: string; quantity: number };
+
+/** Crée un panier Shopify (Cart API) avec une ou plusieurs lignes (ex : lot Buy 2 Get 1 Free) */
+export async function createCart(lines: CartLineInput[]) {
   const query = /* GraphQL */ `
     ${CART_FRAGMENT}
     mutation CartCreate($lines: [CartLineInput!]!) {
@@ -328,7 +330,7 @@ export async function createCart(merchandiseId: string, quantity = 1) {
       userErrors: CartUserError[];
       warnings?: CartWarning[];
     };
-  }>(query, { lines: [{ merchandiseId, quantity }] });
+  }>(query, { lines });
 
   assertNoUserErrors(data.cartCreate.userErrors);
   assertNoStockWarnings(data.cartCreate.warnings);
@@ -350,8 +352,8 @@ export async function getCart(cartId: string) {
   return data.cart;
 }
 
-/** Ajoute une ligne à un panier existant (fusionne les quantités si la variante y est déjà) */
-export async function addCartLine(cartId: string, merchandiseId: string, quantity = 1) {
+/** Ajoute une ou plusieurs lignes à un panier existant (fusionne les quantités si déjà présentes) */
+export async function addCartLine(cartId: string, lines: CartLineInput[]) {
   const query = /* GraphQL */ `
     ${CART_FRAGMENT}
     mutation CartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
@@ -378,7 +380,7 @@ export async function addCartLine(cartId: string, merchandiseId: string, quantit
       userErrors: CartUserError[];
       warnings?: CartWarning[];
     };
-  }>(query, { cartId, lines: [{ merchandiseId, quantity }] });
+  }>(query, { cartId, lines });
 
   assertNoUserErrors(data.cartLinesAdd.userErrors);
   assertNoStockWarnings(data.cartLinesAdd.warnings);

@@ -68,14 +68,17 @@ export async function loadCart(): Promise<ShopifyCart | null> {
   return cart;
 }
 
-/** Ajoute une variante au panier, en créant le panier au premier ajout */
-export async function addToCart(variantId: string, quantity = 1): Promise<ShopifyCart> {
+export type CartLine = { variantId: string; quantity: number };
+
+/** Ajoute une ou plusieurs lignes au panier (ex : lot Buy 2 Get 1 Free), en créant le panier au premier ajout */
+export async function addManyToCart(lines: CartLine[]): Promise<ShopifyCart> {
   const cartId = getStoredCartId();
+  const shopifyLines = lines.map((l) => ({ merchandiseId: l.variantId, quantity: l.quantity }));
   let cart: ShopifyCart | null = null;
 
   if (cartId) {
     try {
-      cart = await addCartLine(cartId, variantId, quantity);
+      cart = await addCartLine(cartId, shopifyLines);
     } catch (error) {
       // Ne repartir sur un panier neuf que si le panier n'existe vraiment
       // plus côté Shopify. Toute autre erreur (réseau, rate-limit, userError
@@ -94,7 +97,7 @@ export async function addToCart(variantId: string, quantity = 1): Promise<Shopif
   }
 
   if (!cart) {
-    const created = await createCart(variantId, quantity);
+    const created = await createCart(shopifyLines);
     if (!created) throw new Error("Impossible de créer le panier Shopify");
     cart = created;
 
@@ -104,7 +107,7 @@ export async function addToCart(variantId: string, quantity = 1): Promise<Shopif
     const concurrentId = getStoredCartId();
     if (concurrentId && concurrentId !== created.id) {
       try {
-        cart = (await addCartLine(concurrentId, variantId, quantity)) ?? created;
+        cart = (await addCartLine(concurrentId, shopifyLines)) ?? created;
       } catch {
         cart = created;
       }
@@ -114,6 +117,11 @@ export async function addToCart(variantId: string, quantity = 1): Promise<Shopif
 
   notifyCartUpdated(cart);
   return cart;
+}
+
+/** Ajoute une variante au panier, en créant le panier au premier ajout */
+export async function addToCart(variantId: string, quantity = 1): Promise<ShopifyCart> {
+  return addManyToCart([{ variantId, quantity }]);
 }
 
 /** Retire une ligne du panier courant */
