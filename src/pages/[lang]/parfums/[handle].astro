@@ -175,36 +175,26 @@ const coffrets = coffretContent
         </div>
       </div>
 
-      <div class="qty-select" data-qty-select>
-        <h3 class="qty-title">{t("product.selectQuantity")}</h3>
-
-        <label class="qty-option is-active">
-          <input type="radio" name="qty-mode" value="1" checked />
-          {product.featuredImage && <img src={product.featuredImage.url} alt="" />}
-          <span class="qty-option-label">{t("product.oneUnit")}</span>
-          <span class="qty-option-price">
-            <strong>{priceLabel}</strong>
-            <small>{t("product.perUnit")}</small>
+      <div class="promo-bundle" data-promo-bundle>
+        <button type="button" class="promo-header" data-promo-toggle aria-expanded="false">
+          <span class="promo-left">
+            <span class="promo-thumbs">
+              {[0, 1, 2].map((i) => (
+                <img
+                  data-bundle-img={i}
+                  src={bundleCatalog.find((p) => p.handle === defaultBundle[i])?.img ?? ""}
+                  alt=""
+                />
+              ))}
+            </span>
+            <span class="promo-title">{t("product.buy2get1")}</span>
+            <span class="promo-badge" data-promo-badge>{t("product.save")} 33%</span>
           </span>
-        </label>
-
-        <label class="qty-option qty-bundle">
-          <input type="radio" name="qty-mode" value="3" />
-          <span class="qty-bundle-thumbs">
-            {[0, 1, 2].map((i) => (
-              <img
-                data-bundle-img={i}
-                src={bundleCatalog.find((p) => p.handle === defaultBundle[i])?.img ?? ""}
-                alt=""
-              />
-            ))}
-          </span>
-          <span class="qty-option-label">{t("product.buy2get1")}</span>
-          <span class="qty-option-price">
+          <span class="promo-price">
             <strong data-bundle-unit-price>—</strong>
             <small>{t("product.perUnit")}</small>
           </span>
-        </label>
+        </button>
 
         <div class="bundle-slots" data-bundle-slots hidden>
           {[0, 1, 2].map((i) => (
@@ -213,7 +203,7 @@ const coffrets = coffretContent
               <select data-bundle-slot-select={i}>
                 {bundleCatalog.map((p) => (
                   <option value={p.handle} selected={p.handle === defaultBundle[i]}>
-                    {p.title.toUpperCase()} 70 ML
+                    {p.title.toUpperCase()} · 70 ML
                   </option>
                 ))}
               </select>
@@ -424,37 +414,40 @@ const coffrets = coffretContent
     });
   });
 
-  // Sélecteur "1 parfum / lot Buy 2 Get 1 Free" de la fiche produit.
-  const qtySelectEl = document.querySelector<HTMLElement>("[data-qty-select]");
+  // Carte "Buy 2 Get 1 Free" repliable de la fiche produit. Repliée = achat à
+  // l'unité (comportement par défaut) ; dépliée = lot de 3 sélectionné.
+  const promoEl = document.querySelector<HTMLElement>("[data-promo-bundle]");
   const mainAddBtn = document.querySelector<HTMLButtonElement>("[data-main-add-to-cart]");
-  if (qtySelectEl && mainAddBtn) {
+  if (promoEl && mainAddBtn) {
     // Constantes fraîches, non-nullables : le narrowing du if ne traverse pas
     // les fermetures des fonctions imbriquées ci-dessous.
-    const qtySelect = qtySelectEl;
+    const promo = promoEl;
     const mainBtn = mainAddBtn;
     const mainFeedback = document.querySelector<HTMLElement>("[data-main-feedback]");
-    const bundleSlotsEl = qtySelect.querySelector<HTMLElement>("[data-bundle-slots]");
-    const selects = Array.from(qtySelect.querySelectorAll<HTMLSelectElement>("[data-bundle-slot-select]"));
-    const unitPriceEl = qtySelect.querySelector<HTMLElement>("[data-bundle-unit-price]");
-    const modeRadios = Array.from(qtySelect.querySelectorAll<HTMLInputElement>('input[name="qty-mode"]'));
+    const toggleBtn = promo.querySelector<HTMLButtonElement>("[data-promo-toggle]");
+    const bundleSlotsEl = promo.querySelector<HTMLElement>("[data-bundle-slots]");
+    const selects = Array.from(promo.querySelectorAll<HTMLSelectElement>("[data-bundle-slot-select]"));
+    const unitPriceEl = promo.querySelector<HTMLElement>("[data-bundle-unit-price]");
+    const badgeEl = promo.querySelector<HTMLElement>("[data-promo-badge]");
 
     const currentPrice = Number(mainBtn.dataset.singlePrice);
     const currency = mainBtn.dataset.currency;
     const fmt = (amount: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(amount);
+    const saveLabel = badgeEl?.textContent?.replace(/\d.*/, "").trim() ?? "";
     const catalogByHandle = Object.fromEntries(bundleCatalog.map((p) => [p.handle, p]));
 
-    function currentMode(): string {
-      return modeRadios.find((r) => r.checked)?.value ?? "1";
+    function isExpanded(): boolean {
+      return toggleBtn?.getAttribute("aria-expanded") === "true";
     }
 
     function updateBundlePricing() {
       const chosen = selects.map((s) => catalogByHandle[s.value]).filter(Boolean);
       // Chaque slot a 2 vignettes à synchroniser : la miniature de la ligne et
-      // celle du récapitulatif dans l'intitulé "2 achetés, le 3e offert".
+      // celle du récapitulatif dans l'en-tête "2 achetés, le 3e offert".
       selects.forEach((s, i) => {
         const p = catalogByHandle[s.value];
         if (!p) return;
-        qtySelect
+        promo
           .querySelectorAll<HTMLImageElement>(`[data-bundle-img="${i}"], [data-bundle-slot-img="${i}"]`)
           .forEach((img) => {
             img.src = p.img ?? "";
@@ -462,27 +455,28 @@ const coffrets = coffretContent
       });
       if (chosen.length < 3) return;
       const prices = chosen.map((p) => p.price);
-      const total = prices.reduce((a, b) => a + b, 0) - Math.min(...prices);
+      const cheapest = Math.min(...prices);
+      const sum = prices.reduce((a, b) => a + b, 0);
+      const total = sum - cheapest;
       if (unitPriceEl) unitPriceEl.textContent = fmt(total / 3);
+      if (badgeEl) badgeEl.textContent = `${saveLabel} ${Math.round((cheapest / sum) * 100)}%`;
       mainBtn.dataset.bundlePrice = String(total);
       mainBtn.dataset.bundleVariants = JSON.stringify(chosen.map((p) => p.variantId));
       updateButtonLabel();
     }
 
     function updateButtonLabel() {
-      const total =
-        currentMode() === "3" ? Number(mainBtn.dataset.bundlePrice ?? currentPrice * 3) : currentPrice;
+      const total = isExpanded() ? Number(mainBtn.dataset.bundlePrice ?? currentPrice * 3) : currentPrice;
       mainBtn.textContent = `ADD TO BAG · ${fmt(total)}`;
     }
 
-    modeRadios.forEach((radio) =>
-      radio.addEventListener("change", () => {
-        qtySelect.querySelectorAll(".qty-option").forEach((el) => el.classList.remove("is-active"));
-        radio.closest(".qty-option")?.classList.add("is-active");
-        if (bundleSlotsEl) bundleSlotsEl.hidden = radio.value !== "3";
-        updateButtonLabel();
-      })
-    );
+    toggleBtn?.addEventListener("click", () => {
+      const next = !isExpanded();
+      toggleBtn.setAttribute("aria-expanded", String(next));
+      promo.classList.toggle("is-expanded", next);
+      if (bundleSlotsEl) bundleSlotsEl.hidden = !next;
+      updateButtonLabel();
+    });
 
     selects.forEach((s) => s.addEventListener("change", updateBundlePricing));
 
@@ -492,7 +486,7 @@ const coffrets = coffretContent
     mainBtn.addEventListener("click", async () => {
       mainBtn.disabled = true;
       try {
-        if (currentMode() === "3") {
+        if (isExpanded()) {
           const variantIds: string[] = JSON.parse(mainBtn.dataset.bundleVariants ?? "[]");
           await addManyToCart(variantIds.map((id) => ({ variantId: id, quantity: 1 })));
         } else if (mainBtn.dataset.variantId) {
@@ -537,33 +531,39 @@ const coffrets = coffretContent
   .score { font-size: 16px; font-weight: 500; }
   .reviews { font-size: 14px; }
 
-  /* Sélecteur de quantité (1 parfum / lot Buy 2 Get 1 Free) */
-  .qty-select { display: flex; flex-direction: column; gap: 12px; border-top: 1px solid rgba(0,0,0,0.15); padding-top: 24px; }
-  .qty-title { margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em; }
-  .qty-option {
-    position: relative; display: flex; align-items: center; gap: 16px; padding: 12px 16px;
-    background: #e5d3be; border-radius: 12px; border: 1.5px solid transparent;
-    cursor: pointer; transition: border-color 0.15s;
+  /* Carte "Buy 2 Get 1 Free" repliable (d'après le Figma) */
+  .promo-bundle {
+    display: flex; flex-direction: column; gap: 16px; padding: 16px;
+    background: #e9dac9; border-radius: 8px; border: 1.5px solid transparent;
+    transition: background-color 0.15s, border-color 0.15s;
   }
-  .qty-option input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
-  .qty-option.is-active { border-color: var(--rose); background: #f2e8dc; }
-  .qty-option img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; background: #d8c3ab; flex-shrink: 0; }
-  .qty-bundle-thumbs { display: flex; flex-shrink: 0; }
-  .qty-bundle-thumbs img { width: 44px; height: 44px; margin-left: -14px; border: 2px solid #e5d3be; }
-  .qty-bundle-thumbs img:first-child { margin-left: 0; }
-  .qty-option.is-active .qty-bundle-thumbs img { border-color: #f2e8dc; }
-  .qty-option-label { flex: 1 0 0; min-width: 0; font-size: 16px; }
-  .qty-option-price { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
-  .qty-option-price strong { font-size: 18px; font-weight: 500; }
-  .qty-option-price small { font-size: 12px; opacity: 0.6; }
+  .promo-bundle.is-expanded { background: #f5eee6; border-color: var(--rose); }
+  .promo-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    width: 100%; border: 0; background: transparent; padding: 0; margin: 0;
+    font: inherit; text-align: left; cursor: pointer;
+  }
+  .promo-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
+  .promo-thumbs { display: flex; flex-shrink: 0; }
+  .promo-thumbs img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; margin-left: -16px; border: 2px solid #e9dac9; background: #d8c3ab; }
+  .promo-thumbs img:first-child { margin-left: 0; }
+  .promo-bundle.is-expanded .promo-thumbs img { border-color: #f5eee6; }
+  .promo-title { font-size: 18px; font-weight: 500; white-space: nowrap; }
+  .promo-badge {
+    background: #efc5a9; color: var(--rose); padding: 4.5px 6px; border-radius: 8px;
+    font-size: 14px; font-weight: 500; text-transform: uppercase; white-space: nowrap; flex-shrink: 0;
+  }
+  .promo-price { display: flex; flex-direction: column; align-items: flex-end; text-align: right; flex-shrink: 0; color: var(--ink); }
+  .promo-price strong { font-size: 16px; font-weight: 500; }
+  .promo-price small { font-size: 12px; opacity: 0.64; }
 
-  .bundle-slots { display: flex; flex-direction: column; gap: 2px; margin-top: -4px; }
-  .bundle-slot { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: #efe3d3; position: relative; }
+  .bundle-slots { display: flex; flex-direction: column; gap: 4px; }
+  .bundle-slot { display: flex; align-items: center; gap: 16px; padding-right: 16px; background: var(--cream); position: relative; }
   .bundle-slot img.chev { position: absolute; right: 16px; pointer-events: none; }
-  .bundle-slot img:not(.chev) { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; background: #d8c3ab; flex-shrink: 0; }
+  .bundle-slot img:not(.chev) { width: 48px; height: 48px; object-fit: cover; background: #d8c3ab; flex-shrink: 0; }
   .bundle-slot select {
     flex: 1 0 0; min-width: 0; appearance: none; border: 0; background: transparent;
-    font: inherit; font-size: 15px; text-transform: uppercase; padding-right: 20px; cursor: pointer;
+    font: inherit; font-size: 16px; padding: 12px 20px 12px 0; cursor: pointer; color: var(--ink);
   }
 
   .add-to-bag {
