@@ -1,7 +1,7 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
 import { formatPrice, getAllProducts, type ShopifyProduct } from "../../../lib/shopify";
-import { getParfumContent, urlForImage } from "../../../lib/sanity";
+import { getParfumContent, getInspiredByMap, urlForImage } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 
 export async function getStaticPaths() {
@@ -53,8 +53,9 @@ const coeur = names(parfum?.notes.coeur);
 const fond = names(parfum?.notes.fond);
 const allNotes = [...tete, ...coeur, ...fond];
 
-// PLACEHOLDERS (à câbler à Sanity ensuite)
-const inspiredBy = "Bois Impérial";
+const inspiredBy = parfum?.inspiredBy ?? null;
+const inspiredMap = await getInspiredByMap();
+// Note / avis : placeholders (pas encore de système d'avis).
 const rating = "4,9";
 const reviewCount = 147;
 
@@ -64,6 +65,7 @@ const reco = products
   .slice(0, 4)
   .map((p) => ({
     name: p.title,
+    inspired: inspiredMap[p.handle] ?? null,
     price: formatPrice(p.priceRange.minVariantPrice.amount, p.priceRange.minVariantPrice.currencyCode),
     img: p.featuredImage?.url ?? null,
     href: localePath(lang, `/parfums/${p.handle}`),
@@ -91,7 +93,7 @@ const reco = products
             <h1>{product.title}</h1>
             <span class="ml">75 ml</span>
           </div>
-          <p class="inspired">{t("product.inspiredBy")} {inspiredBy}</p>
+          {inspiredBy && <p class="inspired">{t("product.inspiredBy")} {inspiredBy}</p>}
           {parfum?.accroche && <p class="desc">{parfum.accroche}</p>}
         </div>
 
@@ -151,6 +153,7 @@ const reco = products
               {p.img && <img src={p.img} alt={p.name} loading="lazy" />}
               <div class="reco-meta">
                 <h3>{p.name}</h3>
+                {p.inspired && <p class="reco-inspired">{t("product.inspiredBy")} {p.inspired}</p>}
                 <p class="reco-price">{p.price}</p>
               </div>
             </a>

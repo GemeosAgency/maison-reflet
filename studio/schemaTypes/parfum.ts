@@ -33,6 +33,13 @@ export default defineType({
       group: "contenu",
     }),
     defineField({ name: "accroche", title: "Accroche", type: "localeString", group: "contenu" }),
+    defineField({
+      name: "inspiredBy",
+      title: "Inspiré de",
+      type: "string",
+      description: "Parfum de référence (ex : Baccarat Rouge 540). Affiché « INSPIRÉ DE … ».",
+      group: "contenu",
+    }),
     defineField({ name: "histoire", title: "Histoire", type: "localeText", group: "contenu" }),
     defineField({
       name: "inspirationCulturelle",

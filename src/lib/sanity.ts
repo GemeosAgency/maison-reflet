@@ -71,6 +71,7 @@ export type NoteCard = {
 
 export type ParfumContent = {
   accroche: string | null;
+  inspiredBy: string | null;
   histoire: string | null;
   inspiration: string | null;
   familleOlfactive: string | null;
@@ -89,6 +90,7 @@ export async function getParfumContent(
   const noteCards = `[]->{ "nom": coalesce(nom.${l}, nom.fr), famille, "histoire": coalesce(histoire.${l}, histoire.fr), image }`;
   const query = `*[_type == "parfum" && shopifyHandle == $handle][0]{
     "accroche": coalesce(accroche.${l}, accroche.fr),
+    inspiredBy,
     "histoire": coalesce(histoire.${l}, histoire.fr),
     "inspiration": coalesce(inspirationCulturelle.${l}, inspirationCulturelle.fr),
     familleOlfactive,
@@ -114,6 +116,14 @@ export async function getPageBySlug(slug: string, locale: Locale): Promise<PageC
     "content": coalesce(content.${l}, content.fr)
   }`;
   return sanityClient.fetch(query, { slug });
+}
+
+/** Map handle -> "inspiré de" pour tous les parfums (cartes recommandées). */
+export async function getInspiredByMap(): Promise<Record<string, string>> {
+  const rows = await sanityClient.fetch<{ shopifyHandle: string; inspiredBy: string }[]>(
+    `*[_type == "parfum" && defined(inspiredBy)]{ shopifyHandle, inspiredBy }`
+  );
+  return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.inspiredBy]));
 }
 
 export type SiteSettings = {
