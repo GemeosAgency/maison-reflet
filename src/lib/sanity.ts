@@ -69,11 +69,17 @@ export type NoteCard = {
   image: unknown | null;
 };
 
+export type BlocEditorial = {
+  titre: string | null;
+  texte: string | null;
+  image: unknown | null;
+  imageAGauche: boolean | null;
+};
+
 export type ParfumContent = {
   accroche: string | null;
   inspiredBy: string | null;
-  histoire: string | null;
-  inspiration: string | null;
+  blocs: BlocEditorial[];
   familleOlfactive: string | null;
   parfumeur: string | null;
   couleurSignature: string | null;
@@ -91,8 +97,12 @@ export async function getParfumContent(
   const query = `*[_type == "parfum" && shopifyHandle == $handle][0]{
     "accroche": coalesce(accroche.${l}, accroche.fr),
     inspiredBy,
-    "histoire": coalesce(histoire.${l}, histoire.fr),
-    "inspiration": coalesce(inspirationCulturelle.${l}, inspirationCulturelle.fr),
+    "blocs": blocs[]{
+      "titre": coalesce(titre.${l}, titre.fr),
+      "texte": coalesce(texte.${l}, texte.fr),
+      image,
+      imageAGauche
+    },
     familleOlfactive,
     parfumeur,
     couleurSignature,

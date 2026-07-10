@@ -40,12 +40,37 @@ export default defineType({
       description: "Parfum de référence (ex : Baccarat Rouge 540). Affiché « INSPIRÉ DE … ».",
       group: "contenu",
     }),
-    defineField({ name: "histoire", title: "Histoire", type: "localeText", group: "contenu" }),
     defineField({
-      name: "inspirationCulturelle",
-      title: "Inspiration culturelle (ancrage franco-arabe)",
-      type: "localeText",
+      name: "blocs",
+      title: "Blocs éditoriaux",
+      description:
+        "Sections storytelling de la page produit (titre + texte + image), affichées en alterné.",
+      type: "array",
       group: "contenu",
+      of: [
+        {
+          type: "object",
+          name: "blocEditorial",
+          fields: [
+            defineField({ name: "titre", title: "Titre", type: "localeString" }),
+            defineField({ name: "texte", title: "Texte", type: "localeText" }),
+            defineField({
+              name: "image",
+              title: "Image",
+              type: "image",
+              options: { hotspot: true },
+              description: "Si vide, une image de la galerie est utilisée.",
+            }),
+            defineField({
+              name: "imageAGauche",
+              title: "Image à gauche",
+              type: "boolean",
+              initialValue: false,
+            }),
+          ],
+          preview: { select: { title: "titre.fr", media: "image" } },
+        },
+      ],
     }),
     defineField({
       name: "familleOlfactive",

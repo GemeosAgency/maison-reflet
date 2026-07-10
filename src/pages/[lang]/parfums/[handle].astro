@@ -54,6 +54,7 @@ const fond = names(parfum?.notes.fond);
 const allNotes = [...tete, ...coeur, ...fond];
 
 const inspiredBy = parfum?.inspiredBy ?? null;
+const blocs = parfum?.blocs ?? [];
 const inspiredMap = await getInspiredByMap();
 // Note / avis : placeholders (pas encore de système d'avis).
 const rating = "4,9";
@@ -136,32 +137,41 @@ const reco = products
     </aside>
   </div>
 
-  <!-- Blocs éditoriaux (histoire + inspiration, en alterné) -->
+  <!-- Blocs éditoriaux (administrables dans Sanity, en alterné) -->
   {
-    (parfum?.histoire || parfum?.inspiration) && (
+    blocs.length > 0 && (
       <section class="story-blocks">
-        {parfum?.histoire && (
-          <div class="story-row">
+        {blocs.map((b, i) => {
+          const imgSrc = b.image
+            ? urlForImage(b.image as any).width(1000).url()
+            : (gallery[i] ?? gallery[0]);
+          const text = (
             <div class="story-text">
-              <h2>{t("product.story")}</h2>
-              <p>{parfum.histoire}</p>
+              {b.titre && <h2>{b.titre}</h2>}
+              {b.texte && <p>{b.texte}</p>}
             </div>
+          );
+          const img = (
             <div class="story-img">
-              <img src={gallery[0]} alt={product.title} loading="lazy" />
+              <img src={imgSrc} alt={b.titre ?? product.title} loading="lazy" />
             </div>
-          </div>
-        )}
-        {parfum?.inspiration && (
-          <div class="story-row reverse">
-            <div class="story-img">
-              <img src={gallery[1] ?? gallery[0]} alt={product.title} loading="lazy" />
+          );
+          return (
+            <div class={`story-row${b.imageAGauche ? " reverse" : ""}`}>
+              {b.imageAGauche ? (
+                <>
+                  {img}
+                  {text}
+                </>
+              ) : (
+                <>
+                  {text}
+                  {img}
+                </>
+              )}
             </div>
-            <div class="story-text">
-              <h2>{t("product.inspiration")}</h2>
-              <p>{parfum.inspiration}</p>
-            </div>
-          </div>
-        )}
+          );
+        })}
       </section>
     )
   }
