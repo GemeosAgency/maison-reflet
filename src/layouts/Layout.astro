@@ -10,11 +10,15 @@ interface Props {
 const { title, description = "Maison Reflet — Parfums franco-arabes", lang } = Astro.props;
 const t = useTranslations(lang);
 
-// Indexation contrôlée par variable d'env (noindex tant que non lancé).
 const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
-
-// Sélecteur de langue : même page, autre langue.
 const rest = Astro.url.pathname.replace(/^\/(fr|ar|en)/, "") || "/";
+
+const navLinks = [
+  { href: localePath(lang, "/parfums"), label: t("nav.perfumes") },
+  { href: localePath(lang, "/maison"), label: t("nav.maison") },
+  { href: "#", label: t("nav.services") },
+  { href: "#", label: t("nav.faq") },
+];
 ---
 
 <!doctype html>
@@ -26,17 +30,63 @@ const rest = Astro.url.pathname.replace(/^\/(fr|ar|en)/, "") || "/";
     {!indexable && <meta name="robots" content="noindex, nofollow" />}
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     {locales.map((loc) => <link rel="alternate" hreflang={loc} href={localePath(loc, rest)} />)}
     <title>{title} | Maison Reflet</title>
+    <style is:global>
+      :root { --rose: #812538; --ink: #1f1f1f; --cream: #eee3d6; --cream-2: #faf9ee; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; }
+      body {
+        background: var(--cream);
+        color: var(--ink);
+        font-family: "PP Neue Montreal", "Hanken Grotesk", system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: inherit; text-decoration: none; }
+      img { display: block; max-width: 100%; }
+    </style>
   </head>
   <body>
-    <header>
-      <a href={localePath(lang, "/")} class="brand">Maison Reflet</a>
-      <nav>
-        <a href={localePath(lang, "/parfums")}>{t("nav.parfums")}</a>
-        <a href={localePath(lang, "/maison")}>{t("nav.maison")}</a>
-        <a href={localePath(lang, "/panier")}>{t("nav.panier")}<span data-cart-count></span></a>
+    <script is:inline define:vars={{ lang }}>
+      document.cookie = "lang=" + lang + ";path=/;max-age=31536000;samesite=lax";
+    </script>
+
+    <header class="site-header">
+      <nav class="site-nav">
+        {navLinks.map((l) => <a href={l.href}>{l.label}</a>)}
       </nav>
+      <a href={localePath(lang, "/")} class="site-logo" aria-label="Maison Reflet">
+        <img src="/brand/logo.svg" alt="Maison Reflet" height="28" />
+      </a>
+      <div class="site-actions">
+        <button type="button" class="currency">
+          AE (AED د.إ)
+          <img src="/brand/chevron.svg" alt="" width="8" height="8" class="chev" />
+        </button>
+        <div class="icons">
+          <img src="/brand/search.svg" alt="Search" width="20" height="20" />
+          <img src="/brand/account.svg" alt="Account" width="20" height="20" />
+          <a href={localePath(lang, "/panier")} class="bag" aria-label={t("nav.panier")}>
+            <img src="/brand/bag.svg" alt="" width="20" height="20" />
+            <span data-cart-count class="cart-count"></span>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
       <ul class="lang-switch">
         {
           locales.map((loc) => (
@@ -48,34 +98,77 @@ const rest = Astro.url.pathname.replace(/^\/(fr|ar|en)/, "") || "/";
           ))
         }
       </ul>
-    </header>
-
-    <!-- Mémorise la langue courante pour que la racine "/" respecte le dernier choix -->
-    <script is:inline define:vars={{ lang }}>
-      document.cookie = "lang=" + lang + ";path=/;max-age=31536000;samesite=lax";
-    </script>
-
-    <main>
-      <slot />
-    </main>
-
-    <footer>
       <p>&copy; {new Date().getFullYear()} Maison Reflet</p>
     </footer>
+
+    <style>
+      .site-header {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 80px;
+        padding: 0 40px;
+        border-bottom: 0.8px solid rgba(0, 0, 0, 0.1);
+      }
+      .site-nav { display: flex; gap: 24px; align-items: center; width: 300px; }
+      .site-nav a { font-size: 16px; padding: 8px 0; }
+      .site-nav a:hover { opacity: 0.6; }
+      .site-logo {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+      }
+      .site-logo img { height: 28px; width: auto; }
+      .site-actions { display: flex; gap: 24px; align-items: center; }
+      .currency {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px 8px 8px;
+        border: 0;
+        background: none;
+        border-radius: 100px;
+        font: inherit;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .currency .chev { transform: rotate(180deg); }
+      .icons { display: flex; gap: 16px; align-items: center; }
+      .bag { position: relative; display: inline-flex; }
+      .cart-count { font-size: 12px; margin-inline-start: 2px; }
+      main { min-height: 50vh; }
+      .site-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 2rem 40px;
+        border-top: 0.8px solid rgba(0, 0, 0, 0.1);
+        font-size: 14px;
+      }
+      .lang-switch { list-style: none; display: flex; gap: 1rem; margin: 0; padding: 0; }
+      .lang-switch a[aria-current="true"] { text-decoration: underline; }
+      @media (max-width: 720px) {
+        .site-header { padding: 0 20px; }
+        .site-nav { display: none; }
+      }
+    </style>
 
     <script>
       import { loadCart, type CartUpdatedEvent } from "../lib/cart";
       import type { ShopifyCart } from "../lib/shopify";
-
       const countEl = document.querySelector<HTMLElement>("[data-cart-count]");
       function renderCount(cart: ShopifyCart | null) {
         if (!countEl) return;
-        const quantity = cart?.totalQuantity ?? 0;
-        countEl.textContent = quantity > 0 ? ` (${quantity})` : "";
+        const q = cart?.totalQuantity ?? 0;
+        countEl.textContent = q > 0 ? `(${q})` : "";
       }
-      document.addEventListener("cart:updated", (event) => {
-        renderCount((event as CartUpdatedEvent).detail.cart);
-      });
+      document.addEventListener("cart:updated", (e) =>
+        renderCount((e as CartUpdatedEvent).detail.cart)
+      );
       loadCart().then(renderCount).catch(() => {});
     </script>
   </body>
