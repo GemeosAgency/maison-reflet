@@ -80,7 +80,9 @@ export default defineType({
     }),
     defineField({
       name: "imagesEditoriales",
-      title: "Images éditoriales",
+      title: "Galerie du parfum",
+      description:
+        "Images de la galerie de la page produit (empilées, dans l'ordre). Si vide, on retombe sur les images du produit Shopify.",
       type: "array",
       of: [
         {

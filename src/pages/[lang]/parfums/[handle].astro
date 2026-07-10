@@ -1,7 +1,7 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
 import { formatPrice, getAllProducts, type ShopifyProduct } from "../../../lib/shopify";
-import { getParfumContent } from "../../../lib/sanity";
+import { getParfumContent, urlForImage } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 
 export async function getStaticPaths() {
@@ -24,13 +24,27 @@ const parfum = await getParfumContent(product.handle, lang);
 const variant = product.variants.nodes.find((v) => v.availableForSale) ?? product.variants.nodes[0];
 const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
 
-// Galerie (visuels du design ; à remplacer par les images Sanity par parfum).
-const gallery = [
+// Galerie spécifique au parfum :
+// 1) images éditoriales Sanity (curées par parfum) → 2) images produit Shopify
+// (propres à chaque produit) → 3) visuels du design (placeholder de secours).
+const editorialImgs = (parfum?.images ?? []).map((im) =>
+  urlForImage(im as any).width(1000).url()
+);
+const shopifyImgs = [
+  product.featuredImage?.url,
+  ...product.images.nodes.map((n) => n.url),
+].filter((u): u is string => Boolean(u));
+const placeholderImgs = [
   "/brand/gallery1.jpg",
   "/brand/gallery2.jpg",
   "/brand/gallery3.jpg",
   "/brand/gallery4.jpg",
 ];
+const gallery = editorialImgs.length
+  ? editorialImgs
+  : shopifyImgs.length
+    ? shopifyImgs
+    : placeholderImgs;
 
 const names = (arr: { nom: string | null }[] | undefined) =>
   (arr ?? []).map((n) => n.nom).filter(Boolean) as string[];
@@ -44,13 +58,16 @@ const inspiredBy = "Bois Impérial";
 const rating = "4,9";
 const reviewCount = 147;
 
-// Cartes "Vous aimerez aussi" (contenu du design ; visuels Figma).
-const reco = [
-  { name: "Éclipse", inspired: "Ombre Nomade", price: "Dhs. 380", img: "/brand/reco-eclipse.jpg", href: localePath(lang, "/parfums/reflet-n-2-leclipse") },
-  { name: "Braise", inspired: "Baccarat Rouge 540", price: "Dhs. 380", img: "/brand/reco-braise.jpg", href: localePath(lang, "/parfums/reflet-n-1-la-braise") },
-  { name: "Rosée", inspired: "Bois Impérial", price: "Dhs. 380", img: "/brand/reco-rosee.jpg", href: localePath(lang, "/parfums") },
-  { name: "Azur", inspired: "Imagination", price: "Dhs. 380", img: "/brand/reco-azur.jpg", href: localePath(lang, "/parfums") },
-];
+// "Vous aimerez aussi" : les autres parfums réels de la collection.
+const reco = products
+  .filter((p) => p.handle !== product.handle)
+  .slice(0, 4)
+  .map((p) => ({
+    name: p.title,
+    price: formatPrice(p.priceRange.minVariantPrice.amount, p.priceRange.minVariantPrice.currencyCode),
+    img: p.featuredImage?.url ?? null,
+    href: localePath(lang, `/parfums/${p.handle}`),
+  }));
 ---
 
 <Layout title={product.title} description={parfum?.accroche ?? product.description} lang={lang}>
@@ -124,23 +141,24 @@ const reco = [
   </div>
 
   <!-- Vous aimerez aussi -->
-  <section class="reco">
-    <h2>{t("product.related")}</h2>
-    <div class="reco-grid">
-      {
-        reco.map((p) => (
-          <a class="reco-card" href={p.href}>
-            <img src={p.img} alt={p.name} loading="lazy" />
-            <div class="reco-meta">
-              <h3>{p.name}</h3>
-              <p class="reco-inspired">{t("product.inspiredBy")} {p.inspired}</p>
-              <p class="reco-price">{p.price}</p>
-            </div>
-          </a>
-        ))
-      }
-    </div>
-  </section>
+  {
+    reco.length > 0 && (
+      <section class="reco">
+        <h2>{t("product.related")}</h2>
+        <div class="reco-grid">
+          {reco.map((p) => (
+            <a class="reco-card" href={p.href}>
+              {p.img && <img src={p.img} alt={p.name} loading="lazy" />}
+              <div class="reco-meta">
+                <h3>{p.name}</h3>
+                <p class="reco-price">{p.price}</p>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )
+  }
 
   <!-- Coffrets -->
   <section class="boxes">
