@@ -1,7 +1,7 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
 import { formatPrice, getAllProducts, type ShopifyProduct } from "../../../lib/shopify";
-import { getParfumContent, urlForImage } from "../../../lib/sanity";
+import { getParfumContent } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 
 export async function getStaticPaths() {
@@ -24,11 +24,13 @@ const parfum = await getParfumContent(product.handle, lang);
 const variant = product.variants.nodes.find((v) => v.availableForSale) ?? product.variants.nodes[0];
 const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
 
-// Galerie : image Shopify + images éditoriales Sanity, empilées.
-const gallery: string[] = [];
-if (product.featuredImage) gallery.push(product.featuredImage.url);
-for (const im of product.images.nodes) if (!gallery.includes(im.url)) gallery.push(im.url);
-for (const im of parfum?.images ?? []) gallery.push(urlForImage(im as any).width(1000).url());
+// Galerie (visuels du design ; à remplacer par les images Sanity par parfum).
+const gallery = [
+  "/brand/gallery1.jpg",
+  "/brand/gallery2.jpg",
+  "/brand/gallery3.jpg",
+  "/brand/gallery4.jpg",
+];
 
 const names = (arr: { nom: string | null }[] | undefined) =>
   (arr ?? []).map((n) => n.nom).filter(Boolean) as string[];
@@ -42,8 +44,13 @@ const inspiredBy = "Bois Impérial";
 const rating = "4,9";
 const reviewCount = 147;
 
-const others = products.filter((p) => p.handle !== product.handle).slice(0, 4);
-const cardBg = ["#dfcbb8", "#e0cdba", "#dec8b5", "#dec9b8"];
+// Cartes "Vous aimerez aussi" (contenu du design ; visuels Figma).
+const reco = [
+  { name: "Éclipse", inspired: "Ombre Nomade", price: "Dhs. 380", img: "/brand/reco-eclipse.jpg", href: localePath(lang, "/parfums/reflet-n-2-leclipse") },
+  { name: "Braise", inspired: "Baccarat Rouge 540", price: "Dhs. 380", img: "/brand/reco-braise.jpg", href: localePath(lang, "/parfums/reflet-n-1-la-braise") },
+  { name: "Rosée", inspired: "Bois Impérial", price: "Dhs. 380", img: "/brand/reco-rosee.jpg", href: localePath(lang, "/parfums") },
+  { name: "Azur", inspired: "Imagination", price: "Dhs. 380", img: "/brand/reco-azur.jpg", href: localePath(lang, "/parfums") },
+];
 ---
 
 <Layout title={product.title} description={parfum?.accroche ?? product.description} lang={lang}>
@@ -117,37 +124,37 @@ const cardBg = ["#dfcbb8", "#e0cdba", "#dec8b5", "#dec9b8"];
   </div>
 
   <!-- Vous aimerez aussi -->
-  {
-    others.length > 0 && (
-      <section class="reco">
-        <h2>{t("product.related")}</h2>
-        <div class="reco-grid">
-          {others.map((p, i) => (
-            <a class="reco-card" href={localePath(lang, `/parfums/${p.handle}`)} style={`background:${cardBg[i % cardBg.length]}`}>
-              {p.featuredImage && <img src={p.featuredImage.url} alt={p.title} loading="lazy" />}
-              <div class="reco-meta">
-                <h3>{p.title}</h3>
-                <p class="reco-inspired">{t("product.inspiredBy")} {inspiredBy}</p>
-                <p class="reco-price">{formatPrice(p.priceRange.minVariantPrice.amount, p.priceRange.minVariantPrice.currencyCode)}</p>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
-    )
-  }
+  <section class="reco">
+    <h2>{t("product.related")}</h2>
+    <div class="reco-grid">
+      {
+        reco.map((p) => (
+          <a class="reco-card" href={p.href}>
+            <img src={p.img} alt={p.name} loading="lazy" />
+            <div class="reco-meta">
+              <h3>{p.name}</h3>
+              <p class="reco-inspired">{t("product.inspiredBy")} {p.inspired}</p>
+              <p class="reco-price">{p.price}</p>
+            </div>
+          </a>
+        ))
+      }
+    </div>
+  </section>
 
   <!-- Coffrets -->
   <section class="boxes">
     <h2>{t("product.boxes")}</h2>
     <div class="boxes-grid">
-      <div class="box-card box-a">
-        <div class="box-meta">
+      <div class="box-card">
+        <img src="/brand/box-sample.jpg" alt="Coffret découverte" loading="lazy" />
+        <div class="box-meta light">
           <h3>Coffret découverte</h3>
           <p>Dhs. 160</p>
         </div>
       </div>
-      <div class="box-card box-b">
+      <div class="box-card">
+        <img src="/brand/box-all6.jpg" alt="Les 6 parfums" loading="lazy" />
         <div class="box-meta light">
           <h3>Les 6 parfums</h3>
           <p>Dhs. 2 200</p>
@@ -255,9 +262,10 @@ const cardBg = ["#dfcbb8", "#e0cdba", "#dec8b5", "#dec9b8"];
   .reco-inspired, .reco-price { margin: 4px 0 0; font-size: 14px; font-weight: 500; }
 
   .boxes-grid { display: flex; gap: 2px; width: 100%; height: 728px; }
-  .box-card { flex: 1 0 0; min-width: 0; position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding: 24px; }
-  .box-a { background: #e0cdbb; }
-  .box-b { background: #2a2622; }
+  .box-card { flex: 1 0 0; min-width: 0; position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding: 24px; overflow: hidden; background: #e0cdbb; }
+  .box-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+  .box-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.45), transparent 45%); }
+  .box-meta { position: relative; z-index: 1; }
   .box-meta h3 { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
   .box-meta p { margin: 4px 0 0; font-size: 14px; font-weight: 500; }
   .box-meta.light { color: #fff; }
