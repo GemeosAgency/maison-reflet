@@ -180,14 +180,14 @@ const coffrets = coffretContent
       <div class="qty-select">
         <h3 class="qty-title">{t("product.selectQuantity")}</h3>
 
-        <div class="qty-single">
+        <button type="button" class="qty-single is-active" data-qty-single>
           {product.featuredImage && <img src={product.featuredImage.url} alt="" />}
           <span class="qty-single-label">{t("product.oneUnit")}</span>
           <span class="promo-price">
             <strong>{priceLabel}</strong>
             <small>{t("product.perUnit")}</small>
           </span>
-        </div>
+        </button>
 
         <div class="promo-bundle" data-promo-bundle>
           <button type="button" class="promo-header" data-promo-toggle aria-expanded="false">
@@ -440,6 +440,7 @@ const coffrets = coffretContent
     const promo = promoEl;
     const mainBtn = mainAddBtn;
     const mainFeedback = document.querySelector<HTMLElement>("[data-main-feedback]");
+    const qtySingle = document.querySelector<HTMLButtonElement>("[data-qty-single]");
     const toggleBtn = promo.querySelector<HTMLButtonElement>("[data-promo-toggle]");
     const bundleSlotsEl = promo.querySelector<HTMLElement>("[data-bundle-slots]");
     const selects = Array.from(promo.querySelectorAll<HTMLSelectElement>("[data-bundle-slot-select]"));
@@ -486,13 +487,16 @@ const coffrets = coffretContent
       mainBtn.textContent = `ADD TO BAG · ${fmt(total)}`;
     }
 
-    toggleBtn?.addEventListener("click", () => {
-      const next = !isExpanded();
-      toggleBtn.setAttribute("aria-expanded", String(next));
+    function setExpanded(next: boolean) {
+      toggleBtn?.setAttribute("aria-expanded", String(next));
       promo.classList.toggle("is-expanded", next);
+      qtySingle?.classList.toggle("is-active", !next);
       if (bundleSlotsEl) bundleSlotsEl.hidden = !next;
       updateButtonLabel();
-    });
+    }
+
+    toggleBtn?.addEventListener("click", () => setExpanded(!isExpanded()));
+    qtySingle?.addEventListener("click", () => setExpanded(false));
 
     selects.forEach((s) => s.addEventListener("change", updateBundlePricing));
 
@@ -554,11 +558,13 @@ const coffrets = coffretContent
   }
   .qty-title { margin: 0 0 4px; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em; }
   .qty-single {
-    display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    padding: 16px; background: #e9dac9; border-radius: 8px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%;
+    padding: 16px; background: #e9dac9; border-radius: 8px; border: 1.5px solid transparent;
+    font: inherit; text-align: left; cursor: pointer; transition: border-color 0.15s;
   }
+  .qty-single.is-active { border-color: var(--rose); }
   .qty-single img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; background: #d8c3ab; flex-shrink: 0; }
-  .qty-single-label { flex: 1 0 0; min-width: 0; font-size: 18px; font-weight: 500; }
+  .qty-single-label { flex: 1 0 0; min-width: 0; font-size: 18px; font-weight: 500; color: #0a1215; }
 
   /* Carte "Buy 2 Get 1 Free" repliable (d'après le Figma) */
   .promo-bundle {
