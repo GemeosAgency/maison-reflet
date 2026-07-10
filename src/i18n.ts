@@ -2,7 +2,10 @@
 
 export const locales = ["fr", "ar", "en"] as const;
 export type Locale = (typeof locales)[number];
+// Langue de base du contenu (source des traductions, slugs, fallback de texte).
 export const defaultLocale: Locale = "fr";
+// Langue servie à un visiteur dont le navigateur n'est pas dans fr/ar/en.
+export const fallbackLocale: Locale = "en";
 
 export const localeNames: Record<Locale, string> = {
   fr: "Français",
@@ -136,5 +139,6 @@ export function detectLocale(acceptLanguage: string | null, cookieLang?: string 
       if (isLocale(base)) return base;
     }
   }
-  return defaultLocale;
+  // Navigateur ni fr, ni ar, ni en → anglais (repli international).
+  return fallbackLocale;
 }
