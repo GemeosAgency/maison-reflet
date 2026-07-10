@@ -1,20 +1,24 @@
 ---
+import { type Locale, locales, localeNames, localePath, isRtl, useTranslations } from "../i18n";
+
 interface Props {
   title: string;
   description?: string;
+  lang: Locale;
 }
 
-const { title, description = "Maison Reflet — Parfums franco-arabes, collection Les 6 Reflets" } =
-  Astro.props;
+const { title, description = "Maison Reflet — Parfums franco-arabes", lang } = Astro.props;
+const t = useTranslations(lang);
 
-// Indexation contrôlée par variable d'env : tant que PUBLIC_ALLOW_INDEXING
-// n'est pas "true", tout le site est en noindex (pré-lancement). Le jour du
-// lancement, on met PUBLIC_ALLOW_INDEXING=true sur la prod uniquement.
+// Indexation contrôlée par variable d'env (noindex tant que non lancé).
 const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
+
+// Sélecteur de langue : même page, autre langue.
+const rest = Astro.url.pathname.replace(/^\/(fr|ar|en)/, "") || "/";
 ---
 
 <!doctype html>
-<html lang="fr">
+<html lang={lang} dir={isRtl(lang) ? "rtl" : "ltr"}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -22,16 +26,28 @@ const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
     {!indexable && <meta name="robots" content="noindex, nofollow" />}
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
+    {locales.map((loc) => <link rel="alternate" hreflang={loc} href={localePath(loc, rest)} />)}
     <title>{title} | Maison Reflet</title>
   </head>
   <body>
     <header>
-      <a href="/">Maison Reflet</a>
+      <a href={localePath(lang, "/")} class="brand">Maison Reflet</a>
       <nav>
-        <a href="/parfums">Les 6 Reflets</a>
-        <a href="/maison">La Maison</a>
-        <a href="/panier">Panier<span data-cart-count></span></a>
+        <a href={localePath(lang, "/parfums")}>{t("nav.parfums")}</a>
+        <a href={localePath(lang, "/maison")}>{t("nav.maison")}</a>
+        <a href={localePath(lang, "/panier")}>{t("nav.panier")}<span data-cart-count></span></a>
       </nav>
+      <ul class="lang-switch">
+        {
+          locales.map((loc) => (
+            <li>
+              <a href={localePath(loc, rest)} aria-current={loc === lang ? "true" : undefined}>
+                {localeNames[loc]}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
     </header>
 
     <main>
@@ -47,22 +63,15 @@ const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
       import type { ShopifyCart } from "../lib/shopify";
 
       const countEl = document.querySelector<HTMLElement>("[data-cart-count]");
-
       function renderCount(cart: ShopifyCart | null) {
         if (!countEl) return;
         const quantity = cart?.totalQuantity ?? 0;
         countEl.textContent = quantity > 0 ? ` (${quantity})` : "";
       }
-
       document.addEventListener("cart:updated", (event) => {
         renderCount((event as CartUpdatedEvent).detail.cart);
       });
-
-      loadCart()
-        .then(renderCount)
-        .catch(() => {
-          // Réseau ou API indisponible : on laisse le compteur vide, sans casser la page
-        });
+      loadCart().then(renderCount).catch(() => {});
     </script>
   </body>
 </html>

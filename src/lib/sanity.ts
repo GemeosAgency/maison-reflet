@@ -1,19 +1,11 @@
 /**
- * Client Sanity
- * Documentation : https://www.sanity.io/docs/js-client
- *
- * Variables d'env requises (voir .env.example) :
- * - SANITY_PROJECT_ID
- * - SANITY_DATASET       ex: production
- * - SANITY_API_VERSION   ex: 2025-01-01
- * - SANITY_READ_TOKEN    optionnel, requis seulement pour le contenu en draft/preview
+ * Client Sanity + requêtes de contenu (localisées fr/ar/en).
+ * Seul point qui parle à Sanity (convention projet).
  */
-
 import { createClient } from "@sanity/client";
 import { createImageUrlBuilder } from "@sanity/image-url";
+import { locales, defaultLocale, type Locale } from "../i18n";
 
-// Type minimal pour une référence d'image Sanity (évite une dépendance
-// de types externe fragile — suffisant pour urlForImage()).
 type SanityImageSource =
   | string
   | { asset?: { _ref?: string; _id?: string; url?: string }; _ref?: string; _id?: string };
@@ -22,17 +14,13 @@ export const sanityClient = createClient({
   projectId: import.meta.env.SANITY_PROJECT_ID,
   dataset: import.meta.env.SANITY_DATASET || "production",
   apiVersion: import.meta.env.SANITY_API_VERSION || "2025-01-01",
-  token: import.meta.env.SANITY_READ_TOKEN, // laisser vide en prod si dataset public
-  // Le CDN ne sert que du contenu public : dès qu'un token est présent
-  // (dataset privé ou preview de drafts), il faut interroger l'API directe.
+  token: import.meta.env.SANITY_READ_TOKEN,
   useCdn: !import.meta.env.SANITY_READ_TOKEN,
 });
 
-// Client d'écriture (liste d'attente) — lazy, nécessite SANITY_WRITE_TOKEN.
-// Séparé du client de lecture : les écritures ne passent jamais par le CDN.
+// ---------- Écriture (liste d'attente) ----------
 let _writeClient: ReturnType<typeof createClient> | null = null;
 function getWriteClient() {
-  // import.meta.env au build, process.env au runtime serverless (Vercel)
   const token =
     import.meta.env.SANITY_WRITE_TOKEN ||
     (typeof process !== "undefined" ? process.env.SANITY_WRITE_TOKEN : undefined);
@@ -63,62 +51,84 @@ export async function createSubscriber(email: string, source = "teaser") {
 }
 
 const builder = createImageUrlBuilder(sanityClient);
-
-/** Génère une URL d'image optimisée à partir d'une référence d'image Sanity */
 export function urlForImage(source: SanityImageSource) {
   return builder.image(source);
 }
 
-// ---------- Types de contenu ----------
+// ---------- Contenu localisé ----------
 
-// Tous les champs éditoriaux sont optionnels : seul shopifyHandle est requis
-// dans le Studio, une fiche peut donc exister partiellement remplie.
-export type SanityParfumContent = {
-  _id: string;
-  shopifyHandle: string; // fait le lien avec le produit Shopify du même handle
-  histoire?: string; // storytelling long-form du parfum
-  notesOlfactives?: {
-    tete?: string[];
-    coeur?: string[];
-    fond?: string[];
-  };
-  inspirationCulturelle?: string; // ancrage franco-arabe du parfum
-  imagesEditoriales?: SanityImageSource[];
-};
-
-export type SanityPage = {
-  _id: string;
-  title: string;
-  slug: string;
-  content: unknown; // Portable Text — voir Sanity Studio schema
-};
-
-// ---------- Queries (GROQ) ----------
-
-/** Récupère le contenu éditorial d'un parfum via son handle Shopify */
-export async function getParfumContent(shopifyHandle: string) {
-  return sanityClient.fetch<SanityParfumContent | null>(
-    `*[_type == "parfum" && shopifyHandle == $handle][0]{
-      _id,
-      shopifyHandle,
-      histoire,
-      notesOlfactives,
-      inspirationCulturelle,
-      imagesEditoriales
-    }`,
-    { handle: shopifyHandle }
-  );
+// Sécurise l'interpolation de la langue dans les requêtes GROQ.
+function safeLocale(locale: Locale): Locale {
+  return locales.includes(locale) ? locale : defaultLocale;
 }
 
-/** Récupère une page de contenu (à propos, maison, etc.) par son slug */
-export async function getPageBySlug(slug: string) {
-  return sanityClient.fetch<SanityPage | null>(
-    `*[_type == "page" && slug.current == $slug][0]{
-      _id,
-      title,
-      "slug": slug.current,
-      content
-    }`,
-    { slug }
-  );
+export type NoteCard = {
+  nom: string | null;
+  famille: string | null;
+  histoire: string | null;
+  image: unknown | null;
+};
+
+export type ParfumContent = {
+  accroche: string | null;
+  histoire: string | null;
+  inspiration: string | null;
+  familleOlfactive: string | null;
+  parfumeur: string | null;
+  couleurSignature: string | null;
+  notes: { tete: NoteCard[]; coeur: NoteCard[]; fond: NoteCard[] };
+  images: { _key: string; asset: unknown; alt: string | null }[];
+};
+
+/** Contenu éditorial d'un parfum dans une langue donnée (repli FR). */
+export async function getParfumContent(
+  handle: string,
+  locale: Locale
+): Promise<ParfumContent | null> {
+  const l = safeLocale(locale);
+  const noteCards = `[]->{ "nom": coalesce(nom.${l}, nom.fr), famille, "histoire": coalesce(histoire.${l}, histoire.fr), image }`;
+  const query = `*[_type == "parfum" && shopifyHandle == $handle][0]{
+    "accroche": coalesce(accroche.${l}, accroche.fr),
+    "histoire": coalesce(histoire.${l}, histoire.fr),
+    "inspiration": coalesce(inspirationCulturelle.${l}, inspirationCulturelle.fr),
+    familleOlfactive,
+    parfumeur,
+    couleurSignature,
+    "notes": {
+      "tete": notesTete${noteCards},
+      "coeur": notesCoeur${noteCards},
+      "fond": notesFond${noteCards}
+    },
+    "images": imagesEditoriales[]{ _key, asset, "alt": coalesce(alt.${l}, alt.fr) }
+  }`;
+  return sanityClient.fetch(query, { handle });
+}
+
+export type PageContent = { title: string | null; content: unknown[] | null };
+
+/** Page de contenu libre (La Maison…) dans une langue donnée (repli FR). */
+export async function getPageBySlug(slug: string, locale: Locale): Promise<PageContent | null> {
+  const l = safeLocale(locale);
+  const query = `*[_type == "page" && slug.current == $slug][0]{
+    "title": coalesce(title.${l}, title.fr),
+    "content": coalesce(content.${l}, content.fr)
+  }`;
+  return sanityClient.fetch(query, { slug });
+}
+
+export type SiteSettings = {
+  brandName: string | null;
+  baseline: string | null;
+  about: string | null;
+};
+
+/** Réglages globaux de la marque (localisés). */
+export async function getSettings(locale: Locale): Promise<SiteSettings | null> {
+  const l = safeLocale(locale);
+  const query = `*[_type == "settings"][0]{
+    brandName,
+    "baseline": coalesce(baseline.${l}, baseline.fr),
+    "about": coalesce(about.${l}, about.fr)
+  }`;
+  return sanityClient.fetch(query);
 }

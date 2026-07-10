@@ -1,0 +1,65 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { formatPrice, getAllProducts } from "../../lib/shopify";
+import { getSettings } from "../../lib/sanity";
+import { type Locale, locales, localePath, useTranslations } from "../../i18n";
+
+export function getStaticPaths() {
+  return locales.map((lang) => ({ params: { lang } }));
+}
+
+const lang = Astro.params.lang as Locale;
+const t = useTranslations(lang);
+
+const featured = (await getAllProducts(3)).slice(0, 3);
+const settings = await getSettings(lang);
+const baseline = settings?.baseline ?? "Six parfums, six reflets d'une identité franco-arabe.";
+---
+
+<Layout title={settings?.brandName ?? "Maison Reflet"} description={baseline} lang={lang}>
+  <section class="hero">
+    <h1>Maison Reflet</h1>
+    <p class="tagline">{baseline}</p>
+    {settings?.about && <p class="about">{settings.about}</p>}
+    <a href={localePath(lang, "/parfums")} class="cta">{t("home.discover")}</a>
+  </section>
+
+  {
+    featured.length > 0 && (
+      <section class="featured">
+        <h2>{t("home.featured")}</h2>
+        <div class="featured-grid">
+          {featured.map((product) => (
+            <a href={localePath(lang, `/parfums/${product.handle}`)} class="featured-card">
+              {product.featuredImage && (
+                <img
+                  src={product.featuredImage.url}
+                  alt={product.featuredImage.altText ?? product.title}
+                  width={product.featuredImage.width}
+                  height={product.featuredImage.height}
+                  loading="lazy"
+                />
+              )}
+              <h3>{product.title}</h3>
+              <p>
+                {formatPrice(
+                  product.priceRange.minVariantPrice.amount,
+                  product.priceRange.minVariantPrice.currencyCode
+                )}
+              </p>
+            </a>
+          ))}
+        </div>
+      </section>
+    )
+  }
+</Layout>
+
+<style>
+  .hero { text-align: center; padding: 4rem 1rem; max-width: 40rem; margin: 0 auto; }
+  .tagline { font-size: 1.25rem; }
+  .featured { padding: 2rem 1rem; max-width: 60rem; margin: 0 auto; }
+  .featured-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2rem; }
+  .featured-card { display: block; text-decoration: none; color: inherit; }
+  .featured-card img { width: 100%; height: auto; display: block; }
+</style>

@@ -1,28 +1,39 @@
 ---
 import { formatPrice, type ShopifyProduct } from "../lib/shopify";
+import { type Locale, localePath, useTranslations } from "../i18n";
 
 interface Props {
   variants: ShopifyProduct["variants"]["nodes"];
+  lang: Locale;
 }
 
-const { variants } = Astro.props;
+const { variants, lang } = Astro.props;
+const t = useTranslations(lang);
 
 // Une seule variante ("Default Title" chez Shopify) : rien à choisir
 const showSelect = variants.length > 1;
 const anyAvailable = variants.some((v) => v.availableForSale);
 const defaultVariant = variants.find((v) => v.availableForSale) ?? variants[0];
+const cartUrl = localePath(lang, "/panier");
 ---
 
-<div class="cart-form" data-cart-form>
+<div
+  class="cart-form"
+  data-cart-form
+  data-cart-url={cartUrl}
+  data-msg-adding={t("product.adding")}
+  data-msg-added={t("product.added")}
+  data-msg-see={t("product.seeCart")}
+  data-msg-error={t("product.error")}
+>
   {
     showSelect && (
       <label>
-        Contenance
         <select data-cart-variant>
           {variants.map((variant) => (
             <option value={variant.id} disabled={!variant.availableForSale}>
               {variant.title} — {formatPrice(variant.price.amount, variant.price.currencyCode)}
-              {!variant.availableForSale && " (épuisé)"}
+              {!variant.availableForSale && ` (${t("product.soldOut")})`}
             </option>
           ))}
         </select>
@@ -36,7 +47,7 @@ const defaultVariant = variants.find((v) => v.availableForSale) ?? variants[0];
     data-variant-id={!showSelect ? defaultVariant?.id : undefined}
     disabled={!anyAvailable}
   >
-    {anyAvailable ? "Ajouter au panier" : "Épuisé"}
+    {anyAvailable ? t("product.addToCart") : t("product.soldOut")}
   </button>
 
   <p data-cart-feedback role="status" aria-live="polite"></p>
@@ -51,19 +62,20 @@ const defaultVariant = variants.find((v) => v.availableForSale) ?? variants[0];
     const feedback = form.querySelector<HTMLElement>("[data-cart-feedback]");
     if (!button || button.disabled) continue;
 
+    const msg = form.dataset;
     button.addEventListener("click", async () => {
       const variantId = select ? select.value : button.dataset.variantId;
       if (!variantId || !feedback) return;
 
       button.disabled = true;
-      feedback.textContent = "Ajout en cours…";
+      feedback.textContent = msg.msgAdding ?? "";
 
       try {
         await addToCart(variantId, 1);
-        feedback.innerHTML = 'Ajouté au panier ✓ — <a href="/panier">Voir le panier</a>';
+        feedback.innerHTML = `${msg.msgAdded ?? ""} — <a href="${msg.cartUrl}">${msg.msgSee ?? ""}</a>`;
       } catch (error) {
         console.error(error);
-        feedback.textContent = "Impossible d'ajouter au panier. Réessaie dans un instant.";
+        feedback.textContent = msg.msgError ?? "";
       } finally {
         button.disabled = false;
       }
@@ -72,10 +84,5 @@ const defaultVariant = variants.find((v) => v.availableForSale) ?? variants[0];
 </script>
 
 <style>
-  .cart-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    align-items: flex-start;
-  }
+  .cart-form { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
 </style>

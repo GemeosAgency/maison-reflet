@@ -1,0 +1,47 @@
+---
+import { toHTML, type PortableTextComponents } from "@portabletext/to-html";
+import Layout from "../../layouts/Layout.astro";
+import { getPageBySlug, urlForImage } from "../../lib/sanity";
+import { type Locale, locales } from "../../i18n";
+
+export function getStaticPaths() {
+  return locales.map((lang) => ({ params: { lang } }));
+}
+
+const lang = Astro.params.lang as Locale;
+const page = await getPageBySlug("maison", lang);
+
+const components: Partial<PortableTextComponents> = {
+  types: {
+    image: ({ value }) =>
+      `<img src="${urlForImage(value).width(1200).url()}" alt="" loading="lazy" />`,
+  },
+};
+
+const contentHtml =
+  page?.content && Array.isArray(page.content) ? toHTML(page.content, { components }) : "";
+---
+
+<Layout
+  title={page?.title ?? "La Maison"}
+  description="L'histoire de Maison Reflet, maison de parfums franco-arabe"
+  lang={lang}
+>
+  <article class="page-content">
+    {
+      page?.title ? (
+        <>
+          <h1>{page.title}</h1>
+          <div set:html={contentHtml} />
+        </>
+      ) : (
+        <h1>La Maison</h1>
+      )
+    }
+  </article>
+</Layout>
+
+<style>
+  .page-content { max-width: 40rem; margin: 0 auto; padding: 2rem 1rem; }
+  .page-content :global(img) { max-width: 100%; height: auto; }
+</style>
