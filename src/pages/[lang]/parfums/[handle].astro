@@ -32,6 +32,8 @@ const parfum = await getParfumContent(product.handle, lang);
 const variant = product.variants.nodes.find((v) => v.availableForSale) ?? product.variants.nodes[0];
 const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
 
+const inspiredMap = await getInspiredByMap();
+
 // Lot "Buy 2 Get 1 Free" : catalogue complet des parfums (autres produits déjà
 // filtrés des coffrets par getStaticPaths) pour les 3 sélecteurs. La vraie remise
 // (article le moins cher offert) est appliquée par Shopify au checkout — voir
@@ -41,6 +43,7 @@ const bundleCatalog = products.map((p) => {
   return {
     handle: p.handle,
     title: p.title,
+    inspiredBy: inspiredMap[p.handle] ?? null,
     img: p.featuredImage?.url ?? null,
     variantId: v.id,
     price: Number(v.price.amount),
@@ -100,7 +103,6 @@ const reassurances = (parfum?.reassurances ?? []).map((r) => ({
   icone: r.icone ? urlForImage(r.icone as any).width(80).url() : null,
   lignes: (r.texte ?? "").split("\n").filter(Boolean),
 }));
-const inspiredMap = await getInspiredByMap();
 const recoImages = await getRecoImages();
 // Note / avis : placeholders (pas encore de système d'avis).
 const rating = "4,9";
@@ -175,41 +177,55 @@ const coffrets = coffretContent
         </div>
       </div>
 
-      <div class="promo-bundle" data-promo-bundle>
-        <button type="button" class="promo-header" data-promo-toggle aria-expanded="false">
-          <span class="promo-left">
-            <span class="promo-thumbs">
-              {[0, 1, 2].map((i) => (
-                <img
-                  data-bundle-img={i}
-                  src={bundleCatalog.find((p) => p.handle === defaultBundle[i])?.img ?? ""}
-                  alt=""
-                />
-              ))}
-            </span>
-            <span class="promo-title">{t("product.buy2get1")}</span>
-            <span class="promo-badge" data-promo-badge>{t("product.save")} 33%</span>
-          </span>
+      <div class="qty-select">
+        <h3 class="qty-title">{t("product.selectQuantity")}</h3>
+
+        <div class="qty-single">
+          {product.featuredImage && <img src={product.featuredImage.url} alt="" />}
+          <span class="qty-single-label">{t("product.oneUnit")}</span>
           <span class="promo-price">
-            <strong data-bundle-unit-price>—</strong>
+            <strong>{priceLabel}</strong>
             <small>{t("product.perUnit")}</small>
           </span>
-        </button>
+        </div>
 
-        <div class="bundle-slots" data-bundle-slots hidden>
-          {[0, 1, 2].map((i) => (
-            <div class="bundle-slot">
-              <img data-bundle-slot-img={i} src={bundleCatalog.find((p) => p.handle === defaultBundle[i])?.img ?? ""} alt="" />
-              <select data-bundle-slot-select={i}>
-                {bundleCatalog.map((p) => (
-                  <option value={p.handle} selected={p.handle === defaultBundle[i]}>
-                    {p.title.toUpperCase()} · 70 ML
-                  </option>
+        <div class="promo-bundle" data-promo-bundle>
+          <button type="button" class="promo-header" data-promo-toggle aria-expanded="false">
+            <span class="promo-left">
+              <span class="promo-thumbs">
+                {[0, 1, 2].map((i) => (
+                  <img
+                    data-bundle-img={i}
+                    src={bundleCatalog.find((p) => p.handle === defaultBundle[i])?.img ?? ""}
+                    alt=""
+                  />
                 ))}
-              </select>
-              <img src="/brand/chevron.svg" alt="" class="chev" width="8" height="8" />
-            </div>
-          ))}
+              </span>
+              <span class="promo-title">{t("product.buy2get1")}</span>
+              <span class="promo-badge" data-promo-badge>{t("product.save")} 33%</span>
+            </span>
+            <span class="promo-price">
+              <strong data-bundle-unit-price>—</strong>
+              <small>{t("product.perUnit")}</small>
+            </span>
+          </button>
+
+          <div class="bundle-slots" data-bundle-slots hidden>
+            {[0, 1, 2].map((i) => (
+              <div class="bundle-slot">
+                <img data-bundle-slot-img={i} src={bundleCatalog.find((p) => p.handle === defaultBundle[i])?.img ?? ""} alt="" />
+                <select data-bundle-slot-select={i}>
+                  {bundleCatalog.map((p) => (
+                    <option value={p.handle} selected={p.handle === defaultBundle[i]}>
+                      {p.title.toUpperCase()}
+                      {p.inspiredBy ? ` ${t("product.inspiredBy")} ${p.inspiredBy}` : ""} · 70 ML
+                    </option>
+                  ))}
+                </select>
+                <img src="/brand/chevron.svg" alt="" class="chev" width="8" height="8" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -530,6 +546,19 @@ const coffrets = coffretContent
   .stars { display: inline-flex; gap: 2px; }
   .score { font-size: 16px; font-weight: 500; }
   .reviews { font-size: 14px; }
+
+  /* Choix de quantité : ligne "1 parfum" + carte "Buy 2 Get 1 Free" */
+  .qty-select {
+    display: flex; flex-direction: column; gap: 8px;
+    border-top: 1px solid rgba(0,0,0,0.15); padding-top: 24px;
+  }
+  .qty-title { margin: 0 0 4px; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em; }
+  .qty-single {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 16px; background: #e9dac9; border-radius: 8px;
+  }
+  .qty-single img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; background: #d8c3ab; flex-shrink: 0; }
+  .qty-single-label { flex: 1 0 0; min-width: 0; font-size: 18px; font-weight: 500; }
 
   /* Carte "Buy 2 Get 1 Free" repliable (d'après le Figma) */
   .promo-bundle {
