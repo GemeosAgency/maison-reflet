@@ -247,6 +247,19 @@ const coffrets = coffretContent
       </button>
       <p class="feedback" data-main-feedback role="status" aria-live="polite"></p>
 
+      {
+        reassurances.length > 0 && (
+          <ul class="cta-perks">
+            {reassurances.map((r) => (
+              <li>
+                {r.icone && <img src={r.icone} alt="" width="20" height="20" />}
+                <span>{r.lignes.join(" ")}</span>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+
       <div class="accordions">
         {
           descriptionHtml && (
@@ -711,6 +724,11 @@ const coffrets = coffretContent
   .add-to-bag:hover { opacity: 0.9; }
   .add-to-bag:disabled { opacity: 0.6; }
   .feedback { margin: -20px 0 0; min-height: 1em; color: var(--rose); }
+
+  /* Réassurance compacte sous le CTA (même contenu Sanity que le bandeau plus bas) */
+  .cta-perks { list-style: none; margin: 0; padding: 0 8px; display: flex; flex-direction: column; gap: 10px; }
+  .cta-perks li { display: flex; gap: 8px; align-items: center; font-size: 16px; }
+  .cta-perks img { flex-shrink: 0; }
 
   /* Réassurance (bandeau pleine largeur, d'après le Figma) */
   .reassurance {
