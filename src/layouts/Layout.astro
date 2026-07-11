@@ -59,6 +59,10 @@ const navLinks = [
       document.cookie = "lang=" + lang + ";path=/;max-age=31536000;samesite=lax";
     </script>
 
+    <div class="promo-banner">
+      <p>{t("banner.promo")}</p>
+    </div>
+
     <header class="site-header">
       <nav class="site-nav">
         {navLinks.map((l) => <a href={l.href}>{l.label}</a>)}
@@ -103,6 +107,11 @@ const navLinks = [
     </footer>
 
     <style>
+      .promo-banner { background: #efc5a9; }
+      .promo-banner p {
+        margin: 0; padding: 10.5px 48px; text-align: center;
+        color: var(--rose); font-size: 14px; font-weight: 500; text-transform: uppercase;
+      }
       .site-header {
         position: relative;
         display: flex;
@@ -160,6 +169,7 @@ const navLinks = [
       @media (max-width: 720px) {
         .site-header { padding: 0 20px; }
         .site-nav { display: none; }
+        .promo-banner p { padding: 10.5px 20px; font-size: 12px; }
       }
     </style>
 

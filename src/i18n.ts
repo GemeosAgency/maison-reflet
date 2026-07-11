@@ -26,6 +26,7 @@ export function localePath(locale: Locale, path = "/"): string {
 /** Libellés d'interface (le contenu éditorial vient de Sanity, lui). */
 const ui = {
   fr: {
+    "banner.promo": "Offre limitée : achetez 2, le 3ᵉ offert",
     "nav.parfums": "Les 6 Reflets",
     "nav.perfumes": "Parfums",
     "nav.services": "Services",
@@ -70,6 +71,7 @@ const ui = {
     "cart.error": "Impossible de charger le panier. Recharge la page.",
   },
   ar: {
+    "banner.promo": "عرض محدود: اشترِ 2 واحصل على الثالث مجانًا",
     "nav.parfums": "الانعكاسات الستة",
     "nav.perfumes": "عطور",
     "nav.services": "خدمات",
@@ -114,6 +116,7 @@ const ui = {
     "cart.error": "تعذّر تحميل السلة. أعد تحميل الصفحة.",
   },
   en: {
+    "banner.promo": "Limited time offer: buy 2, get 1 free",
     "nav.parfums": "The 6 Reflections",
     "nav.perfumes": "Perfumes",
     "nav.services": "Services",
