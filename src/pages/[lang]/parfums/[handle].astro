@@ -1,5 +1,4 @@
 ---
-import { toHTML, type PortableTextComponents } from "@portabletext/to-html";
 import Layout from "../../../layouts/Layout.astro";
 import { formatPrice, getAllProducts, isCoffret, type ShopifyProduct } from "../../../lib/shopify";
 import {
@@ -85,16 +84,6 @@ const tete = names(parfum?.notes.tete);
 const coeur = names(parfum?.notes.coeur);
 const fond = names(parfum?.notes.fond);
 const ingredients = (parfum?.ingredients ?? []).filter(Boolean) as string[];
-
-const portableTextComponents: Partial<PortableTextComponents> = {
-  types: {
-    image: ({ value }) => `<img src="${urlForImage(value as any).width(1000).url()}" alt="" loading="lazy" />`,
-  },
-};
-const descriptionHtml =
-  parfum?.description && Array.isArray(parfum.description)
-    ? toHTML(parfum.description as any, { components: portableTextComponents })
-    : "";
 
 const inspiredBy = parfum?.inspiredBy ?? null;
 const specificTwist = parfum?.specificTwist ?? null;
@@ -271,19 +260,6 @@ const coffrets = coffretContent
       }
 
       <div class="cta-links">
-        {
-          descriptionHtml && (
-            <button
-              type="button"
-              class="cta-link"
-              data-drawer-trigger="description"
-              data-drawer-title={t("product.description")}
-            >
-              <img src="/brand/add.svg" alt="" width="12" height="12" />
-              <span>{t("product.description")}</span>
-            </button>
-          )
-        }
         <button
           type="button"
           class="cta-link"
@@ -304,37 +280,32 @@ const coffrets = coffretContent
           <img src="/brand/add.svg" alt="" width="12" height="12" />
           <span>{t("product.specificTwist")}</span>
         </button>
-        {
-          perfumerWord && (
-            <button
-              type="button"
-              class="cta-link"
-              data-drawer-trigger="perfumer"
-              data-drawer-title={t("product.perfumerWord")}
-              data-drawer-image={perfumerPhotoUrl ?? ""}
-            >
-              <img src="/brand/add.svg" alt="" width="12" height="12" />
-              <span>{t("product.perfumerWord")}</span>
-            </button>
-          )
-        }
+        <button
+          type="button"
+          class="cta-link"
+          data-drawer-trigger="perfumer"
+          data-drawer-title={t("product.perfumerWord")}
+          data-drawer-image={perfumerPhotoUrl ?? ""}
+        >
+          <img src="/brand/add.svg" alt="" width="12" height="12" />
+          <span>{t("product.perfumerWord")}</span>
+        </button>
       </div>
     </aside>
   </div>
 
-  <!-- Panneau latéral (modale) pour Description / Pyramide / Ingrédients -->
+  <!-- Panneau latéral (modale) pour Pyramide olfactive / The Specific Twist / Perfumer's word -->
   <div class="info-drawer" data-drawer>
     <div class="info-drawer-backdrop" data-drawer-backdrop />
     <aside class="info-drawer-panel">
       <button type="button" class="info-drawer-close" data-drawer-close aria-label={t("product.close")}>
-        <img src="/brand/close.svg" alt="" width="20" height="20" />
+        <img src="/brand/close.svg" alt="" width="16" height="16" />
       </button>
       <div class="drawer-hero" data-drawer-hero hidden>
         <img data-drawer-hero-img alt="" />
       </div>
       <h2 class="info-drawer-title" data-drawer-heading />
       <div class="info-drawer-body">
-        {descriptionHtml && <div data-drawer-panel="description" hidden set:html={descriptionHtml} />}
         <div data-drawer-panel="pyramide" hidden>
           {tete.length > 0 && (
             <div class="drawer-row">
@@ -368,11 +339,9 @@ const coffrets = coffretContent
               .map((para) => <p>{para}</p>)}
           {twistPhilosophy.map((para) => <p>{para}</p>)}
         </div>
-        {perfumerWord && (
-          <div data-drawer-panel="perfumer" hidden>
-            <p class="drawer-quote">“{perfumerWord}”</p>
-          </div>
-        )}
+        <div data-drawer-panel="perfumer" hidden>
+          {perfumerWord && <p class="drawer-quote">“{perfumerWord}”</p>}
+        </div>
       </div>
     </aside>
   </div>
@@ -827,14 +796,14 @@ const coffrets = coffretContent
   .info-drawer.is-open { pointer-events: auto; }
   .info-drawer.is-open .info-drawer-backdrop { opacity: 1; }
   .info-drawer-panel {
-    position: fixed; top: 0; right: 0; height: 100vh; width: 480px; max-width: 92vw;
-    background: #f5eee6; padding: 32px; display: flex; flex-direction: column; gap: 24px;
-    box-shadow: -8px 0 40px rgba(0, 0, 0, 0.16); overflow-y: auto;
-    transform: translateX(100%); transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    position: fixed; top: 8px; right: 8px; bottom: 8px; width: 480px; max-width: 92vw;
+    background: #f5eee6; padding: 32px 32px 40px; display: flex; flex-direction: column; gap: 24px;
+    border-radius: 8px; box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.08); overflow-y: auto;
+    transform: translateX(calc(100% + 8px)); transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .info-drawer.is-open .info-drawer-panel { transform: translateX(0); }
   .info-drawer-close {
-    position: absolute; top: 20px; right: 20px; border: 0; background: transparent;
+    position: absolute; top: 12px; right: 12px; border: 0; background: transparent;
     padding: 4px; cursor: pointer; line-height: 0;
   }
   .info-drawer-title { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
@@ -849,23 +818,33 @@ const coffrets = coffretContent
   .drawer-row:last-child { border-bottom: 0; }
   .drawer-row strong { font-weight: 500; white-space: nowrap; }
   .drawer-row span { text-align: right; }
-  .drawer-ingredients { margin: 16px 0 0; font-size: 14px; line-height: 1.36; opacity: 0.8; }
+  .drawer-ingredients { margin: 24px 0 0; font-size: 14px; line-height: 1.36; }
   .drawer-ingredients strong { font-weight: 500; }
   .drawer-quote { font-size: 16px; line-height: 1.36; margin: 0; }
 
   /* Image en tête du panneau (pyramide dessinée / sceau / photo du parfumeur) */
-  .drawer-hero img { display: block; width: 100%; border-radius: 4px; }
+  .drawer-hero img { display: block; }
   .drawer-hero[data-kind="pyramide"] img {
-    max-height: 480px; width: 100%; object-fit: contain; background: #f0e6d8;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+    width: 100%; max-height: 420px; object-fit: contain; border-radius: 4px;
   }
-  .drawer-hero[data-kind="twist"] { display: flex; justify-content: center; }
+  .drawer-hero[data-kind="twist"] {
+    position: relative; width: 160px; height: 160px;
+  }
   .drawer-hero[data-kind="twist"] img {
-    width: 96px; height: 96px; object-fit: cover; object-position: top; border-radius: 50%;
+    width: 160px; height: 160px; object-fit: cover; object-position: bottom;
+    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
   }
-  .drawer-hero[data-kind="perfumer"] img { aspect-ratio: 2 / 3; object-fit: cover; }
+  .drawer-hero[data-kind="twist"]::after {
+    content: ""; position: absolute; inset: 0;
+    box-shadow: inset 2px -4px 4px #0d1114; pointer-events: none;
+  }
+  .drawer-hero[data-kind="perfumer"] img { width: 256px; height: 392px; object-fit: cover; }
   @media (max-width: 600px) {
-    .info-drawer-panel { width: 100vw; max-width: 100vw; }
+    .info-drawer.is-open .info-drawer-panel { transform: translateX(0); }
+    .info-drawer-panel {
+      top: 0; right: 0; bottom: 0; width: 100vw; max-width: 100vw; border-radius: 0;
+      transform: translateX(100%);
+    }
   }
 
   /* Blocs éditoriaux alternés (d'après le Figma) */
