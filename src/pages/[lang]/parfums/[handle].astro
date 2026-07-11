@@ -216,7 +216,7 @@ const coffrets = coffretContent
             </span>
           </button>
 
-          <div class="bundle-slots" data-bundle-slots hidden>
+          <div class="bundle-slots" data-bundle-slots>
             {[0, 1, 2].map((i) => (
               <div class="bundle-slot">
                 <img data-bundle-slot-img={i} src={bundleCatalog.find((p) => p.handle === defaultBundle[i])?.img ?? ""} alt="" />
@@ -470,7 +470,6 @@ const coffrets = coffretContent
     const mainFeedback = document.querySelector<HTMLElement>("[data-main-feedback]");
     const qtySingle = document.querySelector<HTMLButtonElement>("[data-qty-single]");
     const toggleBtn = promo.querySelector<HTMLButtonElement>("[data-promo-toggle]");
-    const bundleSlotsEl = promo.querySelector<HTMLElement>("[data-bundle-slots]");
     const selects = Array.from(promo.querySelectorAll<HTMLSelectElement>("[data-bundle-slot-select]"));
     const unitPriceEl = promo.querySelector<HTMLElement>("[data-bundle-unit-price]");
     const badgeEl = promo.querySelector<HTMLElement>("[data-promo-badge]");
@@ -519,7 +518,6 @@ const coffrets = coffretContent
       toggleBtn?.setAttribute("aria-expanded", String(next));
       promo.classList.toggle("is-expanded", next);
       qtySingle?.classList.toggle("is-active", !next);
-      if (bundleSlotsEl) bundleSlotsEl.hidden = !next;
       updateButtonLabel();
     }
 
@@ -549,6 +547,69 @@ const coffrets = coffretContent
       }
     });
   }
+
+  // Accordéons (Description / Pyramide / Ingrédients) : <details> natif n'anime pas
+  // sa hauteur nativement — on l'anime nous-mêmes (Web Animations API), la flèche
+  // continue de tourner via la transition CSS existante sur [open].
+  document.querySelectorAll<HTMLDetailsElement>(".accordions details").forEach((details) => {
+    const summary = details.querySelector<HTMLElement>("summary");
+    const body = details.querySelector<HTMLElement>(".acc-body");
+    if (!summary || !body) return;
+
+    let animation: Animation | null = null;
+    let isClosing = false;
+    let isExpanding = false;
+
+    summary.addEventListener("click", (e) => {
+      e.preventDefault();
+      details.style.overflow = "hidden";
+      if (isClosing || !details.open) {
+        open();
+      } else if (isExpanding || details.open) {
+        shrink();
+      }
+    });
+
+    function shrink() {
+      isClosing = true;
+      const startHeight = `${details.offsetHeight}px`;
+      const endHeight = `${summary!.offsetHeight}px`;
+      animation?.cancel();
+      animation = details.animate(
+        { height: [startHeight, endHeight] },
+        { duration: 350, easing: "cubic-bezier(0.4, 0, 0.2, 1)" }
+      );
+      animation.onfinish = () => onFinish(false);
+      animation.oncancel = () => (isClosing = false);
+    }
+
+    function open() {
+      details.style.height = `${details.offsetHeight}px`;
+      details.open = true;
+      requestAnimationFrame(() => expand());
+    }
+
+    function expand() {
+      isExpanding = true;
+      const startHeight = `${details.offsetHeight}px`;
+      const endHeight = `${summary!.offsetHeight + body!.offsetHeight}px`;
+      animation?.cancel();
+      animation = details.animate(
+        { height: [startHeight, endHeight] },
+        { duration: 350, easing: "cubic-bezier(0.4, 0, 0.2, 1)" }
+      );
+      animation.onfinish = () => onFinish(true);
+      animation.oncancel = () => (isExpanding = false);
+    }
+
+    function onFinish(isOpen: boolean) {
+      details.open = isOpen;
+      animation = null;
+      isClosing = false;
+      isExpanding = false;
+      details.style.height = details.style.overflow = "";
+    }
+  });
 </script>
 
 <style>
@@ -596,7 +657,7 @@ const coffrets = coffretContent
 
   /* Carte "Buy 2 Get 1 Free" repliable (d'après le Figma) */
   .promo-bundle {
-    display: flex; flex-direction: column; gap: 16px; padding: 16px;
+    display: flex; flex-direction: column; padding: 16px;
     background: #e9dac9; border-radius: 8px; border: 1.5px solid transparent;
     transition: background-color 0.15s, border-color 0.15s;
   }
@@ -620,8 +681,12 @@ const coffrets = coffretContent
   .promo-price strong { font-size: 16px; font-weight: 500; }
   .promo-price small { font-size: 12px; opacity: 0.64; }
 
-  .bundle-slots { display: flex; flex-direction: column; gap: 4px; }
-  .bundle-slots[hidden] { display: none; }
+  .bundle-slots {
+    display: flex; flex-direction: column; gap: 4px;
+    max-height: 0; margin-top: 0; opacity: 0; overflow: hidden; pointer-events: none;
+    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), margin-top 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
+  }
+  .promo-bundle.is-expanded .bundle-slots { max-height: 260px; margin-top: 16px; opacity: 1; pointer-events: auto; }
   .bundle-slot { display: flex; align-items: center; gap: 16px; padding-right: 16px; background: var(--cream); position: relative; }
   .bundle-slot img.chev { position: absolute; right: 16px; pointer-events: none; }
   .bundle-slot img:not(.chev) { width: 48px; height: 48px; object-fit: cover; background: #d8c3ab; flex-shrink: 0; }
