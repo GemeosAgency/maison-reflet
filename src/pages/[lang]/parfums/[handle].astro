@@ -713,13 +713,17 @@ const coffrets = coffretContent
     position: absolute; left: 24px; right: 24px; bottom: 24px; z-index: 2; pointer-events: none;
   }
   .reco-meta h3 { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
-  .reco-inspired, .reco-price { margin: 4px 0 0; font-size: 14px; font-weight: 500; transition: opacity 0.3s ease; }
-  .reco-card:hover .reco-price { opacity: 0; }
+  .reco-inspired { margin: 4px 0 0; font-size: 14px; font-weight: 500; }
+  .reco-price {
+    margin: 4px 0 0; font-size: 14px; font-weight: 500; max-height: 20px; overflow: hidden;
+    transition: opacity 0.25s ease, max-height 0.3s ease, margin-top 0.3s ease;
+  }
+  .reco-card:hover .reco-price { opacity: 0; max-height: 0; margin-top: 0; }
   .reco-add-wrap {
     max-height: 0; opacity: 0; overflow: hidden;
     transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  .reco-card:hover .reco-add-wrap { max-height: 48px; opacity: 1; margin-top: 12px; }
+  .reco-card:hover .reco-add-wrap { max-height: 48px; opacity: 1; margin-top: 8px; }
   .reco-add {
     pointer-events: auto; width: 100%; height: 48px; border: 0; border-radius: 999px;
     background: var(--rose); color: #fff; display: flex; align-items: center; justify-content: space-between;
