@@ -627,6 +627,7 @@ const coffrets = coffretContent
   function openDrawer(key: string, title: string, image: string) {
     drawerPanels.forEach((p) => (p.hidden = p.dataset.drawerPanel !== key));
     if (drawerTitle) drawerTitle.textContent = title;
+    if (drawer) drawer.dataset.kind = key;
     if (drawerHero && drawerHeroImg) {
       if (image) {
         drawerHeroImg.src = image;
@@ -801,11 +802,21 @@ const coffrets = coffretContent
   .info-drawer-panel {
     position: fixed; top: 8px; right: 8px; bottom: 8px; width: 480px; max-width: 92vw;
     background: #f5eee6; padding: 32px 32px 40px; display: flex; flex-direction: column;
-    justify-content: flex-end; gap: 24px;
+    gap: 24px;
     border-radius: 8px; box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.08); overflow-y: auto;
     transform: translateX(calc(100% + 8px)); transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .drawer-content { display: flex; flex-direction: column; gap: 24px; }
+  /* Comportement propre à chaque modale (d'après leurs frames Figma respectives) :
+     Pyramide et Perfumer séparent l'image du bloc titre+texte (justify-between),
+     Twist ancre l'ensemble image+texte en bas du panneau (justify-end). */
+  .info-drawer[data-kind="pyramide"] .info-drawer-panel,
+  .info-drawer[data-kind="perfumer"] .info-drawer-panel {
+    justify-content: space-between;
+  }
+  .info-drawer[data-kind="twist"] .info-drawer-panel {
+    justify-content: flex-end;
+  }
   .info-drawer.is-open .info-drawer-panel { transform: translateX(0); }
   .info-drawer-close {
     position: absolute; top: 12px; right: 12px; border: 0; background: transparent;
