@@ -2,13 +2,14 @@
 import { toHTML, type PortableTextComponents } from "@portabletext/to-html";
 import Layout from "../../layouts/Layout.astro";
 import { getPageBySlug, urlForImage } from "../../lib/sanity";
-import { type Locale, locales } from "../../i18n";
+import { type Locale, locales, localePath, useTranslations } from "../../i18n";
 
 export function getStaticPaths() {
   return locales.map((lang) => ({ params: { lang } }));
 }
 
 const lang = Astro.params.lang as Locale;
+const t = useTranslations(lang);
 const page = await getPageBySlug("maison", lang);
 
 const components: Partial<PortableTextComponents> = {
@@ -26,6 +27,7 @@ const contentHtml =
   title={page?.title ?? "La Maison"}
   description="L'histoire de Maison Reflet, maison de parfums franco-arabe"
   lang={lang}
+  breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: t("nav.maison") }]}
 >
   <article class="page-content">
     {

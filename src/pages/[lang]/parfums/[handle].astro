@@ -148,7 +148,16 @@ const coffrets = coffretContent
   .filter((c): c is NonNullable<typeof c> => c !== null);
 ---
 
-<Layout title={product.title} description={parfum?.accroche ?? product.description} lang={lang}>
+<Layout
+  title={product.title}
+  description={parfum?.accroche ?? product.description}
+  lang={lang}
+  breadcrumbs={[
+    { label: t("nav.home"), href: localePath(lang, "/") },
+    { label: t("nav.perfumes"), href: localePath(lang, "/parfums") },
+    { label: product.title },
+  ]}
+>
   <div class="produit">
     <!-- Galerie -->
     <div class="gallery">

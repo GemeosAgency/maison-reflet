@@ -1,13 +1,21 @@
 ---
 import { type Locale, locales, localeNames, localePath, isRtl, useTranslations } from "../i18n";
 
+type Breadcrumb = { label: string; href?: string };
+
 interface Props {
   title: string;
   description?: string;
   lang: Locale;
+  breadcrumbs?: Breadcrumb[];
 }
 
-const { title, description = "Maison Reflet — Parfums franco-arabes", lang } = Astro.props;
+const {
+  title,
+  description = "Maison Reflet — Parfums franco-arabes",
+  lang,
+  breadcrumbs = [{ label: useTranslations(lang)("nav.home") }],
+} = Astro.props;
 const t = useTranslations(lang);
 
 const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
@@ -92,18 +100,70 @@ const navLinks = [
     </main>
 
     <footer class="site-footer">
-      <ul class="lang-switch">
-        {
-          locales.map((loc) => (
-            <li>
-              <a href={localePath(loc, rest)} aria-current={loc === lang ? "true" : undefined}>
-                {localeNames[loc]}
-              </a>
-            </li>
-          ))
-        }
-      </ul>
-      <p>&copy; {new Date().getFullYear()} Maison Reflet</p>
+      <div class="footer-top">
+        <div class="footer-main">
+          <nav class="footer-crumbs" aria-label="Breadcrumb">
+            {
+              breadcrumbs.map((c, i) => (
+                <>
+                  {i > 0 && (
+                    <span class="crumb-sep" aria-hidden="true">
+                      /
+                    </span>
+                  )}
+                  {c.href ? <a href={c.href}>{c.label}</a> : <span class="crumb-current">{c.label}</span>}
+                </>
+              ))
+            }
+          </nav>
+          <div class="footer-menu">
+            <div class="footer-col">
+              <p class="footer-col-title">{t("footer.discover")}</p>
+              <div class="footer-col-links">
+                <a href={localePath(lang, "/parfums")}>{t("nav.perfumes")}</a>
+                <a href="#">{t("nav.services")}</a>
+                <a href={localePath(lang, "/maison")}>{t("nav.maison")}</a>
+              </div>
+            </div>
+            <div class="footer-col">
+              <p class="footer-col-title">{t("footer.social")}</p>
+              <div class="footer-col-links">
+                <a href="#" target="_blank" rel="noopener">Instagram</a>
+                <a href="#" target="_blank" rel="noopener">TikTok</a>
+              </div>
+            </div>
+            <div class="footer-col">
+              <p class="footer-col-title">{t("footer.legal")}</p>
+              <div class="footer-col-links">
+                <a href="#">{t("footer.legalTerms")}</a>
+                <a href="#">{t("footer.privacyPolicy")}</a>
+                <a href="#">{t("footer.salesConditions")}</a>
+                <a href="#">{t("footer.cookieManagement")}</a>
+              </div>
+            </div>
+          </div>
+          <a href={localePath(lang, "/")} class="footer-logo" aria-label="Maison Reflet">
+            <img src="/brand/logo.svg" alt="Maison Reflet" height="28" />
+          </a>
+        </div>
+        <div class="footer-flourish" aria-hidden="true">
+          <img src="/brand/footer-flourish.svg" alt="" />
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <ul class="lang-switch">
+          {
+            locales.map((loc) => (
+              <li>
+                <a href={localePath(loc, rest)} aria-current={loc === lang ? "true" : undefined}>
+                  {localeNames[loc]}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+        <p>&copy; {new Date().getFullYear()} Maison Reflet</p>
+      </div>
     </footer>
 
     <style>
@@ -152,24 +212,52 @@ const navLinks = [
       .bag { position: relative; display: inline-flex; }
       .cart-count { font-size: 12px; margin-inline-start: 2px; }
       main { min-height: 50vh; max-width: 1800px; margin: 0 auto; }
-      .site-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 1rem;
-        max-width: 1800px;
-        margin: 0 auto;
-        padding: 2rem 40px;
-        border-top: 0.8px solid rgba(0, 0, 0, 0.1);
-        font-size: 14px;
+
+      /* Footer (d'après le Figma) */
+      .site-footer { max-width: 1800px; margin: 0 auto; }
+      .footer-top { display: flex; align-items: flex-start; gap: 120px; padding: 0 8px 8px 24px; }
+      .footer-main { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; }
+      .footer-crumbs {
+        display: flex; align-items: center; gap: 12px; padding: 24px 0;
+        border-bottom: 0.8px solid rgba(0, 0, 0, 0.1); font-size: 14px;
       }
+      .footer-crumbs a, .footer-crumbs .crumb-current { color: var(--ink); }
+      .footer-crumbs a { opacity: 0.48; }
+      .footer-crumbs a:hover { opacity: 0.7; }
+      .crumb-sep { opacity: 0.3; font-size: 12px; }
+      .footer-menu { display: flex; flex-wrap: wrap; gap: 64px; margin-top: 32px; }
+      .footer-col { width: 256px; display: flex; flex-direction: column; gap: 16px; }
+      .footer-col-title {
+        margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; color: #1c1e1d;
+      }
+      .footer-col-links { display: flex; flex-direction: column; gap: 8px; }
+      .footer-col-links a { font-size: 16px; color: #585b5a; }
+      .footer-col-links a:hover { opacity: 0.7; }
+      .footer-logo { display: block; margin-top: auto; padding-top: 32px; }
+      .footer-logo img { height: 28px; width: auto; }
+      .footer-flourish { width: 391px; max-width: 40%; aspect-ratio: 391 / 408; flex-shrink: 0; }
+      .footer-flourish img { width: 100%; height: 100%; display: block; }
+
+      .footer-bottom {
+        display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+        padding: 24px 40px; background: var(--ink); color: var(--cream-2); font-size: 14px;
+      }
+      .footer-bottom p { margin: 0; opacity: 0.7; }
       .lang-switch { list-style: none; display: flex; gap: 1rem; margin: 0; padding: 0; }
-      .lang-switch a[aria-current="true"] { text-decoration: underline; }
+      .lang-switch a { opacity: 0.7; }
+      .lang-switch a[aria-current="true"] { opacity: 1; text-decoration: underline; }
+
       @media (max-width: 720px) {
         .site-header { padding: 0 20px; }
         .site-nav { display: none; }
         .promo-banner p { padding: 10.5px 20px; font-size: 12px; }
+      }
+      @media (max-width: 900px) {
+        .footer-top { flex-direction: column; gap: 40px; padding: 0 20px 32px; }
+        .footer-flourish { width: 220px; max-width: 60%; align-self: center; }
+        .footer-menu { gap: 32px; }
+        .footer-logo { padding-top: 24px; }
+        .footer-bottom { padding: 20px; }
       }
     </style>
 
