@@ -265,39 +265,81 @@ const coffrets = coffretContent
         )
       }
 
-      <div class="accordions">
+      <div class="cta-links">
         {
           descriptionHtml && (
-            <details open>
-              <summary>
-                {t("product.description")}
-                <img src="/brand/chevron.svg" alt="" width="8" height="8" />
-              </summary>
-              <div class="acc-body" set:html={descriptionHtml} />
-            </details>
+            <button
+              type="button"
+              class="cta-link"
+              data-drawer-trigger="description"
+              data-drawer-title={t("product.description")}
+            >
+              <img src="/brand/add.svg" alt="" width="12" height="12" />
+              <span>{t("product.description")}</span>
+            </button>
           )
         }
-        <details open={!descriptionHtml}>
-          <summary>{t("product.pyramid")}<img src="/brand/chevron.svg" alt="" width="8" height="8" /></summary>
-          <div class="acc-body">
-            {tete.length > 0 && <p><strong>{t("product.notes.tete")}</strong> — {tete.join(", ")}</p>}
-            {coeur.length > 0 && <p><strong>{t("product.notes.coeur")}</strong> — {coeur.join(", ")}</p>}
-            {fond.length > 0 && <p><strong>{t("product.notes.fond")}</strong> — {fond.join(", ")}</p>}
-          </div>
-        </details>
+        <button
+          type="button"
+          class="cta-link"
+          data-drawer-trigger="pyramide"
+          data-drawer-title={t("product.pyramid")}
+        >
+          <img src="/brand/add.svg" alt="" width="12" height="12" />
+          <span>{t("product.pyramid")}</span>
+        </button>
         {
           ingredients.length > 0 && (
-            <details>
-              <summary>
-                {t("product.ingredients")}
-                <img src="/brand/chevron.svg" alt="" width="8" height="8" />
-              </summary>
-              <div class="acc-body">
-                <p>{ingredients.join(" · ")}</p>
-              </div>
-            </details>
+            <button
+              type="button"
+              class="cta-link"
+              data-drawer-trigger="ingredients"
+              data-drawer-title={t("product.ingredients")}
+            >
+              <img src="/brand/add.svg" alt="" width="12" height="12" />
+              <span>{t("product.ingredients")}</span>
+            </button>
           )
         }
+      </div>
+    </aside>
+  </div>
+
+  <!-- Panneau latéral (modale) pour Description / Pyramide / Ingrédients -->
+  <div class="info-drawer" data-drawer>
+    <div class="info-drawer-backdrop" data-drawer-backdrop />
+    <aside class="info-drawer-panel">
+      <button type="button" class="info-drawer-close" data-drawer-close aria-label={t("product.close")}>
+        <img src="/brand/close.svg" alt="" width="20" height="20" />
+      </button>
+      <h2 class="info-drawer-title" data-drawer-title />
+      <div class="info-drawer-body">
+        {descriptionHtml && <div data-drawer-panel="description" hidden set:html={descriptionHtml} />}
+        <div data-drawer-panel="pyramide" hidden>
+          {tete.length > 0 && (
+            <div class="drawer-row">
+              <strong>{t("product.notes.tete")}</strong>
+              <span>{tete.join(", ")}</span>
+            </div>
+          )}
+          {coeur.length > 0 && (
+            <div class="drawer-row">
+              <strong>{t("product.notes.coeur")}</strong>
+              <span>{coeur.join(", ")}</span>
+            </div>
+          )}
+          {fond.length > 0 && (
+            <div class="drawer-row">
+              <strong>{t("product.notes.fond")}</strong>
+              <span>{fond.join(", ")}</span>
+            </div>
+          )}
+        </div>
+        {ingredients.length > 0 && (
+          <div data-drawer-panel="ingredients" hidden>
+            <p>{ingredients.join(", ")}</p>
+          </div>
+        )}
       </div>
     </aside>
   </div>
@@ -566,67 +608,37 @@ const coffrets = coffretContent
     });
   }
 
-  // Accordéons (Description / Pyramide / Ingrédients) : <details> natif n'anime pas
-  // sa hauteur nativement — on l'anime nous-mêmes (Web Animations API), la flèche
-  // continue de tourner via la transition CSS existante sur [open].
-  document.querySelectorAll<HTMLDetailsElement>(".accordions details").forEach((details) => {
-    const summary = details.querySelector<HTMLElement>("summary");
-    const body = details.querySelector<HTMLElement>(".acc-body");
-    if (!summary || !body) return;
+  // Panneau latéral (Description / Pyramide / Ingrédients) : un seul panneau,
+  // dont le contenu affiché change selon le lien "+" cliqué.
+  const drawer = document.querySelector<HTMLElement>("[data-drawer]");
+  const drawerBackdrop = document.querySelector<HTMLElement>("[data-drawer-backdrop]");
+  const drawerTitle = document.querySelector<HTMLElement>("[data-drawer-title]");
+  const drawerPanels = Array.from(document.querySelectorAll<HTMLElement>("[data-drawer-panel]"));
+  const drawerTriggers = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-drawer-trigger]"));
+  const drawerClose = document.querySelector<HTMLButtonElement>("[data-drawer-close]");
 
-    let animation: Animation | null = null;
-    let isClosing = false;
-    let isExpanding = false;
+  function openDrawer(key: string, title: string) {
+    drawerPanels.forEach((p) => (p.hidden = p.dataset.drawerPanel !== key));
+    if (drawerTitle) drawerTitle.textContent = title;
+    drawer?.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+  }
 
-    summary.addEventListener("click", (e) => {
-      e.preventDefault();
-      details.style.overflow = "hidden";
-      if (isClosing || !details.open) {
-        open();
-      } else if (isExpanding || details.open) {
-        shrink();
-      }
+  function closeDrawer() {
+    drawer?.classList.remove("is-open");
+    document.body.style.overflow = "";
+  }
+
+  drawerTriggers.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.drawerTrigger;
+      if (key) openDrawer(key, btn.dataset.drawerTitle ?? "");
     });
-
-    function shrink() {
-      isClosing = true;
-      const startHeight = `${details.offsetHeight}px`;
-      const endHeight = `${summary!.offsetHeight}px`;
-      animation?.cancel();
-      animation = details.animate(
-        { height: [startHeight, endHeight] },
-        { duration: 350, easing: "cubic-bezier(0.4, 0, 0.2, 1)" }
-      );
-      animation.onfinish = () => onFinish(false);
-      animation.oncancel = () => (isClosing = false);
-    }
-
-    function open() {
-      details.style.height = `${details.offsetHeight}px`;
-      details.open = true;
-      requestAnimationFrame(() => expand());
-    }
-
-    function expand() {
-      isExpanding = true;
-      const startHeight = `${details.offsetHeight}px`;
-      const endHeight = `${summary!.offsetHeight + body!.offsetHeight}px`;
-      animation?.cancel();
-      animation = details.animate(
-        { height: [startHeight, endHeight] },
-        { duration: 350, easing: "cubic-bezier(0.4, 0, 0.2, 1)" }
-      );
-      animation.onfinish = () => onFinish(true);
-      animation.oncancel = () => (isExpanding = false);
-    }
-
-    function onFinish(isOpen: boolean) {
-      details.open = isOpen;
-      animation = null;
-      isClosing = false;
-      isExpanding = false;
-      details.style.height = details.style.overflow = "";
-    }
+  });
+  drawerClose?.addEventListener("click", closeDrawer);
+  drawerBackdrop?.addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeDrawer();
   });
 </script>
 
@@ -750,20 +762,51 @@ const coffrets = coffretContent
     text-align: center; line-height: 1.28; color: #0a1215;
   }
 
-  .accordions { display: flex; flex-direction: column; border-top: 1px solid rgba(0,0,0,0.15); }
-  .accordions details { border-bottom: 1px solid rgba(0,0,0,0.15); }
-  .accordions summary {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 24px 0; font-size: 18px; font-weight: 500; cursor: pointer; list-style: none;
+  /* Liens "+" (remplacent les accordéons) ouvrant le panneau latéral */
+  .cta-links {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 12px 24px; padding-top: 24px; border-top: 1px solid rgba(0,0,0,0.15);
   }
-  .accordions summary::-webkit-details-marker { display: none; }
-  .accordions summary img { transition: transform 0.2s; }
-  .accordions details[open] summary img { transform: rotate(180deg); }
-  .acc-body { padding-bottom: 24px; font-size: 15px; line-height: 1.5; }
-  .acc-body p { margin: 0 0 8px; }
-  .acc-body ul, .acc-body ol { margin: 0 0 12px; padding-left: 20px; }
-  .acc-body li { margin-bottom: 4px; }
-  .acc-body strong { font-weight: 500; }
+  .cta-link {
+    display: flex; align-items: center; gap: 12px; border: 0; background: transparent;
+    padding: 0; font: inherit; font-size: 16px; color: var(--ink); cursor: pointer;
+  }
+  .cta-link:hover { opacity: 0.7; }
+
+  /* Panneau latéral (modale) */
+  .info-drawer { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+  .info-drawer-backdrop {
+    position: fixed; inset: 0; background: rgba(10, 18, 21, 0.35);
+    opacity: 0; transition: opacity 0.4s ease;
+  }
+  .info-drawer.is-open { pointer-events: auto; }
+  .info-drawer.is-open .info-drawer-backdrop { opacity: 1; }
+  .info-drawer-panel {
+    position: fixed; top: 0; right: 0; height: 100vh; width: 480px; max-width: 92vw;
+    background: #f5eee6; padding: 32px; display: flex; flex-direction: column; gap: 24px;
+    box-shadow: -8px 0 40px rgba(0, 0, 0, 0.16); overflow-y: auto;
+    transform: translateX(100%); transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .info-drawer.is-open .info-drawer-panel { transform: translateX(0); }
+  .info-drawer-close {
+    position: absolute; top: 20px; right: 20px; border: 0; background: transparent;
+    padding: 4px; cursor: pointer; line-height: 0;
+  }
+  .info-drawer-title { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
+  .info-drawer-body { font-size: 16px; line-height: 1.36; }
+  .info-drawer-body p { margin: 0 0 12px; }
+  .info-drawer-body ul, .info-drawer-body ol { margin: 0 0 12px; padding-left: 20px; }
+  .info-drawer-body li { margin-bottom: 4px; }
+  .drawer-row {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+    padding: 12px 0; border-bottom: 1px solid rgba(0, 0, 0, 0.1); font-size: 16px;
+  }
+  .drawer-row:last-child { border-bottom: 0; }
+  .drawer-row strong { font-weight: 500; white-space: nowrap; }
+  .drawer-row span { text-align: right; }
+  @media (max-width: 600px) {
+    .info-drawer-panel { width: 100vw; max-width: 100vw; }
+  }
 
   /* Blocs éditoriaux alternés (d'après le Figma) */
   .story-blocks { display: flex; flex-direction: column; gap: 72px; padding: 72px; }
