@@ -85,6 +85,10 @@ export type ParfumContent = {
   accroche: string | null;
   description: unknown[] | null;
   inspiredBy: string | null;
+  specificTwist: string | null;
+  perfumerWord: string | null;
+  perfumerPhoto: unknown | null;
+  imagePyramide: unknown | null;
   blocs: BlocEditorial[];
   familleOlfactive: string | null;
   parfumeur: string | null;
@@ -107,6 +111,10 @@ export async function getParfumContent(
     "accroche": coalesce(accroche.${l}, accroche.fr),
     "description": coalesce(description.${l}, description.fr),
     inspiredBy,
+    "specificTwist": coalesce(specificTwist.${l}, specificTwist.fr),
+    "perfumerWord": coalesce(perfumerWord.${l}, perfumerWord.fr),
+    perfumerPhoto,
+    imagePyramide,
     "blocs": blocs[]{
       "titre": coalesce(titre.${l}, titre.fr),
       "texte": coalesce(texte.${l}, texte.fr),

@@ -97,6 +97,11 @@ const descriptionHtml =
     : "";
 
 const inspiredBy = parfum?.inspiredBy ?? null;
+const specificTwist = parfum?.specificTwist ?? null;
+const perfumerWord = parfum?.perfumerWord ?? null;
+const perfumerPhotoUrl = parfum?.perfumerPhoto ? urlForImage(parfum.perfumerPhoto as any).width(500).url() : null;
+const pyramidImg = parfum?.imagePyramide ? urlForImage(parfum.imagePyramide as any).width(700).url() : null;
+const twistPhilosophy = [t("product.twistPhilosophy1"), t("product.twistPhilosophy2")];
 const blocs = parfum?.blocs ?? [];
 // Bandeau de réassurance (livraison, paiement…) : sélectionné et ordonné dans Sanity.
 const reassurances = (parfum?.reassurances ?? []).map((r) => ({
@@ -284,20 +289,32 @@ const coffrets = coffretContent
           class="cta-link"
           data-drawer-trigger="pyramide"
           data-drawer-title={t("product.pyramid")}
+          data-drawer-image={pyramidImg ?? ""}
         >
           <img src="/brand/add.svg" alt="" width="12" height="12" />
           <span>{t("product.pyramid")}</span>
         </button>
+        <button
+          type="button"
+          class="cta-link"
+          data-drawer-trigger="twist"
+          data-drawer-title={t("product.specificTwist")}
+          data-drawer-image="/brand/reflet-seal.png"
+        >
+          <img src="/brand/add.svg" alt="" width="12" height="12" />
+          <span>{t("product.specificTwist")}</span>
+        </button>
         {
-          ingredients.length > 0 && (
+          perfumerWord && (
             <button
               type="button"
               class="cta-link"
-              data-drawer-trigger="ingredients"
-              data-drawer-title={t("product.ingredients")}
+              data-drawer-trigger="perfumer"
+              data-drawer-title={t("product.perfumerWord")}
+              data-drawer-image={perfumerPhotoUrl ?? ""}
             >
               <img src="/brand/add.svg" alt="" width="12" height="12" />
-              <span>{t("product.ingredients")}</span>
+              <span>{t("product.perfumerWord")}</span>
             </button>
           )
         }
@@ -312,7 +329,10 @@ const coffrets = coffretContent
       <button type="button" class="info-drawer-close" data-drawer-close aria-label={t("product.close")}>
         <img src="/brand/close.svg" alt="" width="20" height="20" />
       </button>
-      <h2 class="info-drawer-title" data-drawer-title />
+      <div class="drawer-hero" data-drawer-hero hidden>
+        <img data-drawer-hero-img alt="" />
+      </div>
+      <h2 class="info-drawer-title" data-drawer-heading />
       <div class="info-drawer-body">
         {descriptionHtml && <div data-drawer-panel="description" hidden set:html={descriptionHtml} />}
         <div data-drawer-panel="pyramide" hidden>
@@ -334,10 +354,23 @@ const coffrets = coffretContent
               <span>{fond.join(", ")}</span>
             </div>
           )}
+          {ingredients.length > 0 && (
+            <p class="drawer-ingredients">
+              <strong>{t("product.ingredientsLabel")}</strong> {ingredients.join(", ")}
+            </p>
+          )}
         </div>
-        {ingredients.length > 0 && (
-          <div data-drawer-panel="ingredients" hidden>
-            <p>{ingredients.join(", ")}</p>
+        <div data-drawer-panel="twist" hidden>
+          {specificTwist &&
+            specificTwist
+              .split("\n")
+              .filter(Boolean)
+              .map((para) => <p>{para}</p>)}
+          {twistPhilosophy.map((para) => <p>{para}</p>)}
+        </div>
+        {perfumerWord && (
+          <div data-drawer-panel="perfumer" hidden>
+            <p class="drawer-quote">“{perfumerWord}”</p>
           </div>
         )}
       </div>
@@ -612,14 +645,26 @@ const coffrets = coffretContent
   // dont le contenu affiché change selon le lien "+" cliqué.
   const drawer = document.querySelector<HTMLElement>("[data-drawer]");
   const drawerBackdrop = document.querySelector<HTMLElement>("[data-drawer-backdrop]");
-  const drawerTitle = document.querySelector<HTMLElement>("[data-drawer-title]");
+  const drawerTitle = document.querySelector<HTMLElement>("[data-drawer-heading]");
+  const drawerHero = document.querySelector<HTMLElement>("[data-drawer-hero]");
+  const drawerHeroImg = document.querySelector<HTMLImageElement>("[data-drawer-hero-img]");
   const drawerPanels = Array.from(document.querySelectorAll<HTMLElement>("[data-drawer-panel]"));
   const drawerTriggers = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-drawer-trigger]"));
   const drawerClose = document.querySelector<HTMLButtonElement>("[data-drawer-close]");
 
-  function openDrawer(key: string, title: string) {
+  function openDrawer(key: string, title: string, image: string) {
     drawerPanels.forEach((p) => (p.hidden = p.dataset.drawerPanel !== key));
     if (drawerTitle) drawerTitle.textContent = title;
+    if (drawerHero && drawerHeroImg) {
+      if (image) {
+        drawerHeroImg.src = image;
+        drawerHero.hidden = false;
+        drawerHero.dataset.kind = key;
+      } else {
+        drawerHero.hidden = true;
+        drawerHeroImg.removeAttribute("src");
+      }
+    }
     drawer?.classList.add("is-open");
     document.body.style.overflow = "hidden";
   }
@@ -632,7 +677,7 @@ const coffrets = coffretContent
   drawerTriggers.forEach((btn) => {
     btn.addEventListener("click", () => {
       const key = btn.dataset.drawerTrigger;
-      if (key) openDrawer(key, btn.dataset.drawerTitle ?? "");
+      if (key) openDrawer(key, btn.dataset.drawerTitle ?? "", btn.dataset.drawerImage ?? "");
     });
   });
   drawerClose?.addEventListener("click", closeDrawer);
@@ -804,6 +849,21 @@ const coffrets = coffretContent
   .drawer-row:last-child { border-bottom: 0; }
   .drawer-row strong { font-weight: 500; white-space: nowrap; }
   .drawer-row span { text-align: right; }
+  .drawer-ingredients { margin: 16px 0 0; font-size: 14px; line-height: 1.36; opacity: 0.8; }
+  .drawer-ingredients strong { font-weight: 500; }
+  .drawer-quote { font-size: 16px; line-height: 1.36; margin: 0; }
+
+  /* Image en tête du panneau (pyramide dessinée / sceau / photo du parfumeur) */
+  .drawer-hero img { display: block; width: 100%; border-radius: 4px; }
+  .drawer-hero[data-kind="pyramide"] img {
+    max-height: 480px; width: 100%; object-fit: contain; background: #f0e6d8;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  }
+  .drawer-hero[data-kind="twist"] { display: flex; justify-content: center; }
+  .drawer-hero[data-kind="twist"] img {
+    width: 96px; height: 96px; object-fit: cover; object-position: top; border-radius: 50%;
+  }
+  .drawer-hero[data-kind="perfumer"] img { aspect-ratio: 2 / 3; object-fit: cover; }
   @media (max-width: 600px) {
     .info-drawer-panel { width: 100vw; max-width: 100vw; }
   }

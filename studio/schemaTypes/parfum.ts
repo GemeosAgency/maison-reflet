@@ -48,6 +48,21 @@ export default defineType({
       group: "contenu",
     }),
     defineField({
+      name: "specificTwist",
+      title: "Le twist spécifique de ce reflet",
+      description:
+        "Un ou deux paragraphes qui expliquent en quoi CE reflet réinterprète le parfum de référence (ex : « Bois Impérial a fait du bois de santal sa signature… »). Affiché dans la modale « The Specific Twist », au-dessus du texte de présentation de la maison (fixe, non modifiable ici). Un paragraphe par ligne.",
+      type: "localeText",
+      group: "contenu",
+    }),
+    defineField({
+      name: "perfumerWord",
+      title: "Mot du parfumeur — citation",
+      description: "Courte citation affichée dans la modale « Perfumer's word », à côté de sa photo.",
+      type: "localeText",
+      group: "contenu",
+    }),
+    defineField({
       name: "blocs",
       title: "Blocs éditoriaux",
       description:
@@ -159,6 +174,23 @@ export default defineType({
       options: { hotspot: true },
       description:
         "Deuxième visuel affiché au survol de la carte (ex : packaging, coffret). Si vide, l'image reste inchangée au survol.",
+      group: "medias",
+    }),
+    defineField({
+      name: "imagePyramide",
+      title: "Image — Pyramide olfactive",
+      type: "image",
+      options: { hotspot: true },
+      description:
+        "Illustration dessinée de la pyramide olfactive, affichée en haut de la modale « Olfactory Pyramid ». Si vide, seules les notes texte (tête/cœur/fond) sont affichées.",
+      group: "medias",
+    }),
+    defineField({
+      name: "perfumerPhoto",
+      title: "Photo du parfumeur",
+      type: "image",
+      options: { hotspot: true },
+      description: "Affichée dans la modale « Perfumer's word », au-dessus de la citation.",
       group: "medias",
     }),
     defineField({

@@ -42,7 +42,13 @@ const ui = {
     "product.buy2get1": "2 achetés, le 3ᵉ offert",
     "product.save": "économisez",
     "product.pyramid": "Pyramide olfactive",
-    "product.ingredients": "Voir tous les ingrédients",
+    "product.specificTwist": "Le twist spécifique",
+    "product.perfumerWord": "Le mot du parfumeur",
+    "product.ingredientsLabel": "Ingrédients :",
+    "product.twistPhilosophy1":
+      "Un reflet ne se contente jamais de reproduire fidèlement ce qu'il capture. Il l'absorbe et le renvoie transformé par l'eau qui le porte, l'angle du regard, la lumière de l'instant.",
+    "product.twistPhilosophy2":
+      "Chaque parfum de cette collection fait écho à un nom légendaire de la parfumerie : nous en préservons l'âme, mais nous en transformons la perspective pour lui donner une dimension franco-arabe plus sensuelle et plus intime.",
     "product.reviews": "avis",
     "product.related": "Vous aimerez aussi",
     "product.boxes": "Nos coffrets",
@@ -87,7 +93,13 @@ const ui = {
     "product.buy2get1": "اشترِ 2 واحصل على الثالث مجانًا",
     "product.save": "وفّر",
     "product.pyramid": "الهرم العطري",
-    "product.ingredients": "عرض كل المكوّنات",
+    "product.specificTwist": "اللمسة الخاصة",
+    "product.perfumerWord": "كلمة العطّار",
+    "product.ingredientsLabel": "المكوّنات:",
+    "product.twistPhilosophy1":
+      "لا يكتفي الانعكاس أبدًا بإعادة إنتاج ما يلتقطه بأمانة. بل يستوعبه ويرسله من جديد، متحوّلاً بفعل الماء الذي يحمله، وزاوية النظر، وضوء اللحظة.",
+    "product.twistPhilosophy2":
+      "كل عطر في هذه المجموعة يردد صدى اسم أسطوري في عالم العطور: نحافظ على روحه، لكننا نُحوّل منظوره لنمنحه بُعدًا فرنسيًا عربيًا أكثر حسية وحميمية.",
     "product.reviews": "تقييم",
     "product.related": "قد يعجبك أيضًا",
     "product.boxes": "علبنا",
@@ -132,7 +144,13 @@ const ui = {
     "product.buy2get1": "Buy 2 get 1 FREE",
     "product.save": "save",
     "product.pyramid": "Olfactory pyramid",
-    "product.ingredients": "See all ingredients",
+    "product.specificTwist": "The Specific Twist",
+    "product.perfumerWord": "Perfumer's word",
+    "product.ingredientsLabel": "Ingredients:",
+    "product.twistPhilosophy1":
+      "A reflection is never content to simply reproduce faithfully what it captures. It takes it in and sends it back transformed by the water that carries it, the angle of the gaze, the light of the moment.",
+    "product.twistPhilosophy2":
+      "Each fragrance in this collection echoes a legendary name from the world of perfumery: we preserve its soul, but we transform its perspective to give it a Franco-Arabic dimension that is more sensual and more intimate.",
     "product.reviews": "reviews",
     "product.related": "You may also like",
     "product.boxes": "Our boxes",
