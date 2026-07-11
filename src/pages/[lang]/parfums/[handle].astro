@@ -103,6 +103,11 @@ const reassurances = (parfum?.reassurances ?? []).map((r) => ({
   icone: r.icone ? urlForImage(r.icone as any).width(80).url() : null,
   lignes: (r.texte ?? "").split("\n").filter(Boolean),
 }));
+// Liste compacte sous le CTA : sélection indépendante du bandeau ci-dessus.
+const ctaReassurances = (parfum?.reassurancesCta ?? []).map((r) => ({
+  icone: r.icone ? urlForImage(r.icone as any).width(80).url() : null,
+  lignes: (r.texte ?? "").split("\n").filter(Boolean),
+}));
 const recoImages = await getRecoImages();
 // Note / avis : placeholders (pas encore de système d'avis).
 const rating = "4,9";
@@ -248,9 +253,9 @@ const coffrets = coffretContent
       <p class="feedback" data-main-feedback role="status" aria-live="polite"></p>
 
       {
-        reassurances.length > 0 && (
+        ctaReassurances.length > 0 && (
           <ul class="cta-perks">
-            {reassurances.map((r) => (
+            {ctaReassurances.map((r) => (
               <li>
                 {r.icone && <img src={r.icone} alt="" width="20" height="20" />}
                 <span>{r.lignes.join(" ")}</span>

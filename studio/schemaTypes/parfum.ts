@@ -80,10 +80,19 @@ export default defineType({
       ],
     }),
     defineField({
-      name: "reassurances",
-      title: "Réassurance",
+      name: "reassurancesCta",
+      title: "Réassurance — sous le bouton d'achat",
       description:
-        "Arguments affichés sous le bouton d'achat (livraison, paiement, échantillons…). Choisis lesquels afficher et dans quel ordre.",
+        "Liste compacte (icône + texte court) affichée juste sous le bouton « Add to bag ». Choisis lesquels afficher et dans quel ordre.",
+      type: "array",
+      group: "contenu",
+      of: [{ type: "reference", to: [{ type: "reassurance" }] }],
+    }),
+    defineField({
+      name: "reassurances",
+      title: "Réassurance — bandeau pleine largeur",
+      description:
+        "Bandeau illustré affiché plus bas sur la page (livraison, paiement, échantillons…). Choisis lesquels afficher et dans quel ordre.",
       type: "array",
       group: "contenu",
       of: [{ type: "reference", to: [{ type: "reassurance" }] }],

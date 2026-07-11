@@ -92,6 +92,7 @@ export type ParfumContent = {
   notes: { tete: NoteCard[]; coeur: NoteCard[]; fond: NoteCard[] };
   images: { _key: string; asset: unknown; alt: string | null }[];
   reassurances: ReassuranceItem[];
+  reassurancesCta: ReassuranceItem[];
   ingredients: (string | null)[];
 };
 
@@ -122,6 +123,10 @@ export async function getParfumContent(
     },
     "images": imagesEditoriales[]{ _key, asset, "alt": coalesce(alt.${l}, alt.fr) },
     "reassurances": reassurances[]->{
+      icone,
+      "texte": coalesce(texte.${l}, texte.fr)
+    },
+    "reassurancesCta": reassurancesCta[]->{
       icone,
       "texte": coalesce(texte.${l}, texte.fr)
     },
