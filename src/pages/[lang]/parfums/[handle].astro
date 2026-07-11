@@ -112,15 +112,21 @@ const reviewCount = 147;
 // dans Sanity, sinon photo produit Shopify).
 const reco = products
   .filter((p) => p.handle !== product.handle)
-  .map((p) => ({
-    name: p.title,
-    inspired: inspiredMap[p.handle] ?? null,
-    price: formatPrice(p.priceRange.minVariantPrice.amount, p.priceRange.minVariantPrice.currencyCode),
-    img: recoImages[p.handle]
-      ? urlForImage(recoImages[p.handle] as any).width(800).height(1200).url()
-      : (p.featuredImage?.url ?? null),
-    href: localePath(lang, `/parfums/${p.handle}`),
-  }));
+  .map((p) => {
+    const recoImg = recoImages[p.handle];
+    const recoVariant = p.variants.nodes.find((v) => v.availableForSale) ?? p.variants.nodes[0];
+    return {
+      name: p.title,
+      inspired: inspiredMap[p.handle] ?? null,
+      price: formatPrice(p.priceRange.minVariantPrice.amount, p.priceRange.minVariantPrice.currencyCode),
+      img: recoImg?.main
+        ? urlForImage(recoImg.main as any).width(800).height(1200).url()
+        : (p.featuredImage?.url ?? null),
+      hoverImg: recoImg?.hover ? urlForImage(recoImg.hover as any).width(800).height(1200).url() : null,
+      variantId: recoVariant.id,
+      href: localePath(lang, `/parfums/${p.handle}`),
+    };
+  });
 
 // Coffrets : contenu Sanity (titre/description/image) croisé avec le produit Shopify
 // correspondant (prix + variante) via shopifyHandle. Repli sur les 2 cartes statiques
@@ -345,14 +351,23 @@ const coffrets = coffretContent
         <h2>{t("product.related")}</h2>
         <div class="reco-grid">
           {reco.map((p) => (
-            <a class="reco-card" href={p.href}>
-              {p.img && <img src={p.img} alt={p.name} loading="lazy" />}
+            <div class="reco-card">
+              <a class="reco-cover-link" href={p.href} aria-label={p.name} />
+              {p.img && <img class="reco-img reco-img-base" src={p.img} alt={p.name} loading="lazy" />}
+              {p.hoverImg && <img class="reco-img reco-img-hover" src={p.hoverImg} alt="" loading="lazy" />}
+              <div class="reco-overlay" aria-hidden="true" />
               <div class="reco-meta">
                 <h3>{p.name}</h3>
                 {p.inspired && <p class="reco-inspired">{t("product.inspiredBy")} {p.inspired}</p>}
                 <p class="reco-price">{p.price}</p>
+                <div class="reco-add-wrap">
+                  <button type="button" class="reco-add" data-add-to-cart data-variant-id={p.variantId}>
+                    <span data-reco-add-label>ADD TO BAG</span>
+                    <span>{p.price}</span>
+                  </button>
+                </div>
               </div>
-            </a>
+            </div>
           ))}
         </div>
       </section>
@@ -411,19 +426,32 @@ const coffrets = coffretContent
     document.getElementById("bundle-catalog")?.textContent ?? "[]"
   );
 
-  // Boutons génériques (coffrets) : ajoutent leur unique variante.
+  // Boutons génériques (coffrets, cartes "Vous aimerez aussi") : ajoutent leur unique variante.
   document.querySelectorAll<HTMLButtonElement>("[data-add-to-cart]").forEach((btn) => {
     const feedback = btn.parentElement?.querySelector<HTMLElement>("[data-feedback]") ?? null;
-    btn.addEventListener("click", async () => {
+    // Cartes reco : pas de paragraphe de feedback séparé (place limitée) — le libellé
+    // du bouton lui-même bascule brièvement à la place.
+    const inlineLabel = btn.querySelector<HTMLElement>("[data-reco-add-label]");
+    const inlineLabelDefault = inlineLabel?.textContent ?? "";
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
       const id = btn.dataset.variantId;
       if (!id) return;
       btn.disabled = true;
       try {
         await addToCart(id, 1);
         if (feedback) feedback.textContent = "✓";
+        if (inlineLabel) {
+          inlineLabel.textContent = "AJOUTÉ ✓";
+          setTimeout(() => (inlineLabel.textContent = inlineLabelDefault), 1600);
+        }
       } catch (e) {
         console.error(e);
         if (feedback) feedback.textContent = "×";
+        if (inlineLabel) {
+          inlineLabel.textContent = "ERREUR";
+          setTimeout(() => (inlineLabel.textContent = inlineLabelDefault), 1600);
+        }
       } finally {
         btn.disabled = false;
       }
@@ -666,15 +694,40 @@ const coffrets = coffretContent
     text-transform: uppercase; text-align: center;
   }
   .reco-grid { display: flex; gap: 2px; width: 100%; height: 560px; }
-  .reco-card {
-    flex: 1 0 0; min-width: 0; height: 100%; position: relative;
-    display: flex; flex-direction: column; justify-content: flex-end;
-    padding: 24px; overflow: hidden;
+  .reco-card { flex: 1 0 0; min-width: 0; height: 100%; position: relative; overflow: hidden; }
+  .reco-cover-link { position: absolute; inset: 0; z-index: 1; }
+  .reco-img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: bottom;
+    pointer-events: none; transition: opacity 0.6s ease;
   }
-  .reco-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: bottom; }
-  .reco-meta { position: relative; }
+  .reco-img-hover { opacity: 0; }
+  .reco-card:hover .reco-img-base { opacity: 0; }
+  .reco-card:hover .reco-img-hover { opacity: 1; }
+  .reco-overlay {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(213, 187, 162, 0) 0%, #d5bba2 66.562%);
+    opacity: 0; transition: opacity 0.5s ease;
+  }
+  .reco-card:hover .reco-overlay { opacity: 1; }
+  .reco-meta {
+    position: absolute; left: 24px; right: 24px; bottom: 24px; z-index: 2; pointer-events: none;
+  }
   .reco-meta h3 { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
-  .reco-inspired, .reco-price { margin: 4px 0 0; font-size: 14px; font-weight: 500; }
+  .reco-inspired, .reco-price { margin: 4px 0 0; font-size: 14px; font-weight: 500; transition: opacity 0.3s ease; }
+  .reco-card:hover .reco-price { opacity: 0; }
+  .reco-add-wrap {
+    max-height: 0; opacity: 0; overflow: hidden;
+    transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .reco-card:hover .reco-add-wrap { max-height: 48px; opacity: 1; margin-top: 12px; }
+  .reco-add {
+    pointer-events: auto; width: 100%; height: 48px; border: 0; border-radius: 999px;
+    background: var(--rose); color: #fff; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; font: inherit; font-size: 14px; font-weight: 500; text-transform: uppercase;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .reco-add:hover { opacity: 0.9; }
+  .reco-add:disabled { opacity: 0.6; }
 
   .boxes-grid { display: flex; gap: 2px; width: 100%; height: 728px; }
   .box-card { flex: 1 0 0; min-width: 0; position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding: 24px; overflow: hidden; background: #e0cdbb; }

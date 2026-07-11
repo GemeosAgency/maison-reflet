@@ -144,6 +144,15 @@ export default defineType({
       group: "medias",
     }),
     defineField({
+      name: "imageRecommandationHover",
+      title: "Image « Vous aimerez aussi » — au survol",
+      type: "image",
+      options: { hotspot: true },
+      description:
+        "Deuxième visuel affiché au survol de la carte (ex : packaging, coffret). Si vide, l'image reste inchangée au survol.",
+      group: "medias",
+    }),
+    defineField({
       name: "imagesEditoriales",
       title: "Galerie du parfum",
       description:

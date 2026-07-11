@@ -150,12 +150,23 @@ export async function getInspiredByMap(): Promise<Record<string, string>> {
   return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.inspiredBy]));
 }
 
-/** Map handle -> image dédiée "Vous aimerez aussi" pour tous les parfums qui en ont une. */
-export async function getRecoImages(): Promise<Record<string, unknown>> {
-  const rows = await sanityClient.fetch<{ shopifyHandle: string; imageRecommandation: unknown }[]>(
-    `*[_type == "parfum" && defined(imageRecommandation)]{ shopifyHandle, imageRecommandation }`
+export type RecoImages = { main: unknown | null; hover: unknown | null };
+
+/** Map handle -> images dédiées "Vous aimerez aussi" (par défaut + au survol) pour tous les parfums qui en ont. */
+export async function getRecoImages(): Promise<Record<string, RecoImages>> {
+  const rows = await sanityClient.fetch<
+    { shopifyHandle: string; imageRecommandation: unknown; imageRecommandationHover: unknown }[]
+  >(
+    `*[_type == "parfum" && (defined(imageRecommandation) || defined(imageRecommandationHover))]{
+      shopifyHandle, imageRecommandation, imageRecommandationHover
+    }`
   );
-  return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.imageRecommandation]));
+  return Object.fromEntries(
+    rows.map((r) => [
+      r.shopifyHandle,
+      { main: r.imageRecommandation ?? null, hover: r.imageRecommandationHover ?? null },
+    ])
+  );
 }
 
 export type CoffretContent = {
