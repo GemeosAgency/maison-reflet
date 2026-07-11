@@ -525,14 +525,14 @@ const coffrets = coffretContent
 
 <style>
   .produit { display: flex; align-items: flex-start; }
-  .gallery { display: flex; flex-direction: column; gap: 2px; width: 800px; max-width: 55%; }
+  .gallery { display: flex; flex-direction: column; gap: 2px; flex: 0 0 50%; min-width: 0; }
   .shot { background: #e5d3be; aspect-ratio: 800 / 960; overflow: hidden; }
   .shot img { width: 100%; height: 100%; object-fit: cover; }
 
   .info {
     position: sticky;
     top: 0;
-    flex: 1 0 0;
+    flex: 0 0 50%;
     min-width: 0;
     display: flex;
     flex-direction: column;
