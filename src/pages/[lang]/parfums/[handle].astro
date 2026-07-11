@@ -830,10 +830,7 @@ const coffrets = coffretContent
   /* Image en tête du panneau (pyramide dessinée / sceau / photo du parfumeur) */
   .drawer-hero img { display: block; }
   .drawer-hero-ribbon { display: none; }
-  .drawer-hero[data-kind="pyramide"] {
-    position: relative; display: flex; justify-content: center;
-    padding: 6px 0 4px;
-  }
+  .drawer-hero[data-kind="pyramide"] { display: flex; justify-content: center; }
   .drawer-hero[data-kind="pyramide"] img[data-drawer-hero-img] {
     width: 336px; max-width: 100%; height: 445px; object-fit: cover;
     transform: rotate(1deg);
@@ -844,6 +841,8 @@ const coffrets = coffretContent
       11px 19px 22px rgba(31, 31, 31, 0.09),
       3px 5px 12px rgba(31, 31, 31, 0.1);
   }
+  /* Positionné par rapport au panneau (pas au conteneur hero) pour dépasser
+     du bord haut, padding du panneau ignoré — comme dans le Figma. */
   .drawer-hero[data-kind="pyramide"] .drawer-hero-ribbon {
     display: block; position: absolute; top: -4px; left: 50%;
     width: 125px; height: 61px; object-fit: cover; object-position: bottom;
