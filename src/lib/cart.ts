@@ -58,6 +58,55 @@ function notifyCartUpdated(cart: ShopifyCart | null) {
   );
 }
 
+type KlaviyoGlobal = { track: (event: string, properties?: Record<string, unknown>) => void };
+
+/** Préfixe de langue courant (/fr, /ar, /en) déduit de l'URL, pour reconstruire un lien produit absolu. */
+function currentLangPrefix(): string {
+  const match = window.location.pathname.match(/^\/(fr|ar|en)(?:\/|$)/);
+  return match ? `/${match[1]}` : "/fr";
+}
+
+/** Événement Klaviyo "Added to Cart" (best effort — pas de blocage si klaviyo.js n'est pas chargé) */
+function trackAddedToCart(cart: ShopifyCart, lines: CartLine[]) {
+  const klaviyo = (window as typeof window & { klaviyo?: KlaviyoGlobal }).klaviyo;
+  if (!klaviyo) return;
+
+  const addedItems = lines
+    .map((l) => {
+      const line = cart.lines.nodes.find((n) => n.merchandise.id === l.variantId);
+      if (!line) return null;
+      return {
+        ProductName: line.merchandise.product.title,
+        VariantTitle: line.merchandise.title,
+        Price: Number(line.merchandise.price.amount),
+        Quantity: l.quantity,
+        ImageURL: line.merchandise.product.featuredImage?.url ?? null,
+        ProductURL: `${window.location.origin}${currentLangPrefix()}/parfums/${line.merchandise.product.handle}`,
+      };
+    })
+    .filter((l): l is NonNullable<typeof l> => l !== null);
+
+  if (addedItems.length === 0) return;
+
+  const first = addedItems[0];
+  try {
+    klaviyo.track("Added to Cart", {
+      $value: addedItems.reduce((sum, l) => sum + l.Price * l.Quantity, 0),
+      AddedItemProductName: first.ProductName,
+      AddedItemVariantTitle: first.VariantTitle,
+      AddedItemPrice: first.Price,
+      AddedItemQuantity: first.Quantity,
+      AddedItemImageURL: first.ImageURL,
+      AddedItemURL: first.ProductURL,
+      ItemNames: addedItems.map((l) => l.ProductName),
+      CheckoutURL: cart.checkoutUrl,
+      Items: addedItems,
+    });
+  } catch {
+    // le tracking ne doit jamais faire échouer l'ajout au panier
+  }
+}
+
 /** Recharge le panier courant depuis Shopify — null si aucun panier ou panier expiré */
 export async function loadCart(): Promise<ShopifyCart | null> {
   const cartId = getStoredCartId();
@@ -116,6 +165,7 @@ export async function addManyToCart(lines: CartLine[]): Promise<ShopifyCart> {
   }
 
   notifyCartUpdated(cart);
+  trackAddedToCart(cart, lines);
   return cart;
 }
 
