@@ -5,7 +5,6 @@ import {
   getParfumContent,
   getInspiredByMap,
   getRecoImages,
-  getSignatureColors,
   getCoffrets,
   urlForImage,
 } from "../../../lib/sanity";
@@ -104,7 +103,6 @@ const ctaReassurances = (parfum?.reassurancesCta ?? []).map((r) => ({
   lignes: (r.texte ?? "").split("\n").filter(Boolean),
 }));
 const recoImages = await getRecoImages();
-const signatureColors = await getSignatureColors();
 // Note / avis : placeholders (pas encore de système d'avis).
 const rating = "4,9";
 const reviewCount = 147;
@@ -124,7 +122,6 @@ const reco = products
         ? urlForImage(recoImg.main as any).width(800).height(1200).url()
         : (p.featuredImage?.url ?? null),
       hoverImg: recoImg?.hover ? urlForImage(recoImg.hover as any).width(800).height(1200).url() : null,
-      color: signatureColors[p.handle] ?? "#e5d3be",
       variantId: recoVariant.id,
       href: localePath(lang, `/parfums/${p.handle}`),
     };
@@ -428,20 +425,14 @@ const coffrets = coffretContent
         <h2>{t("product.related")}</h2>
         <div class="reco-grid">
           {reco.map((p) => (
-            <div class="reco-card" style={`--reco-color: ${p.color}`}>
+            <div class="reco-card">
               <a class="reco-cover-link" href={p.href} aria-label={p.name} />
-              <div class="reco-img-wrap reco-img-wrap-base">
-                {p.img && <img class="reco-img" src={p.img} alt={p.name} loading="lazy" />}
-              </div>
-              {p.hoverImg && (
-                <div class="reco-img-wrap reco-img-wrap-hover">
-                  <img class="reco-img" src={p.hoverImg} alt="" loading="lazy" />
-                </div>
-              )}
+              {p.img && <img class="reco-img reco-img-base" src={p.img} alt={p.name} loading="lazy" />}
+              {p.hoverImg && <img class="reco-img reco-img-hover" src={p.hoverImg} alt="" loading="lazy" />}
               <div class="reco-overlay" aria-hidden="true" />
               <div class="reco-meta">
                 <h3>{p.name}</h3>
-                {p.inspired && <p class="reco-inspired">{t("product.specificTwistOf")} {p.inspired}</p>}
+                {p.inspired && <p class="reco-inspired">{t("product.inspiredBy")} {p.inspired}</p>}
                 <p class="reco-price">{p.price}</p>
                 <div class="reco-add-wrap">
                   <button type="button" class="reco-add" data-add-to-cart data-variant-id={p.variantId}>
@@ -905,33 +896,29 @@ const coffrets = coffretContent
   /* Sections recommandées */
   .reco, .boxes { display: flex; flex-direction: column; align-items: center; }
   .reco h2, .boxes h2 {
-    margin: 0; padding: 96px 64px 40px; font-size: 32px; font-weight: 500;
+    margin: 0; padding: 96px 64px 40px; font-size: 40px; font-weight: 500;
     text-transform: uppercase; text-align: center;
   }
-  .reco-grid { display: flex; gap: 2px; width: 100%; height: 480px; }
-  .reco-card {
-    flex: 1 0 0; min-width: 0; height: 100%; position: relative; overflow: hidden;
-    background: var(--reco-color, #e5d3be);
-  }
+  .reco-grid { display: flex; gap: 2px; width: 100%; height: 560px; }
+  .reco-card { flex: 1 0 0; min-width: 0; height: 100%; position: relative; overflow: hidden; }
   .reco-cover-link { position: absolute; inset: 0; z-index: 1; }
-  .reco-img-wrap {
-    position: absolute; top: 0; left: 0; width: 100%; height: 82%; overflow: hidden;
-    transition: opacity 0.6s ease, height 0.5s ease;
+  .reco-img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: bottom;
+    pointer-events: none; transition: opacity 0.6s ease;
   }
-  .reco-img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; pointer-events: none; }
-  .reco-img-wrap-hover { opacity: 0; }
-  .reco-card:hover .reco-img-wrap-base { opacity: 0; }
-  .reco-card:hover .reco-img-wrap-hover { opacity: 1; height: 70%; }
+  .reco-img-hover { opacity: 0; }
+  .reco-card:hover .reco-img-base { opacity: 0; }
+  .reco-card:hover .reco-img-hover { opacity: 1; }
   .reco-overlay {
     position: absolute; inset: 0; z-index: 1; pointer-events: none;
-    background: linear-gradient(to bottom, rgba(213, 187, 162, 0) 45%, var(--reco-color, #d5bba2) 100%);
+    background: linear-gradient(to bottom, rgba(213, 187, 162, 0) 45%, #d5bba2 100%);
     opacity: 0; transition: opacity 0.5s ease;
   }
   .reco-card:hover .reco-overlay { opacity: 0.85; }
   .reco-meta {
     position: absolute; left: 24px; right: 24px; bottom: 24px; z-index: 2; pointer-events: none;
   }
-  .reco-meta h3 { margin: 0; font-size: 20px; font-weight: 500; text-transform: uppercase; }
+  .reco-meta h3 { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
   .reco-inspired { margin: 4px 0 0; font-size: 14px; font-weight: 500; }
   .reco-price {
     margin: 4px 0 0; font-size: 14px; font-weight: 500; max-height: 20px; overflow: hidden;
