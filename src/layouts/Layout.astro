@@ -21,6 +21,17 @@ const t = useTranslations(lang);
 const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
 const rest = Astro.url.pathname.replace(/^\/(fr|ar|en)/, "") || "/";
 
+// Tracking onsite Klaviyo. Chargé seulement si la clé publique (company ID)
+// est définie — chaque environnement peut donc pointer vers un compte
+// différent ou désactiver le tracking en retirant la variable.
+// LIMITE À CONNAÎTRE : Klaviyo ne documente aucun réglage de scope du cookie
+// (__kla_id est posé en first-party sur le domaine qui charge klaviyo.js) ni
+// de tracking cross-domaine officiel. Staging et prod remontent donc dans le
+// MÊME compte tant qu'ils partagent cette clé ; pour isoler les données de
+// test, créer un compte sandbox Klaviyo et mettre sa clé dans la variable
+// Preview de Vercel. Voir README.md § Klaviyo.
+const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
+
 const navLinks = [
   { href: localePath(lang, "/parfums"), label: t("nav.perfumes") },
   { href: localePath(lang, "/maison"), label: t("nav.maison") },
@@ -47,6 +58,16 @@ const navLinks = [
     <link rel="preload" href="/fonts/ppneuemontreal-book.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/ppneuemontreal-medium.woff2" as="font" type="font/woff2" crossorigin />
     {locales.map((loc) => <link rel="alternate" hreflang={loc} href={localePath(loc, rest)} />)}
+    {
+      klaviyoCompanyId && (
+        <script
+          is:inline
+          async
+          type="text/javascript"
+          src={`https://static.klaviyo.com/onsite/js/${klaviyoCompanyId}/klaviyo.js`}
+        />
+      )
+    }
     <title>{title} | Maison Reflet</title>
     <style is:global>
       @font-face {

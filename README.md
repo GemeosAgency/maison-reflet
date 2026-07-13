@@ -113,3 +113,25 @@ Dans l'ordre logique pour continuer le build (idéal à faire avec Claude Code e
 - **Staging** : push sur `staging` → déploiement préview automatique
 
 Hébergé sur Vercel (équipe GemeosAgency), connecté au repo `GemeosAgency/maison-reflet`.
+
+## Klaviyo (tracking onsite)
+
+Le script `klaviyo.js` est chargé par `src/layouts/Layout.astro` (site complet) et
+`src/middleware.ts` (page teaser "coming soon") **uniquement si** la variable
+`PUBLIC_KLAVIYO_COMPANY_ID` est définie (clé publique / company ID à 6 caractères,
+visible dans Klaviyo → Settings → API Keys).
+
+**Limite à connaître** : Klaviyo ne propose aucun réglage documenté du scope du
+cookie d'identification (`__kla_id` est posé en first-party sur le domaine qui
+charge le script) ni de tracking cross-domaine officiel. Concrètement :
+
+- Un même company ID sur staging **et** prod → les deux environnements remontent
+  dans le **même compte** Klaviyo (les visites de test polluent les stats).
+- Pour isoler le staging : créer un compte Klaviyo sandbox séparé et mettre sa
+  clé publique dans la variable **Preview** de Vercel (la clé du vrai compte
+  restant sur **Production**). Aucune configuration cross-domaine n'est
+  nécessaire ni possible côté Klaviyo.
+
+Test rapide : ouvrir `https://<env>/fr?utm_email=test@exemple.com` — klaviyo.js
+identifie automatiquement ce profil ; vérifier dans Klaviyo → Profiles, et dans
+la console navigateur (`document.cookie` doit contenir `__kla_id`).

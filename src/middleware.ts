@@ -6,6 +6,13 @@ import { defineMiddleware } from "astro:middleware";
 // Le jour du lancement : retirer PUBLIC_COMING_SOON de la prod.
 const COMING_SOON = import.meta.env.PUBLIC_COMING_SOON === "true";
 
+// Tracking onsite Klaviyo sur la page teaser (même variable que Layout.astro,
+// voir le commentaire là-bas pour la limite mono-compte staging/prod).
+const KLAVIYO_ID = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
+const KLAVIYO_SNIPPET = KLAVIYO_ID
+  ? `<script type="text/javascript" async src="https://static.klaviyo.com/onsite/js/${KLAVIYO_ID}/klaviyo.js"></script>`
+  : "";
+
 const HOLDING_PAGE = `<!doctype html>
 <html lang="fr">
   <head>
@@ -20,6 +27,7 @@ const HOLDING_PAGE = `<!doctype html>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
+    ${KLAVIYO_SNIPPET}
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { height: 100%; }
@@ -167,6 +175,8 @@ const HOLDING_PAGE = `<!doctype html>
               if (res.ok && res.d && res.d.ok) {
                 f.style.display = "none";
                 msg.textContent = "Merci. Vous serez parmi les premiers prévenus.";
+                // Identifie aussi le profil dans Klaviyo (best effort, sans bloquer).
+                try { if (window.klaviyo) window.klaviyo.identify({ email: email }); } catch (_) {}
               } else {
                 msg.textContent = (res.d && res.d.error) || "Une erreur est survenue.";
                 btn.disabled = false;
