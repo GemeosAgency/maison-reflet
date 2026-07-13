@@ -82,13 +82,20 @@ const gallery = editorialImgs.length
 // Propriétés au format standard Klaviyo (ProductName/ProductID/SKU/Categories/
 // ImageURL/URL/Brand/Price) pour que les flows "browse abandonment" et les
 // blocs "vus récemment" fonctionnent sans configuration supplémentaire.
+// Ces pages sont pré-générées au build (SSG) : Astro.url.href retombe alors
+// sur "http://localhost:4321" (pas de config `site`), d'où PUBLIC_SITE_URL
+// pour avoir la bonne URL absolue une fois déployé (différente par env :
+// prod vs staging). En dev (SSR à la requête), Astro.url.href est déjà correct.
+const siteOrigin = import.meta.env.PUBLIC_SITE_URL;
+const productUrl = siteOrigin ? `${siteOrigin}${Astro.url.pathname}` : Astro.url.href;
+
 const viewedProduct = {
   ProductName: product.title,
   ProductID: product.id,
   SKU: variant.sku ?? null,
   Categories: parfum?.familleOlfactive ? [parfum.familleOlfactive] : [],
   ImageURL: gallery[0] ?? null,
-  URL: Astro.url.href,
+  URL: productUrl,
   Brand: "Maison Reflet",
   Price: Number(variant.price.amount),
 };

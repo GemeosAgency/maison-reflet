@@ -33,13 +33,18 @@ const gallery = [
 ].filter((u): u is string => Boolean(u));
 
 // Événement Klaviyo "Viewed Product" (voir src/lib/klaviyo.ts + script plus bas).
+// Voir le commentaire équivalent dans parfums/[handle].astro : ces pages
+// sont pré-générées au build, Astro.url.href y est donc faux sans ceci.
+const siteOrigin = import.meta.env.PUBLIC_SITE_URL;
+const productUrl = siteOrigin ? `${siteOrigin}${Astro.url.pathname}` : Astro.url.href;
+
 const viewedProduct = {
   ProductName: title,
   ProductID: product.id,
   SKU: variant.sku ?? null,
   Categories: ["Coffret"],
   ImageURL: gallery[0] ?? null,
-  URL: Astro.url.href,
+  URL: productUrl,
   Brand: "Maison Reflet",
   Price: Number(variant.price.amount),
 };
