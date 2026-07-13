@@ -10,7 +10,8 @@ const COMING_SOON = import.meta.env.PUBLIC_COMING_SOON === "true";
 // voir le commentaire là-bas pour la limite mono-compte staging/prod).
 const KLAVIYO_ID = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
 const KLAVIYO_SNIPPET = KLAVIYO_ID
-  ? `<script type="text/javascript" async src="https://static.klaviyo.com/onsite/js/${KLAVIYO_ID}/klaviyo.js"></script>`
+  ? `<script>window._learnq = window._learnq || [];</script>
+    <script type="text/javascript" async src="https://static.klaviyo.com/onsite/js/${KLAVIYO_ID}/klaviyo.js"></script>`
   : "";
 
 const HOLDING_PAGE = `<!doctype html>
@@ -176,7 +177,11 @@ const HOLDING_PAGE = `<!doctype html>
                 f.style.display = "none";
                 msg.textContent = "Merci. Vous serez parmi les premiers prévenus.";
                 // Identifie aussi le profil dans Klaviyo (best effort, sans bloquer).
-                try { if (window.klaviyo) window.klaviyo.identify({ email: email }); } catch (_) {}
+                // _learnq.push est sûr même si klaviyo.js n'a pas encore fini de charger.
+                try {
+                  window._learnq = window._learnq || [];
+                  window._learnq.push(["identify", { email: email }]);
+                } catch (_) {}
               } else {
                 msg.textContent = (res.d && res.d.error) || "Une erreur est survenue.";
                 btn.disabled = false;

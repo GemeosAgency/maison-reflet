@@ -1,28 +1,28 @@
 /**
- * Petit point commun pour parler à klaviyo.js (tracking onsite) depuis le
- * navigateur. klaviyo.js est chargé de façon asynchrone (voir Layout.astro) ;
- * `waitForKlaviyo` patiente un court instant au cas où un script tournerait
- * juste après le chargement de la page, avant d'abandonner silencieusement.
+ * Envoi d'événements Klaviyo (tracking onsite) depuis le navigateur.
+ *
+ * On pousse toujours via `_learnq.push(...)` plutôt que d'appeler
+ * `window.klaviyo.track()` directement : klaviyo.js expose `window.klaviyo`
+ * très tôt après le chargement du script, avant d'être pleinement initialisé
+ * — un appel direct fait juste après échoue silencieusement (confirmé : le
+ * "Viewed Product" au chargement de page ne remontait jamais, alors que les
+ * appels déclenchés par un clic utilisateur, plus tardifs, fonctionnaient).
+ * `_learnq` est la file d'attente officielle Klaviyo : elle bufferise les
+ * appels tant que le script n'est pas prêt, quel que soit le timing.
  */
 
-export type KlaviyoGlobal = {
-  track: (event: string, properties?: Record<string, unknown>) => void;
-  identify: (properties: Record<string, unknown>) => void;
-};
+type LearnqQueue = { push: (entry: unknown[]) => number };
 
-function getKlaviyo(): KlaviyoGlobal | undefined {
-  return (window as typeof window & { klaviyo?: KlaviyoGlobal }).klaviyo;
+function getLearnq(): LearnqQueue {
+  const w = window as typeof window & { _learnq?: LearnqQueue };
+  w._learnq = w._learnq ?? ([] as unknown as LearnqQueue);
+  return w._learnq;
 }
 
-export async function waitForKlaviyo(timeoutMs = 3000): Promise<KlaviyoGlobal | null> {
-  const existing = getKlaviyo();
-  if (existing) return existing;
+export function track(event: string, properties?: Record<string, unknown>) {
+  getLearnq().push(["track", event, properties]);
+}
 
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    const klaviyo = getKlaviyo();
-    if (klaviyo) return klaviyo;
-  }
-  return null;
+export function identify(properties: Record<string, unknown>) {
+  getLearnq().push(["identify", properties]);
 }

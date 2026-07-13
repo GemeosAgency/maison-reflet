@@ -522,7 +522,7 @@ const coffrets = coffretContent
 
 <script>
   import { addToCart, addManyToCart } from "../../../lib/cart";
-  import { waitForKlaviyo } from "../../../lib/klaviyo";
+  import { track } from "../../../lib/klaviyo";
 
   type BundleCatalogEntry = { handle: string; title: string; img: string | null; variantId: string; price: number };
   const bundleCatalog: BundleCatalogEntry[] = JSON.parse(
@@ -532,13 +532,11 @@ const coffrets = coffretContent
   // "Viewed Product" : un envoi par chargement de page produit (best effort).
   const viewedProduct = JSON.parse(document.getElementById("viewed-product")?.textContent ?? "null");
   if (viewedProduct) {
-    waitForKlaviyo().then((klaviyo) => {
-      try {
-        klaviyo?.track("Viewed Product", viewedProduct);
-      } catch {
-        // le tracking ne doit jamais faire échouer le rendu de la page
-      }
-    });
+    try {
+      track("Viewed Product", viewedProduct);
+    } catch {
+      // le tracking ne doit jamais faire échouer le rendu de la page
+    }
   }
 
   // Boutons génériques (coffrets, cartes "Vous aimerez aussi") : ajoutent leur unique variante.

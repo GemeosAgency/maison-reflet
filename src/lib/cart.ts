@@ -17,7 +17,7 @@ import {
   removeCartLine,
   type ShopifyCart,
 } from "./shopify";
-import type { KlaviyoGlobal } from "./klaviyo";
+import { track as trackKlaviyo } from "./klaviyo";
 
 const CART_ID_KEY = "maison-reflet:cartId";
 
@@ -67,9 +67,6 @@ function currentLangPrefix(): string {
 
 /** Événement Klaviyo "Added to Cart" (best effort — pas de blocage si klaviyo.js n'est pas chargé) */
 function trackAddedToCart(cart: ShopifyCart, lines: CartLine[]) {
-  const klaviyo = (window as typeof window & { klaviyo?: KlaviyoGlobal }).klaviyo;
-  if (!klaviyo) return;
-
   const addedItems = lines
     .map((l) => {
       const line = cart.lines.nodes.find((n) => n.merchandise.id === l.variantId);
@@ -89,7 +86,7 @@ function trackAddedToCart(cart: ShopifyCart, lines: CartLine[]) {
 
   const first = addedItems[0];
   try {
-    klaviyo.track("Added to Cart", {
+    trackKlaviyo("Added to Cart", {
       $value: addedItems.reduce((sum, l) => sum + l.Price * l.Quantity, 0),
       AddedItemProductName: first.ProductName,
       AddedItemVariantTitle: first.VariantTitle,
