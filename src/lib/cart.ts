@@ -17,6 +17,7 @@ import {
   removeCartLine,
   type ShopifyCart,
 } from "./shopify";
+import type { KlaviyoGlobal } from "./klaviyo";
 
 const CART_ID_KEY = "maison-reflet:cartId";
 
@@ -57,8 +58,6 @@ function notifyCartUpdated(cart: ShopifyCart | null) {
     new CustomEvent("cart:updated", { detail: { cart } }) satisfies CartUpdatedEvent
   );
 }
-
-type KlaviyoGlobal = { track: (event: string, properties?: Record<string, unknown>) => void };
 
 /** Préfixe de langue courant (/fr, /ar, /en) déduit de l'URL, pour reconstruire un lien produit absolu. */
 function currentLangPrefix(): string {

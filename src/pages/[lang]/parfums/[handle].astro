@@ -78,6 +78,21 @@ const gallery = editorialImgs.length
     ? shopifyImgs
     : placeholderImgs;
 
+// Événement Klaviyo "Viewed Product" (envoyé côté client, voir script plus bas).
+// Propriétés au format standard Klaviyo (ProductName/ProductID/SKU/Categories/
+// ImageURL/URL/Brand/Price) pour que les flows "browse abandonment" et les
+// blocs "vus récemment" fonctionnent sans configuration supplémentaire.
+const viewedProduct = {
+  ProductName: product.title,
+  ProductID: product.id,
+  SKU: variant.sku ?? null,
+  Categories: parfum?.familleOlfactive ? [parfum.familleOlfactive] : [],
+  ImageURL: gallery[0] ?? null,
+  URL: Astro.url.href,
+  Brand: "Maison Reflet",
+  Price: Number(variant.price.amount),
+};
+
 const names = (arr: { nom: string | null }[] | undefined) =>
   (arr ?? []).map((n) => n.nom).filter(Boolean) as string[];
 const tete = names(parfum?.notes.tete);
@@ -496,14 +511,28 @@ const coffrets = coffretContent
 </Layout>
 
 <script type="application/json" id="bundle-catalog" is:inline set:html={JSON.stringify(bundleCatalog)} />
+<script type="application/json" id="viewed-product" is:inline set:html={JSON.stringify(viewedProduct)} />
 
 <script>
   import { addToCart, addManyToCart } from "../../../lib/cart";
+  import { waitForKlaviyo } from "../../../lib/klaviyo";
 
   type BundleCatalogEntry = { handle: string; title: string; img: string | null; variantId: string; price: number };
   const bundleCatalog: BundleCatalogEntry[] = JSON.parse(
     document.getElementById("bundle-catalog")?.textContent ?? "[]"
   );
+
+  // "Viewed Product" : un envoi par chargement de page produit (best effort).
+  const viewedProduct = JSON.parse(document.getElementById("viewed-product")?.textContent ?? "null");
+  if (viewedProduct) {
+    waitForKlaviyo().then((klaviyo) => {
+      try {
+        klaviyo?.track("Viewed Product", viewedProduct);
+      } catch {
+        // le tracking ne doit jamais faire échouer le rendu de la page
+      }
+    });
+  }
 
   // Boutons génériques (coffrets, cartes "Vous aimerez aussi") : ajoutent leur unique variante.
   document.querySelectorAll<HTMLButtonElement>("[data-add-to-cart]").forEach((btn) => {

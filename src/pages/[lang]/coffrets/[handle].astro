@@ -31,6 +31,18 @@ const gallery = [
   content?.image ? urlForImage(content.image as any).width(1000).url() : null,
   ...[product.featuredImage?.url, ...product.images.nodes.map((n) => n.url)],
 ].filter((u): u is string => Boolean(u));
+
+// Événement Klaviyo "Viewed Product" (voir src/lib/klaviyo.ts + script plus bas).
+const viewedProduct = {
+  ProductName: title,
+  ProductID: product.id,
+  SKU: variant.sku ?? null,
+  Categories: ["Coffret"],
+  ImageURL: gallery[0] ?? null,
+  URL: Astro.url.href,
+  Brand: "Maison Reflet",
+  Price: Number(variant.price.amount),
+};
 ---
 
 <Layout
@@ -62,8 +74,22 @@ const gallery = [
   </div>
 </Layout>
 
+<script type="application/json" id="viewed-product" is:inline set:html={JSON.stringify(viewedProduct)} />
+
 <script>
   import { addToCart } from "../../../lib/cart";
+  import { waitForKlaviyo } from "../../../lib/klaviyo";
+
+  const viewedProduct = JSON.parse(document.getElementById("viewed-product")?.textContent ?? "null");
+  if (viewedProduct) {
+    waitForKlaviyo().then((klaviyo) => {
+      try {
+        klaviyo?.track("Viewed Product", viewedProduct);
+      } catch {
+        // le tracking ne doit jamais faire échouer le rendu de la page
+      }
+    });
+  }
 
   document.querySelectorAll<HTMLButtonElement>("[data-add-to-cart]").forEach((btn) => {
     const feedback = btn.parentElement?.querySelector<HTMLElement>("[data-feedback]") ?? null;
