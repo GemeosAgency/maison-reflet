@@ -461,7 +461,6 @@ const coffrets = coffretContent
               {c.img && <img class="box-img" src={c.img} alt={c.titre ?? ""} loading="lazy" />}
               <div class="box-meta light">
                 <h3>{c.titre}</h3>
-                {c.description && <p class="box-desc">{c.description}</p>}
                 <p class="box-price">{c.price}</p>
                 <div class="box-add-wrap">
                   <button type="button" class="box-add" data-add-to-cart data-variant-id={c.variantId}>
@@ -945,15 +944,17 @@ const coffrets = coffretContent
   .reco-add:hover { opacity: 0.9; }
   .reco-add:disabled { opacity: 0.6; }
 
-  .boxes-grid { display: flex; gap: 2px; width: 100%; height: 728px; }
-  .box-card { flex: 1 0 0; min-width: 0; position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding: 24px; overflow: hidden; background: #e0cdbb; }
+  .boxes-grid { display: flex; gap: 2px; width: 100%; }
+  .box-card {
+    flex: 1 0 0; min-width: 0; aspect-ratio: 1 / 1; position: relative; display: flex;
+    flex-direction: column; justify-content: flex-end; padding: 24px; overflow: hidden; background: #e0cdbb;
+  }
   .box-cover-link { position: absolute; inset: 0; z-index: 1; }
   .box-card img.box-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
   .box-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.45), transparent 45%); }
   .box-meta { position: relative; z-index: 2; pointer-events: none; }
   .box-meta h3 { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
   .box-meta.light { color: #fff; }
-  .box-desc { margin: 4px 0 0; font-size: 14px; font-weight: 400; opacity: 0.9; max-width: 32ch; }
   .box-price {
     margin: 4px 0 0; font-size: 14px; font-weight: 500; max-height: 20px; overflow: hidden;
     transition: opacity 0.25s ease, max-height 0.3s ease, margin-top 0.3s ease;
@@ -965,9 +966,9 @@ const coffrets = coffretContent
   }
   .box-card:hover .box-add-wrap { max-height: 44px; opacity: 1; margin-top: 8px; }
   .box-add {
-    pointer-events: auto; width: 100%; height: 44px; border: 0; border-radius: 999px;
+    pointer-events: auto; width: auto; max-width: 240px; height: 44px; border: 0; border-radius: 999px;
     background: var(--rose); color: #fff; display: flex; align-items: center; justify-content: space-between;
-    padding: 0 24px; font: inherit; font-weight: 500; font-size: 14px; text-transform: uppercase;
+    gap: 16px; padding: 0 24px; font: inherit; font-weight: 500; font-size: 14px; text-transform: uppercase;
     cursor: pointer; transition: opacity 0.15s;
   }
   .box-add:hover { opacity: 0.9; }
