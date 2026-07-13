@@ -44,9 +44,53 @@ const navLinks = [
       href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+    <link rel="preload" href="/fonts/ppneuemontreal-book.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/ppneuemontreal-medium.woff2" as="font" type="font/woff2" crossorigin />
     {locales.map((loc) => <link rel="alternate" hreflang={loc} href={localePath(loc, rest)} />)}
     <title>{title} | Maison Reflet</title>
     <style is:global>
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/fonts/ppneuemontreal-thin.woff2") format("woff2");
+        font-weight: 100;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/fonts/ppneuemontreal-book.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/fonts/ppneuemontreal-italic.woff2") format("woff2");
+        font-weight: 400;
+        font-style: italic;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/fonts/ppneuemontreal-medium.woff2") format("woff2");
+        font-weight: 500;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/fonts/ppneuemontreal-semibolditalic.woff2") format("woff2");
+        font-weight: 600;
+        font-style: italic;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/fonts/ppneuemontreal-bold.woff2") format("woff2");
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+      }
       :root { --rose: #812538; --ink: #1f1f1f; --cream: #eee3d6; --cream-2: #faf9ee; }
       * { box-sizing: border-box; }
       html, body { margin: 0; }
