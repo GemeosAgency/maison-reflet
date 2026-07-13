@@ -201,6 +201,18 @@ export async function getCoffrets(locale: Locale): Promise<CoffretContent[]> {
   return sanityClient.fetch(query);
 }
 
+/** Contenu d'un coffret par son handle Shopify, dans une langue donnée (repli FR). */
+export async function getCoffretByHandle(handle: string, locale: Locale): Promise<CoffretContent | null> {
+  const l = safeLocale(locale);
+  const query = `*[_type == "coffret" && shopifyHandle == $handle][0]{
+    shopifyHandle,
+    "titre": coalesce(titre.${l}, titre.fr),
+    "description": coalesce(description.${l}, description.fr),
+    image
+  }`;
+  return sanityClient.fetch(query, { handle });
+}
+
 export type SiteSettings = {
   brandName: string | null;
   baseline: string | null;

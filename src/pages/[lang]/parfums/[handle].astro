@@ -143,6 +143,7 @@ const coffrets = coffretContent
       img: c.image ? urlForImage(c.image as any).width(1000).url() : (sp.featuredImage?.url ?? null),
       price: formatPrice(variant.price.amount, variant.price.currencyCode),
       variantId: variant.id,
+      href: localePath(lang, `/coffrets/${sp.handle}`),
     };
   })
   .filter((c): c is NonNullable<typeof c> => c !== null);
@@ -456,13 +457,18 @@ const coffrets = coffretContent
         coffrets.length > 0 ? (
           coffrets.map((c) => (
             <div class="box-card">
-              {c.img && <img src={c.img} alt={c.titre ?? ""} loading="lazy" />}
+              <a class="box-cover-link" href={c.href} aria-label={c.titre ?? ""} />
+              {c.img && <img class="box-img" src={c.img} alt={c.titre ?? ""} loading="lazy" />}
               <div class="box-meta light">
                 <h3>{c.titre}</h3>
                 {c.description && <p class="box-desc">{c.description}</p>}
-                <button type="button" class="box-add" data-add-to-cart data-variant-id={c.variantId}>
-                  ADD TO BAG · {c.price}
-                </button>
+                <p class="box-price">{c.price}</p>
+                <div class="box-add-wrap">
+                  <button type="button" class="box-add" data-add-to-cart data-variant-id={c.variantId}>
+                    <span data-reco-add-label>ADD TO BAG</span>
+                    <span>{c.price}</span>
+                  </button>
+                </div>
                 <p class="feedback" data-feedback role="status" aria-live="polite" />
               </div>
             </div>
@@ -470,17 +476,17 @@ const coffrets = coffretContent
         ) : (
           <>
             <div class="box-card">
-              <img src="/brand/box-sample.jpg" alt="Coffret découverte" loading="lazy" />
+              <img class="box-img" src="/brand/box-sample.jpg" alt="Coffret découverte" loading="lazy" />
               <div class="box-meta light">
                 <h3>Coffret découverte</h3>
-                <p>Dhs. 160</p>
+                <p class="box-price">Dhs. 160</p>
               </div>
             </div>
             <div class="box-card">
-              <img src="/brand/box-all6.jpg" alt="Les 6 parfums" loading="lazy" />
+              <img class="box-img" src="/brand/box-all6.jpg" alt="Les 6 parfums" loading="lazy" />
               <div class="box-meta light">
                 <h3>Les 6 parfums</h3>
-                <p>Dhs. 2 200</p>
+                <p class="box-price">Dhs. 2 200</p>
               </div>
             </div>
           </>
@@ -941,17 +947,28 @@ const coffrets = coffretContent
 
   .boxes-grid { display: flex; gap: 2px; width: 100%; height: 728px; }
   .box-card { flex: 1 0 0; min-width: 0; position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding: 24px; overflow: hidden; background: #e0cdbb; }
-  .box-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+  .box-cover-link { position: absolute; inset: 0; z-index: 1; }
+  .box-card img.box-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
   .box-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.45), transparent 45%); }
-  .box-meta { position: relative; z-index: 1; }
+  .box-meta { position: relative; z-index: 2; pointer-events: none; }
   .box-meta h3 { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
-  .box-meta p { margin: 4px 0 0; font-size: 14px; font-weight: 500; }
   .box-meta.light { color: #fff; }
-  .box-desc { font-weight: 400; opacity: 0.9; max-width: 32ch; }
+  .box-desc { margin: 4px 0 0; font-size: 14px; font-weight: 400; opacity: 0.9; max-width: 32ch; }
+  .box-price {
+    margin: 4px 0 0; font-size: 14px; font-weight: 500; max-height: 20px; overflow: hidden;
+    transition: opacity 0.25s ease, max-height 0.3s ease, margin-top 0.3s ease;
+  }
+  .box-card:hover .box-price { opacity: 0; max-height: 0; margin-top: 0; }
+  .box-add-wrap {
+    max-height: 0; opacity: 0; overflow: hidden;
+    transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .box-card:hover .box-add-wrap { max-height: 44px; opacity: 1; margin-top: 8px; }
   .box-add {
-    margin-top: 12px; height: 44px; padding: 0 24px; border: 0; border-radius: 999px;
-    background: var(--rose); color: #fff; font: inherit; font-weight: 500; font-size: 14px;
-    text-transform: uppercase; cursor: pointer; transition: opacity 0.15s;
+    pointer-events: auto; width: 100%; height: 44px; border: 0; border-radius: 999px;
+    background: var(--rose); color: #fff; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; font: inherit; font-weight: 500; font-size: 14px; text-transform: uppercase;
+    cursor: pointer; transition: opacity 0.15s;
   }
   .box-add:hover { opacity: 0.9; }
   .box-add:disabled { opacity: 0.6; }

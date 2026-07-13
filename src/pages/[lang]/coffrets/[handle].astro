@@ -1,0 +1,128 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+import { formatPrice, getAllProducts, isCoffret, type ShopifyProduct } from "../../../lib/shopify";
+import { getCoffretByHandle, urlForImage } from "../../../lib/sanity";
+import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
+
+export async function getStaticPaths() {
+  const coffrets = (await getAllProducts()).filter(isCoffret);
+  return locales.flatMap((lang) =>
+    coffrets.map((product) => ({ params: { lang, handle: product.handle }, props: { product } }))
+  );
+}
+
+interface Props {
+  product: ShopifyProduct;
+}
+
+const lang = Astro.params.lang as Locale;
+const t = useTranslations(lang);
+const { product } = Astro.props;
+
+const content = await getCoffretByHandle(product.handle, lang);
+const variant = product.variants.nodes.find((v) => v.availableForSale) ?? product.variants.nodes[0];
+const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
+
+const title = content?.titre ?? product.title;
+const description = content?.description ?? product.description;
+
+// Galerie : image Sanity du coffret d'abord, puis les photos produit Shopify.
+const gallery = [
+  content?.image ? urlForImage(content.image as any).width(1000).url() : null,
+  ...[product.featuredImage?.url, ...product.images.nodes.map((n) => n.url)],
+].filter((u): u is string => Boolean(u));
+---
+
+<Layout
+  title={title}
+  description={description ?? undefined}
+  lang={lang}
+  breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: title }]}
+>
+  <div class="coffret">
+    <div class="coffret-gallery">
+      {
+        gallery.map((src) => (
+          <div class="shot">
+            <img src={src} alt={title} loading="lazy" />
+          </div>
+        ))
+      }
+    </div>
+
+    <aside class="coffret-info">
+      <h1>{title}</h1>
+      {description && <p class="desc">{description}</p>}
+
+      <button type="button" class="add-to-bag" data-add-to-cart data-variant-id={variant.id}>
+        ADD TO BAG · {priceLabel}
+      </button>
+      <p class="feedback" data-feedback role="status" aria-live="polite" />
+    </aside>
+  </div>
+</Layout>
+
+<script>
+  import { addToCart } from "../../../lib/cart";
+
+  document.querySelectorAll<HTMLButtonElement>("[data-add-to-cart]").forEach((btn) => {
+    const feedback = btn.parentElement?.querySelector<HTMLElement>("[data-feedback]") ?? null;
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.variantId;
+      if (!id) return;
+      btn.disabled = true;
+      try {
+        await addToCart(id, 1);
+        if (feedback) feedback.textContent = "✓";
+      } catch (e) {
+        console.error(e);
+        if (feedback) feedback.textContent = "×";
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+</script>
+
+<style>
+  .coffret { display: flex; align-items: flex-start; }
+  .coffret-gallery { display: flex; flex-direction: column; gap: 2px; flex: 0 0 50%; min-width: 0; }
+  .shot { background: #e5d3be; aspect-ratio: 800 / 960; overflow: hidden; }
+  .shot img { width: 100%; height: 100%; object-fit: cover; }
+
+  .coffret-info {
+    position: sticky;
+    top: 0;
+    flex: 0 0 50%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 56px 64px;
+  }
+  .coffret-info h1 { margin: 0; font-size: 40px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  .desc { margin: 0; font-size: 16px; line-height: 1.5; }
+
+  .add-to-bag {
+    height: 56px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--rose);
+    color: #fff;
+    font: inherit;
+    font-weight: 500;
+    font-size: 16px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .add-to-bag:hover { opacity: 0.9; }
+  .add-to-bag:disabled { opacity: 0.6; }
+  .feedback { margin: -12px 0 0; min-height: 1em; color: var(--rose); }
+
+  @media (max-width: 900px) {
+    .coffret { flex-direction: column; }
+    .coffret-gallery { width: 100%; max-width: 100%; }
+    .coffret-info { position: static; padding: 32px 20px; width: 100%; }
+  }
+</style>
