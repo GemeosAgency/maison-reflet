@@ -163,6 +163,14 @@ export async function getInspiredByMap(): Promise<Record<string, string>> {
   return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.inspiredBy]));
 }
 
+/** Map handle -> couleur signature (accent visuel) pour tous les parfums qui en ont une. */
+export async function getSignatureColors(): Promise<Record<string, string>> {
+  const rows = await sanityClient.fetch<{ shopifyHandle: string; couleurSignature: string }[]>(
+    `*[_type == "parfum" && defined(couleurSignature)]{ shopifyHandle, couleurSignature }`
+  );
+  return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.couleurSignature]));
+}
+
 export type RecoImages = { main: unknown | null; hover: unknown | null };
 
 /** Map handle -> images dédiées "Vous aimerez aussi" (par défaut + au survol) pour tous les parfums qui en ont. */
