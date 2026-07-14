@@ -1,6 +1,6 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
-import { formatPrice, getAllProducts, isCoffret } from "../../../lib/shopify";
+import { formatPrice, getAllProducts, getDisplayPrice, isCoffret } from "../../../lib/shopify";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 
 export function getStaticPaths() {
@@ -35,10 +35,7 @@ const products = (await getAllProducts()).filter((p) => !isCoffret(p));
           )}
           <h2>{product.title}</h2>
           <p>
-            {formatPrice(
-              product.priceRange.minVariantPrice.amount,
-              product.priceRange.minVariantPrice.currencyCode
-            )}
+            {formatPrice(getDisplayPrice(product).amount, getDisplayPrice(product).currencyCode)}
           </p>
         </a>
       ))

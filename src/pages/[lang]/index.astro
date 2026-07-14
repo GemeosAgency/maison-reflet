@@ -4,7 +4,7 @@ import Faq from "../../components/Faq.astro";
 import ProductCard from "../../components/ProductCard.astro";
 import BoxCard from "../../components/BoxCard.astro";
 import Reassurance from "../../components/Reassurance.astro";
-import { formatPrice, getAllProducts, isCoffret } from "../../lib/shopify";
+import { formatPrice, getAllProducts, getPrimaryVariant, isCoffret } from "../../lib/shopify";
 import {
   getSettings,
   getInspiredByMap,
@@ -35,7 +35,7 @@ const recoImages = await getRecoImages();
 // parfums du catalogue, en attendant un signal réel (Shopify Analytics…).
 const bestsellers = perfumes.slice(0, 4).map((p) => {
   const recoImg = recoImages[p.handle];
-  const variant = p.variants.nodes.find((v) => v.availableForSale) ?? p.variants.nodes[0];
+  const variant = getPrimaryVariant(p);
   return {
     name: p.title,
     inspired: inspiredMap[p.handle] ?? null,
@@ -57,7 +57,7 @@ const coffrets = coffretContent
   .map((c) => {
     const sp = coffretProducts.find((p) => p.handle === c.shopifyHandle);
     if (!sp) return null;
-    const variant = sp.variants.nodes.find((v) => v.availableForSale) ?? sp.variants.nodes[0];
+    const variant = getPrimaryVariant(sp);
     return {
       titre: c.titre ?? sp.title,
       img: c.image ? urlForImage(c.image as any).width(1000).url() : (sp.featuredImage?.url ?? null),

@@ -1,6 +1,6 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
-import { formatPrice, getAllProducts, isCoffret, type ShopifyProduct } from "../../../lib/shopify";
+import { formatPrice, getAllProducts, getPrimaryVariant, isCoffret, type ShopifyProduct } from "../../../lib/shopify";
 import { getCoffretByHandle, urlForImage } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 
@@ -20,7 +20,7 @@ const t = useTranslations(lang);
 const { product } = Astro.props;
 
 const content = await getCoffretByHandle(product.handle, lang);
-const variant = product.variants.nodes.find((v) => v.availableForSale) ?? product.variants.nodes[0];
+const variant = getPrimaryVariant(product);
 const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
 
 const title = content?.titre ?? product.title;

@@ -11,7 +11,7 @@
  *
  * Seuil de livraison offerte : 400 AED (fixe, à ajuster ici si besoin).
  */
-import { getAllProducts, isCoffret } from "../lib/shopify";
+import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle } from "../lib/shopify";
 import { getInspiredByMap } from "../lib/sanity";
 import { type Locale, useTranslations } from "../i18n";
 
@@ -25,17 +25,13 @@ const t = useTranslations(lang);
 const allProducts = await getAllProducts();
 const inspiredMap = await getInspiredByMap();
 
-const SAMPLE_KEYWORDS = ["sample", "échantillon", "echantillon", "2 ml", "2ml"];
-const isSampleVariant = (title: string) => {
-  const l = title.toLowerCase();
-  return SAMPLE_KEYWORDS.some((k) => l.includes(k));
-};
-
 // Catalogue pour l'upsell "2+1 offert" : parfums réels (hors coffrets).
+// getPrimaryVariant exclut la variante échantillon (0 AED) — sinon l'upsell
+// ajouterait un échantillon au lieu du parfum plein tarif.
 const upsellCatalog = allProducts
   .filter((p) => !isCoffret(p))
   .map((p) => {
-    const variant = p.variants.nodes.find((v) => v.availableForSale) ?? p.variants.nodes[0];
+    const variant = getPrimaryVariant(p);
     return {
       handle: p.handle,
       title: p.title,
@@ -50,7 +46,7 @@ const upsellCatalog = allProducts
 // Détection des variantes "échantillon" sur l'ensemble du catalogue.
 const sampleOptions = allProducts.flatMap((p) =>
   p.variants.nodes
-    .filter((v) => v.availableForSale && isSampleVariant(v.title))
+    .filter((v) => v.availableForSale && isSampleVariantTitle(v.title))
     .map((v) => ({
       productHandle: p.handle,
       productTitle: p.title,

@@ -4,7 +4,7 @@ import Faq from "../../../components/Faq.astro";
 import ProductCard from "../../../components/ProductCard.astro";
 import BoxCard from "../../../components/BoxCard.astro";
 import Reassurance from "../../../components/Reassurance.astro";
-import { formatPrice, getAllProducts, isCoffret, type ShopifyProduct } from "../../../lib/shopify";
+import { formatPrice, getAllProducts, getPrimaryVariant, getDisplayPrice, isCoffret, type ShopifyProduct } from "../../../lib/shopify";
 import {
   getParfumContent,
   getInspiredByMap,
@@ -32,7 +32,7 @@ const t = useTranslations(lang);
 const { product, products } = Astro.props;
 
 const parfum = await getParfumContent(product.handle, lang);
-const variant = product.variants.nodes.find((v) => v.availableForSale) ?? product.variants.nodes[0];
+const variant = getPrimaryVariant(product);
 const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
 
 const inspiredMap = await getInspiredByMap();
@@ -42,7 +42,7 @@ const inspiredMap = await getInspiredByMap();
 // (article le moins cher offert) est appliquée par Shopify au checkout — voir
 // la remise automatique "Buy X Get Y" configurée sur la collection Eaux de Parfum.
 const bundleCatalog = products.map((p) => {
-  const v = p.variants.nodes.find((x) => x.availableForSale) ?? p.variants.nodes[0];
+  const v = getPrimaryVariant(p);
   return {
     handle: p.handle,
     title: p.title,
@@ -139,11 +139,12 @@ const reco = products
   .filter((p) => p.handle !== product.handle)
   .map((p) => {
     const recoImg = recoImages[p.handle];
-    const recoVariant = p.variants.nodes.find((v) => v.availableForSale) ?? p.variants.nodes[0];
+    const recoVariant = getPrimaryVariant(p);
+    const recoPrice = getDisplayPrice(p);
     return {
       name: p.title,
       inspired: inspiredMap[p.handle] ?? null,
-      price: formatPrice(p.priceRange.minVariantPrice.amount, p.priceRange.minVariantPrice.currencyCode),
+      price: formatPrice(recoPrice.amount, recoPrice.currencyCode),
       img: recoImg?.main
         ? urlForImage(recoImg.main as any).width(800).height(1200).url()
         : (p.featuredImage?.url ?? null),
@@ -162,7 +163,7 @@ const coffrets = coffretContent
   .map((c) => {
     const sp = coffretProducts.find((p) => p.handle === c.shopifyHandle);
     if (!sp) return null;
-    const variant = sp.variants.nodes.find((v) => v.availableForSale) ?? sp.variants.nodes[0];
+    const variant = getPrimaryVariant(sp);
     return {
       titre: c.titre ?? sp.title,
       description: c.description,

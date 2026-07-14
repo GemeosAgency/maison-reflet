@@ -229,6 +229,42 @@ export function isCoffret(product: Pick<ShopifyProduct, "productType" | "categor
   return COFFRET_CATEGORY_KEYWORDS.some((k) => categoryName.includes(k));
 }
 
+// Mots-clés identifiant une variante "échantillon offert" (offerte dans le panier,
+// prix 0). Ces variantes ne doivent JAMAIS servir de prix/variante d'affichage :
+// sinon le "à partir de" (priceRange.minVariantPrice) et les cartes produit
+// tombent à 0,00. Doit rester cohérent avec la détection du panier (CartDrawer).
+const SAMPLE_VARIANT_KEYWORDS = ["sample", "échantillon", "echantillon", "2 ml", "2ml"];
+
+/** Vrai si le titre de variante correspond à un échantillon (ex : "2 ml", "Échantillon") */
+export function isSampleVariantTitle(title: string): boolean {
+  const l = title.toLowerCase();
+  return SAMPLE_VARIANT_KEYWORDS.some((k) => l.includes(k));
+}
+
+type ProductVariant = ShopifyProduct["variants"]["nodes"][number];
+
+/**
+ * Variante "principale" d'un produit pour l'affichage/l'ajout au panier : la
+ * première variante vendable qui n'est PAS un échantillon (repli : première non
+ * échantillon, puis première tout court). Évite de sélectionner l'échantillon à
+ * 0 AED comme variante par défaut.
+ */
+export function getPrimaryVariant(product: Pick<ShopifyProduct, "variants">): ProductVariant {
+  const variants = product.variants.nodes;
+  const nonSample = variants.filter((v) => !isSampleVariantTitle(v.title));
+  return (
+    nonSample.find((v) => v.availableForSale) ??
+    nonSample[0] ??
+    variants.find((v) => v.availableForSale) ??
+    variants[0]
+  );
+}
+
+/** Prix d'affichage d'un produit (celui de sa variante principale, hors échantillon) */
+export function getDisplayPrice(product: Pick<ShopifyProduct, "variants">): ShopifyMoney {
+  return getPrimaryVariant(product).price;
+}
+
 /** Récupère un produit par son handle (slug Shopify) */
 export async function getProductByHandle(handle: string) {
   const query = /* GraphQL */ `
