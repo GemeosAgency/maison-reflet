@@ -10,8 +10,7 @@ const COMING_SOON = import.meta.env.PUBLIC_COMING_SOON === "true";
 // voir le commentaire là-bas pour la limite mono-compte staging/prod).
 const KLAVIYO_ID = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
 const KLAVIYO_SNIPPET = KLAVIYO_ID
-  ? `<script>window._learnq = window._learnq || [];</script>
-    <script type="text/javascript" async src="https://static.klaviyo.com/onsite/js/${KLAVIYO_ID}/klaviyo.js"></script>`
+  ? `<script type="text/javascript" async src="https://static.klaviyo.com/onsite/js/${KLAVIYO_ID}/klaviyo.js"></script>`
   : "";
 
 const HOLDING_PAGE = `<!doctype html>
@@ -177,11 +176,16 @@ const HOLDING_PAGE = `<!doctype html>
                 f.style.display = "none";
                 msg.textContent = "Merci. Vous serez parmi les premiers prévenus.";
                 // Identifie aussi le profil dans Klaviyo (best effort, sans bloquer).
-                // _learnq.push est sûr même si klaviyo.js n'a pas encore fini de charger.
-                try {
-                  window._learnq = window._learnq || [];
-                  window._learnq.push(["identify", { email: email }]);
-                } catch (_) {}
+                // On attend que klaviyo.js soit réellement chargé (objet avec .push)
+                // avant de pousser, sinon l'appel est perdu — cf. src/lib/klaviyo.ts.
+                (function identifyWhenReady(tries) {
+                  var k = window.klaviyo;
+                  if (k && !Array.isArray(k) && typeof k.push === "function") {
+                    try { k.push(["identify", { email: email }]); } catch (_) {}
+                  } else if (tries > 0) {
+                    setTimeout(function () { identifyWhenReady(tries - 1); }, 150);
+                  }
+                })(120);
               } else {
                 msg.textContent = (res.d && res.d.error) || "Une erreur est survenue.";
                 btn.disabled = false;

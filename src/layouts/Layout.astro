@@ -60,15 +60,12 @@ const navLinks = [
     {locales.map((loc) => <link rel="alternate" hreflang={loc} href={localePath(loc, rest)} />)}
     {
       klaviyoCompanyId && (
-        <>
-          <script is:inline>window._learnq = window._learnq || [];</script>
-          <script
-            is:inline
-            async
-            type="text/javascript"
-            src={`https://static.klaviyo.com/onsite/js/${klaviyoCompanyId}/klaviyo.js`}
-          />
-        </>
+        <script
+          is:inline
+          async
+          type="text/javascript"
+          src={`https://static.klaviyo.com/onsite/js/${klaviyoCompanyId}/klaviyo.js`}
+        />
       )
     }
     <title>{title} | Maison Reflet</title>
