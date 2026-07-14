@@ -1,0 +1,166 @@
+---
+import { richTextToHtml, type FaqItem } from "../lib/sanity";
+
+interface Props {
+  items: FaqItem[];
+  title: string;
+}
+
+const { items, title } = Astro.props;
+const visible = (items ?? []).filter((f) => f.question);
+---
+
+{
+  visible.length > 0 && (
+    <section class="faq">
+      <h2>{title}</h2>
+      <div class="faq-list">
+        {visible.map((item, i) => {
+          const qId = `faq-q-${i}`;
+          const aId = `faq-a-${i}`;
+          return (
+            <div class="faq-item" data-faq-item>
+              <h3 class="faq-item-heading">
+                <button
+                  type="button"
+                  class="faq-question"
+                  id={qId}
+                  aria-expanded="false"
+                  aria-controls={aId}
+                  data-faq-toggle
+                >
+                  <span class="faq-icon" aria-hidden="true">
+                    <svg class="icon-plus" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+                    </svg>
+                    <svg class="icon-minus" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+                    </svg>
+                  </span>
+                  <span class="faq-question-text">{item.question}</span>
+                </button>
+              </h3>
+              <div class="faq-answer" id={aId} data-faq-answer inert>
+                <div class="faq-answer-inner">
+                  <div class="faq-answer-content" set:html={richTextToHtml(item.reponse)} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  )
+}
+
+<script>
+  document.querySelectorAll<HTMLElement>("[data-faq-item]").forEach((item) => {
+    const toggle = item.querySelector<HTMLButtonElement>("[data-faq-toggle]");
+    const answer = item.querySelector<HTMLElement & { inert: boolean }>("[data-faq-answer]");
+
+    toggle?.addEventListener("click", () => {
+      const isOpen = item.classList.contains("is-open");
+
+      // Accordéon : un seul élément ouvert à la fois.
+      item.parentElement?.querySelectorAll<HTMLElement>("[data-faq-item].is-open").forEach((open) => {
+        if (open === item) return;
+        open.classList.remove("is-open");
+        open.querySelector<HTMLButtonElement>("[data-faq-toggle]")?.setAttribute("aria-expanded", "false");
+        const openAnswer = open.querySelector<HTMLElement & { inert: boolean }>("[data-faq-answer]");
+        if (openAnswer) openAnswer.inert = true;
+      });
+
+      item.classList.toggle("is-open", !isOpen);
+      toggle.setAttribute("aria-expanded", String(!isOpen));
+      if (answer) answer.inert = isOpen;
+    });
+  });
+</script>
+
+<style>
+  .faq {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+    padding: 96px 24px 112px;
+    max-width: 834px;
+    margin: 0 auto;
+  }
+  .faq h2 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 500;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .faq-list { display: flex; flex-direction: column; width: 100%; }
+  .faq-item { border-top: 1px solid rgba(31, 31, 31, 0.12); }
+  .faq-item.is-open { background: #e9dac9; }
+
+  .faq-item-heading { margin: 0; font-weight: inherit; }
+  .faq-question {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 12px 20px 12px 12px;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .faq-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 4px;
+    flex-shrink: 0;
+  }
+  .faq-icon svg {
+    width: 20px;
+    height: 20px;
+    color: var(--ink);
+    position: absolute;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .faq-icon .icon-minus { opacity: 0; transform: scale(0.7); }
+  .faq-item.is-open .faq-icon .icon-plus { opacity: 0; transform: scale(0.7); }
+  .faq-item.is-open .faq-icon .icon-minus { opacity: 1; transform: scale(1); }
+
+  .faq-question-text { font-size: 20px; font-weight: 500; color: var(--ink); line-height: 1.2; }
+
+  .faq-answer {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .faq-item.is-open .faq-answer { grid-template-rows: 1fr; }
+  .faq-answer-inner { overflow: hidden; min-height: 0; }
+  .faq-answer-content {
+    padding: 0 20px 32px 72px;
+    font-size: 18px;
+    letter-spacing: -0.36px;
+    line-height: 1.32;
+    color: var(--ink);
+  }
+  .faq-answer-content :global(p) { margin: 0 0 8px; }
+  .faq-answer-content :global(p:last-child) { margin-bottom: 0; }
+  .faq-answer-content :global(a) { color: var(--rose); text-decoration: underline; }
+  .faq-answer-content :global(ul),
+  .faq-answer-content :global(ol) { margin: 8px 0; padding-left: 20px; }
+  .faq-answer-content :global(img) { max-width: 100%; height: auto; margin-top: 12px; border-radius: 4px; }
+
+  @media (max-width: 600px) {
+    .faq { padding: 56px 20px 64px; }
+    .faq h2 { font-size: 28px; }
+    .faq-question { gap: 16px; padding: 12px 12px 12px 4px; }
+    .faq-question-text { font-size: 18px; }
+    .faq-answer-content { padding-left: 44px; }
+  }
+</style>

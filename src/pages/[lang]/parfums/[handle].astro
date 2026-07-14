@@ -1,5 +1,6 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
+import Faq from "../../../components/Faq.astro";
 import { formatPrice, getAllProducts, isCoffret, type ShopifyProduct } from "../../../lib/shopify";
 import {
   getParfumContent,
@@ -515,6 +516,8 @@ const coffrets = coffretContent
       }
     </div>
   </section>
+
+  <Faq items={parfum?.faqs ?? []} title={t("nav.faq")} />
 </Layout>
 
 <script type="application/json" id="bundle-catalog" is:inline set:html={JSON.stringify(bundleCatalog)} />

@@ -1,7 +1,6 @@
 ---
-import { toHTML, type PortableTextComponents } from "@portabletext/to-html";
 import Layout from "../../layouts/Layout.astro";
-import { getPageBySlug, urlForImage } from "../../lib/sanity";
+import { getPageBySlug, richTextToHtml } from "../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../i18n";
 
 export function getStaticPaths() {
@@ -12,15 +11,7 @@ const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
 const page = await getPageBySlug("maison", lang);
 
-const components: Partial<PortableTextComponents> = {
-  types: {
-    image: ({ value }) =>
-      `<img src="${urlForImage(value).width(1200).url()}" alt="" loading="lazy" />`,
-  },
-};
-
-const contentHtml =
-  page?.content && Array.isArray(page.content) ? toHTML(page.content, { components }) : "";
+const contentHtml = richTextToHtml(page?.content);
 ---
 
 <Layout

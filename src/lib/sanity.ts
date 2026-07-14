@@ -4,6 +4,7 @@
  */
 import { createClient } from "@sanity/client";
 import { createImageUrlBuilder } from "@sanity/image-url";
+import { toHTML, type PortableTextComponents } from "@portabletext/to-html";
 import { locales, defaultLocale, type Locale } from "../i18n";
 
 type SanityImageSource =
@@ -55,6 +56,18 @@ export function urlForImage(source: SanityImageSource) {
   return builder.image(source);
 }
 
+/** Rendu HTML d'un champ "localeBlock" (Portable Text : paragraphes, listes, liens, images). */
+const richTextComponents: Partial<PortableTextComponents> = {
+  types: {
+    image: ({ value }) =>
+      `<img src="${urlForImage(value as SanityImageSource).width(1200).url()}" alt="" loading="lazy" />`,
+  },
+};
+export function richTextToHtml(blocks: unknown[] | null | undefined): string {
+  if (!Array.isArray(blocks) || blocks.length === 0) return "";
+  return toHTML(blocks as Parameters<typeof toHTML>[0], { components: richTextComponents });
+}
+
 // ---------- Contenu localisé ----------
 
 // Sécurise l'interpolation de la langue dans les requêtes GROQ.
@@ -81,6 +94,11 @@ export type ReassuranceItem = {
   texte: string | null;
 };
 
+export type FaqItem = {
+  question: string | null;
+  reponse: unknown[] | null;
+};
+
 export type ParfumContent = {
   accroche: string | null;
   description: unknown[] | null;
@@ -98,6 +116,7 @@ export type ParfumContent = {
   reassurances: ReassuranceItem[];
   reassurancesCta: ReassuranceItem[];
   ingredients: (string | null)[];
+  faqs: FaqItem[];
 };
 
 /** Contenu éditorial d'un parfum dans une langue donnée (repli FR). */
@@ -138,19 +157,27 @@ export async function getParfumContent(
       icone,
       "texte": coalesce(texte.${l}, texte.fr)
     },
-    "ingredients": ingredients[]->{ "nom": coalesce(nom.${l}, nom.fr) }.nom
+    "ingredients": ingredients[]->{ "nom": coalesce(nom.${l}, nom.fr) }.nom,
+    "faqs": faqs[]->{
+      "question": coalesce(question.${l}, question.fr),
+      "reponse": coalesce(reponse.${l}, reponse.fr)
+    }
   }`;
   return sanityClient.fetch(query, { handle });
 }
 
-export type PageContent = { title: string | null; content: unknown[] | null };
+export type PageContent = { title: string | null; content: unknown[] | null; faqs: FaqItem[] };
 
 /** Page de contenu libre (La Maison…) dans une langue donnée (repli FR). */
 export async function getPageBySlug(slug: string, locale: Locale): Promise<PageContent | null> {
   const l = safeLocale(locale);
   const query = `*[_type == "page" && slug.current == $slug][0]{
     "title": coalesce(title.${l}, title.fr),
-    "content": coalesce(content.${l}, content.fr)
+    "content": coalesce(content.${l}, content.fr),
+    "faqs": faqs[]->{
+      "question": coalesce(question.${l}, question.fr),
+      "reponse": coalesce(reponse.${l}, reponse.fr)
+    }
   }`;
   return sanityClient.fetch(query, { slug });
 }
@@ -187,6 +214,7 @@ export type CoffretContent = {
   titre: string | null;
   description: string | null;
   image: unknown | null;
+  faqs?: FaqItem[];
 };
 
 /** Coffrets (sets multi-parfums) dans une langue donnée (repli FR), triés par "ordre". */
@@ -208,7 +236,11 @@ export async function getCoffretByHandle(handle: string, locale: Locale): Promis
     shopifyHandle,
     "titre": coalesce(titre.${l}, titre.fr),
     "description": coalesce(description.${l}, description.fr),
-    image
+    image,
+    "faqs": faqs[]->{
+      "question": coalesce(question.${l}, question.fr),
+      "reponse": coalesce(reponse.${l}, reponse.fr)
+    }
   }`;
   return sanityClient.fetch(query, { handle });
 }
