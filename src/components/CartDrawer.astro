@@ -107,7 +107,10 @@ const FREE_SHIPPING_THRESHOLD = 400;
 
       <div class="cart-drawer-divider" data-cart-upsell-divider hidden></div>
       <div class="cart-upsell" data-cart-upsell-section hidden>
-        <p class="cart-upsell-title" data-cart-upsell-title></p>
+        <div class="cart-upsell-head">
+          <p class="cart-upsell-title" data-cart-upsell-title></p>
+          <span class="cart-badge" data-cart-upsell-badge hidden>{t("cart.free")}</span>
+        </div>
         <div class="cart-upsell-scroll" data-cart-upsell-list></div>
         <div class="cart-upsell-track">
           <div class="cart-upsell-fill" data-cart-upsell-fill></div>
@@ -140,6 +143,8 @@ const FREE_SHIPPING_THRESHOLD = 400;
     freeShippingUnlocked: t("cart.freeShippingUnlocked"),
     addOneMore: t("cart.addOneMore"),
     addNMore: t("cart.addNMore"),
+    addFreeFragrance: t("cart.addFreeFragrance"),
+    free: t("cart.free"),
     add: t("cart.add"),
     added: t("cart.added"),
     remove: t("cart.remove"),
@@ -201,6 +206,7 @@ const FREE_SHIPPING_THRESHOLD = 400;
   const upsellDivider = drawer?.querySelector<HTMLElement>("[data-cart-upsell-divider]");
   const upsellSection = drawer?.querySelector<HTMLElement>("[data-cart-upsell-section]");
   const upsellTitle = drawer?.querySelector<HTMLElement>("[data-cart-upsell-title]");
+  const upsellBadge = drawer?.querySelector<HTMLElement>("[data-cart-upsell-badge]");
   const upsellList = drawer?.querySelector<HTMLElement>("[data-cart-upsell-list]");
   const upsellFill = drawer?.querySelector<HTMLElement>("[data-cart-upsell-fill]");
   const subtotalEl = drawer?.querySelector<HTMLElement>("[data-cart-drawer-subtotal]");
@@ -271,14 +277,19 @@ const FREE_SHIPPING_THRESHOLD = 400;
 
   function lineHtml(line: GroupedLine): string {
     const catalogEntry = upsellCatalog.find((p) => p.handle === line.handle);
-    const total = formatPrice(String(line.amount), line.currency);
+    // Ligne remisée à 0 par l'offre "2+1 offert" Shopify (voir groupLines) : on
+    // annonce le cadeau via le badge plutôt que d'afficher un prix à 0.
+    const priceHtml =
+      line.amount === 0
+        ? `<span class="cart-badge">${I18N.free}</span>`
+        : `<span class="cart-line-price">${formatPrice(String(line.amount), line.currency)}</span>`;
     return `
       <div class="cart-line" data-variant-id="${line.variantId}">
         ${line.img ? `<img class="cart-line-img" src="${line.img.url}" alt="${line.productTitle}" width="120" height="120" />` : ""}
         <div class="cart-line-body">
           <div class="cart-line-top">
             <span class="cart-line-name">${line.productTitle}${line.variantTitle !== "Default Title" ? ` · ${line.variantTitle}` : ""}</span>
-            <span class="cart-line-price">${total}</span>
+            ${priceHtml}
           </div>
           ${catalogEntry?.inspiredBy ? `<p class="cart-line-inspired">${I18N.inspiredBy} ${catalogEntry.inspiredBy}</p>` : ""}
           <div class="cart-line-bottom">
@@ -297,16 +308,25 @@ const FREE_SHIPPING_THRESHOLD = 400;
       </div>`;
   }
 
-  function upsellCardHtml(p: UpsellItem): string {
+  function upsellCardHtml(p: UpsellItem, opts: { featured: boolean; free: boolean }): string {
+    const price = opts.featured
+      ? opts.free
+        ? `<span class="cart-upsell-price"><s>${formatPrice(String(p.price), p.currency)}</s> ${formatPrice("0", p.currency)}</span>`
+        : `<span class="cart-upsell-price">${formatPrice(String(p.price), p.currency)}</span>`
+      : "";
     return `
       <div class="cart-upsell-card">
         ${p.img ? `<img src="${p.img}" alt="${p.title}" width="120" height="120" />` : ""}
         <div class="cart-upsell-card-body">
           <p class="cart-upsell-card-name">${p.title}</p>
           ${p.inspiredBy ? `<p class="cart-upsell-card-inspired">${I18N.inspiredBy} ${p.inspiredBy}</p>` : ""}
-          <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id="${p.variantId}">
-            <span data-reco-add-label>${I18N.add}</span>
-          </button>
+          <div class="cart-upsell-cta">
+            <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id="${p.variantId}">
+              <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <span data-reco-add-label>${I18N.add}</span>
+            </button>
+            ${price}
+          </div>
         </div>
       </div>`;
   }
@@ -415,14 +435,26 @@ const FREE_SHIPPING_THRESHOLD = 400;
     upsellDivider?.toggleAttribute("hidden", !showUpsell);
     upsellSection?.toggleAttribute("hidden", !showUpsell);
     if (showUpsell) {
+      // Le dernier parfum manquant (needed === 1) est celui qui devient offert : on
+      // l'annonce comme tel plutôt que de dire "encore 1 parfum" — le décompte
+      // affiché aux étapes précédentes exclut donc ce dernier parfum (needed - 1).
+      const isFreeStep = needed === 1;
+      const displayCount = needed - 1;
       if (upsellTitle) {
-        upsellTitle.textContent = needed === 1 ? I18N.addOneMore : I18N.addNMore.replace("{n}", String(needed));
+        upsellTitle.textContent = isFreeStep
+          ? I18N.addFreeFragrance
+          : displayCount === 1
+            ? I18N.addOneMore
+            : I18N.addNMore.replace("{n}", String(displayCount));
       }
+      upsellBadge?.toggleAttribute("hidden", !isFreeStep);
       if (upsellFill) upsellFill.style.width = `${(eligibleQty / BUNDLE_TARGET) * 100}%`;
       if (upsellList) {
         const inCart = new Set((cart?.lines.nodes ?? []).map((l) => l.merchandise.product.handle));
         const suggestions = upsellCatalog.filter((p) => !inCart.has(p.handle));
-        upsellList.innerHTML = suggestions.map(upsellCardHtml).join("");
+        upsellList.innerHTML = suggestions
+          .map((p, i) => upsellCardHtml(p, { featured: isFreeStep || i === 0, free: isFreeStep }))
+          .join("");
       }
     }
 
@@ -562,18 +594,23 @@ const FREE_SHIPPING_THRESHOLD = 400;
   .cart-sample-option img { width: 32px; height: 32px; object-fit: cover; }
 
   .cart-upsell { display: flex; flex-direction: column; gap: 12px; }
+  .cart-upsell-head { display: flex; align-items: center; justify-content: space-between; }
   .cart-upsell-title { margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; color: #0a1215; }
   .cart-upsell-scroll { display: flex; gap: 4px; overflow-x: auto; }
-  .cart-upsell-card { flex: 0 0 auto; display: flex; gap: 20px; align-items: center; background: var(--cream); padding-inline-end: 24px; }
-  .cart-upsell-card img { width: 120px; height: 120px; object-fit: cover; }
-  .cart-upsell-card-body { display: flex; flex-direction: column; gap: 12px; }
+  .cart-upsell-card { flex: 0 0 auto; display: flex; gap: 20px; align-items: stretch; background: var(--cream); padding-inline-end: 24px; }
+  .cart-upsell-card img { width: 120px; height: 100%; align-self: stretch; object-fit: cover; }
+  .cart-upsell-card-body { display: flex; flex-direction: column; gap: 12px; justify-content: center; padding-block: 20px; }
   .cart-upsell-card-name { margin: 0; font-size: 16px; font-weight: 500; color: var(--ink); white-space: nowrap; }
   .cart-upsell-card-inspired { margin: 0; font-size: 14px; color: var(--ink); white-space: nowrap; }
+  .cart-upsell-cta { display: flex; align-items: center; gap: 12px; }
   .cart-upsell-add {
     display: inline-flex; align-items: center; gap: 2px; align-self: flex-start; border: 0; border-radius: 999px;
     background: var(--rose); color: #fff; padding: 9px 12px 9px 10px; font: inherit; font-size: 14px; font-weight: 500;
     text-transform: uppercase; cursor: pointer;
   }
+  .cart-upsell-add svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .cart-upsell-price { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+  .cart-upsell-price s { opacity: 0.6; text-decoration: line-through; margin-inline-end: 6px; }
   .cart-upsell-track { height: 2px; background: rgba(31, 31, 31, 0.12); }
   .cart-upsell-fill { height: 2px; background: var(--ink); transition: width 0.3s ease; }
 
