@@ -1,36 +1,40 @@
 /**
  * Envoi d'événements Klaviyo (tracking onsite) depuis le navigateur.
  *
- * POURQUOI ON ATTEND QUE klaviyo.js SOIT VRAIMENT PRÊT AVANT D'ÉMETTRE
- * -------------------------------------------------------------------
- * klaviyo.js est chargé en `async` depuis le CDN (voir Layout.astro) et met
- * quelques secondes à s'initialiser. Deux pièges vérifiés empiriquement :
- *  1. `window.klaviyo` apparaît (avec ses méthodes) AVANT la fin de son
- *     initialisation ; un événement émis pendant cette fenêtre est perdu
- *     silencieusement (erreurs console "Unable to process event: then,…").
- *  2. Une fois l'init terminée, tout émission fonctionne à tous les coups.
+ * LE PROBLÈME (diagnostiqué en réel)
+ * ----------------------------------
+ * klaviyo.js est chargé en `async` depuis le CDN (voir Layout.astro). Au
+ * chargement d'une page, `window.klaviyo` apparaît AVEC ses méthodes mais AVANT
+ * d'être réellement initialisé : un `track` émis pendant cette fenêtre est perdu
+ * silencieusement (erreurs console "Unable to process event: then,…"). C'est
+ * pourquoi "Viewed Product" (émis au chargement) ne remontait jamais, alors que
+ * "Added to Cart" (émis sur clic, donc plus tard, klaviyo déjà prêt) remontait.
  *
- * C'est ce qui faisait que "Viewed Product" (émis au chargement de page) ne
- * remontait jamais, alors que "Added to Cart" (émis sur clic, donc plus tard,
- * klaviyo.js déjà prêt) remontait bien.
+ * Piège supplémentaire : on ne peut PAS attendre un signal "prêt" en awaitant
+ * une méthode klaviyo (ex : `isIdentified()`), car à froid ces appels renvoient
+ * un proxy dont le `.then` est intercepté — l'`await` ne se résout jamais et le
+ * code qui suit n'est jamais atteint.
  *
- * `isIdentified()` renvoie une promesse qui n'aboutit qu'une fois klaviyo.js
- * réellement initialisé : l'attendre fait le pont jusqu'à l'état "prêt", après
- * quoi on émet via les méthodes objet `track` / `identify`.
+ * LA SOLUTION : ré-émission idempotente
+ * -------------------------------------
+ * On ré-émet l'événement plusieurs fois espacées sur ~13s (via setTimeout, SANS
+ * aucun await sur klaviyo). Les tirs émis avant que klaviyo soit prêt échouent,
+ * mais un tir plus tardif aboutit. Un `$event_id` stable (généré une seule fois
+ * par appel) rend l'opération idempotente : Klaviyo fusionne les tirs en un
+ * unique événement (dédoublonnage vérifié en réel). Aucun doublon, robuste quel
+ * que soit le temps de chargement de klaviyo.js.
  */
 
 type KlaviyoObject = {
-  push: (args: unknown[]) => void;
   track: (event: string, properties?: Record<string, unknown>) => unknown;
   identify: (properties: Record<string, unknown>) => unknown;
-  isIdentified: () => Promise<unknown>;
 };
 
-/**
- * Renvoie l'objet klaviyo.js une fois qu'il expose ses méthodes, sinon null.
- * Avant chargement, `window.klaviyo` est `undefined` (ou une file tableau
- * transitoire) : dans ces cas ce n'est pas encore exploitable.
- */
+// Instants de ré-émission (ms depuis l'appel). Couvre un chargement lent de
+// klaviyo.js tout en émettant tout de suite si déjà prêt.
+const RETRY_SCHEDULE_MS = [0, 1500, 3000, 4500, 6000, 8000, 10000, 13000];
+
+/** L'objet klaviyo.js s'il expose ses méthodes, sinon null. */
 function getKlaviyo(): KlaviyoObject | null {
   const k = (window as typeof window & { klaviyo?: unknown }).klaviyo;
   if (k && !Array.isArray(k) && typeof (k as KlaviyoObject).track === "function") {
@@ -40,43 +44,35 @@ function getKlaviyo(): KlaviyoObject | null {
 }
 
 /**
- * Patiente jusqu'à ce que klaviyo.js soit chargé ET initialisé.
- * Timeout large : le script est async et peut mettre plusieurs secondes.
+ * Ré-émet `fn` selon RETRY_SCHEDULE_MS tant que klaviyo n'est pas exploitable.
+ * `fn` reçoit l'objet klaviyo. Les erreurs sont avalées (best effort).
  */
-async function waitForReadyKlaviyo(timeoutMs = 20000): Promise<KlaviyoObject | null> {
-  const start = Date.now();
-  let klaviyo = getKlaviyo();
-  while (!klaviyo && Date.now() - start < timeoutMs) {
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    klaviyo = getKlaviyo();
+function emitWithRetries(fn: (klaviyo: KlaviyoObject) => void) {
+  for (const delay of RETRY_SCHEDULE_MS) {
+    setTimeout(() => {
+      const klaviyo = getKlaviyo();
+      if (!klaviyo) return;
+      try {
+        fn(klaviyo);
+      } catch {
+        // le tracking ne doit jamais faire échouer la page
+      }
+    }, delay);
   }
-  if (!klaviyo) return null;
-
-  // Attendre la fin de l'initialisation (voir commentaire d'en-tête).
-  try {
-    await klaviyo.isIdentified();
-  } catch {
-    // si l'appel n'aboutit pas, on tente quand même l'émission plus bas
-  }
-  return klaviyo;
 }
 
-/** Envoie un événement (best effort : ne rejette jamais si klaviyo.js manque). */
-export async function track(event: string, properties?: Record<string, unknown>) {
-  const klaviyo = await waitForReadyKlaviyo();
-  try {
-    klaviyo?.track(event, properties);
-  } catch {
-    // le tracking ne doit jamais faire échouer la page
-  }
+/** Identifiant d'événement stable pour rendre les ré-émissions idempotentes. */
+function makeEventId(event: string): string {
+  return `${event}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+}
+
+/** Envoie un événement (best effort, idempotent via $event_id). */
+export function track(event: string, properties: Record<string, unknown> = {}) {
+  const payload = { ...properties, $event_id: makeEventId(event) };
+  emitWithRetries((klaviyo) => klaviyo.track(event, payload));
 }
 
 /** Identifie le profil courant (best effort). */
-export async function identify(properties: Record<string, unknown>) {
-  const klaviyo = await waitForReadyKlaviyo();
-  try {
-    klaviyo?.identify(properties);
-  } catch {
-    // best effort
-  }
+export function identify(properties: Record<string, unknown>) {
+  emitWithRetries((klaviyo) => klaviyo.identify(properties));
 }
