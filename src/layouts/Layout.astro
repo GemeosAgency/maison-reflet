@@ -328,7 +328,13 @@ const navLinks = [
 
     <script>
       import { loadCart, type CartUpdatedEvent } from "../lib/cart";
+      import { initKlaviyo } from "../lib/klaviyo";
       import type { ShopifyCart } from "../lib/shopify";
+
+      // Identité Klaviyo first-party (utm_email, rejeu de la file locale) —
+      // fonctionne aussi quand klaviyo.js est bloqué par un bloqueur de contenu.
+      initKlaviyo();
+
       const countEl = document.querySelector<HTMLElement>("[data-cart-count]");
       function renderCount(cart: ShopifyCart | null) {
         if (!countEl) return;

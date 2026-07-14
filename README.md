@@ -135,3 +135,21 @@ charge le script) ni de tracking cross-domaine officiel. Concrètement :
 Test rapide : ouvrir `https://<env>/fr?utm_email=test@exemple.com` — klaviyo.js
 identifie automatiquement ce profil ; vérifier dans Klaviyo → Profiles, et dans
 la console navigateur (`document.cookie` doit contenir `__kla_id`).
+
+### Tracking server-side (relais first-party)
+
+Les bloqueurs de contenu bloquent `*.klaviyo.com` : chez ces visiteurs, klaviyo.js
+ne charge pas et **rien** ne remonte. Le site route donc les événements commerce
+("Viewed Product", "Added to Cart") via un relais first-party :
+
+- `src/pages/api/events.ts` — endpoint serverless qui transmet à l'API serveur
+  Klaviyo avec `KLAVIYO_PRIVATE_API_KEY` (clé privée **restreinte**, scope
+  Events → Write uniquement, jamais exposée au client).
+- `src/lib/klaviyo.ts` — aiguillage : visiteur identifié → relais serveur
+  (insensible aux bloqueurs) ; visiteur anonyme → klaviyo.js + file locale
+  rejouée à l'identification avec les horodatages d'origine. Un `unique_id`
+  partagé fait dédoublonner Klaviyo (aucun doublon possible).
+- On ne crée jamais de profil Klaviyo anonyme (facturation au profil actif).
+
+Les commandes (Placed Order, etc.) sont déjà en server-to-server via
+l'intégration Shopify ↔ Klaviyo native — rien à faire côté site.
