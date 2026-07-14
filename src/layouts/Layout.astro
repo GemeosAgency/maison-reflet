@@ -206,6 +206,29 @@ const navLinks = [
                 <a href="#">{t("footer.cookieManagement")}</a>
               </div>
             </div>
+            <div class="footer-col footer-signup">
+              <p class="footer-col-title">{t("footer.signup.title")}</p>
+              <p class="footer-signup-text">{t("footer.signup.text")}</p>
+              <form class="footer-signup-form" data-signup-form>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder={t("footer.signup.emailPlaceholder")}
+                  aria-label={t("footer.signup.emailPlaceholder")}
+                />
+                <button
+                  type="submit"
+                  data-msg-sending={t("footer.signup.sending")}
+                  data-msg-success={t("footer.signup.success")}
+                  data-msg-error={t("footer.signup.error")}
+                >
+                  {t("footer.signup.subscribe")}
+                </button>
+              </form>
+              <p class="footer-signup-msg" data-signup-msg role="status" aria-live="polite" />
+              <p class="footer-signup-disclaimer">{t("footer.signup.disclaimer")}</p>
+            </div>
           </div>
           <a href={localePath(lang, "/")} class="footer-logo" aria-label="Maison Reflet">
             <img src="/brand/logo.svg" alt="Maison Reflet" height="28" />
@@ -216,18 +239,21 @@ const navLinks = [
         </div>
       </div>
       <div class="footer-bottom">
-        <ul class="lang-switch">
-          {
-            locales.map((loc) => (
-              <li>
-                <a href={localePath(loc, rest)} aria-current={loc === lang ? "true" : undefined}>
-                  {localeNames[loc]}
-                </a>
-              </li>
-            ))
-          }
-        </ul>
-        <p>&copy; {new Date().getFullYear()} Maison Reflet</p>
+        <p class="footer-copyright">{t("footer.copyright").replace("{year}", String(new Date().getFullYear()))}</p>
+        <div class="footer-lang">
+          <span>{t("footer.countryLanguage")}</span>
+          <ul class="lang-switch">
+            {
+              locales.map((loc) => (
+                <li>
+                  <a href={localePath(loc, rest)} aria-current={loc === lang ? "true" : undefined}>
+                    {localeNames[loc]}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
       </div>
     </footer>
 
@@ -279,37 +305,56 @@ const navLinks = [
       main { min-height: 50vh; max-width: 1800px; margin: 0 auto; }
 
       /* Footer (d'après le Figma) */
-      .site-footer { max-width: 1800px; margin: 0 auto; }
-      .footer-top { display: flex; align-items: flex-start; gap: 120px; padding: 0 8px 8px 24px; }
+      .site-footer { background: var(--ink); color: var(--cream); }
+      .footer-top { max-width: 1800px; margin: 0 auto; display: flex; align-items: flex-start; gap: 120px; padding: 40px 8px 32px 24px; }
       .footer-main { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; }
       .footer-crumbs {
-        display: flex; align-items: center; gap: 12px; padding: 24px 0;
-        border-bottom: 0.8px solid rgba(0, 0, 0, 0.1); font-size: 14px;
+        display: flex; align-items: center; gap: 12px; padding: 0 0 24px; font-size: 14px;
       }
-      .footer-crumbs a, .footer-crumbs .crumb-current { color: var(--ink); }
-      .footer-crumbs a { opacity: 0.48; }
-      .footer-crumbs a:hover { opacity: 0.7; }
-      .crumb-sep { opacity: 0.3; font-size: 12px; }
-      .footer-menu { display: flex; flex-wrap: wrap; gap: 64px; margin-top: 32px; }
+      .footer-crumbs a, .footer-crumbs .crumb-current { color: var(--cream); }
+      .footer-crumbs a { opacity: 0.56; }
+      .footer-crumbs a:hover { opacity: 0.8; }
+      .crumb-sep { opacity: 0.4; font-size: 12px; }
+      .footer-menu { display: flex; flex-wrap: wrap; gap: 64px; margin-top: 8px; }
       .footer-col { width: 256px; display: flex; flex-direction: column; gap: 16px; }
       .footer-col-title {
-        margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; color: #1c1e1d;
+        margin: 0; font-size: 16px; font-weight: 500; text-transform: uppercase; color: var(--cream);
       }
       .footer-col-links { display: flex; flex-direction: column; gap: 8px; }
-      .footer-col-links a { font-size: 16px; color: #585b5a; }
-      .footer-col-links a:hover { opacity: 0.7; }
+      .footer-col-links a { font-size: 16px; color: rgba(238, 227, 214, 0.56); }
+      .footer-col-links a:hover { opacity: 0.8; }
       .footer-logo { display: block; margin-top: auto; padding-top: 32px; }
-      .footer-logo img { height: 28px; width: auto; }
-      .footer-flourish { width: 391px; max-width: 40%; aspect-ratio: 391 / 408; flex-shrink: 0; }
+      .footer-logo img { height: 28px; width: auto; filter: brightness(0) invert(1); }
+      .footer-flourish { width: 391px; max-width: 40%; aspect-ratio: 391 / 408; flex-shrink: 0; opacity: 0.9; }
       .footer-flourish img { width: 100%; height: 100%; display: block; }
 
-      .footer-bottom {
-        display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
-        padding: 24px 40px; background: var(--ink); color: var(--cream-2); font-size: 14px;
+      .footer-signup-text { margin: 0; font-size: 16px; line-height: 1.24; color: rgba(238, 227, 214, 0.8); }
+      .footer-signup-form { display: flex; flex-direction: column; gap: 12px; }
+      .footer-signup-form input {
+        height: 48px; padding: 8px 24px; border-radius: 8px;
+        border: 1px solid rgba(233, 218, 201, 0.12); background: rgba(233, 218, 201, 0.08);
+        color: var(--cream); font: inherit; font-size: 16px;
       }
-      .footer-bottom p { margin: 0; opacity: 0.7; }
+      .footer-signup-form input::placeholder { color: rgba(233, 218, 201, 0.8); }
+      .footer-signup-form button {
+        height: 48px; border: 0; border-radius: 999px; background: var(--rose); color: var(--cream);
+        font: inherit; font-size: 16px; font-weight: 500; cursor: pointer; transition: opacity 0.15s;
+      }
+      .footer-signup-form button:hover { opacity: 0.9; }
+      .footer-signup-form button:disabled { opacity: 0.6; }
+      .footer-signup-msg { margin: -4px 0 0; min-height: 1em; font-size: 14px; color: var(--cream); }
+      .footer-signup-disclaimer { margin: 0; font-size: 12px; line-height: 1.24; color: rgba(238, 227, 214, 0.56); }
+
+      .footer-bottom {
+        max-width: 1800px; margin: 0 auto;
+        display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+        padding: 24px 40px; font-size: 14px;
+      }
+      .footer-copyright { margin: 0; color: rgba(233, 218, 201, 0.56); }
+      .footer-lang { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .footer-lang > span { opacity: 0.56; }
       .lang-switch { list-style: none; display: flex; gap: 1rem; margin: 0; padding: 0; }
-      .lang-switch a { opacity: 0.7; }
+      .lang-switch a { opacity: 0.8; font-weight: 500; }
       .lang-switch a[aria-current="true"] { opacity: 1; text-decoration: underline; }
 
       @media (max-width: 720px) {
@@ -318,22 +363,26 @@ const navLinks = [
         .promo-banner p { padding: 10.5px 20px; font-size: 12px; }
       }
       @media (max-width: 900px) {
-        .footer-top { flex-direction: column; gap: 40px; padding: 0 20px 32px; }
+        .footer-top { flex-direction: column; gap: 40px; padding: 32px 20px; }
         .footer-flourish { width: 220px; max-width: 60%; align-self: center; }
         .footer-menu { gap: 32px; }
         .footer-logo { padding-top: 24px; }
-        .footer-bottom { padding: 20px; }
+        .footer-bottom { padding: 20px; flex-direction: column; align-items: flex-start; }
       }
     </style>
 
     <script>
-      import { loadCart, type CartUpdatedEvent } from "../lib/cart";
-      import { initKlaviyo } from "../lib/klaviyo";
+      import { loadCart, initAddToCartButtons, type CartUpdatedEvent } from "../lib/cart";
+      import { initKlaviyo, identify } from "../lib/klaviyo";
       import type { ShopifyCart } from "../lib/shopify";
 
       // Identité Klaviyo first-party (utm_email, rejeu de la file locale) —
       // fonctionne aussi quand klaviyo.js est bloqué par un bloqueur de contenu.
       initKlaviyo();
+
+      // Câblage global des boutons "Add to bag" (cartes produit/coffret, quelle
+      // que soit la page) — voir cart.ts pour la raison de la délégation unique.
+      initAddToCartButtons();
 
       const countEl = document.querySelector<HTMLElement>("[data-cart-count]");
       function renderCount(cart: ShopifyCart | null) {
@@ -345,6 +394,45 @@ const navLinks = [
         renderCount((e as CartUpdatedEvent).detail.cart)
       );
       loadCart().then(renderCount).catch(() => {});
+
+      // Newsletter du footer — même endpoint que le formulaire du teaser
+      // (src/middleware.ts), et identifie aussi le profil dans Klaviyo.
+      const signupForm = document.querySelector<HTMLFormElement>("[data-signup-form]");
+      const signupMsg = document.querySelector<HTMLElement>("[data-signup-msg]");
+      const signupButton = signupForm?.querySelector<HTMLButtonElement>("button");
+      signupForm?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const input = signupForm.querySelector<HTMLInputElement>("input[name=email]");
+        const email = input?.value.trim();
+        if (!email || !signupButton) return;
+
+        signupButton.disabled = true;
+        if (signupMsg) signupMsg.textContent = signupButton.dataset.msgSending ?? "";
+
+        try {
+          const res = await fetch("/api/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+          const data = await res.json().catch(() => null);
+          if (res.ok && data?.ok) {
+            if (signupMsg) signupMsg.textContent = signupButton.dataset.msgSuccess ?? "";
+            signupForm.reset();
+            try {
+              identify({ email });
+            } catch {
+              // le tracking ne doit jamais faire échouer l'inscription
+            }
+          } else if (signupMsg) {
+            signupMsg.textContent = data?.error || signupButton.dataset.msgError || "";
+          }
+        } catch {
+          if (signupMsg) signupMsg.textContent = signupButton.dataset.msgError ?? "";
+        } finally {
+          signupButton.disabled = false;
+        }
+      });
     </script>
   </body>
 </html>

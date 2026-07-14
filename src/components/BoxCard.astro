@@ -1,0 +1,79 @@
+---
+/**
+ * Grande carte image pleine largeur (titre + prix + CTA au survol), pour les
+ * coffrets — réutilisée par la page produit ("Nos coffrets") et la home
+ * ("The Perfumer's Set").
+ */
+interface Props {
+  title: string;
+  price: string;
+  img: string | null;
+  href: string;
+  variantId: string;
+}
+
+const { title, price, img, href, variantId } = Astro.props;
+---
+
+<div class="box-card">
+  <a class="box-cover-link" href={href} aria-label={title} />
+  {img && <img class="box-img" src={img} alt={title} loading="lazy" />}
+  <div class="box-meta light">
+    <h3>{title}</h3>
+    <p class="box-price">{price}</p>
+    <div class="box-add-wrap">
+      <button type="button" class="box-add" data-add-to-cart data-variant-id={variantId}>
+        <span data-reco-add-label>ADD TO BAG</span>
+        <span>{price}</span>
+      </button>
+    </div>
+    <p class="feedback" data-feedback role="status" aria-live="polite" />
+  </div>
+</div>
+
+<style>
+  .box-card {
+    flex: 1 0 0;
+    min-width: 0;
+    aspect-ratio: 1 / 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 24px;
+    overflow: hidden;
+    background: #e0cdbb;
+  }
+  .box-cover-link { position: absolute; inset: 0; z-index: 1; }
+  .box-card img.box-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+  .box-card::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.45), transparent 45%);
+  }
+  .box-meta { position: relative; z-index: 2; pointer-events: none; }
+  .box-meta h3 { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
+  .box-meta.light { color: #fff; }
+  .box-price {
+    margin: 4px 0 0; font-size: 14px; font-weight: 500; max-height: 20px; overflow: hidden;
+    transition: opacity 0.25s ease, max-height 0.3s ease, margin-top 0.3s ease;
+  }
+  .box-card:hover .box-price { opacity: 0; max-height: 0; margin-top: 0; }
+  .box-add-wrap {
+    max-height: 0; opacity: 0; overflow: hidden;
+    transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .box-card:hover .box-add-wrap { max-height: 44px; opacity: 1; margin-top: 8px; }
+  .box-add {
+    pointer-events: auto; width: auto; max-width: 240px; height: 44px; border: 0; border-radius: 999px;
+    background: var(--rose); color: #fff; display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 0 24px; font: inherit; font-weight: 500; font-size: 14px; text-transform: uppercase;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .box-add:hover { opacity: 0.9; }
+  .box-add:disabled { opacity: 0.6; }
+  .box-meta .feedback { margin: 4px 0 0; min-height: 1em; }
+
+  @media (max-width: 900px) {
+    .box-card { flex: 1 1 45%; min-height: 320px; }
+  }
+</style>

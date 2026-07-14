@@ -1,7 +1,19 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import Faq from "../../components/Faq.astro";
+import ProductCard from "../../components/ProductCard.astro";
+import BoxCard from "../../components/BoxCard.astro";
+import Reassurance from "../../components/Reassurance.astro";
 import { formatPrice, getAllProducts, isCoffret } from "../../lib/shopify";
-import { getSettings } from "../../lib/sanity";
+import {
+  getSettings,
+  getInspiredByMap,
+  getRecoImages,
+  getCoffrets,
+  getReassurances,
+  getPageBySlug,
+  urlForImage,
+} from "../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../i18n";
 
 export function getStaticPaths() {
@@ -11,55 +23,377 @@ export function getStaticPaths() {
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
 
-const featured = (await getAllProducts()).filter((p) => !isCoffret(p)).slice(0, 3);
 const settings = await getSettings(lang);
 const baseline = settings?.baseline ?? "Six parfums, six reflets d'une identité franco-arabe.";
+
+const allProducts = await getAllProducts();
+const perfumes = allProducts.filter((p) => !isCoffret(p));
+const inspiredMap = await getInspiredByMap();
+const recoImages = await getRecoImages();
+
+// "Bestsellers" : pas encore de vrai classement des ventes — les 4 premiers
+// parfums du catalogue, en attendant un signal réel (Shopify Analytics…).
+const bestsellers = perfumes.slice(0, 4).map((p) => {
+  const recoImg = recoImages[p.handle];
+  const variant = p.variants.nodes.find((v) => v.availableForSale) ?? p.variants.nodes[0];
+  return {
+    name: p.title,
+    inspired: inspiredMap[p.handle] ?? null,
+    price: formatPrice(variant.price.amount, variant.price.currencyCode),
+    img: recoImg?.main
+      ? urlForImage(recoImg.main as any).width(800).height(1200).url()
+      : (p.featuredImage?.url ?? null),
+    hoverImg: recoImg?.hover ? urlForImage(recoImg.hover as any).width(800).height(1200).url() : null,
+    variantId: variant.id,
+    href: localePath(lang, `/parfums/${p.handle}`),
+  };
+});
+
+// "The Perfumer's Set" : mêmes coffrets que la section "Nos coffrets" de la
+// fiche produit (contenu Sanity croisé avec le produit Shopify correspondant).
+const coffretProducts = allProducts.filter(isCoffret);
+const coffretContent = await getCoffrets(lang);
+const coffrets = coffretContent
+  .map((c) => {
+    const sp = coffretProducts.find((p) => p.handle === c.shopifyHandle);
+    if (!sp) return null;
+    const variant = sp.variants.nodes.find((v) => v.availableForSale) ?? sp.variants.nodes[0];
+    return {
+      titre: c.titre ?? sp.title,
+      img: c.image ? urlForImage(c.image as any).width(1000).url() : (sp.featuredImage?.url ?? null),
+      price: formatPrice(variant.price.amount, variant.price.currencyCode),
+      variantId: variant.id,
+      href: localePath(lang, `/coffrets/${sp.handle}`),
+    };
+  })
+  .filter((c): c is NonNullable<typeof c> => c !== null);
+
+const reassurances = (await getReassurances(lang)).map((r) => ({
+  icone: r.icone ? urlForImage(r.icone as any).width(80).url() : null,
+  lignes: (r.texte ?? "").split("\n").filter(Boolean),
+}));
+
+// FAQ de la home : rattachées dans le Studio au document "Page" (slug "home"),
+// comme pour "La Maison" — vide tant que rien n'y est attaché.
+const homePage = await getPageBySlug("home", lang);
+
+// Avis clients : AUCUN système d'avis n'existe encore (Judge.me, Loox…) — ce
+// bloc est un aperçu visuel avec du contenu de démonstration, à remplacer par
+// de vrais avis avant le lancement.
+const reviewCount = 267;
+const reviewPlaceholder = {
+  fr: "Avis client à venir — contenu de démonstration en attendant un vrai système d'avis.",
+  ar: "رأي العميل قادم — محتوى تجريبي بانتظار نظام تقييمات حقيقي.",
+  en: "Customer review coming soon — placeholder content pending a real reviews system.",
+}[lang];
+const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quote: reviewPlaceholder }));
 ---
 
 <Layout title={settings?.brandName ?? "Maison Reflet"} description={baseline} lang={lang}>
-  <section class="hero">
-    <h1>Maison Reflet</h1>
-    <p class="tagline">{baseline}</p>
-    {settings?.about && <p class="about">{settings.about}</p>}
-    <a href={localePath(lang, "/parfums")} class="cta">{t("home.discover")}</a>
+  <section class="hero" style={`background-image: url(/home/hero.jpg)`}>
+    <div class="hero-content">
+      <h1>
+        {t("home.hero.title1")}<br />
+        {t("home.hero.title2")}
+      </h1>
+      <p>{t("home.hero.description")}</p>
+    </div>
+    <a href={localePath(lang, "/parfums")} class="hero-cta">{t("home.hero.cta")}</a>
   </section>
 
   {
-    featured.length > 0 && (
-      <section class="featured">
-        <h2>{t("home.featured")}</h2>
-        <div class="featured-grid">
-          {featured.map((product) => (
-            <a href={localePath(lang, `/parfums/${product.handle}`)} class="featured-card">
-              {product.featuredImage && (
-                <img
-                  src={product.featuredImage.url}
-                  alt={product.featuredImage.altText ?? product.title}
-                  width={product.featuredImage.width}
-                  height={product.featuredImage.height}
-                  loading="lazy"
-                />
-              )}
-              <h3>{product.title}</h3>
-              <p>
-                {formatPrice(
-                  product.priceRange.minVariantPrice.amount,
-                  product.priceRange.minVariantPrice.currencyCode
-                )}
-              </p>
-            </a>
+    bestsellers.length > 0 && (
+      <section class="bestsellers">
+        <div class="section-head">
+          <h2>{t("home.bestsellers")}</h2>
+          <a class="pill-link" href={localePath(lang, "/parfums")}>
+            {t("home.seeAll")}
+            <img src="/brand/arrow-right.svg" alt="" width="12" height="12" />
+          </a>
+        </div>
+        <div class="bestsellers-grid">
+          {bestsellers.map((p) => (
+            <ProductCard
+              name={p.name}
+              inspired={p.inspired}
+              inspiredByLabel={t("product.inspiredBy")}
+              price={p.price}
+              img={p.img}
+              hoverImg={p.hoverImg}
+              href={p.href}
+              variantId={p.variantId}
+            />
           ))}
         </div>
       </section>
     )
   }
+
+  <section class="story">
+    <div class="story-text">
+      <h2>
+        {t("home.story.title1")}<br />
+        {t("home.story.title2")}
+      </h2>
+      <div class="story-copy">
+        <p>{t("home.story.p1")}</p>
+        <p>{t("home.story.p2")}</p>
+        <p>{t("home.story.p3")}</p>
+      </div>
+      <a class="pill-link" href={localePath(lang, "/maison")}>
+        {t("home.story.cta")}
+        <img src="/brand/arrow-right.svg" alt="" width="12" height="12" />
+      </a>
+    </div>
+    <div class="story-img">
+      <img src="/home/story.jpg" alt="" loading="lazy" />
+    </div>
+  </section>
+
+  {
+    coffrets.length > 0 && (
+      <section class="perfumers-set">
+        <h2>{t("home.perfumersSet")}</h2>
+        <div class="perfumers-set-grid">
+          {coffrets.map((c) => (
+            <BoxCard title={c.titre} price={c.price} img={c.img} href={c.href} variantId={c.variantId} />
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  <!--
+    Avis clients : aucun système d'avis en place — bloc de démonstration
+    (voir commentaire en frontmatter). À remplacer avant le lancement.
+  -->
+  <section class="reviews">
+    <div class="reviews-head">
+      <h2>{t("home.reviews.title").replace("{count}", String(reviewCount))}</h2>
+      <div class="reviews-rating">
+        <span class="stars">
+          {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="18" height="18" />)}
+        </span>
+        <span class="reviews-rated">
+          <strong>{t("home.reviews.rated")}</strong>
+          <span>{t("home.reviews.customers")}</span>
+        </span>
+      </div>
+    </div>
+    <div class="reviews-list">
+      {
+        reviews.map((r) => (
+          <div class="review">
+            <div class="review-head">
+              <span class="stars">
+                {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="18" height="18" />)}
+              </span>
+              <p class="review-author">{r.author}</p>
+              {r.date && <p class="review-date">{r.date}</p>}
+            </div>
+            <p class="review-quote">“{r.quote}”</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="pillars">
+    <div class="pillars-head">
+      <h2>
+        {t("home.pillars.title1")}<br />
+        {t("home.pillars.title2")}
+      </h2>
+      <p>{t("home.pillars.subtitle")}</p>
+    </div>
+    <div class="pillars-grid">
+      <div class="pillar" style="background-image: url(/home/pillar-quality.jpg)">
+        <h3>{t("home.pillars.quality.title")}</h3>
+        <p>{t("home.pillars.quality.text")}</p>
+      </div>
+      <div class="pillar" style="background-image: url(/home/pillar-performance.jpg)">
+        <h3>{t("home.pillars.performance.title")}</h3>
+        <p>{t("home.pillars.performance.text")}</p>
+      </div>
+      <div class="pillar" style="background-image: url(/home/pillar-character.jpg)">
+        <h3>{t("home.pillars.character.title")}</h3>
+        <p>{t("home.pillars.character.text")}</p>
+      </div>
+    </div>
+  </section>
+
+  <Reassurance items={reassurances} />
+
+  <Faq items={homePage?.faqs ?? []} title={t("nav.faq")} />
 </Layout>
 
 <style>
-  .hero { text-align: center; padding: 4rem 1rem; max-width: 40rem; margin: 0 auto; }
-  .tagline { font-size: 1.25rem; }
-  .featured { padding: 2rem 1rem; max-width: 60rem; margin: 0 auto; }
-  .featured-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2rem; }
-  .featured-card { display: block; text-decoration: none; color: inherit; }
-  .featured-card img { width: 100%; height: auto; display: block; }
+  /* Hero */
+  .hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 24px;
+    min-height: 640px;
+    padding: 64px;
+    background-size: cover;
+    background-position: center;
+    background-color: #d3b69c;
+    text-align: center;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 20%, rgba(31, 31, 31, 0.64) 72%);
+  }
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 32rem;
+    color: var(--cream-2);
+    filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.56));
+  }
+  .hero-content h1 { margin: 0; font-size: 40px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  .hero-content p { margin: 0; font-size: 18px; line-height: 1.32; letter-spacing: -0.36px; }
+  .hero-cta {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    height: 48px;
+    padding: 0 20px;
+    border-radius: 999px;
+    background: var(--cream);
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 500;
+    text-transform: uppercase;
+    transition: opacity 0.15s;
+  }
+  .hero-cta:hover { opacity: 0.85; }
+
+  /* En-têtes de section génériques */
+  .section-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 96px 64px 40px;
+  }
+  .section-head h2, .bestsellers > h2, .perfumers-set > h2 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 500;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .pill-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    height: 48px;
+    padding: 0 20px;
+    border-radius: 999px;
+    background: #e9dac9;
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 500;
+    text-transform: uppercase;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .pill-link:hover { opacity: 0.85; }
+
+  /* Bestsellers */
+  .bestsellers-grid { display: flex; gap: 2px; width: 100%; height: 520px; }
+
+  /* Histoire de marque */
+  .story {
+    display: flex;
+    align-items: flex-end;
+    gap: 64px;
+    padding: 72px;
+  }
+  .story-text {
+    flex: 1 0 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding-bottom: 56px;
+    color: #0a1215;
+  }
+  .story-text h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  .story-copy { display: flex; flex-direction: column; gap: 12px; max-width: 26rem; }
+  .story-copy p { margin: 0; font-size: 16px; line-height: 1.36; }
+  .story-text .pill-link { align-self: flex-start; }
+  .story-img { flex: 0 0 50%; max-width: 816px; height: 560px; background: #dec9b8; overflow: hidden; }
+  .story-img img { width: 100%; height: 100%; object-fit: cover; object-position: bottom; }
+
+  /* The Perfumer's Set */
+  .perfumers-set { display: flex; flex-direction: column; align-items: center; }
+  .perfumers-set-grid { display: flex; gap: 2px; width: 100%; height: 560px; }
+  .perfumers-set-grid :global(.box-card) { aspect-ratio: auto; }
+
+  /* Avis */
+  .reviews { display: flex; flex-direction: column; gap: 32px; padding: 96px 72px; }
+  .reviews-head { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+  .reviews-head h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; }
+  .reviews-rating { display: flex; align-items: center; gap: 8px; }
+  .stars { display: inline-flex; gap: 2px; }
+  .reviews-rated { display: flex; align-items: baseline; gap: 4px; color: var(--ink); }
+  .reviews-rated strong { font-size: 16px; font-weight: 500; }
+  .reviews-rated span { font-size: 14px; }
+  .reviews-list { display: flex; flex-direction: column; }
+  .review {
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 24px 0; border-top: 1px solid rgba(31, 31, 31, 0.12);
+  }
+  .review-head { display: flex; flex-direction: column; gap: 8px; }
+  .review-author { margin: 0; font-size: 18px; font-weight: 500; }
+  .review-date { margin: 0; font-size: 16px; opacity: 0.7; }
+  .review-quote { margin: 0; font-size: 20px; line-height: 1.2; max-width: 60rem; }
+
+  /* Piliers ("Designed to be worn…") */
+  .pillars { display: flex; flex-direction: column; align-items: center; }
+  .pillars-head {
+    display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+    padding: 56px 64px 40px;
+  }
+  .pillars-head h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; }
+  .pillars-head p { margin: 0; font-size: 18px; color: #0a1215; }
+  .pillars-grid { display: flex; gap: 2px; width: 100%; height: 560px; }
+  .pillar {
+    flex: 1 0 0; min-width: 0; height: 100%; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;
+    padding: 24px; background-size: cover; background-position: center; color: #fff;
+  }
+  .pillar::after {
+    content: ""; position: absolute; inset: 0; z-index: 0;
+    background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 50%, #171717 87%);
+  }
+  .pillar h3 { position: relative; z-index: 1; margin: 0; font-size: 20px; font-weight: 500; text-transform: uppercase; }
+  .pillar p { position: relative; z-index: 1; margin: 0; font-size: 16px; line-height: 1.3; max-width: 20rem; }
+
+  @media (max-width: 900px) {
+    .hero { min-height: 480px; padding: 32px 20px; }
+    .hero-content h1 { font-size: 28px; }
+    .section-head { padding: 56px 20px 32px; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+    .bestsellers-grid, .perfumers-set-grid, .pillars-grid { flex-wrap: wrap; height: auto; }
+    .bestsellers-grid :global(.product-card),
+    .perfumers-set-grid :global(.box-card) { min-height: 320px; }
+    .pillar { flex: 1 1 100%; min-height: 320px; }
+    .story { flex-direction: column; align-items: stretch; gap: 24px; padding: 40px 20px; }
+    .story-text { padding: 0; gap: 24px; }
+    .story-text h2 { font-size: 28px; }
+    .story-img { max-width: 100%; height: auto; aspect-ratio: 816 / 560; }
+    .reviews { padding: 56px 20px; }
+    .reviews-head { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .pillars-head { padding: 40px 20px 24px; }
+  }
 </style>

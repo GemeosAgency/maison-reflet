@@ -179,3 +179,45 @@ export async function removeFromCart(lineId: string): Promise<ShopifyCart | null
   notifyCartUpdated(cart);
   return cart;
 }
+
+/**
+ * Câble tous les boutons `[data-add-to-cart]` de la page (cartes produit,
+ * cartes coffret…) via délégation d'événement sur `document`. Un seul appel
+ * global (voir Layout.astro) plutôt qu'un `querySelectorAll` par page/composant :
+ * avec plusieurs composants de carte partagés sur une même page, des écouteurs
+ * attachés individuellement se dupliqueraient sur les boutons rendus par
+ * chacun. La délégation gère aussi nativement les boutons ajoutés après coup.
+ */
+export function initAddToCartButtons() {
+  document.addEventListener("click", async (e) => {
+    const btn = (e.target as HTMLElement)?.closest<HTMLButtonElement>("[data-add-to-cart]");
+    if (!btn || btn.disabled) return;
+    e.preventDefault();
+
+    const variantId = btn.dataset.variantId;
+    if (!variantId) return;
+
+    const feedback = btn.parentElement?.querySelector<HTMLElement>("[data-feedback]") ?? null;
+    const inlineLabel = btn.querySelector<HTMLElement>("[data-reco-add-label]");
+    const inlineLabelDefault = inlineLabel?.textContent ?? "";
+
+    btn.disabled = true;
+    try {
+      await addToCart(variantId, 1);
+      if (feedback) feedback.textContent = "✓";
+      if (inlineLabel) {
+        inlineLabel.textContent = "AJOUTÉ ✓";
+        setTimeout(() => (inlineLabel.textContent = inlineLabelDefault), 1600);
+      }
+    } catch (error) {
+      console.error(error);
+      if (feedback) feedback.textContent = "×";
+      if (inlineLabel) {
+        inlineLabel.textContent = "ERREUR";
+        setTimeout(() => (inlineLabel.textContent = inlineLabelDefault), 1600);
+      }
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}

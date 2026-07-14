@@ -1,0 +1,64 @@
+---
+/**
+ * Bandeau réassurance (icône + texte), pleine largeur — réutilisé par la page
+ * produit (sélection propre à chaque parfum) et la home (bibliothèque complète).
+ */
+interface Props {
+  items: { icone: string | null; lignes: string[] }[];
+}
+
+const { items } = Astro.props;
+---
+
+{
+  items.length > 0 && (
+    <section class="reassurance">
+      {items.map((r) => (
+        <div class="reassurance-item">
+          {r.icone && <img src={r.icone} alt="" width="40" height="40" />}
+          <p>
+            {r.lignes.map((ligne) => (
+              <>
+                {ligne}
+                <br />
+              </>
+            ))}
+          </p>
+        </div>
+      ))}
+    </section>
+  )
+}
+
+<style>
+  .reassurance {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 64px;
+    background: #e9dac9;
+  }
+  .reassurance-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 200px;
+    flex-shrink: 0;
+  }
+  .reassurance-item img { width: 40px; height: 40px; }
+  .reassurance-item p {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.28;
+    color: #0a1215;
+  }
+
+  @media (max-width: 900px) {
+    .reassurance { flex-wrap: wrap; justify-content: center; padding: 32px 20px; gap: 32px; }
+  }
+</style>

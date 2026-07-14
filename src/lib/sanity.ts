@@ -245,6 +245,16 @@ export async function getCoffretByHandle(handle: string, locale: Locale): Promis
   return sanityClient.fetch(query, { handle });
 }
 
+/** Bibliothèque complète des réassurances (livraison, paiement…), dans l'ordre de création. */
+export async function getReassurances(locale: Locale): Promise<ReassuranceItem[]> {
+  const l = safeLocale(locale);
+  const query = `*[_type == "reassurance"] | order(_createdAt asc){
+    icone,
+    "texte": coalesce(texte.${l}, texte.fr)
+  }`;
+  return sanityClient.fetch(query);
+}
+
 export type SiteSettings = {
   brandName: string | null;
   baseline: string | null;

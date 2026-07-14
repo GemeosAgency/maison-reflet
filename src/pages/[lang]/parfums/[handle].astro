@@ -1,6 +1,9 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
 import Faq from "../../../components/Faq.astro";
+import ProductCard from "../../../components/ProductCard.astro";
+import BoxCard from "../../../components/BoxCard.astro";
+import Reassurance from "../../../components/Reassurance.astro";
 import { formatPrice, getAllProducts, isCoffret, type ShopifyProduct } from "../../../lib/shopify";
 import {
   getParfumContent,
@@ -383,25 +386,7 @@ const coffrets = coffretContent
   </div>
 
   <!-- Réassurance (icône + texte, sélectionnés par parfum dans Sanity) -->
-  {
-    reassurances.length > 0 && (
-      <section class="reassurance">
-        {reassurances.map((r) => (
-          <div class="reassurance-item">
-            {r.icone && <img src={r.icone} alt="" width="40" height="40" />}
-            <p>
-              {r.lignes.map((ligne) => (
-                <>
-                  {ligne}
-                  <br />
-                </>
-              ))}
-            </p>
-          </div>
-        ))}
-      </section>
-    )
-  }
+  <Reassurance items={reassurances} />
 
   <!-- Blocs éditoriaux (administrables dans Sanity, en alterné) -->
   {
@@ -449,23 +434,16 @@ const coffrets = coffretContent
         <h2>{t("product.related")}</h2>
         <div class="reco-grid">
           {reco.map((p) => (
-            <div class="reco-card">
-              <a class="reco-cover-link" href={p.href} aria-label={p.name} />
-              {p.img && <img class="reco-img reco-img-base" src={p.img} alt={p.name} loading="lazy" />}
-              {p.hoverImg && <img class="reco-img reco-img-hover" src={p.hoverImg} alt="" loading="lazy" />}
-              <div class="reco-overlay" aria-hidden="true" />
-              <div class="reco-meta">
-                <h3>{p.name}</h3>
-                {p.inspired && <p class="reco-inspired">{t("product.inspiredBy")} {p.inspired}</p>}
-                <p class="reco-price">{p.price}</p>
-                <div class="reco-add-wrap">
-                  <button type="button" class="reco-add" data-add-to-cart data-variant-id={p.variantId}>
-                    <span data-reco-add-label>ADD TO BAG</span>
-                    <span>{p.price}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+            <ProductCard
+              name={p.name}
+              inspired={p.inspired}
+              inspiredByLabel={t("product.inspiredBy")}
+              price={p.price}
+              img={p.img}
+              hoverImg={p.hoverImg}
+              href={p.href}
+              variantId={p.variantId}
+            />
           ))}
         </div>
       </section>
@@ -479,21 +457,7 @@ const coffrets = coffretContent
       {
         coffrets.length > 0 ? (
           coffrets.map((c) => (
-            <div class="box-card">
-              <a class="box-cover-link" href={c.href} aria-label={c.titre ?? ""} />
-              {c.img && <img class="box-img" src={c.img} alt={c.titre ?? ""} loading="lazy" />}
-              <div class="box-meta light">
-                <h3>{c.titre}</h3>
-                <p class="box-price">{c.price}</p>
-                <div class="box-add-wrap">
-                  <button type="button" class="box-add" data-add-to-cart data-variant-id={c.variantId}>
-                    <span data-reco-add-label>ADD TO BAG</span>
-                    <span>{c.price}</span>
-                  </button>
-                </div>
-                <p class="feedback" data-feedback role="status" aria-live="polite" />
-              </div>
-            </div>
+            <BoxCard title={c.titre ?? ""} price={c.price} img={c.img} href={c.href} variantId={c.variantId} />
           ))
         ) : (
           <>
@@ -542,37 +506,8 @@ const coffrets = coffretContent
     }
   }
 
-  // Boutons génériques (coffrets, cartes "Vous aimerez aussi") : ajoutent leur unique variante.
-  document.querySelectorAll<HTMLButtonElement>("[data-add-to-cart]").forEach((btn) => {
-    const feedback = btn.parentElement?.querySelector<HTMLElement>("[data-feedback]") ?? null;
-    // Cartes reco : pas de paragraphe de feedback séparé (place limitée) — le libellé
-    // du bouton lui-même bascule brièvement à la place.
-    const inlineLabel = btn.querySelector<HTMLElement>("[data-reco-add-label]");
-    const inlineLabelDefault = inlineLabel?.textContent ?? "";
-    btn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      const id = btn.dataset.variantId;
-      if (!id) return;
-      btn.disabled = true;
-      try {
-        await addToCart(id, 1);
-        if (feedback) feedback.textContent = "✓";
-        if (inlineLabel) {
-          inlineLabel.textContent = "AJOUTÉ ✓";
-          setTimeout(() => (inlineLabel.textContent = inlineLabelDefault), 1600);
-        }
-      } catch (e) {
-        console.error(e);
-        if (feedback) feedback.textContent = "×";
-        if (inlineLabel) {
-          inlineLabel.textContent = "ERREUR";
-          setTimeout(() => (inlineLabel.textContent = inlineLabelDefault), 1600);
-        }
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  });
+  // Boutons "Add to bag" (coffrets, cartes "Vous aimerez aussi") : câblés
+  // globalement par initAddToCartButtons() (voir Layout.astro + lib/cart.ts).
 
   // Carte "Buy 2 Get 1 Free" repliable de la fiche produit. Repliée = achat à
   // l'unité (comportement par défaut) ; dépliée = lot de 3 sélectionné.
@@ -816,21 +751,6 @@ const coffrets = coffretContent
   .cta-perks li { display: flex; gap: 8px; align-items: center; font-size: 16px; }
   .cta-perks img { flex-shrink: 0; }
 
-  /* Réassurance (bandeau pleine largeur, d'après le Figma) */
-  .reassurance {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 24px; padding: 64px; background: #e9dac9;
-  }
-  .reassurance-item {
-    display: flex; flex-direction: column; align-items: center; gap: 16px;
-    width: 200px; flex-shrink: 0;
-  }
-  .reassurance-item img { width: 40px; height: 40px; }
-  .reassurance-item p {
-    margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase;
-    text-align: center; line-height: 1.28; color: #0a1215;
-  }
-
   /* Liens "+" (remplacent les accordéons) ouvrant le panneau latéral */
   .cta-links {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
@@ -942,83 +862,13 @@ const coffrets = coffretContent
     text-transform: uppercase; text-align: center;
   }
   .reco-grid { display: flex; gap: 2px; width: 100%; height: 560px; }
-  .reco-card { flex: 1 0 0; min-width: 0; height: 100%; position: relative; overflow: hidden; }
-  .reco-cover-link { position: absolute; inset: 0; z-index: 1; }
-  .reco-img {
-    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: bottom;
-    pointer-events: none; transition: opacity 0.6s ease;
-  }
-  .reco-img-hover { opacity: 0; }
-  .reco-card:hover .reco-img-base { opacity: 0; }
-  .reco-card:hover .reco-img-hover { opacity: 1; }
-  .reco-overlay {
-    position: absolute; inset: 0; z-index: 1; pointer-events: none;
-    background: linear-gradient(to bottom, rgba(213, 187, 162, 0) 45%, #d5bba2 100%);
-    opacity: 0; transition: opacity 0.5s ease;
-  }
-  .reco-card:hover .reco-overlay { opacity: 0.85; }
-  .reco-meta {
-    position: absolute; left: 24px; right: 24px; bottom: 24px; z-index: 2; pointer-events: none;
-  }
-  .reco-meta h3 { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
-  .reco-inspired { margin: 4px 0 0; font-size: 14px; font-weight: 500; }
-  .reco-price {
-    margin: 4px 0 0; font-size: 14px; font-weight: 500; max-height: 20px; overflow: hidden;
-    transition: opacity 0.25s ease, max-height 0.3s ease, margin-top 0.3s ease;
-  }
-  .reco-card:hover .reco-price { opacity: 0; max-height: 0; margin-top: 0; }
-  .reco-add-wrap {
-    max-height: 0; opacity: 0; overflow: hidden;
-    transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .reco-card:hover .reco-add-wrap { max-height: 48px; opacity: 1; margin-top: 8px; }
-  .reco-add {
-    pointer-events: auto; width: 100%; height: 48px; border: 0; border-radius: 999px;
-    background: var(--rose); color: #fff; display: flex; align-items: center; justify-content: space-between;
-    padding: 0 20px; font: inherit; font-size: 14px; font-weight: 500; text-transform: uppercase;
-    cursor: pointer; transition: opacity 0.15s;
-  }
-  .reco-add:hover { opacity: 0.9; }
-  .reco-add:disabled { opacity: 0.6; }
-
   .boxes-grid { display: flex; gap: 2px; width: 100%; }
-  .box-card {
-    flex: 1 0 0; min-width: 0; aspect-ratio: 1 / 1; position: relative; display: flex;
-    flex-direction: column; justify-content: flex-end; padding: 24px; overflow: hidden; background: #e0cdbb;
-  }
-  .box-cover-link { position: absolute; inset: 0; z-index: 1; }
-  .box-card img.box-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
-  .box-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.45), transparent 45%); }
-  .box-meta { position: relative; z-index: 2; pointer-events: none; }
-  .box-meta h3 { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
-  .box-meta.light { color: #fff; }
-  .box-price {
-    margin: 4px 0 0; font-size: 14px; font-weight: 500; max-height: 20px; overflow: hidden;
-    transition: opacity 0.25s ease, max-height 0.3s ease, margin-top 0.3s ease;
-  }
-  .box-card:hover .box-price { opacity: 0; max-height: 0; margin-top: 0; }
-  .box-add-wrap {
-    max-height: 0; opacity: 0; overflow: hidden;
-    transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .box-card:hover .box-add-wrap { max-height: 44px; opacity: 1; margin-top: 8px; }
-  .box-add {
-    pointer-events: auto; width: auto; max-width: 240px; height: 44px; border: 0; border-radius: 999px;
-    background: var(--rose); color: #fff; display: flex; align-items: center; justify-content: space-between;
-    gap: 16px; padding: 0 24px; font: inherit; font-weight: 500; font-size: 14px; text-transform: uppercase;
-    cursor: pointer; transition: opacity 0.15s;
-  }
-  .box-add:hover { opacity: 0.9; }
-  .box-add:disabled { opacity: 0.6; }
-  .box-meta .feedback { margin: 4px 0 0; min-height: 1em; }
 
   @media (max-width: 900px) {
     .produit { flex-direction: column; }
     .gallery { width: 100%; max-width: 100%; }
     .info { position: static; padding: 32px 20px; width: 100%; }
-    .reassurance { flex-wrap: wrap; justify-content: center; padding: 32px 20px; gap: 32px; }
     .reco-grid, .boxes-grid { flex-wrap: wrap; height: auto; }
-    .reco-card, .box-card { flex: 1 1 45%; min-height: 320px; }
     .reco h2, .boxes h2 { padding: 56px 20px 32px; font-size: 28px; }
     .story-blocks { padding: 40px 20px; gap: 48px; }
     .story-row, .story-row.reverse { flex-direction: column; align-items: stretch; gap: 20px; }

@@ -1,0 +1,89 @@
+---
+/**
+ * Carte produit pleine image avec bouton "Add to bag" révélé au survol.
+ * Réutilisée par la page produit ("Vous aimerez aussi") et la home
+ * ("Bestsellers") — le clic sur le bouton est câblé globalement par
+ * initAddToCartButtons() (voir src/lib/cart.ts), rien à faire ici.
+ */
+interface Props {
+  name: string;
+  inspired?: string | null;
+  inspiredByLabel: string;
+  price: string;
+  img: string | null;
+  hoverImg?: string | null;
+  href: string;
+  variantId: string;
+}
+
+const { name, inspired, inspiredByLabel, price, img, hoverImg, href, variantId } = Astro.props;
+---
+
+<div class="product-card">
+  <a class="product-card-link" href={href} aria-label={name} />
+  {img && <img class="product-card-img product-card-img-base" src={img} alt={name} loading="lazy" />}
+  {hoverImg && <img class="product-card-img product-card-img-hover" src={hoverImg} alt="" loading="lazy" />}
+  <div class="product-card-overlay" aria-hidden="true" />
+  <div class="product-card-meta">
+    <h3>{name}</h3>
+    {inspired && <p class="product-card-inspired">{inspiredByLabel} {inspired}</p>}
+    <p class="product-card-price">{price}</p>
+    <div class="product-card-add-wrap">
+      <button type="button" class="product-card-add" data-add-to-cart data-variant-id={variantId}>
+        <span data-reco-add-label>ADD TO BAG</span>
+        <span>{price}</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .product-card {
+    flex: 1 0 0;
+    min-width: 0;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+  .product-card-link { position: absolute; inset: 0; z-index: 1; }
+  .product-card-img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: bottom;
+    pointer-events: none; transition: opacity 0.6s ease;
+  }
+  .product-card-img-hover { opacity: 0; }
+  .product-card:hover .product-card-img-base { opacity: 0; }
+  .product-card:hover .product-card-img-hover { opacity: 1; }
+  .product-card-overlay {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(213, 187, 162, 0) 45%, #d5bba2 100%);
+    opacity: 0; transition: opacity 0.5s ease;
+  }
+  .product-card:hover .product-card-overlay { opacity: 0.85; }
+  .product-card-meta {
+    position: absolute; left: 24px; right: 24px; bottom: 24px; z-index: 2; pointer-events: none;
+  }
+  .product-card-meta h3 { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
+  .product-card-inspired { margin: 4px 0 0; font-size: 14px; font-weight: 500; }
+  .product-card-price {
+    margin: 4px 0 0; font-size: 14px; font-weight: 500; max-height: 20px; overflow: hidden;
+    transition: opacity 0.25s ease, max-height 0.3s ease, margin-top 0.3s ease;
+  }
+  .product-card:hover .product-card-price { opacity: 0; max-height: 0; margin-top: 0; }
+  .product-card-add-wrap {
+    max-height: 0; opacity: 0; overflow: hidden;
+    transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .product-card:hover .product-card-add-wrap { max-height: 48px; opacity: 1; margin-top: 8px; }
+  .product-card-add {
+    pointer-events: auto; width: 100%; height: 48px; border: 0; border-radius: 999px;
+    background: var(--rose); color: #fff; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; font: inherit; font-size: 14px; font-weight: 500; text-transform: uppercase;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .product-card-add:hover { opacity: 0.9; }
+  .product-card-add:disabled { opacity: 0.6; }
+
+  @media (max-width: 900px) {
+    .product-card { flex: 1 1 45%; min-height: 320px; }
+  }
+</style>
