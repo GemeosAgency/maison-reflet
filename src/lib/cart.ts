@@ -15,6 +15,7 @@ import {
   getCart,
   addCartLine,
   removeCartLine,
+  updateCartLines,
   type ShopifyCart,
 } from "./shopify";
 import { track as trackKlaviyo } from "./klaviyo";
@@ -176,6 +177,52 @@ export async function removeFromCart(lineId: string): Promise<ShopifyCart | null
   if (!cartId) return null;
 
   const cart = await removeCartLine(cartId, lineId);
+  notifyCartUpdated(cart);
+  return cart;
+}
+
+/** Modifie la quantité d'une ligne (0 = équivalent à un retrait) */
+export async function updateCartLineQuantity(
+  lineId: string,
+  quantity: number
+): Promise<ShopifyCart | null> {
+  const cartId = getStoredCartId();
+  if (!cartId) return null;
+
+  const cart =
+    quantity <= 0
+      ? await removeCartLine(cartId, lineId)
+      : await updateCartLines(cartId, [{ id: lineId, quantity }]);
+  notifyCartUpdated(cart);
+  return cart;
+}
+
+/**
+ * Fixe la quantité TOTALE d'une variante donnée, tous azimuts.
+ *
+ * Une remise automatique Shopify (ex "2 achetés, le 3e offert") peut scinder
+ * une même variante en plusieurs lignes de panier (unités payantes + unité à
+ * 0 remisée) — cibler une seule ligne avec cartLinesUpdate laisserait les
+ * autres lignes de cette variante inchangées et fausserait le total. On
+ * retire donc TOUTES les lignes de cette variante puis on la rajoute au
+ * total souhaité, ce qui laisse Shopify recalculer/rescinder la remise
+ * proprement à partir d'un état propre.
+ */
+export async function setVariantQuantity(
+  variantId: string,
+  quantity: number
+): Promise<ShopifyCart | null> {
+  const cartId = getStoredCartId();
+  if (!cartId) return null;
+
+  let cart = await getCart(cartId);
+  const matching = (cart?.lines.nodes ?? []).filter((l) => l.merchandise.id === variantId);
+  for (const line of matching) {
+    cart = await removeCartLine(cartId, line.id);
+  }
+  if (quantity > 0) {
+    cart = (await addCartLine(cartId, [{ merchandiseId: variantId, quantity }])) ?? cart;
+  }
   notifyCartUpdated(cart);
   return cart;
 }

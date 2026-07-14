@@ -403,6 +403,43 @@ export async function addCartLine(cartId: string, lines: CartLineInput[]) {
   return data.cartLinesAdd.cart;
 }
 
+export type CartLineUpdateInput = { id: string; quantity: number };
+
+/** Modifie la quantité d'une ou plusieurs lignes d'un panier existant */
+export async function updateCartLines(cartId: string, lines: CartLineUpdateInput[]) {
+  const query = /* GraphQL */ `
+    ${CART_FRAGMENT}
+    mutation CartLinesUpdate($cartId: ID!, $lines: [CartLineUpdateInput!]!) {
+      cartLinesUpdate(cartId: $cartId, lines: $lines) {
+        cart {
+          ...CartFragment
+        }
+        userErrors {
+          field
+          message
+        }
+        warnings {
+          code
+          message
+          target
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch<{
+    cartLinesUpdate: {
+      cart: ShopifyCart | null;
+      userErrors: CartUserError[];
+      warnings?: CartWarning[];
+    };
+  }>(query, { cartId, lines });
+
+  assertNoUserErrors(data.cartLinesUpdate.userErrors);
+  assertNoStockWarnings(data.cartLinesUpdate.warnings);
+  return data.cartLinesUpdate.cart;
+}
+
 /** Retire une ligne d'un panier existant */
 export async function removeCartLine(cartId: string, lineId: string) {
   const query = /* GraphQL */ `

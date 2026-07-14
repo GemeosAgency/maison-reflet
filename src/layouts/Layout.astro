@@ -1,5 +1,6 @@
 ---
 import { type Locale, locales, localeNames, localePath, isRtl, useTranslations } from "../i18n";
+import CartDrawer from "../components/CartDrawer.astro";
 
 type Breadcrumb = { label: string; href?: string };
 
@@ -152,7 +153,7 @@ const navLinks = [
         <div class="icons">
           <img src="/brand/search.svg" alt="Search" width="20" height="20" />
           <img src="/brand/account.svg" alt="Account" width="20" height="20" />
-          <a href={localePath(lang, "/panier")} class="bag" aria-label={t("nav.panier")}>
+          <a href={localePath(lang, "/panier")} class="bag" aria-label={t("nav.panier")} data-cart-open-trigger>
             <img src="/brand/bag.svg" alt="" width="20" height="20" />
             <span data-cart-count class="cart-count"></span>
           </a>
@@ -256,6 +257,8 @@ const navLinks = [
         </div>
       </div>
     </footer>
+
+    <CartDrawer lang={lang} />
 
     <style>
       .promo-banner { background: #efc5a9; }
@@ -383,6 +386,15 @@ const navLinks = [
       // Câblage global des boutons "Add to bag" (cartes produit/coffret, quelle
       // que soit la page) — voir cart.ts pour la raison de la délégation unique.
       initAddToCartButtons();
+
+      // Icône panier du header : ouvre la modale (voir CartDrawer.astro) au
+      // lieu de naviguer — href gardé en repli si le JS ne s'exécute pas.
+      document.querySelectorAll<HTMLAnchorElement>("[data-cart-open-trigger]").forEach((link) => {
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          document.dispatchEvent(new CustomEvent("cart:open"));
+        });
+      });
 
       const countEl = document.querySelector<HTMLElement>("[data-cart-count]");
       function renderCount(cart: ShopifyCart | null) {

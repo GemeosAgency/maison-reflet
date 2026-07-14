@@ -1,0 +1,601 @@
+---
+/**
+ * Panier — modale coulissante globale (incluse une seule fois dans Layout.astro),
+ * ouverte depuis l'icône panier du header sur n'importe quelle page.
+ *
+ * "Choisis ton échantillon" : aucune variante "échantillon" n'existe encore dans
+ * Shopify (chaque parfum n'a qu'une variante à 360 AED). Cette section se
+ * masque automatiquement tant que sampleOptions est vide — elle s'activera
+ * d'elle-même dès qu'une variante dont le TITRE contient "sample", "échantillon"
+ * ou "2 ml" existera sur un produit, sans changement de code nécessaire.
+ *
+ * Seuil de livraison offerte : 400 AED (fixe, à ajuster ici si besoin).
+ */
+import { getAllProducts, isCoffret } from "../lib/shopify";
+import { getInspiredByMap } from "../lib/sanity";
+import { type Locale, useTranslations } from "../i18n";
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const allProducts = await getAllProducts();
+const inspiredMap = await getInspiredByMap();
+
+const SAMPLE_KEYWORDS = ["sample", "échantillon", "echantillon", "2 ml", "2ml"];
+const isSampleVariant = (title: string) => {
+  const l = title.toLowerCase();
+  return SAMPLE_KEYWORDS.some((k) => l.includes(k));
+};
+
+// Catalogue pour l'upsell "2+1 offert" : parfums réels (hors coffrets).
+const upsellCatalog = allProducts
+  .filter((p) => !isCoffret(p))
+  .map((p) => {
+    const variant = p.variants.nodes.find((v) => v.availableForSale) ?? p.variants.nodes[0];
+    return {
+      handle: p.handle,
+      title: p.title,
+      inspiredBy: inspiredMap[p.handle] ?? null,
+      img: p.featuredImage?.url ?? null,
+      variantId: variant.id,
+      price: Number(variant.price.amount),
+      currency: variant.price.currencyCode,
+    };
+  });
+
+// Détection des variantes "échantillon" sur l'ensemble du catalogue.
+const sampleOptions = allProducts.flatMap((p) =>
+  p.variants.nodes
+    .filter((v) => v.availableForSale && isSampleVariant(v.title))
+    .map((v) => ({
+      productHandle: p.handle,
+      productTitle: p.title,
+      inspiredBy: inspiredMap[p.handle] ?? null,
+      variantId: v.id,
+      img: p.featuredImage?.url ?? null,
+    }))
+);
+
+const FREE_SHIPPING_THRESHOLD = 400;
+---
+
+<div class="cart-drawer" data-cart-drawer aria-hidden="true">
+  <div class="cart-drawer-backdrop" data-cart-drawer-backdrop></div>
+  <aside class="cart-drawer-panel" role="dialog" aria-label={t("cart.bagTitle")}>
+    <button type="button" class="cart-drawer-close" data-cart-drawer-close aria-label={t("cart.close")}>
+      <img src="/brand/close.svg" alt="" width="16" height="16" />
+    </button>
+
+    <div class="cart-drawer-scroll">
+      <div class="cart-drawer-header">
+        <h2 class="cart-drawer-title">
+          {t("cart.bagTitle")} <span data-cart-drawer-count>0</span>
+        </h2>
+        <div class="cart-shipping">
+          <div class="cart-shipping-row">
+            <span data-cart-shipping-msg></span>
+            <span class="cart-shipping-static">{t("cart.freeShippingLabel")}</span>
+          </div>
+          <div class="cart-shipping-track">
+            <div class="cart-shipping-fill" data-cart-shipping-fill></div>
+            <div class="cart-shipping-thumb" data-cart-shipping-thumb></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cart-drawer-divider"></div>
+
+      <div data-cart-drawer-lines class="cart-drawer-lines"></div>
+
+      <div class="cart-drawer-divider" data-cart-sample-divider hidden></div>
+      <div class="cart-sample" data-cart-sample-section hidden>
+        <div class="cart-sample-head">
+          <p>{t("cart.selectSample")}</p>
+          <span class="cart-badge">{t("cart.free")}</span>
+        </div>
+        <button type="button" class="cart-sample-row" data-cart-sample-toggle>
+          <img data-cart-sample-img alt="" width="48" height="48" />
+          <span data-cart-sample-label></span>
+          <img src="/brand/chevron.svg" class="chev-down" alt="" width="8" height="8" />
+        </button>
+        <ul class="cart-sample-options" data-cart-sample-options hidden></ul>
+      </div>
+
+      <div class="cart-drawer-divider" data-cart-upsell-divider hidden></div>
+      <div class="cart-upsell" data-cart-upsell-section hidden>
+        <p class="cart-upsell-title" data-cart-upsell-title></p>
+        <div class="cart-upsell-scroll" data-cart-upsell-list></div>
+        <div class="cart-upsell-track">
+          <div class="cart-upsell-fill" data-cart-upsell-fill></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cart-drawer-footer">
+      <div class="cart-drawer-subtotal-row">
+        <span>{t("cart.subtotal")}</span>
+        <strong data-cart-drawer-subtotal></strong>
+      </div>
+      <a class="cart-drawer-checkout" data-cart-drawer-checkout href="#">{t("cart.checkout")}</a>
+      <ul class="cart-drawer-perks">
+        <li><img src="/brand/reassurance-livraison.svg" alt="" width="20" height="20" /> {t("cart.perkShipping")}</li>
+        <li><img src="/brand/reassurance-cadeau.svg" alt="" width="20" height="20" /> {t("cart.perkGift")}</li>
+      </ul>
+    </div>
+  </aside>
+</div>
+
+<script type="application/json" id="cart-upsell-catalog" is:inline set:html={JSON.stringify(upsellCatalog)} />
+<script type="application/json" id="cart-sample-options" is:inline set:html={JSON.stringify(sampleOptions)} />
+<script
+  type="application/json"
+  id="cart-drawer-i18n"
+  is:inline
+  set:html={JSON.stringify({
+    freeShippingRemaining: t("cart.freeShippingRemaining"),
+    freeShippingUnlocked: t("cart.freeShippingUnlocked"),
+    addOneMore: t("cart.addOneMore"),
+    addNMore: t("cart.addNMore"),
+    add: t("cart.add"),
+    added: t("cart.added"),
+    remove: t("cart.remove"),
+    decrease: t("cart.decrease"),
+    increase: t("cart.increase"),
+    empty: t("cart.empty"),
+    error: t("cart.error"),
+    inspiredBy: t("product.inspiredBy"),
+    threshold: FREE_SHIPPING_THRESHOLD,
+  })}
+/>
+
+<script>
+  import { loadCart, addToCart, removeFromCart, setVariantQuantity } from "../lib/cart";
+  import { formatPrice, type ShopifyCart } from "../lib/shopify";
+  import type { CartUpdatedEvent } from "../lib/cart";
+
+  type UpsellItem = {
+    handle: string;
+    title: string;
+    inspiredBy: string | null;
+    img: string | null;
+    variantId: string;
+    price: number;
+    currency: string;
+  };
+  type SampleOption = {
+    productHandle: string;
+    productTitle: string;
+    inspiredBy: string | null;
+    variantId: string;
+    img: string | null;
+  };
+
+  const upsellCatalog: UpsellItem[] = JSON.parse(
+    document.getElementById("cart-upsell-catalog")?.textContent ?? "[]"
+  );
+  const sampleOptions: SampleOption[] = JSON.parse(
+    document.getElementById("cart-sample-options")?.textContent ?? "[]"
+  );
+  const I18N = JSON.parse(document.getElementById("cart-drawer-i18n")?.textContent ?? "{}");
+  const THRESHOLD: number = I18N.threshold ?? 400;
+  const BUNDLE_TARGET = 3;
+
+  const drawer = document.querySelector<HTMLElement>("[data-cart-drawer]");
+  const backdrop = drawer?.querySelector<HTMLElement>("[data-cart-drawer-backdrop]");
+  const closeBtn = drawer?.querySelector<HTMLButtonElement>("[data-cart-drawer-close]");
+  const countEl = drawer?.querySelector<HTMLElement>("[data-cart-drawer-count]");
+  const shippingMsg = drawer?.querySelector<HTMLElement>("[data-cart-shipping-msg]");
+  const shippingFill = drawer?.querySelector<HTMLElement>("[data-cart-shipping-fill]");
+  const shippingThumb = drawer?.querySelector<HTMLElement>("[data-cart-shipping-thumb]");
+  const linesEl = drawer?.querySelector<HTMLElement>("[data-cart-drawer-lines]");
+  const sampleDivider = drawer?.querySelector<HTMLElement>("[data-cart-sample-divider]");
+  const sampleSection = drawer?.querySelector<HTMLElement>("[data-cart-sample-section]");
+  const sampleImg = drawer?.querySelector<HTMLImageElement>("[data-cart-sample-img]");
+  const sampleLabel = drawer?.querySelector<HTMLElement>("[data-cart-sample-label]");
+  const sampleToggle = drawer?.querySelector<HTMLButtonElement>("[data-cart-sample-toggle]");
+  const sampleOptionsList = drawer?.querySelector<HTMLElement>("[data-cart-sample-options]");
+  const upsellDivider = drawer?.querySelector<HTMLElement>("[data-cart-upsell-divider]");
+  const upsellSection = drawer?.querySelector<HTMLElement>("[data-cart-upsell-section]");
+  const upsellTitle = drawer?.querySelector<HTMLElement>("[data-cart-upsell-title]");
+  const upsellList = drawer?.querySelector<HTMLElement>("[data-cart-upsell-list]");
+  const upsellFill = drawer?.querySelector<HTMLElement>("[data-cart-upsell-fill]");
+  const subtotalEl = drawer?.querySelector<HTMLElement>("[data-cart-drawer-subtotal]");
+  const checkoutLink = drawer?.querySelector<HTMLAnchorElement>("[data-cart-drawer-checkout]");
+
+  let currentCart: ShopifyCart | null = null;
+  let reconciling = false;
+
+  function openDrawer() {
+    drawer?.classList.add("is-open");
+    drawer?.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+  function closeDrawer() {
+    drawer?.classList.remove("is-open");
+    drawer?.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+    sampleOptionsList?.setAttribute("hidden", "");
+  }
+
+  document.addEventListener("cart:open", openDrawer);
+  closeBtn?.addEventListener("click", closeDrawer);
+  backdrop?.addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeDrawer();
+  });
+
+  type GroupedLine = {
+    variantId: string;
+    productTitle: string;
+    variantTitle: string;
+    handle: string;
+    img: { url: string } | null;
+    quantity: number;
+    amount: number;
+    currency: string;
+  };
+
+  /**
+   * Regroupe les lignes par variante : une remise automatique Shopify (ex.
+   * "2 achetés, le 3e offert") peut scinder une même variante en plusieurs
+   * lignes de panier (unités payantes + unité remisée à 0) — on les fusionne
+   * en une seule ligne affichée, quantité et montant sommés.
+   */
+  function groupLines(cart: ShopifyCart | null): GroupedLine[] {
+    const groups = new Map<string, GroupedLine>();
+    for (const line of cart?.lines.nodes ?? []) {
+      if (sampleOptions.some((s) => s.variantId === line.merchandise.id)) continue;
+      const existing = groups.get(line.merchandise.id);
+      if (existing) {
+        existing.quantity += line.quantity;
+        existing.amount += Number(line.cost.totalAmount.amount);
+      } else {
+        groups.set(line.merchandise.id, {
+          variantId: line.merchandise.id,
+          productTitle: line.merchandise.product.title,
+          variantTitle: line.merchandise.title,
+          handle: line.merchandise.product.handle,
+          img: line.merchandise.product.featuredImage,
+          quantity: line.quantity,
+          amount: Number(line.cost.totalAmount.amount),
+          currency: line.cost.totalAmount.currencyCode,
+        });
+      }
+    }
+    return Array.from(groups.values());
+  }
+
+  function lineHtml(line: GroupedLine): string {
+    const catalogEntry = upsellCatalog.find((p) => p.handle === line.handle);
+    const total = formatPrice(String(line.amount), line.currency);
+    return `
+      <div class="cart-line" data-variant-id="${line.variantId}">
+        ${line.img ? `<img class="cart-line-img" src="${line.img.url}" alt="${line.productTitle}" width="120" height="120" />` : ""}
+        <div class="cart-line-body">
+          <div class="cart-line-top">
+            <span class="cart-line-name">${line.productTitle}${line.variantTitle !== "Default Title" ? ` · ${line.variantTitle}` : ""}</span>
+            <span class="cart-line-price">${total}</span>
+          </div>
+          ${catalogEntry?.inspiredBy ? `<p class="cart-line-inspired">${I18N.inspiredBy} ${catalogEntry.inspiredBy}</p>` : ""}
+          <div class="cart-line-bottom">
+            <div class="cart-line-qty">
+              <button type="button" class="cart-qty-btn" data-line-decrease aria-label="${I18N.decrease}">
+                <svg viewBox="0 0 20 20" fill="none"><path d="M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </button>
+              <span class="cart-qty-value">${line.quantity}</span>
+              <button type="button" class="cart-qty-btn" data-line-increase aria-label="${I18N.increase}">
+                <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+            <button type="button" class="cart-line-remove" data-line-remove>${I18N.remove}</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function upsellCardHtml(p: UpsellItem): string {
+    return `
+      <div class="cart-upsell-card">
+        ${p.img ? `<img src="${p.img}" alt="${p.title}" width="120" height="120" />` : ""}
+        <div class="cart-upsell-card-body">
+          <p class="cart-upsell-card-name">${p.title}</p>
+          ${p.inspiredBy ? `<p class="cart-upsell-card-inspired">${I18N.inspiredBy} ${p.inspiredBy}</p>` : ""}
+          <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id="${p.variantId}">
+            <span data-reco-add-label>${I18N.add}</span>
+          </button>
+        </div>
+      </div>`;
+  }
+
+  async function ensureSampleLine(cart: ShopifyCart, desiredVariantId?: string) {
+    if (reconciling || sampleOptions.length === 0) return;
+    const eligible = cart.lines.nodes.some((l) =>
+      upsellCatalog.some((p) => p.variantId === l.merchandise.id)
+    );
+    const existingSampleLine = cart.lines.nodes.find((l) =>
+      sampleOptions.some((s) => s.variantId === l.merchandise.id)
+    );
+
+    if (!eligible) {
+      if (existingSampleLine) {
+        reconciling = true;
+        try {
+          await removeFromCart(existingSampleLine.id);
+        } finally {
+          reconciling = false;
+        }
+      }
+      return;
+    }
+
+    const target = desiredVariantId ?? existingSampleLine?.merchandise.id ?? sampleOptions[0]?.variantId;
+    if (!target || existingSampleLine?.merchandise.id === target) return;
+
+    reconciling = true;
+    try {
+      if (existingSampleLine) await removeFromCart(existingSampleLine.id);
+      await addToCart(target, 1);
+    } finally {
+      reconciling = false;
+    }
+  }
+
+  function render(cart: ShopifyCart | null) {
+    currentCart = cart;
+    if (countEl) countEl.textContent = String(cart?.totalQuantity ?? 0);
+
+    // Lignes du panier (regroupées par variante — voir groupLines)
+    const grouped = groupLines(cart);
+    if (linesEl) {
+      linesEl.innerHTML = grouped.length
+        ? grouped.map(lineHtml).join("")
+        : `<p class="cart-empty">${I18N.empty}</p>`;
+    }
+
+    // Livraison offerte
+    const currency = cart?.cost.subtotalAmount.currencyCode ?? "AED";
+    const subtotal = Number(cart?.cost.subtotalAmount.amount ?? 0);
+    const pct = Math.max(0, Math.min(100, (subtotal / THRESHOLD) * 100));
+    if (shippingFill) shippingFill.style.width = `${pct}%`;
+    if (shippingThumb) shippingThumb.style.left = `${pct}%`;
+    if (shippingMsg) {
+      const remaining = THRESHOLD - subtotal;
+      shippingMsg.textContent =
+        remaining > 0
+          ? I18N.freeShippingRemaining.replace("{amount}", formatPrice(String(remaining), currency))
+          : I18N.freeShippingUnlocked;
+    }
+
+    // Échantillon offert
+    const hasSampleFeature = sampleOptions.length > 0;
+    const existingSample = cart?.lines.nodes.find((l) =>
+      sampleOptions.some((s) => s.variantId === l.merchandise.id)
+    );
+    const showSample = hasSampleFeature && !!existingSample;
+    sampleDivider?.toggleAttribute("hidden", !showSample);
+    sampleSection?.toggleAttribute("hidden", !showSample);
+    if (showSample && existingSample) {
+      const opt = sampleOptions.find((s) => s.variantId === existingSample.merchandise.id);
+      if (opt) {
+        if (sampleImg) {
+          sampleImg.src = opt.img ?? "";
+          sampleImg.alt = opt.productTitle;
+        }
+        if (sampleLabel) {
+          sampleLabel.textContent = [opt.productTitle, opt.inspiredBy ? `${I18N.inspiredBy} ${opt.inspiredBy}` : null]
+            .filter(Boolean)
+            .join(" · ");
+        }
+      }
+      if (sampleOptionsList) {
+        sampleOptionsList.innerHTML = sampleOptions
+          .map(
+            (s) => `
+          <li>
+            <button type="button" class="cart-sample-option" data-sample-variant="${s.variantId}">
+              ${s.img ? `<img src="${s.img}" alt="" width="32" height="32" />` : ""}
+              <span>${[s.productTitle, s.inspiredBy ? `${I18N.inspiredBy} ${s.inspiredBy}` : null].filter(Boolean).join(" · ")}</span>
+            </button>
+          </li>`
+          )
+          .join("");
+      }
+    }
+
+    // Upsell "2+1 offert"
+    const eligibleQty = (cart?.lines.nodes ?? [])
+      .filter((l) => upsellCatalog.some((p) => p.variantId === l.merchandise.id))
+      .reduce((sum, l) => sum + l.quantity, 0);
+    const needed = Math.max(0, BUNDLE_TARGET - eligibleQty);
+    const showUpsell = needed > 0 && upsellCatalog.length > 0;
+    upsellDivider?.toggleAttribute("hidden", !showUpsell);
+    upsellSection?.toggleAttribute("hidden", !showUpsell);
+    if (showUpsell) {
+      if (upsellTitle) {
+        upsellTitle.textContent = needed === 1 ? I18N.addOneMore : I18N.addNMore.replace("{n}", String(needed));
+      }
+      if (upsellFill) upsellFill.style.width = `${(eligibleQty / BUNDLE_TARGET) * 100}%`;
+      if (upsellList) {
+        const inCart = new Set((cart?.lines.nodes ?? []).map((l) => l.merchandise.product.handle));
+        const suggestions = upsellCatalog.filter((p) => !inCart.has(p.handle));
+        upsellList.innerHTML = suggestions.map(upsellCardHtml).join("");
+      }
+    }
+
+    // Sous-total + checkout
+    if (subtotalEl) {
+      subtotalEl.textContent = cart ? formatPrice(cart.cost.subtotalAmount.amount, currency) : formatPrice("0", "AED");
+    }
+    if (checkoutLink) checkoutLink.href = cart?.checkoutUrl ?? "#";
+
+    if (cart) ensureSampleLine(cart);
+  }
+
+  // Quantité / retrait (délégation sur le conteneur des lignes, reconstruit à chaque rendu)
+  linesEl?.addEventListener("click", async (e) => {
+    const target = e.target as HTMLElement;
+    const lineEl = target.closest<HTMLElement>("[data-variant-id]");
+    const variantId = lineEl?.dataset.variantId;
+    if (!variantId || !currentCart) return;
+    const group = groupLines(currentCart).find((g) => g.variantId === variantId);
+    if (!group) return;
+
+    if (target.closest("[data-line-remove]")) {
+      render(await setVariantQuantity(variantId, 0));
+    } else if (target.closest("[data-line-increase]")) {
+      render(await setVariantQuantity(variantId, group.quantity + 1));
+    } else if (target.closest("[data-line-decrease]")) {
+      render(await setVariantQuantity(variantId, group.quantity - 1));
+    }
+  });
+
+  // Choix de l'échantillon
+  sampleToggle?.addEventListener("click", () => {
+    sampleOptionsList?.toggleAttribute("hidden");
+  });
+  sampleOptionsList?.addEventListener("click", async (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-sample-variant]");
+    const variantId = btn?.dataset.sampleVariant;
+    if (!variantId || !currentCart) return;
+    sampleOptionsList.setAttribute("hidden", "");
+    await ensureSampleLine(currentCart, variantId);
+    render(await loadCart());
+  });
+
+  // Les cartes upsell utilisent [data-add-to-cart] : gérées par le câblage
+  // global (initAddToCartButtons, voir Layout.astro) — pas de code ici.
+  document.addEventListener("cart:updated", (e) => render((e as CartUpdatedEvent).detail.cart));
+
+  loadCart()
+    .then(render)
+    .catch(() => render(null));
+</script>
+
+<style is:global>
+  /*
+   * is:global volontaire : une bonne partie du contenu (lignes du panier,
+   * cartes upsell, options d'échantillon) est injectée via innerHTML côté
+   * client, donc APRÈS le rendu Astro — le CSS scopé par défaut ne peut pas
+   * cibler ce contenu (l'attribut data-astro-cid n'est ajouté qu'aux éléments
+   * présents dans le template au moment du build). Les classes sont
+   * préfixées "cart-" pour limiter tout risque de collision.
+   */
+  .cart-drawer [hidden] { display: none !important; }
+  .cart-drawer { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+  .cart-drawer-backdrop {
+    position: fixed; inset: 0; background: rgba(31, 31, 31, 0.56);
+    opacity: 0; transition: opacity 0.4s ease;
+  }
+  .cart-drawer.is-open { pointer-events: auto; }
+  .cart-drawer.is-open .cart-drawer-backdrop { opacity: 1; }
+  .cart-drawer-panel {
+    position: fixed; top: 8px; right: 8px; bottom: 8px; width: 480px; max-width: 92vw;
+    background: #f5eee6; border-radius: 8px; box-shadow: 0 -4px 80px rgba(0, 0, 0, 0.08);
+    display: flex; flex-direction: column; overflow: hidden;
+    transform: translateX(calc(100% + 8px)); transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .cart-drawer.is-open .cart-drawer-panel { transform: translateX(0); }
+  .cart-drawer-close {
+    position: absolute; top: 16px; right: 16px; z-index: 1; border: 0; background: transparent;
+    padding: 4px; cursor: pointer; line-height: 0;
+  }
+  .cart-drawer-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+  .cart-drawer-divider { height: 1px; background: rgba(31, 31, 31, 0.12); flex-shrink: 0; }
+
+  .cart-drawer-header { display: flex; flex-direction: column; gap: 16px; }
+  .cart-drawer-title { margin: 0; display: flex; gap: 6px; align-items: baseline; font-size: 24px; font-weight: 500; text-transform: uppercase; color: var(--ink); }
+  .cart-drawer-title span { font-size: 16px; font-weight: 400; }
+  .cart-shipping { display: flex; flex-direction: column; gap: 8px; }
+  .cart-shipping-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--ink); }
+  .cart-shipping-static { font-size: 12px; opacity: 0.64; white-space: nowrap; }
+  .cart-shipping-track { position: relative; height: 4px; background: rgba(31, 31, 31, 0.12); }
+  .cart-shipping-fill { position: absolute; inset: 0 auto 0 0; height: 4px; background: var(--rose); transition: width 0.3s ease; }
+  .cart-shipping-thumb {
+    position: absolute; top: -6px; width: 16px; height: 16px; margin-left: -8px;
+    border-radius: 50%; background: var(--rose); border: 2px solid #f5eee6; transition: left 0.3s ease;
+  }
+
+  .cart-drawer-lines { display: flex; flex-direction: column; gap: 24px; }
+  .cart-empty { margin: 0; font-size: 16px; opacity: 0.7; }
+  .cart-line { display: flex; gap: 20px; }
+  .cart-line-img { width: 120px; height: 120px; object-fit: cover; background: #e5d3be; flex-shrink: 0; }
+  .cart-line-body { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+  .cart-line-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .cart-line-name { font-size: 16px; font-weight: 500; color: var(--ink); }
+  .cart-line-price { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+  .cart-line-inspired { margin: 0; font-size: 14px; color: var(--ink); }
+  .cart-line-bottom { display: flex; align-items: center; justify-content: space-between; }
+  .cart-line-qty { display: flex; }
+  .cart-qty-btn {
+    display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+    border: 1px solid #dbd5ce; background: transparent; cursor: pointer; color: var(--ink); margin-inline-end: -1px;
+  }
+  .cart-qty-btn svg { width: 14px; height: 14px; }
+  .cart-qty-value {
+    display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+    border: 1px solid #dbd5ce; margin-inline-end: -1px; font-size: 16px; font-weight: 500; color: var(--ink);
+  }
+  .cart-line-remove { border: 0; background: transparent; padding: 0; font-size: 12px; font-weight: 500; text-decoration: underline; color: var(--ink); cursor: pointer; }
+
+  .cart-sample { display: flex; flex-direction: column; gap: 12px; }
+  .cart-sample-head { display: flex; align-items: center; justify-content: space-between; }
+  .cart-sample-head p { margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; color: #0a1215; }
+  .cart-badge { display: inline-flex; align-items: center; padding: 4.5px 6px; border-radius: 8px; background: #efc5a9; color: var(--rose); font-size: 12px; font-weight: 500; text-transform: uppercase; }
+  .cart-sample-row {
+    display: flex; align-items: center; gap: 16px; width: 100%; border: 0; background: var(--cream);
+    border-radius: 4px; padding-inline-end: 16px; cursor: pointer; font: inherit; text-align: start;
+  }
+  .cart-sample-row img:first-child { width: 48px; height: 48px; object-fit: cover; }
+  .cart-sample-row span { flex: 1 0 0; min-width: 0; font-size: 14px; font-weight: 500; color: var(--ink); }
+  .chev-down { transform: rotate(180deg); flex-shrink: 0; }
+  .cart-sample-options { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .cart-sample-options[hidden] { display: none; }
+  .cart-sample-option {
+    display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: var(--cream);
+    padding: 8px 16px; cursor: pointer; font: inherit; font-size: 14px; color: var(--ink); text-align: start;
+  }
+  .cart-sample-option:hover { opacity: 0.8; }
+  .cart-sample-option img { width: 32px; height: 32px; object-fit: cover; }
+
+  .cart-upsell { display: flex; flex-direction: column; gap: 12px; }
+  .cart-upsell-title { margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; color: #0a1215; }
+  .cart-upsell-scroll { display: flex; gap: 4px; overflow-x: auto; }
+  .cart-upsell-card { flex: 0 0 auto; display: flex; gap: 20px; align-items: center; background: var(--cream); padding-inline-end: 24px; }
+  .cart-upsell-card img { width: 120px; height: 120px; object-fit: cover; }
+  .cart-upsell-card-body { display: flex; flex-direction: column; gap: 12px; }
+  .cart-upsell-card-name { margin: 0; font-size: 16px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+  .cart-upsell-card-inspired { margin: 0; font-size: 14px; color: var(--ink); white-space: nowrap; }
+  .cart-upsell-add {
+    display: inline-flex; align-items: center; gap: 2px; align-self: flex-start; border: 0; border-radius: 999px;
+    background: var(--rose); color: #fff; padding: 9px 12px 9px 10px; font: inherit; font-size: 14px; font-weight: 500;
+    text-transform: uppercase; cursor: pointer;
+  }
+  .cart-upsell-track { height: 2px; background: rgba(31, 31, 31, 0.12); }
+  .cart-upsell-fill { height: 2px; background: var(--ink); transition: width 0.3s ease; }
+
+  .cart-drawer-footer { flex-shrink: 0; border-top: 1px solid rgba(31, 31, 31, 0.12); padding: 24px 32px 32px; display: flex; flex-direction: column; gap: 16px; }
+  .cart-drawer-subtotal-row { display: flex; align-items: baseline; justify-content: space-between; }
+  .cart-drawer-subtotal-row span { font-size: 18px; font-weight: 500; color: var(--ink); }
+  .cart-drawer-subtotal-row strong { font-size: 16px; font-weight: 500; color: var(--ink); }
+  .cart-drawer-checkout {
+    display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 999px;
+    background: var(--rose); color: #fff; font-size: 16px; font-weight: 500; text-transform: uppercase;
+    transition: opacity 0.15s;
+  }
+  .cart-drawer-checkout:hover { opacity: 0.9; }
+  .cart-drawer-perks { list-style: none; margin: 0; padding: 0 8px; display: flex; flex-direction: column; gap: 10px; }
+  .cart-drawer-perks li { display: flex; gap: 8px; align-items: center; font-size: 16px; color: var(--ink); }
+  .cart-drawer-perks img { flex-shrink: 0; }
+
+  @media (max-width: 600px) {
+    .cart-drawer-panel {
+      top: 0; right: 0; bottom: 0; width: 100vw; max-width: 100vw; border-radius: 0;
+      transform: translateX(100%);
+    }
+    .cart-drawer.is-open .cart-drawer-panel { transform: translateX(0); }
+  }
+</style>

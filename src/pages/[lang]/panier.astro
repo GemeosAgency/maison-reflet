@@ -8,147 +8,29 @@ export function getStaticPaths() {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
-const parfumsUrl = localePath(lang, "/parfums");
 ---
 
+<!--
+  Le panier est maintenant la modale coulissante globale (CartDrawer.astro,
+  incluse dans Layout.astro sur toutes les pages). Cette page ne sert qu'à
+  garder un lien /panier direct/partageable : elle ouvre la modale au chargement.
+-->
 <Layout
   title={t("cart.title")}
   description="Votre panier Maison Reflet"
   lang={lang}
   breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: t("nav.panier") }]}
 >
-  <section
-    aria-labelledby="cart-title"
-    data-cart-root
-    data-parfums-url={parfumsUrl}
-    data-msg-loading={t("cart.loading")}
-    data-msg-empty={t("cart.empty")}
-    data-msg-error={t("cart.error")}
-  >
-    <h1 id="cart-title">{t("cart.title")}</h1>
-
-    <p data-cart-status role="status">{t("cart.loading")}</p>
-
-    <ul data-cart-lines hidden></ul>
-
-    <p data-cart-subtotal hidden>
-      {t("cart.subtotal")} : <strong data-cart-subtotal-amount></strong>
-    </p>
-
-    <p>
-      <a data-checkout-link hidden href="#">{t("cart.checkout")}</a>
-    </p>
-
-    <template data-cart-line-template>
-      <li class="cart-line">
-        <img data-line-image alt="" width="96" height="96" hidden />
-        <div class="cart-line-details">
-          <p><strong data-line-title></strong></p>
-          <p data-line-variant hidden></p>
-          <p data-line-price></p>
-          <button type="button" data-line-remove>{t("cart.remove")}</button>
-        </div>
-      </li>
-    </template>
-  </section>
+  <h1 class="visually-hidden">{t("cart.title")}</h1>
 </Layout>
 
 <script>
-  import { loadCart, removeFromCart } from "../../lib/cart";
-  import { formatPrice, type ShopifyCart } from "../../lib/shopify";
-
-  const root = document.querySelector<HTMLElement>("[data-cart-root]");
-  const status = document.querySelector<HTMLElement>("[data-cart-status]");
-  const linesList = document.querySelector<HTMLElement>("[data-cart-lines]");
-  const subtotalBlock = document.querySelector<HTMLElement>("[data-cart-subtotal]");
-  const subtotalAmount = document.querySelector<HTMLElement>("[data-cart-subtotal-amount]");
-  const checkoutLink = document.querySelector<HTMLAnchorElement>("[data-checkout-link]");
-  const lineTemplate = document.querySelector<HTMLTemplateElement>("[data-cart-line-template]");
-
-  const MSG = {
-    empty: root?.dataset.msgEmpty ?? "",
-    error: root?.dataset.msgError ?? "",
-    parfums: root?.dataset.parfumsUrl ?? "/",
-  };
-
-  function render(cart: ShopifyCart | null) {
-    if (!status || !linesList || !subtotalBlock || !subtotalAmount || !checkoutLink || !lineTemplate)
-      return;
-    linesList.replaceChildren();
-
-    if (!cart || cart.lines.nodes.length === 0) {
-      status.innerHTML = MSG.empty + ' <a href="' + MSG.parfums + '">→</a>';
-      status.hidden = false;
-      linesList.hidden = true;
-      subtotalBlock.hidden = true;
-      checkoutLink.hidden = true;
-      return;
-    }
-
-    for (const line of cart.lines.nodes) {
-      const fragment = lineTemplate.content.cloneNode(true) as DocumentFragment;
-      const image = fragment.querySelector<HTMLImageElement>("[data-line-image]");
-      const title = fragment.querySelector<HTMLElement>("[data-line-title]");
-      const variant = fragment.querySelector<HTMLElement>("[data-line-variant]");
-      const price = fragment.querySelector<HTMLElement>("[data-line-price]");
-      const removeButton = fragment.querySelector<HTMLButtonElement>("[data-line-remove]");
-
-      const featuredImage = line.merchandise.product.featuredImage;
-      if (image && featuredImage) {
-        image.src = featuredImage.url;
-        image.alt = featuredImage.altText ?? line.merchandise.product.title;
-        image.hidden = false;
-      }
-      if (title) title.textContent = line.merchandise.product.title;
-      if (variant && line.merchandise.title !== "Default Title") {
-        variant.textContent = line.merchandise.title;
-        variant.hidden = false;
-      }
-      if (price) {
-        // cost.totalAmount reflète le prix réel après remise (ex : Buy 2 Get 1
-        // Free → 0 pour la ligne offerte), contrairement à merchandise.price
-        // qui est le prix de base de la variante, non remisé.
-        const total = formatPrice(line.cost.totalAmount.amount, line.cost.totalAmount.currencyCode);
-        price.textContent = line.quantity > 1 ? `${total} (× ${line.quantity})` : total;
-      }
-      removeButton?.addEventListener("click", async () => {
-        const all = linesList.querySelectorAll<HTMLButtonElement>("[data-line-remove]");
-        all.forEach((b) => (b.disabled = true));
-        try {
-          render(await removeFromCart(line.id));
-        } catch (error) {
-          console.error(error);
-          status.textContent = MSG.error;
-          status.hidden = false;
-          all.forEach((b) => (b.disabled = false));
-        }
-      });
-      linesList.appendChild(fragment);
-    }
-
-    subtotalAmount.textContent = formatPrice(
-      cart.cost.subtotalAmount.amount,
-      cart.cost.subtotalAmount.currencyCode
-    );
-    checkoutLink.href = cart.checkoutUrl;
-    status.hidden = true;
-    linesList.hidden = false;
-    subtotalBlock.hidden = false;
-    checkoutLink.hidden = false;
-  }
-
-  loadCart()
-    .then(render)
-    .catch((error) => {
-      console.error(error);
-      if (status) status.textContent = MSG.error;
-    });
+  document.dispatchEvent(new CustomEvent("cart:open"));
 </script>
 
 <style>
-  [data-cart-lines] { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 1.5rem; }
-  [data-cart-lines][hidden] { display: none; }
-  .cart-line { display: flex; gap: 1rem; align-items: flex-start; }
-  .cart-line img { object-fit: cover; }
-  .cart-line-details p { margin: 0 0 0.25rem; }
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
 </style>
