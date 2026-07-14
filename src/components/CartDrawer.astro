@@ -283,11 +283,13 @@ const FREE_SHIPPING_THRESHOLD = 400;
       <div class="cart-line" data-variant-id="${line.variantId}">
         ${line.img ? `<img class="cart-line-img" src="${line.img.url}" alt="${line.productTitle}" width="120" height="120" />` : ""}
         <div class="cart-line-body">
-          <div class="cart-line-top">
-            <span class="cart-line-name">${line.productTitle}${line.variantTitle !== "Default Title" ? ` · ${line.variantTitle}` : ""}</span>
-            ${priceHtml}
+          <div class="cart-line-text">
+            <div class="cart-line-top">
+              <span class="cart-line-name"><span class="cart-line-title">${line.productTitle}</span>${line.variantTitle !== "Default Title" ? ` · ${line.variantTitle}` : ""}</span>
+              ${priceHtml}
+            </div>
+            ${catalogEntry?.inspiredBy ? `<p class="cart-line-inspired">${I18N.inspiredBy} ${catalogEntry.inspiredBy}</p>` : ""}
           </div>
-          ${catalogEntry?.inspiredBy ? `<p class="cart-line-inspired">${I18N.inspiredBy} ${catalogEntry.inspiredBy}</p>` : ""}
           <div class="cart-line-bottom">
             <div class="cart-line-qty">
               <button type="button" class="cart-qty-btn" data-line-decrease aria-label="${I18N.decrease}">
@@ -314,8 +316,10 @@ const FREE_SHIPPING_THRESHOLD = 400;
       <div class="cart-upsell-card">
         ${p.img ? `<img src="${p.img}" alt="${p.title}" width="120" height="120" />` : ""}
         <div class="cart-upsell-card-body">
-          <p class="cart-upsell-card-name">${p.title}</p>
-          ${p.inspiredBy ? `<p class="cart-upsell-card-inspired">${I18N.inspiredBy} ${p.inspiredBy}</p>` : ""}
+          <div class="cart-upsell-card-text">
+            <p class="cart-upsell-card-name">${p.title}</p>
+            ${p.inspiredBy ? `<p class="cart-upsell-card-inspired">${I18N.inspiredBy} ${p.inspiredBy}</p>` : ""}
+          </div>
           <div class="cart-upsell-cta">
             <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id="${p.variantId}">
               <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
@@ -552,8 +556,10 @@ const FREE_SHIPPING_THRESHOLD = 400;
   .cart-line { display: flex; gap: 20px; }
   .cart-line-img { width: 120px; height: 120px; object-fit: cover; background: #e5d3be; flex-shrink: 0; }
   .cart-line-body { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+  .cart-line-text { display: flex; flex-direction: column; gap: 2px; }
   .cart-line-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  .cart-line-name { font-size: 16px; font-weight: 500; color: var(--ink); }
+  .cart-line-name { font-size: 14px; font-weight: 400; color: var(--ink); }
+  .cart-line-title { font-size: 16px; font-weight: 500; text-transform: uppercase; }
   .cart-line-price { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; }
   .cart-line-inspired { margin: 0; font-size: 14px; color: var(--ink); }
   .cart-line-bottom { display: flex; align-items: center; justify-content: space-between; }
@@ -593,10 +599,11 @@ const FREE_SHIPPING_THRESHOLD = 400;
   .cart-upsell-head { display: flex; align-items: center; justify-content: space-between; }
   .cart-upsell-title { margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; color: #0a1215; }
   .cart-upsell-scroll { display: flex; gap: 4px; overflow-x: auto; }
-  .cart-upsell-card { flex: 0 0 auto; display: flex; gap: 20px; align-items: stretch; background: var(--cream); padding-inline-end: 24px; }
-  .cart-upsell-card img { width: 120px; height: 100%; align-self: stretch; object-fit: cover; }
-  .cart-upsell-card-body { display: flex; flex-direction: column; gap: 12px; justify-content: center; padding-block: 20px; }
-  .cart-upsell-card-name { margin: 0; font-size: 16px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+  .cart-upsell-card { flex: 0 0 auto; display: flex; gap: 20px; align-items: center; background: var(--cream); padding-inline-end: 24px; }
+  .cart-upsell-card img { width: 120px; height: 120px; flex-shrink: 0; object-fit: cover; }
+  .cart-upsell-card-body { display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+  .cart-upsell-card-text { display: flex; flex-direction: column; gap: 2px; }
+  .cart-upsell-card-name { margin: 0; font-size: 16px; font-weight: 500; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
   .cart-upsell-card-inspired { margin: 0; font-size: 14px; color: var(--ink); white-space: nowrap; }
   .cart-upsell-cta { display: flex; align-items: center; gap: 12px; }
   .cart-upsell-add {
