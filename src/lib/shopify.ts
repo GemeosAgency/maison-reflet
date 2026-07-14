@@ -106,6 +106,7 @@ export type ShopifyProduct = {
       sku: string | null;
       availableForSale: boolean;
       price: ShopifyMoney;
+      image: ShopifyImage | null;
       selectedOptions: { name: string; value: string }[];
     }[];
   };
@@ -187,6 +188,12 @@ const PRODUCT_FRAGMENT = /* GraphQL */ `
         price {
           amount
           currencyCode
+        }
+        image {
+          url
+          altText
+          width
+          height
         }
         selectedOptions {
           name

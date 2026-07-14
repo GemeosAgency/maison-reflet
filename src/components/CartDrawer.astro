@@ -52,7 +52,9 @@ const sampleOptions = allProducts.flatMap((p) =>
       productTitle: p.title,
       inspiredBy: inspiredMap[p.handle] ?? null,
       variantId: v.id,
-      img: p.featuredImage?.url ?? null,
+      // Image propre à la variante échantillon si définie dans Shopify,
+      // sinon repli sur l'image principale du produit (flacon 75 ml).
+      img: v.image?.url ?? p.featuredImage?.url ?? null,
     }))
 );
 
