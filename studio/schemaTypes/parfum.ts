@@ -113,6 +113,14 @@ export default defineType({
       of: [{ type: "reference", to: [{ type: "reassurance" }] }],
     }),
     defineField({
+      name: "faqs",
+      title: "FAQ",
+      description: "Questions fréquentes affichées sur cette fiche. Choisis lesquelles et dans quel ordre.",
+      type: "array",
+      group: "contenu",
+      of: [{ type: "reference", to: [{ type: "faq" }] }],
+    }),
+    defineField({
       name: "familleOlfactive",
       title: "Famille olfactive",
       type: "string",

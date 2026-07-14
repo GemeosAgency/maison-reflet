@@ -18,6 +18,7 @@ export const structure: StructureResolver = (S) =>
       S.documentTypeListItem("note").title("Notes olfactives"),
       S.documentTypeListItem("ingredient").title("Ingrédients"),
       S.documentTypeListItem("reassurance").title("Réassurance"),
+      S.documentTypeListItem("faq").title("FAQ"),
       S.documentTypeListItem("page").title("Pages"),
       S.divider(),
       S.documentTypeListItem("subscriber").title("Inscrits (liste d'attente)"),

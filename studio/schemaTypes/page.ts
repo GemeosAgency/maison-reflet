@@ -20,6 +20,13 @@ export default defineType({
       validation: (Rule) => Rule.required(),
     }),
     defineField({ name: "content", title: "Contenu", type: "localeBlock" }),
+    defineField({
+      name: "faqs",
+      title: "FAQ",
+      description: "Questions fréquentes affichées sur cette page. Choisis lesquelles et dans quel ordre.",
+      type: "array",
+      of: [{ type: "reference", to: [{ type: "faq" }] }],
+    }),
     defineField({ name: "seo", title: "SEO", type: "seo" }),
   ],
   preview: {

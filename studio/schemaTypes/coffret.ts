@@ -45,6 +45,13 @@ export default defineType({
       type: "number",
       description: "Les coffrets s'affichent du plus petit au plus grand nombre.",
     }),
+    defineField({
+      name: "faqs",
+      title: "FAQ",
+      description: "Questions fréquentes affichées sur cette fiche. Choisis lesquelles et dans quel ordre.",
+      type: "array",
+      of: [{ type: "reference", to: [{ type: "faq" }] }],
+    }),
   ],
   preview: {
     select: { title: "nomAffiche", subtitle: "shopifyHandle", media: "image" },

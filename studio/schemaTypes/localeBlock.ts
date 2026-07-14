@@ -13,7 +13,30 @@ export default defineType({
     name: lang.id,
     title: lang.title,
     type: "array",
-    of: [{ type: "block" }, { type: "image", options: { hotspot: true } }],
+    of: [
+      {
+        type: "block",
+        marks: {
+          annotations: [
+            {
+              name: "link",
+              type: "object",
+              title: "Lien",
+              fields: [
+                {
+                  name: "href",
+                  type: "url",
+                  title: "URL",
+                  validation: (Rule) =>
+                    Rule.uri({ scheme: ["http", "https", "mailto", "tel"] }),
+                },
+              ],
+            },
+          ],
+        },
+      },
+      { type: "image", options: { hotspot: true } },
+    ],
     fieldset: lang.id === baseLanguage.id ? undefined : "translations",
   })),
 });
