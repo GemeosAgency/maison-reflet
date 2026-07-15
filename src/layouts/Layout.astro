@@ -271,9 +271,6 @@ const navLinks = [
             <img src="/brand/logo.svg" alt="Maison Reflet" height="28" />
           </a>
         </div>
-        <div class="footer-flourish" aria-hidden="true">
-          <img src="/brand/footer-flourish.svg" alt="" />
-        </div>
       </div>
       <div class="footer-bottom">
         <p class="footer-copyright">{t("footer.copyright").replace("{year}", String(new Date().getFullYear()))}</p>
@@ -345,7 +342,7 @@ const navLinks = [
 
       /* Footer (d'après le Figma) */
       .site-footer { background: var(--ink); color: var(--cream); }
-      .footer-top { max-width: 1800px; margin: 0 auto; display: flex; align-items: flex-start; gap: 120px; padding: 40px 8px 32px 24px; }
+      .footer-top { max-width: 1800px; margin: 0 auto; display: flex; align-items: flex-start; padding: 40px 8px 32px 24px; }
       .footer-main { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; }
       .footer-crumbs {
         display: flex; align-items: center; gap: 12px; padding: 0 0 24px; font-size: 14px;
@@ -364,8 +361,6 @@ const navLinks = [
       .footer-col-links a:hover { opacity: 0.8; }
       .footer-logo { display: block; margin-top: auto; padding-top: 32px; }
       .footer-logo img { height: 28px; width: auto; filter: brightness(0) invert(1); }
-      .footer-flourish { width: 391px; max-width: 40%; aspect-ratio: 391 / 408; flex-shrink: 0; opacity: 0.9; }
-      .footer-flourish img { width: 100%; height: 100%; display: block; }
 
       .footer-signup-text { margin: 0; font-size: 16px; line-height: 1.24; color: rgba(238, 227, 214, 0.8); }
       .footer-signup-form { display: flex; flex-direction: column; gap: 12px; }
@@ -402,8 +397,7 @@ const navLinks = [
         .promo-banner p { padding: 10.5px 20px; font-size: 12px; }
       }
       @media (max-width: 900px) {
-        .footer-top { flex-direction: column; gap: 40px; padding: 32px 20px; }
-        .footer-flourish { width: 220px; max-width: 60%; align-self: center; }
+        .footer-top { flex-direction: column; padding: 32px 20px; }
         .footer-menu { gap: 32px; }
         .footer-logo { padding-top: 24px; }
         .footer-bottom { padding: 20px; flex-direction: column; align-items: flex-start; }
