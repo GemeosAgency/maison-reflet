@@ -1,6 +1,10 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
-import { formatPrice, getAllProducts, getDisplayPrice, isCoffret } from "../../../lib/shopify";
+import ProductCard from "../../../components/ProductCard.astro";
+import BoxCard from "../../../components/BoxCard.astro";
+import Reassurance from "../../../components/Reassurance.astro";
+import { formatPrice, getAllProducts, getPrimaryVariant, getDisplayPrice, isCoffret } from "../../../lib/shopify";
+import { getInspiredByMap, getRecoImages, getCoffrets, getReassurances, urlForImage } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 
 export function getStaticPaths() {
@@ -9,7 +13,63 @@ export function getStaticPaths() {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
-const products = (await getAllProducts()).filter((p) => !isCoffret(p));
+
+const allProducts = await getAllProducts();
+const inspiredMap = await getInspiredByMap();
+const recoImages = await getRecoImages();
+
+// Grille catalogue : tous les parfums (hors coffrets).
+const perfumes = allProducts
+  .filter((p) => !isCoffret(p))
+  .map((p) => {
+    const recoImg = recoImages[p.handle];
+    const variant = getPrimaryVariant(p);
+    const price = getDisplayPrice(p);
+    return {
+      name: p.title,
+      inspired: inspiredMap[p.handle] ?? null,
+      price: formatPrice(price.amount, price.currencyCode),
+      img: recoImg?.main
+        ? urlForImage(recoImg.main as any).width(800).height(1000).url()
+        : (p.featuredImage?.url ?? null),
+      hoverImg: recoImg?.hover ? urlForImage(recoImg.hover as any).width(800).height(1000).url() : null,
+      variantId: variant.id,
+      href: localePath(lang, `/parfums/${p.handle}`),
+    };
+  });
+
+// "The Perfumer's Set" : coffrets (contenu Sanity croisé avec le produit Shopify).
+const coffretProducts = allProducts.filter(isCoffret);
+const coffretContent = await getCoffrets(lang);
+const coffrets = coffretContent
+  .map((c) => {
+    const sp = coffretProducts.find((p) => p.handle === c.shopifyHandle);
+    if (!sp) return null;
+    const variant = getPrimaryVariant(sp);
+    return {
+      titre: c.titre ?? sp.title,
+      img: c.image ? urlForImage(c.image as any).width(1000).url() : (sp.featuredImage?.url ?? null),
+      price: formatPrice(variant.price.amount, variant.price.currencyCode),
+      variantId: variant.id,
+      href: localePath(lang, `/coffrets/${sp.handle}`),
+    };
+  })
+  .filter((c): c is NonNullable<typeof c> => c !== null);
+
+const reassurances = (await getReassurances(lang)).map((r) => ({
+  icone: r.icone ? urlForImage(r.icone as any).width(80).url() : null,
+  lignes: (r.texte ?? "").split("\n").filter(Boolean),
+}));
+
+// Avis clients : aucun système d'avis en place (Judge.me, Loox…) — bloc de
+// démonstration à remplacer avant le lancement (voir même logique sur la home).
+const reviewCount = 267;
+const reviewPlaceholder = {
+  fr: "Avis client à venir — contenu de démonstration en attendant un vrai système d'avis.",
+  ar: "رأي العميل قادم — محتوى تجريبي بانتظار نظام تقييمات حقيقي.",
+  en: "Customer review coming soon — placeholder content pending a real reviews system.",
+}[lang];
+const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quote: reviewPlaceholder }));
 ---
 
 <Layout
@@ -18,33 +78,167 @@ const products = (await getAllProducts()).filter((p) => !isCoffret(p));
   lang={lang}
   breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: t("nav.perfumes") }]}
 >
-  <h1>{t("nav.parfums")}</h1>
+  <section class="catalog-hero" style="background-image: url(/catalog/hero.jpg)">
+    <div class="catalog-hero-content">
+      <h1>{t("home.hero.title1")} {t("home.hero.title2")}</h1>
+      <p>{t("catalog.subtitle")}</p>
+    </div>
+  </section>
 
-  <div class="grid">
+  <section class="catalog-grid">
     {
-      products.map((product) => (
-        <a href={localePath(lang, `/parfums/${product.handle}`)} class="card">
-          {product.featuredImage && (
-            <img
-              src={product.featuredImage.url}
-              alt={product.featuredImage.altText ?? product.title}
-              width={product.featuredImage.width}
-              height={product.featuredImage.height}
-              loading="lazy"
-            />
-          )}
-          <h2>{product.title}</h2>
-          <p>
-            {formatPrice(getDisplayPrice(product).amount, getDisplayPrice(product).currencyCode)}
-          </p>
-        </a>
+      perfumes.map((p) => (
+        <ProductCard
+          name={p.name}
+          inspired={p.inspired}
+          inspiredByLabel={t("product.twistOf")}
+          price={p.price}
+          img={p.img}
+          hoverImg={p.hoverImg}
+          href={p.href}
+          variantId={p.variantId}
+        />
       ))
     }
-  </div>
+  </section>
+
+  {
+    coffrets.length > 0 && (
+      <section class="perfumers-set">
+        <h2>{t("home.perfumersSet")}</h2>
+        <div class="perfumers-set-grid">
+          {coffrets.map((c) => (
+            <BoxCard title={c.titre} price={c.price} img={c.img} href={c.href} variantId={c.variantId} />
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  <!--
+    Avis clients : aucun système d'avis en place — bloc de démonstration.
+    À remplacer par de vrais avis (Judge.me / Loox…) avant le lancement.
+  -->
+  <section class="reviews">
+    <div class="reviews-head">
+      <h2>{t("home.reviews.title").replace("{count}", String(reviewCount))}</h2>
+      <div class="reviews-rating">
+        <span class="stars">
+          {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="18" height="18" />)}
+        </span>
+        <span class="reviews-rated">
+          <strong>{t("home.reviews.rated")}</strong>
+          <span>{t("home.reviews.customers")}</span>
+        </span>
+      </div>
+    </div>
+    <div class="reviews-list">
+      {
+        reviews.map((r) => (
+          <div class="review">
+            <div class="review-head">
+              <span class="stars">
+                {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="18" height="18" />)}
+              </span>
+              <p class="review-author">{r.author}</p>
+              {r.date && <p class="review-date">{r.date}</p>}
+            </div>
+            <p class="review-quote">“{r.quote}”</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <Reassurance items={reassurances} />
 </Layout>
 
 <style>
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2rem; }
-  .card { display: block; text-decoration: none; color: inherit; }
-  .card img { width: 100%; height: auto; display: block; }
+  /* Hero catalogue : image sombre + dégradé, texte centré en bas */
+  .catalog-hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    min-height: 560px;
+    padding: 56px 24px;
+    background-size: cover;
+    background-position: center;
+    background-color: #dec9b8;
+    text-align: center;
+  }
+  .catalog-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 26%, rgba(31, 31, 31, 0.88) 102%);
+  }
+  .catalog-hero-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 40rem;
+    color: var(--cream);
+    filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.56));
+  }
+  .catalog-hero-content h1 { margin: 0; font-size: 40px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  .catalog-hero-content p { margin: 0; font-size: 18px; line-height: 1.32; letter-spacing: -0.36px; }
+
+  /* Grille produits : 3 colonnes pleine largeur, cellules hautes, gap 2px */
+  .catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 640px;
+    gap: 2px;
+    width: 100%;
+    margin-top: 2px;
+  }
+
+  /* The Perfumer's Set */
+  .perfumers-set { display: flex; flex-direction: column; align-items: center; }
+  .perfumers-set > h2 {
+    margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; text-align: center;
+    padding: 96px 64px 40px;
+  }
+  .perfumers-set-grid { display: flex; gap: 2px; width: 100%; height: 728px; }
+  .perfumers-set-grid :global(.box-card) { aspect-ratio: auto; }
+
+  /* Avis (placeholder) */
+  .reviews { display: flex; flex-direction: column; gap: 32px; padding: 96px 72px; }
+  .reviews-head { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+  .reviews-head h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; }
+  .reviews-rating { display: flex; align-items: center; gap: 8px; }
+  .stars { display: inline-flex; gap: 2px; }
+  .reviews-rated { display: flex; align-items: baseline; gap: 4px; color: var(--ink); }
+  .reviews-rated strong { font-size: 16px; font-weight: 500; }
+  .reviews-rated span { font-size: 14px; }
+  .reviews-list { display: flex; flex-direction: column; }
+  .review {
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 24px 0; border-top: 1px solid rgba(31, 31, 31, 0.12);
+  }
+  .reviews-list .review:last-child { border-bottom: 1px solid rgba(31, 31, 31, 0.12); }
+  .review-head { display: flex; flex-direction: column; gap: 8px; }
+  .review-author { margin: 0; font-size: 18px; font-weight: 500; }
+  .review-date { margin: 0; font-size: 16px; opacity: 0.7; }
+  .review-quote { margin: 0; font-size: 20px; line-height: 1.2; max-width: 60rem; }
+
+  @media (max-width: 900px) {
+    .catalog-hero { min-height: 440px; padding: 40px 20px; }
+    .catalog-hero-content h1 { font-size: 30px; }
+    .catalog-hero-content p { font-size: 16px; }
+    .catalog-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 460px; }
+    .perfumers-set > h2 { padding: 56px 24px 24px; }
+    .perfumers-set-grid { height: auto; flex-direction: column; }
+    .perfumers-set-grid :global(.box-card) { min-height: 420px; }
+    .reviews { padding: 56px 24px; }
+  }
+
+  @media (max-width: 560px) {
+    .catalog-grid { grid-template-columns: 1fr; grid-auto-rows: 420px; }
+  }
 </style>
