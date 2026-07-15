@@ -33,13 +33,17 @@ const pillars = [
   lang={lang}
   breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: t("nav.maison") }]}
 >
-  <section class="maison-hero full-bleed" style="background-image: url(/maison/hero.jpg)">
-    <div class="maison-hero-content">
-      <h1>
-        {t("home.story.title1")}<br />
-        {t("home.story.title2")}
-      </h1>
-      <p>{[t("home.story.p1"), t("home.story.p2"), t("home.story.p3")].join(" ")}</p>
+  <section class="maison-hero full-bleed">
+    <!-- LCP : vraie balise img (fetchpriority) plutôt qu'un background CSS. -->
+    <img class="maison-hero-img" src="/maison/hero.jpg" alt="" fetchpriority="high" decoding="async" />
+    <div class="maison-hero-inner">
+      <div class="maison-hero-content">
+        <h1>
+          {t("home.story.title1")}<br />
+          {t("home.story.title2")}
+        </h1>
+        <p>{[t("home.story.p1"), t("home.story.p2"), t("home.story.p3")].join(" ")}</p>
+      </div>
     </div>
   </section>
 
@@ -70,7 +74,8 @@ const pillars = [
     <div class="maison-pillars-grid full-bleed">
       {
         pillars.map((p) => (
-          <article class="maison-pillar" style={`background-image: url(${p.img})`}>
+          <article class="maison-pillar">
+            <img class="maison-pillar-img" src={p.img} alt="" loading="lazy" decoding="async" />
             <h3>{p.title}</h3>
             <p>{p.text}</p>
           </article>
@@ -97,26 +102,44 @@ const pillars = [
 </Layout>
 
 <style>
-  /* Hero plein écran, texte en bas à gauche sur dégradé sombre */
+  /* Hero plein écran — ratio Figma (1440×680), plancher mobile, plafond
+     viewport ; <img fetchpriority> pour le LCP.
+     .maison-hero = pur canvas full-bleed (juste l'image + le dégradé).
+     .maison-hero-inner porte le positionnement (texte bas-gauche) et surtout
+     le plafond de largeur (1800px, comme <main>) : sans lui, le texte
+     s'alignait sur le bord RÉEL de la fenêtre au lieu de la même colonne de
+     contenu que le reste du site — flagrant sur les écrans très larges. */
   .maison-hero {
     position: relative;
-    min-height: 680px;
-    display: flex;
-    align-items: flex-end;
-    padding: 64px;
-    background-size: cover;
-    background-position: center;
+    aspect-ratio: 36 / 17;
+    min-height: 560px;
+    max-height: min(90vh, 960px);
+    background-color: #d3b69c;
     color: var(--cream);
+    overflow: hidden;
+  }
+  .maison-hero-img {
+    position: absolute; inset: 0; z-index: 0;
+    width: 100%; height: 100%; object-fit: cover; object-position: center;
   }
   .maison-hero::after {
     content: "";
     position: absolute;
     inset: 0;
+    z-index: 1;
     background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 20%, rgba(31, 31, 31, 0.64) 72%);
   }
-  .maison-hero-content {
+  .maison-hero-inner {
     position: relative;
-    z-index: 1;
+    z-index: 2;
+    max-width: 1800px;
+    height: 100%;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-end;
+    padding: 64px var(--gutter-x);
+  }
+  .maison-hero-content {
     max-width: 560px;
     display: flex;
     flex-direction: column;
@@ -125,7 +148,7 @@ const pillars = [
   }
   .maison-hero-content h1 {
     margin: 0;
-    font-size: 40px;
+    font-size: clamp(30px, 2.78vw, 48px);
     font-weight: 500;
     line-height: 1.2;
     text-transform: uppercase;
@@ -172,7 +195,7 @@ const pillars = [
   }
   .maison-row-text h2 {
     margin: 0;
-    font-size: 32px;
+    font-size: clamp(26px, 2.22vw, 38px);
     font-weight: 500;
     line-height: 1.2;
     text-transform: uppercase;
@@ -200,7 +223,7 @@ const pillars = [
   }
   .maison-pillars-head h2 {
     margin: 0;
-    font-size: 32px;
+    font-size: clamp(26px, 2.22vw, 38px);
     font-weight: 500;
     line-height: 1.2;
     text-transform: uppercase;
@@ -212,12 +235,15 @@ const pillars = [
     line-height: 1.36;
     color: #0a1215;
   }
+  /* Ratio Figma 1440×560 ; images en <img loading="lazy"> (sous la ligne de
+     flottaison) plutôt qu'en background CSS. */
   .maison-pillars-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 2px;
     width: 100%;
-    height: 560px;
+    aspect-ratio: 18 / 7;
+    max-height: 760px;
   }
   .maison-pillar {
     position: relative;
@@ -227,20 +253,24 @@ const pillars = [
     gap: 8px;
     padding: 24px;
     overflow: hidden;
-    background-size: cover;
-    background-position: center;
+    background: #e0cdbb;
     color: var(--cream);
+  }
+  .maison-pillar-img {
+    position: absolute; inset: 0; z-index: 0;
+    width: 100%; height: 100%; object-fit: cover; object-position: center;
   }
   .maison-pillar::before {
     content: "";
     position: absolute;
     inset: 0;
+    z-index: 1;
     background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 50%, #171717 87%);
   }
   .maison-pillar h3,
   .maison-pillar p {
     position: relative;
-    z-index: 1;
+    z-index: 2;
     margin: 0;
   }
   .maison-pillar h3 {
@@ -258,7 +288,9 @@ const pillars = [
   @media (max-width: 900px) {
     .maison-hero {
       min-height: 520px;
-      padding: 32px;
+    }
+    .maison-hero-inner {
+      padding: 32px var(--gutter-x);
     }
     .maison-hero-content h1 {
       font-size: 30px;
@@ -291,7 +323,8 @@ const pillars = [
     }
     .maison-pillars-grid {
       grid-template-columns: 1fr;
-      height: auto;
+      aspect-ratio: auto;
+      max-height: none;
     }
     .maison-pillar {
       min-height: 360px;

@@ -90,15 +90,20 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
 ---
 
 <Layout title={settings?.brandName ?? "Maison Reflet"} description={baseline} lang={lang}>
-  <section class="hero full-bleed" style={`background-image: url(/home/hero.jpg)`}>
-    <div class="hero-content">
-      <h1>
-        {t("home.hero.title1")}<br />
-        {t("home.hero.title2")}
-      </h1>
-      <p>{t("home.hero.description")}</p>
+  <section class="hero full-bleed">
+    <!-- LCP : vraie balise img (fetchpriority) plutôt qu'un background CSS,
+         que le navigateur ne peut ni prioriser ni précharger efficacement. -->
+    <img class="hero-img" src="/home/hero.jpg" alt="" fetchpriority="high" decoding="async" />
+    <div class="hero-inner">
+      <div class="hero-content">
+        <h1>
+          {t("home.hero.title1")}<br />
+          {t("home.hero.title2")}
+        </h1>
+        <p>{t("home.hero.description")}</p>
+      </div>
+      <a href={localePath(lang, "/parfums")} class="hero-cta">{t("home.hero.cta")}</a>
     </div>
-    <a href={localePath(lang, "/parfums")} class="hero-cta">{t("home.hero.cta")}</a>
   </section>
 
   {
@@ -207,15 +212,18 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
       <p>{t("home.pillars.subtitle")}</p>
     </div>
     <div class="pillars-grid full-bleed">
-      <div class="pillar" style="background-image: url(/home/pillar-quality.jpg)">
+      <div class="pillar">
+        <img class="pillar-img" src="/home/pillar-quality.jpg" alt="" loading="lazy" decoding="async" />
         <h3>{t("home.pillars.quality.title")}</h3>
         <p>{t("home.pillars.quality.text")}</p>
       </div>
-      <div class="pillar" style="background-image: url(/home/pillar-performance.jpg)">
+      <div class="pillar">
+        <img class="pillar-img" src="/home/pillar-performance.jpg" alt="" loading="lazy" decoding="async" />
         <h3>{t("home.pillars.performance.title")}</h3>
         <p>{t("home.pillars.performance.text")}</p>
       </div>
-      <div class="pillar" style="background-image: url(/home/pillar-character.jpg)">
+      <div class="pillar">
+        <img class="pillar-img" src="/home/pillar-character.jpg" alt="" loading="lazy" decoding="async" />
         <h3>{t("home.pillars.character.title")}</h3>
         <p>{t("home.pillars.character.text")}</p>
       </div>
@@ -228,30 +236,48 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
 </Layout>
 
 <style>
-  /* Hero */
+  /* Hero — le ratio du Figma (1440×640 = 9:4) pilote la hauteur pour que le
+     cadrage reste identique à toutes les largeurs d'écran, avec un plancher
+     (lisibilité mobile) et un plafond (jamais plus haut que le viewport).
+     .hero = pur canvas full-bleed. .hero-inner porte le plafond de largeur
+     (1800px, comme <main>) : même centré, le texte doit rester dans la même
+     colonne de contenu que le reste du site, pas juste centré dans les 100vw
+     du canvas — sinon toute la logique de grille se désynchronise dès qu'on
+     dépasse 1800px de large. */
   .hero {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 24px;
-    min-height: 640px;
-    padding: 64px;
-    background-size: cover;
-    background-position: center;
+    aspect-ratio: 9 / 4;
+    min-height: 560px;
+    max-height: min(85vh, 900px);
     background-color: #d3b69c;
-    text-align: center;
+    overflow: hidden;
+  }
+  .hero-img {
+    position: absolute; inset: 0; z-index: 0;
+    width: 100%; height: 100%; object-fit: cover; object-position: center;
   }
   .hero::before {
     content: "";
     position: absolute;
     inset: 0;
+    z-index: 1;
     background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 20%, rgba(31, 31, 31, 0.64) 72%);
   }
-  .hero-content {
+  .hero-inner {
     position: relative;
-    z-index: 1;
+    z-index: 2;
+    max-width: 1800px;
+    height: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 24px;
+    padding: 64px var(--gutter-x);
+    text-align: center;
+  }
+  .hero-content {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -259,11 +285,9 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     color: var(--cream-2);
     filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.56));
   }
-  .hero-content h1 { margin: 0; font-size: 40px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  .hero-content h1 { margin: 0; font-size: clamp(30px, 2.78vw, 48px); font-weight: 500; text-transform: uppercase; line-height: 1.2; }
   .hero-content p { margin: 0; font-size: 18px; line-height: 1.32; letter-spacing: -0.36px; }
   .hero-cta {
-    position: relative;
-    z-index: 1;
     display: inline-flex;
     align-items: center;
     height: 48px;
@@ -287,7 +311,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
   }
   .section-head h2, .bestsellers > h2, .perfumers-set > h2 {
     margin: 0;
-    font-size: 32px;
+    font-size: clamp(26px, 2.22vw, 38px);
     font-weight: 500;
     text-transform: uppercase;
     text-align: center;
@@ -309,8 +333,9 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
   }
   .pill-link:hover { opacity: 0.85; }
 
-  /* Bestsellers */
-  .bestsellers-grid { display: flex; gap: 2px; width: 100%; height: 520px; }
+  /* Bestsellers — hauteur pilotée par le ratio Figma (1440×520) et plus par
+     une valeur fixe : les cartes gardent leurs proportions sur écran large. */
+  .bestsellers-grid { display: flex; gap: 2px; width: 100%; aspect-ratio: 36 / 13; max-height: 720px; }
 
   /* Histoire de marque */
   .story {
@@ -328,22 +353,22 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     padding-bottom: 56px;
     color: #0a1215;
   }
-  .story-text h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  .story-text h2 { margin: 0; font-size: clamp(26px, 2.22vw, 38px); font-weight: 500; text-transform: uppercase; line-height: 1.2; }
   .story-copy { display: flex; flex-direction: column; gap: 12px; max-width: 26rem; }
   .story-copy p { margin: 0; font-size: 16px; line-height: 1.36; }
   .story-text .pill-link { align-self: flex-start; }
   .story-img { flex: 0 0 50%; max-width: 816px; height: 560px; background: #dec9b8; overflow: hidden; }
   .story-img img { width: 100%; height: 100%; object-fit: cover; object-position: bottom; }
 
-  /* The Perfumer's Set */
+  /* The Perfumer's Set — ratio Figma 1440×560 */
   .perfumers-set { display: flex; flex-direction: column; align-items: center; }
-  .perfumers-set-grid { display: flex; gap: 2px; width: 100%; height: 560px; }
+  .perfumers-set-grid { display: flex; gap: 2px; width: 100%; aspect-ratio: 18 / 7; max-height: 760px; }
   .perfumers-set-grid :global(.box-card) { aspect-ratio: auto; }
 
   /* Avis */
   .reviews { display: flex; flex-direction: column; gap: 32px; padding: 96px 72px; }
   .reviews-head { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
-  .reviews-head h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; }
+  .reviews-head h2 { margin: 0; font-size: clamp(26px, 2.22vw, 38px); font-weight: 500; text-transform: uppercase; }
   .reviews-rating { display: flex; align-items: center; gap: 8px; }
   .stars { display: inline-flex; gap: 2px; }
   .reviews-rated { display: flex; align-items: baseline; gap: 4px; color: var(--ink); }
@@ -365,26 +390,31 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
     padding: 56px 64px 40px;
   }
-  .pillars-head h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; }
+  .pillars-head h2 { margin: 0; font-size: clamp(26px, 2.22vw, 38px); font-weight: 500; text-transform: uppercase; }
   .pillars-head p { margin: 0; font-size: 18px; color: #0a1215; }
-  .pillars-grid { display: flex; gap: 2px; width: 100%; height: 560px; }
+  /* Piliers — ratio Figma 1440×560 ; image en <img loading="lazy"> (et non en
+     background CSS) pour ne pas peser sur le chargement initial : la section
+     est sous la ligne de flottaison. */
+  .pillars-grid { display: flex; gap: 2px; width: 100%; aspect-ratio: 18 / 7; max-height: 760px; }
   .pillar {
     flex: 1 0 0; min-width: 0; height: 100%; position: relative; overflow: hidden;
     display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;
-    padding: 24px; background-size: cover; background-position: center; color: #fff;
+    padding: 24px; background: #e0cdbb; color: #fff;
   }
+  .pillar-img { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
   .pillar::after {
-    content: ""; position: absolute; inset: 0; z-index: 0;
+    content: ""; position: absolute; inset: 0; z-index: 1;
     background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 50%, #171717 87%);
   }
-  .pillar h3 { position: relative; z-index: 1; margin: 0; font-size: 20px; font-weight: 500; text-transform: uppercase; }
-  .pillar p { position: relative; z-index: 1; margin: 0; font-size: 16px; line-height: 1.3; max-width: 20rem; }
+  .pillar h3 { position: relative; z-index: 2; margin: 0; font-size: 20px; font-weight: 500; text-transform: uppercase; }
+  .pillar p { position: relative; z-index: 2; margin: 0; font-size: 16px; line-height: 1.3; max-width: 20rem; }
 
   @media (max-width: 900px) {
-    .hero { min-height: 480px; padding: 32px 20px; }
+    .hero { min-height: 480px; }
+    .hero-inner { padding: 32px var(--gutter-x); }
     .hero-content h1 { font-size: 28px; }
     .section-head { padding: 56px 20px 32px; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
-    .bestsellers-grid, .perfumers-set-grid, .pillars-grid { flex-wrap: wrap; height: auto; }
+    .bestsellers-grid, .perfumers-set-grid, .pillars-grid { flex-wrap: wrap; aspect-ratio: auto; max-height: none; }
     .bestsellers-grid :global(.product-card),
     .perfumers-set-grid :global(.box-card) { min-height: 320px; }
     .pillar { flex: 1 1 100%; min-height: 320px; }

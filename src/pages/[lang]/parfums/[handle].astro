@@ -856,20 +856,20 @@ const coffrets = coffretContent
   .story-img { width: 816px; max-width: 60%; height: 560px; background: #dec9b8; overflow: hidden; flex-shrink: 0; }
   .story-img img { width: 100%; height: 100%; object-fit: cover; }
 
-  /* Sections recommandées */
+  /* Sections recommandées — hauteur pilotée par le ratio Figma (1440×560) */
   .reco, .boxes { display: flex; flex-direction: column; align-items: center; }
   .reco h2, .boxes h2 {
-    margin: 0; padding: 96px 64px 40px; font-size: 40px; font-weight: 500;
+    margin: 0; padding: 96px 64px 40px; font-size: clamp(28px, 2.78vw, 44px); font-weight: 500;
     text-transform: uppercase; text-align: center;
   }
-  .reco-grid { display: flex; gap: 2px; width: 100%; height: 560px; }
+  .reco-grid { display: flex; gap: 2px; width: 100%; aspect-ratio: 18 / 7; max-height: 760px; }
   .boxes-grid { display: flex; gap: 2px; width: 100%; }
 
   @media (max-width: 900px) {
     .produit { flex-direction: column; }
     .gallery { width: 100%; max-width: 100%; }
     .info { position: static; padding: 32px 20px; width: 100%; }
-    .reco-grid, .boxes-grid { flex-wrap: wrap; height: auto; }
+    .reco-grid, .boxes-grid { flex-wrap: wrap; aspect-ratio: auto; max-height: none; }
     .reco h2, .boxes h2 { padding: 56px 20px 32px; font-size: 28px; }
     .story-blocks { padding: 40px 20px; gap: 48px; }
     .story-row, .story-row.reverse { flex-direction: column; align-items: stretch; gap: 20px; }

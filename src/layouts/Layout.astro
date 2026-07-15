@@ -111,9 +111,31 @@ const navLinks = [
         font-style: normal;
         font-display: swap;
       }
-      :root { --rose: #812538; --ink: #1f1f1f; --cream: #eee3d6; --cream-2: #faf9ee; }
+      :root {
+        --rose: #812538; --ink: #1f1f1f; --cream: #eee3d6; --cream-2: #faf9ee;
+        /*
+         * Gouttière horizontale partagée par tout le contenu "lisible" (texte
+         * de héros, titres de section, réassurance…), y compris à l'intérieur
+         * des bandeaux/images en full-bleed. Sans ça chaque section retapait
+         * sa propre valeur (64px, 72px, parfois 24px par erreur), et le texte
+         * ne s'alignait plus avec le reste de la page une fois le fond étiré
+         * en pleine largeur. Fluide (clamp) pour éviter les sauts brusques
+         * entre les breakpoints — seule la LARGEUR DE LECTURE aligne les
+         * sections entre elles, pas le fond/les grilles d'images qui restent
+         * full-bleed comme dans le Figma.
+         */
+        --gutter-x: clamp(20px, 4.44vw, 64px);
+      }
       * { box-sizing: border-box; }
-      html, body { margin: 0; overflow-x: hidden; }
+      /*
+       * PAS de overflow-x:hidden ici : ça casse position:sticky pour tout
+       * descendant (ex. le panneau info de la fiche produit) — bug CSS connu
+       * (un ancêtre avec un overflow non-`visible` devient la référence de scroll
+       * du sticky, qui cesse alors de fonctionner). Le débordement horizontal
+       * de .full-bleed est déjà neutralisé par ses propres marges négatives
+       * calc(50% - 50vw), vérifié sans scrollbar sur tous les breakpoints.
+       */
+      html, body { margin: 0; }
       body {
         background: var(--cream);
         color: var(--ink);

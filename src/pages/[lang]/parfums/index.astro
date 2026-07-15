@@ -78,10 +78,14 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
   lang={lang}
   breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: t("nav.perfumes") }]}
 >
-  <section class="catalog-hero full-bleed" style="background-image: url(/catalog/hero.jpg)">
-    <div class="catalog-hero-content">
-      <h1>{t("home.hero.title1")} {t("home.hero.title2")}</h1>
-      <p>{t("catalog.subtitle")}</p>
+  <section class="catalog-hero full-bleed">
+    <!-- LCP : vraie balise img (fetchpriority) plutôt qu'un background CSS. -->
+    <img class="catalog-hero-img" src="/catalog/hero.jpg" alt="" fetchpriority="high" decoding="async" />
+    <div class="catalog-hero-inner">
+      <div class="catalog-hero-content">
+        <h1>{t("home.hero.title1")} {t("home.hero.title2")}</h1>
+        <p>{t("catalog.subtitle")}</p>
+      </div>
     </div>
   </section>
 
@@ -154,30 +158,46 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
 </Layout>
 
 <style>
-  /* Hero catalogue : image sombre + dégradé, texte centré en bas */
+  /* Hero catalogue — ratio Figma (1440×560 = 18:7), plancher mobile, plafond
+     viewport ; image en <img fetchpriority> pour le LCP.
+     .catalog-hero = pur canvas full-bleed. .catalog-hero-inner plafonne la
+     largeur du contenu à 1800px (comme <main>) : c'est ici que le padding
+     valait 24px au lieu des 64/72px utilisés partout ailleurs sur cette
+     page — le texte n'était pas aligné avec les titres de section en dessous. */
   .catalog-hero {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 16px;
-    min-height: 560px;
-    padding: 56px 24px;
-    background-size: cover;
-    background-position: center;
+    aspect-ratio: 18 / 7;
+    min-height: 480px;
+    max-height: min(85vh, 840px);
     background-color: #dec9b8;
-    text-align: center;
+    overflow: hidden;
+  }
+  .catalog-hero-img {
+    position: absolute; inset: 0; z-index: 0;
+    width: 100%; height: 100%; object-fit: cover; object-position: center;
   }
   .catalog-hero::before {
     content: "";
     position: absolute;
     inset: 0;
+    z-index: 1;
     background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 26%, rgba(31, 31, 31, 0.88) 102%);
   }
-  .catalog-hero-content {
+  .catalog-hero-inner {
     position: relative;
-    z-index: 1;
+    z-index: 2;
+    max-width: 1800px;
+    height: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    padding: 56px var(--gutter-x);
+    text-align: center;
+  }
+  .catalog-hero-content {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -185,26 +205,28 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     color: var(--cream);
     filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.56));
   }
-  .catalog-hero-content h1 { margin: 0; font-size: 40px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  .catalog-hero-content h1 { margin: 0; font-size: clamp(30px, 2.78vw, 48px); font-weight: 500; text-transform: uppercase; line-height: 1.2; }
   .catalog-hero-content p { margin: 0; font-size: 18px; line-height: 1.32; letter-spacing: -0.36px; }
 
-  /* Grille produits : 3 colonnes pleine largeur, cellules hautes, gap 2px */
+  /* Grille produits : 3 colonnes pleine largeur, gap 2px. La hauteur des
+     cellules découle du ratio Figma (480×640 = 3:4) et plus d'une valeur
+     fixe — les cartes gardent leurs proportions sur écran large. */
   .catalog-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: 640px;
     gap: 2px;
     width: 100%;
     margin-top: 2px;
   }
+  .catalog-grid :global(.product-card) { aspect-ratio: 3 / 4; height: auto; }
 
-  /* The Perfumer's Set */
+  /* The Perfumer's Set — ratio Figma 1440×728 (≈ carré par carte) */
   .perfumers-set { display: flex; flex-direction: column; align-items: center; }
   .perfumers-set > h2 {
-    margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; text-align: center;
+    margin: 0; font-size: clamp(26px, 2.22vw, 38px); font-weight: 500; text-transform: uppercase; text-align: center;
     padding: 96px 64px 40px;
   }
-  .perfumers-set-grid { display: flex; gap: 2px; width: 100%; height: 728px; }
+  .perfumers-set-grid { display: flex; gap: 2px; width: 100%; aspect-ratio: 180 / 91; max-height: 980px; }
   .perfumers-set-grid :global(.box-card) { aspect-ratio: auto; }
 
   /* Avis (placeholder) */
@@ -228,17 +250,18 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
   .review-quote { margin: 0; font-size: 20px; line-height: 1.2; max-width: 60rem; }
 
   @media (max-width: 900px) {
-    .catalog-hero { min-height: 440px; padding: 40px 20px; }
-    .catalog-hero-content h1 { font-size: 30px; }
+    .catalog-hero { min-height: 440px; }
+    .catalog-hero-inner { padding: 40px var(--gutter-x); }
     .catalog-hero-content p { font-size: 16px; }
-    .catalog-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 460px; }
+    .catalog-grid { grid-template-columns: repeat(2, 1fr); }
     .perfumers-set > h2 { padding: 56px 24px 24px; }
-    .perfumers-set-grid { height: auto; flex-direction: column; }
+    .perfumers-set-grid { aspect-ratio: auto; max-height: none; flex-direction: column; }
     .perfumers-set-grid :global(.box-card) { min-height: 420px; }
     .reviews { padding: 56px 24px; }
   }
 
   @media (max-width: 560px) {
-    .catalog-grid { grid-template-columns: 1fr; grid-auto-rows: 420px; }
+    .catalog-grid { grid-template-columns: 1fr; }
+    .catalog-grid :global(.product-card) { aspect-ratio: 4 / 5; }
   }
 </style>

@@ -13,31 +13,40 @@ const { items } = Astro.props;
 {
   items.length > 0 && (
     <section class="reassurance full-bleed">
-      {items.map((r) => (
-        <div class="reassurance-item">
-          {r.icone && <img src={r.icone} alt="" width="40" height="40" />}
-          <p>
-            {r.lignes.map((ligne) => (
-              <>
-                {ligne}
-                <br />
-              </>
-            ))}
-          </p>
-        </div>
-      ))}
+      <div class="reassurance-inner">
+        {items.map((r) => (
+          <div class="reassurance-item">
+            {r.icone && <img src={r.icone} alt="" width="40" height="40" />}
+            <p>
+              {r.lignes.map((ligne) => (
+                <>
+                  {ligne}
+                  <br />
+                </>
+              ))}
+            </p>
+          </div>
+        ))}
+      </div>
     </section>
   )
 }
 
 <style>
-  .reassurance {
+  /* .reassurance = simple canvas full-bleed (fond couleur bord à bord).
+     .reassurance-inner = colonne de contenu plafonnée à la même largeur que
+     <main> (1800px) et centrée, pour que les items s'alignent avec le reste
+     du site sur très grand écran au lieu de s'écarter jusqu'aux bords réels
+     de la fenêtre (justify-content: space-between sur 100vw). */
+  .reassurance { background: #e9dac9; }
+  .reassurance-inner {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 24px;
-    padding: 64px;
-    background: #e9dac9;
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 64px var(--gutter-x);
   }
   .reassurance-item {
     display: flex;
@@ -59,6 +68,6 @@ const { items } = Astro.props;
   }
 
   @media (max-width: 900px) {
-    .reassurance { flex-wrap: wrap; justify-content: center; padding: 32px 20px; gap: 32px; }
+    .reassurance-inner { flex-wrap: wrap; justify-content: center; padding: 32px 20px; gap: 32px; }
   }
 </style>
