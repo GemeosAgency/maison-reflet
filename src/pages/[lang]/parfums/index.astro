@@ -158,7 +158,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
 </Layout>
 
 <style>
-  /* Hero catalogue — 16:9 fixe, y compris grand écran (pas de max-height :
+  /* Hero catalogue — 2:1 fixe, y compris grand écran (pas de max-height :
      ça écraserait le ratio dès qu'on dépasse une certaine largeur) ; image
      en <img fetchpriority> pour le LCP.
      .catalog-hero = pur canvas full-bleed. .catalog-hero-inner plafonne la
@@ -167,7 +167,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
      page — le texte n'était pas aligné avec les titres de section en dessous. */
   .catalog-hero {
     position: relative;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 2 / 1;
     min-height: 480px;
     background-color: #dec9b8;
     overflow: hidden;

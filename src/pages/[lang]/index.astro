@@ -236,7 +236,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
 </Layout>
 
 <style>
-  /* Hero — 16:9 fixe, y compris grand écran (pas de max-height : un plafond
+  /* Hero — 2:1 fixe, y compris grand écran (pas de max-height : un plafond
      px/vh écraserait le ratio dès qu'on dépasse une certaine largeur, ce
      qu'on ne veut justement pas ici). Plancher pour la lisibilité mobile.
      .hero = pur canvas full-bleed. .hero-inner porte le plafond de largeur
@@ -246,7 +246,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
      dépasse 1800px de large. */
   .hero {
     position: relative;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 2 / 1;
     min-height: 560px;
     background-color: #d3b69c;
     overflow: hidden;

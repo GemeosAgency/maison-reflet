@@ -102,7 +102,7 @@ const pillars = [
 </Layout>
 
 <style>
-  /* Hero plein écran — 16:9 fixe, y compris grand écran (pas de max-height :
+  /* Hero plein écran — 2:1 fixe, y compris grand écran (pas de max-height :
      ça écraserait le ratio dès qu'on dépasse une certaine largeur) ; <img
      fetchpriority> pour le LCP.
      .maison-hero = pur canvas full-bleed (juste l'image + le dégradé).
@@ -112,7 +112,7 @@ const pillars = [
      contenu que le reste du site — flagrant sur les écrans très larges. */
   .maison-hero {
     position: relative;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 2 / 1;
     min-height: 560px;
     background-color: #d3b69c;
     color: var(--cream);
