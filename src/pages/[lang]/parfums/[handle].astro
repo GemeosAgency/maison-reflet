@@ -433,7 +433,7 @@ const coffrets = coffretContent
     reco.length > 0 && (
       <section class="reco">
         <h2>{t("product.related")}</h2>
-        <div class="reco-grid full-bleed">
+        <div class="reco-grid">
           {reco.map((p) => (
             <ProductCard
               name={p.name}
@@ -454,7 +454,7 @@ const coffrets = coffretContent
   <!-- Coffrets -->
   <section class="boxes">
     <h2>{t("product.boxes")}</h2>
-    <div class="boxes-grid full-bleed">
+    <div class="boxes-grid">
       {
         coffrets.length > 0 ? (
           coffrets.map((c) => (

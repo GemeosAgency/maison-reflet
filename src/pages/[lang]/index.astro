@@ -116,7 +116,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
             <img src="/brand/arrow-right.svg" alt="" width="12" height="12" />
           </a>
         </div>
-        <div class="bestsellers-grid full-bleed">
+        <div class="bestsellers-grid">
           {bestsellers.map((p) => (
             <ProductCard
               name={p.name}
@@ -159,7 +159,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     coffrets.length > 0 && (
       <section class="perfumers-set">
         <h2>{t("home.perfumersSet")}</h2>
-        <div class="perfumers-set-grid full-bleed">
+        <div class="perfumers-set-grid">
           {coffrets.map((c) => (
             <BoxCard title={c.titre} price={c.price} img={c.img} href={c.href} variantId={c.variantId} />
           ))}
