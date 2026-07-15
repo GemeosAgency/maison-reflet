@@ -1,6 +1,5 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import { getPageBySlug, richTextToHtml } from "../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../i18n";
 
 export function getStaticPaths() {
@@ -9,32 +8,293 @@ export function getStaticPaths() {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
-const page = await getPageBySlug("maison", lang);
 
-const contentHtml = richTextToHtml(page?.content);
+// Sections texte + image alternées (d'après le Figma). `textFirst` inverse
+// l'ordre (texte à gauche, image à droite) ; par défaut image à gauche.
+const rows = [
+  { img: "/maison/inspiration.jpg", title: t("maison.inspiration.title"), body: t("maison.inspiration.body"), textFirst: false },
+  { img: "/maison/twist.jpg", title: t("maison.twist.title"), body: t("maison.twist.body"), textFirst: true },
+];
+const rowsAfter = [
+  { img: "/maison/tradition.jpg", title: t("maison.tradition.title"), body: t("maison.tradition.body"), textFirst: true },
+  { img: "/maison/story.jpg", title: t("maison.story.title"), body: t("maison.story.body"), textFirst: false },
+];
+
+const pillars = [
+  { img: "/maison/pillar-quality.jpg", title: t("home.pillars.quality.title"), text: t("home.pillars.quality.text") },
+  { img: "/maison/pillar-performance.jpg", title: t("home.pillars.performance.title"), text: t("home.pillars.performance.text") },
+  { img: "/maison/pillar-character.jpg", title: t("home.pillars.character.title"), text: t("home.pillars.character.text") },
+];
 ---
 
 <Layout
-  title={page?.title ?? "La Maison"}
+  title={t("nav.maison")}
   description="L'histoire de Maison Reflet, maison de parfums franco-arabe"
   lang={lang}
   breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: t("nav.maison") }]}
 >
-  <article class="page-content">
+  <section class="maison-hero" style="background-image: url(/maison/hero.jpg)">
+    <div class="maison-hero-content">
+      <h1>
+        {t("home.story.title1")}<br />
+        {t("home.story.title2")}
+      </h1>
+      <p>{[t("home.story.p1"), t("home.story.p2"), t("home.story.p3")].join(" ")}</p>
+    </div>
+  </section>
+
+  <section class="maison-rows">
     {
-      page?.title ? (
-        <>
-          <h1>{page.title}</h1>
-          <div set:html={contentHtml} />
-        </>
-      ) : (
-        <h1>La Maison</h1>
-      )
+      rows.map((r) => (
+        <div class:list={["maison-row", { "text-first": r.textFirst }]}>
+          <div class="maison-row-img">
+            <img src={r.img} alt="" loading="lazy" />
+          </div>
+          <div class="maison-row-text">
+            <h2>{r.title}</h2>
+            <p>{r.body}</p>
+          </div>
+        </div>
+      ))
     }
-  </article>
+  </section>
+
+  <section class="maison-pillars">
+    <div class="maison-pillars-head">
+      <h2>
+        {t("home.pillars.title1")}<br />
+        {t("home.pillars.title2")}
+      </h2>
+      <p>{t("home.pillars.subtitle")}</p>
+    </div>
+    <div class="maison-pillars-grid">
+      {
+        pillars.map((p) => (
+          <article class="maison-pillar" style={`background-image: url(${p.img})`}>
+            <h3>{p.title}</h3>
+            <p>{p.text}</p>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="maison-rows">
+    {
+      rowsAfter.map((r) => (
+        <div class:list={["maison-row", { "text-first": r.textFirst }]}>
+          <div class="maison-row-img">
+            <img src={r.img} alt="" loading="lazy" />
+          </div>
+          <div class="maison-row-text">
+            <h2>{r.title}</h2>
+            <p>{r.body}</p>
+          </div>
+        </div>
+      ))
+    }
+  </section>
 </Layout>
 
 <style>
-  .page-content { max-width: 40rem; margin: 0 auto; padding: 2rem 1rem; }
-  .page-content :global(img) { max-width: 100%; height: auto; }
+  /* Hero plein écran, texte en bas à gauche sur dégradé sombre */
+  .maison-hero {
+    position: relative;
+    min-height: 680px;
+    display: flex;
+    align-items: flex-end;
+    padding: 64px;
+    background-size: cover;
+    background-position: center;
+    color: var(--cream);
+  }
+  .maison-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 20%, rgba(31, 31, 31, 0.64) 72%);
+  }
+  .maison-hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.56));
+  }
+  .maison-hero-content h1 {
+    margin: 0;
+    font-size: 40px;
+    font-weight: 500;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+  .maison-hero-content p {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.32;
+    letter-spacing: -0.36px;
+  }
+
+  /* Rangées texte/image alternées */
+  .maison-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 72px;
+    padding: 72px;
+  }
+  .maison-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+  .maison-row.text-first .maison-row-img {
+    order: 2;
+  }
+  .maison-row-img {
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: #dec9b8;
+  }
+  .maison-row-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .maison-row-text {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    color: #0a1215;
+  }
+  .maison-row-text h2 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 500;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+  .maison-row-text p {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.36;
+    white-space: pre-line;
+  }
+
+  /* Section piliers (Qualité / Tenue / Caractère) */
+  .maison-pillars {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .maison-pillars-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    padding: 56px 64px 40px;
+  }
+  .maison-pillars-head h2 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 500;
+    line-height: 1.2;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .maison-pillars-head p {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.36;
+    color: #0a1215;
+  }
+  .maison-pillars-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    width: 100%;
+    height: 560px;
+  }
+  .maison-pillar {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 24px;
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+    color: var(--cream);
+  }
+  .maison-pillar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 50%, #171717 87%);
+  }
+  .maison-pillar h3,
+  .maison-pillar p {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+  }
+  .maison-pillar h3 {
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+  .maison-pillar p {
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  @media (max-width: 900px) {
+    .maison-hero {
+      min-height: 520px;
+      padding: 32px;
+    }
+    .maison-hero-content h1 {
+      font-size: 30px;
+    }
+    .maison-hero-content p {
+      font-size: 16px;
+    }
+    .maison-rows {
+      padding: 40px 24px;
+      gap: 48px;
+    }
+    .maison-row {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    .maison-row.text-first .maison-row-img {
+      order: 0;
+    }
+    .maison-row-text h2 {
+      font-size: 26px;
+    }
+    .maison-row-text p {
+      font-size: 16px;
+    }
+    .maison-pillars-head {
+      padding: 40px 24px 24px;
+    }
+    .maison-pillars-head h2 {
+      font-size: 26px;
+    }
+    .maison-pillars-grid {
+      grid-template-columns: 1fr;
+      height: auto;
+    }
+    .maison-pillar {
+      min-height: 360px;
+    }
+  }
 </style>

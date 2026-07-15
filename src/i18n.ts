@@ -88,6 +88,18 @@ const ui = {
     "home.pillars.performance.text": "Des parfums longue tenue conçus pour vous accompagner toute la journée",
     "home.pillars.character.title": "Caractère",
     "home.pillars.character.text": "Des twists singuliers qui donnent à chaque création sa propre identité",
+    "maison.inspiration.title": "Une inspiration. Un reflet. Une nouvelle expression.",
+    "maison.inspiration.body":
+      "Nous ne nous contentons pas de reproduire les parfums qui nous inspirent. Nous les réinterprétons. Chaque création Maison Reflet part d'une direction olfactive reconnaissable, que nous remodelons ensuite à travers des ingrédients soigneusement choisis, de nouveaux accords et notre propre vision créative. Certaines compositions gagnent en profondeur. D'autres deviennent plus fraîches, plus douces, plus chaudes ou plus intenses. Chaque parfum reste familier au cœur, tout en exprimant un caractère qui lui est propre.",
+    "maison.twist.title": "Inspirés par des icônes. Définis par notre différence.",
+    "maison.twist.body":
+      "Un twist, c'est le détail qui change tout.\nCela peut être un ingrédient inattendu, un contraste plus marqué, une texture plus moderne ou un équilibre différent entre fraîcheur, chaleur et profondeur.\nNotre approche vous permet de redécouvrir les parfums que vous aimez déjà à travers une nouvelle interprétation.\n\nPas une copie.\nPas un substitut.\nUne nouvelle façon de vivre un parfum familier.",
+    "maison.tradition.title": "Entre tradition et modernité",
+    "maison.tradition.body":
+      "Maison Reflet réunit la précision de la parfumerie traditionnelle et une approche contemporaine du parfum. Nous travaillons en étroite collaboration avec des parfumeurs expérimentés et des partenaires de confiance pour développer des compositions expressives, élégantes et pensées pour aujourd'hui.\n\nDe la formule au flacon, chaque détail est pensé pour créer une expérience sensorielle complète.",
+    "maison.story.title": "Notre histoire",
+    "maison.story.body":
+      "Maison Reflet a été fondée par des entrepreneurs issus des univers du branding, de l'e-commerce et de l'expérience digitale, réunis par une passion commune pour le parfum.\n\nNous avons remarqué que chacun revenait souvent vers les mêmes parfums iconiques, tout en cherchant quelque chose de plus personnel, plus contemporain et plus singulier.\n\nMaison Reflet est née pour combler cet écart.\nUne maison où l'inspiration est assumée, la créativité célébrée, et les parfums familiers transformés en quelque chose de nouveau.",
     "footer.signup.title": "Inscription",
     "footer.signup.text":
       "Soyez parmi les premiers informés des actualités de Maison Reflet : avant-premières exclusives et annonces spéciales.",
@@ -201,6 +213,18 @@ const ui = {
     "home.pillars.performance.text": "عطور طويلة الثبات صُممت لترافقك طوال اليوم",
     "home.pillars.character.title": "الشخصية",
     "home.pillars.character.text": "لمسات مميزة تمنح كل إبداع هويته الخاصة",
+    "maison.inspiration.title": "إلهام. انعكاس. تعبير جديد.",
+    "maison.inspiration.body":
+      "نحن لا نكتفي بإعادة إنتاج العطور التي تلهمنا، بل نعيد تفسيرها. تبدأ كل إبداعات Maison Reflet من توقيع عطري معروف، نعيد تشكيله عبر مكوّنات مُنتقاة بعناية وتناغمات جديدة ورؤيتنا الإبداعية الخاصة. بعض التركيبات تزداد عمقًا، وأخرى تصبح أكثر انتعاشًا أو نعومة أو دفئًا أو كثافة. يبقى كل عطر مألوفًا في جوهره، مع تعبيره عن شخصية خاصة به.",
+    "maison.twist.title": "مستوحاة من الأيقونات. تتميّز بلمستنا.",
+    "maison.twist.body":
+      "اللمسة هي التفصيل الذي يغيّر كل شيء.\nقد تكون مكوّنًا غير متوقع، أو تباينًا أقوى، أو قوامًا أكثر عصرية، أو توازنًا مختلفًا بين الانتعاش والدفء والعمق.\nيتيح لك نهجنا إعادة اكتشاف العطور التي تحبها بالفعل من خلال تفسير جديد.\n\nليست نسخة.\nوليست بديلاً.\nبل طريقة جديدة لعيش عطر مألوف.",
+    "maison.tradition.title": "بين التقليد والحداثة",
+    "maison.tradition.body":
+      "تجمع Maison Reflet بين دقة العطارة التقليدية ومقاربة معاصرة للعطر. نعمل عن قرب مع عطّارين مخضرمين وشركاء موثوقين لتطوير تركيبات معبّرة وأنيقة ومصمّمة لعصرنا.\n\nمن تركيبة العطر إلى القارورة، كل تفصيل مدروس لخلق تجربة حسية متكاملة.",
+    "maison.story.title": "قصتنا",
+    "maison.story.body":
+      "تأسست Maison Reflet على يد روّاد أعمال من عوالم العلامات التجارية والتجارة الإلكترونية والتجربة الرقمية، تجمعهم شغف مشترك بالعطر.\n\nلاحظنا أن الناس كثيرًا ما يعودون إلى العطور الأيقونية نفسها، بينما يبحثون عن شيء أكثر شخصية ومعاصرة وتميّزًا.\n\nوُلدت Maison Reflet لتسدّ هذه الفجوة.\nدار يُعترف فيها بالإلهام، وتُحتفى بالإبداع، وتتحوّل فيها العطور المألوفة إلى شيء جديد.",
     "footer.signup.title": "الاشتراك",
     "footer.signup.text":
       "كن من أوائل من يطّلع على مستجدات Maison Reflet: إطلاقات حصرية وإعلانات خاصة.",
@@ -314,6 +338,18 @@ const ui = {
     "home.pillars.performance.text": "Long-lasting fragrances designed to stay with you throughout the day",
     "home.pillars.character.title": "Character",
     "home.pillars.character.text": "Distinctive twists that give every creation its own identity",
+    "maison.inspiration.title": "An inspiration. A reflection. A new expression.",
+    "maison.inspiration.body":
+      "We do not simply reproduce the fragrances that inspire us. We reinterpret them. Each Maison Reflet creation begins with a recognizable olfactory direction, which we then reshape through carefully selected ingredients, new accords and our own creative vision. Some compositions are made deeper. Others become fresher, smoother, warmer or more intense. Every fragrance remains familiar at heart, while expressing a character of its own.",
+    "maison.twist.title": "Inspired by icons. Defined by our difference.",
+    "maison.twist.body":
+      "A twist is the detail that changes everything.\nIt can be an unexpected ingredient, a stronger contrast, a more modern texture or a different balance between freshness, warmth and depth.\nOur approach allows you to rediscover the fragrances you already love through a new interpretation.\n\nNot a copy.\nNot a replacement.\nA new way to experience a familiar scent.",
+    "maison.tradition.title": "Made between tradition and modernity",
+    "maison.tradition.body":
+      "Maison Reflet brings together the precision of traditional perfumery and a contemporary approach to fragrance. We work closely with experienced perfumers and trusted partners to develop compositions that are expressive, elegant and made for today.\n\nFrom the fragrance formula to the bottle, every detail is considered to create a complete sensory experience.",
+    "maison.story.title": "Our story",
+    "maison.story.body":
+      "Maison Reflet was founded by entrepreneurs from the worlds of branding, e-commerce and digital experience, united by a shared passion for fragrance.\n\nWe noticed that people often returned to the same iconic scents, even while searching for something more personal, more contemporary and more distinctive.\n\nMaison Reflet was created to bridge that gap.\nA house where inspiration is acknowledged, creativity is celebrated and familiar fragrances are transformed into something new.",
     "footer.signup.title": "Sign up",
     "footer.signup.text":
       "Be the first to receive the latest news from Maison Reflet, including exclusive pre-launches and special announcements.",
