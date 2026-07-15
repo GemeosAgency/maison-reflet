@@ -33,7 +33,7 @@ const pillars = [
   lang={lang}
   breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: t("nav.maison") }]}
 >
-  <section class="maison-hero" style="background-image: url(/maison/hero.jpg)">
+  <section class="maison-hero full-bleed" style="background-image: url(/maison/hero.jpg)">
     <div class="maison-hero-content">
       <h1>
         {t("home.story.title1")}<br />
@@ -67,7 +67,7 @@ const pillars = [
       </h2>
       <p>{t("home.pillars.subtitle")}</p>
     </div>
-    <div class="maison-pillars-grid">
+    <div class="maison-pillars-grid full-bleed">
       {
         pillars.map((p) => (
           <article class="maison-pillar" style={`background-image: url(${p.img})`}>

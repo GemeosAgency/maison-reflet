@@ -78,14 +78,14 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
   lang={lang}
   breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: t("nav.perfumes") }]}
 >
-  <section class="catalog-hero" style="background-image: url(/catalog/hero.jpg)">
+  <section class="catalog-hero full-bleed" style="background-image: url(/catalog/hero.jpg)">
     <div class="catalog-hero-content">
       <h1>{t("home.hero.title1")} {t("home.hero.title2")}</h1>
       <p>{t("catalog.subtitle")}</p>
     </div>
   </section>
 
-  <section class="catalog-grid">
+  <section class="catalog-grid full-bleed">
     {
       perfumes.map((p) => (
         <ProductCard
@@ -106,7 +106,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     coffrets.length > 0 && (
       <section class="perfumers-set">
         <h2>{t("home.perfumersSet")}</h2>
-        <div class="perfumers-set-grid">
+        <div class="perfumers-set-grid full-bleed">
           {coffrets.map((c) => (
             <BoxCard title={c.titre} price={c.price} img={c.img} href={c.href} variantId={c.variantId} />
           ))}

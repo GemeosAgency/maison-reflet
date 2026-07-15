@@ -90,7 +90,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
 ---
 
 <Layout title={settings?.brandName ?? "Maison Reflet"} description={baseline} lang={lang}>
-  <section class="hero" style={`background-image: url(/home/hero.jpg)`}>
+  <section class="hero full-bleed" style={`background-image: url(/home/hero.jpg)`}>
     <div class="hero-content">
       <h1>
         {t("home.hero.title1")}<br />
@@ -111,7 +111,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
             <img src="/brand/arrow-right.svg" alt="" width="12" height="12" />
           </a>
         </div>
-        <div class="bestsellers-grid">
+        <div class="bestsellers-grid full-bleed">
           {bestsellers.map((p) => (
             <ProductCard
               name={p.name}
@@ -154,7 +154,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     coffrets.length > 0 && (
       <section class="perfumers-set">
         <h2>{t("home.perfumersSet")}</h2>
-        <div class="perfumers-set-grid">
+        <div class="perfumers-set-grid full-bleed">
           {coffrets.map((c) => (
             <BoxCard title={c.titre} price={c.price} img={c.img} href={c.href} variantId={c.variantId} />
           ))}
@@ -206,7 +206,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
       </h2>
       <p>{t("home.pillars.subtitle")}</p>
     </div>
-    <div class="pillars-grid">
+    <div class="pillars-grid full-bleed">
       <div class="pillar" style="background-image: url(/home/pillar-quality.jpg)">
         <h3>{t("home.pillars.quality.title")}</h3>
         <p>{t("home.pillars.quality.text")}</p>
