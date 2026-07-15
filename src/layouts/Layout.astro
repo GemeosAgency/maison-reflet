@@ -456,18 +456,23 @@ const navLinks = [
         signupButton.disabled = true;
         if (signupMsg) signupMsg.textContent = signupButton.dataset.msgSending ?? "";
 
+        // Langue de la page (fr/ar/en, posée sur <html lang>) : stockée sur le
+        // profil Klaviyo pour aiguiller les futurs emails par langue (splits
+        // sur la propriété `locale` — prérequis de la version arabe).
+        const locale = document.documentElement.lang || undefined;
+
         try {
           const res = await fetch("/api/subscribe", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify({ email, locale }),
           });
           const data = await res.json().catch(() => null);
           if (res.ok && data?.ok) {
             if (signupMsg) signupMsg.textContent = signupButton.dataset.msgSuccess ?? "";
             signupForm.reset();
             try {
-              identify({ email });
+              identify({ email, locale });
             } catch {
               // le tracking ne doit jamais faire échouer l'inscription
             }
