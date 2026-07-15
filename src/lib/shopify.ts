@@ -26,7 +26,10 @@ type ShopifyResponse<T> = {
 
 export async function shopifyFetch<T>(
   query: string,
-  variables: Record<string, unknown> = {}
+  variables: Record<string, unknown> = {},
+  // keepalive : la requête survit à une navigation (utile pour les mutations
+  // fire-and-forget juste avant le départ vers le checkout, voir cart.ts).
+  init: { keepalive?: boolean } = {}
 ): Promise<T> {
   if (!domain || !token) {
     throw new Error(
@@ -42,6 +45,7 @@ export async function shopifyFetch<T>(
       "X-Shopify-Storefront-Access-Token": token,
     },
     body: JSON.stringify({ query, variables }),
+    ...(init.keepalive && { keepalive: true }),
   });
 
   if (!res.ok) {
@@ -360,13 +364,21 @@ function assertNoStockWarnings(warnings: CartWarning[] | undefined) {
 }
 
 export type CartLineInput = { merchandiseId: string; quantity: number };
+export type CartAttributeInput = { key: string; value: string };
 
-/** Crée un panier Shopify (Cart API) avec une ou plusieurs lignes (ex : lot Buy 2 Get 1 Free) */
-export async function createCart(lines: CartLineInput[]) {
+/**
+ * Crée un panier Shopify (Cart API) avec une ou plusieurs lignes (ex : lot
+ * Buy 2 Get 1 Free). Les `attributes` optionnels suivent le panier jusqu'à la
+ * commande (note_attributes du webhook) — utilisés pour transporter les ids
+ * publicitaires _fbp/_fbc à travers le saut de domaine du checkout (voir
+ * cart.ts et api/webhooks/shopify-orders.ts). Préfixe "_" = masqué au client
+ * dans le récapitulatif de commande.
+ */
+export async function createCart(lines: CartLineInput[], attributes: CartAttributeInput[] = []) {
   const query = /* GraphQL */ `
     ${CART_FRAGMENT}
-    mutation CartCreate($lines: [CartLineInput!]!) {
-      cartCreate(input: { lines: $lines }) {
+    mutation CartCreate($lines: [CartLineInput!]!, $attributes: [AttributeInput!]) {
+      cartCreate(input: { lines: $lines, attributes: $attributes }) {
         cart {
           ...CartFragment
         }
@@ -389,11 +401,44 @@ export async function createCart(lines: CartLineInput[]) {
       userErrors: CartUserError[];
       warnings?: CartWarning[];
     };
-  }>(query, { lines });
+  }>(query, { lines, attributes });
 
   assertNoUserErrors(data.cartCreate.userErrors);
   assertNoStockWarnings(data.cartCreate.warnings);
   return data.cartCreate.cart;
+}
+
+/**
+ * Met à jour les attributs d'un panier existant. `keepalive` permet un envoi
+ * fire-and-forget qui survit à la navigation (rafraîchissement des ids
+ * publicitaires au clic checkout — cas du visiteur revenu via une pub après
+ * la création du panier).
+ */
+export async function updateCartAttributes(
+  cartId: string,
+  attributes: CartAttributeInput[],
+  init: { keepalive?: boolean } = {}
+) {
+  const query = /* GraphQL */ `
+    mutation CartAttributesUpdate($cartId: ID!, $attributes: [AttributeInput!]!) {
+      cartAttributesUpdate(cartId: $cartId, attributes: $attributes) {
+        cart {
+          id
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch<{
+    cartAttributesUpdate: { cart: { id: string } | null; userErrors: CartUserError[] };
+  }>(query, { cartId, attributes }, init);
+
+  assertNoUserErrors(data.cartAttributesUpdate.userErrors);
+  return data.cartAttributesUpdate.cart;
 }
 
 /** Récupère un panier existant par son id — null si expiré ou introuvable */

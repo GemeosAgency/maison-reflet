@@ -48,6 +48,15 @@ const viewedProduct = {
   Brand: "Maison Reflet",
   Price: Number(variant.price.amount),
 };
+
+// Événement Meta "ViewContent" — voir le commentaire équivalent dans
+// parfums/[handle].astro (id de variante numérique, cohérence catalogue).
+const metaViewContentData = {
+  variantGid: variant.id,
+  name: title,
+  value: Number(variant.price.amount),
+  currency: variant.price.currencyCode,
+};
 ---
 
 <Layout
@@ -79,11 +88,15 @@ const viewedProduct = {
   </div>
 </Layout>
 
-<script type="application/json" id="viewed-product" is:inline set:html={JSON.stringify(viewedProduct)} />
+{/* .replace(/</g, "\\u003c") : JSON.stringify n'échappe pas "<", un titre
+    contenant "</script>" sortirait du bloc (XSS) — voir parfums/[handle].astro. */}
+<script type="application/json" id="viewed-product" is:inline set:html={JSON.stringify(viewedProduct).replace(/</g, "\\u003c")} />
+<script type="application/json" id="meta-view-content" is:inline set:html={JSON.stringify(metaViewContentData).replace(/</g, "\\u003c")} />
 
 <script>
   import { addToCart } from "../../../lib/cart";
   import { track } from "../../../lib/klaviyo";
+  import { metaViewContent, shopifyNumericId } from "../../../lib/meta";
 
   const viewedProduct = JSON.parse(document.getElementById("viewed-product")?.textContent ?? "null");
   if (viewedProduct) {
@@ -91,6 +104,21 @@ const viewedProduct = {
       track("Viewed Product", viewedProduct);
     } catch {
       // le tracking ne doit jamais faire échouer le rendu de la page
+    }
+  }
+
+  // "ViewContent" Meta — même déclenchement, double flux Pixel/CAPI.
+  const metaProduct = JSON.parse(document.getElementById("meta-view-content")?.textContent ?? "null");
+  if (metaProduct) {
+    try {
+      metaViewContent({
+        contentId: shopifyNumericId(metaProduct.variantGid),
+        contentName: metaProduct.name,
+        value: metaProduct.value,
+        currency: metaProduct.currency,
+      });
+    } catch {
+      // idem : jamais bloquant
     }
   }
 

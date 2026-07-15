@@ -156,7 +156,13 @@ const FREE_SHIPPING_THRESHOLD = 400;
 />
 
 <script>
-  import { loadCart, addToCart, removeFromCart, setVariantQuantity } from "../lib/cart";
+  import {
+    loadCart,
+    addToCart,
+    removeFromCart,
+    setVariantQuantity,
+    trackCheckoutDeparture,
+  } from "../lib/cart";
   import { formatPrice, type ShopifyCart } from "../lib/shopify";
   import type { CartUpdatedEvent } from "../lib/cart";
 
@@ -212,6 +218,12 @@ const FREE_SHIPPING_THRESHOLD = 400;
 
   let currentCart: ShopifyCart | null = null;
   let reconciling = false;
+
+  // InitiateCheckout Meta + rafraîchissement des ids publicitaires du panier,
+  // sans bloquer la navigation vers le checkout (voir lib/cart.ts).
+  checkoutLink?.addEventListener("click", () => {
+    trackCheckoutDeparture(currentCart);
+  });
 
   function openDrawer() {
     drawer?.classList.add("is-open");

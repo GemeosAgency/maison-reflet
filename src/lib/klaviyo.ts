@@ -70,6 +70,14 @@ function storeEmail(email: string) {
   }
 }
 
+/**
+ * Email du visiteur identifié (ou null) — l'identité first-party sert aussi
+ * aux autres trackers (ex. matching Meta CAPI, voir meta.ts), d'où l'export.
+ */
+export function getIdentifiedEmail(): string | null {
+  return getStoredEmail();
+}
+
 // ---------- File locale des événements anonymes ----------
 
 let memoryQueue: QueuedEvent[] = [];

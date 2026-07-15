@@ -104,6 +104,16 @@ const viewedProduct = {
   Price: Number(variant.price.amount),
 };
 
+// Événement Meta "ViewContent" (voir src/lib/meta.ts) — id de variante
+// numérique, cohérent avec AddToCart/InitiateCheckout/Purchase pour le
+// matching catalogue Meta.
+const metaViewContentData = {
+  variantGid: variant.id,
+  name: product.title,
+  value: Number(variant.price.amount),
+  currency: variant.price.currencyCode,
+};
+
 const names = (arr: { nom: string | null }[] | undefined) =>
   (arr ?? []).map((n) => n.nom).filter(Boolean) as string[];
 const tete = names(parfum?.notes.tete);
@@ -485,12 +495,17 @@ const coffrets = coffretContent
   <Faq items={parfum?.faqs ?? []} title={t("nav.faq")} />
 </Layout>
 
-<script type="application/json" id="bundle-catalog" is:inline set:html={JSON.stringify(bundleCatalog)} />
-<script type="application/json" id="viewed-product" is:inline set:html={JSON.stringify(viewedProduct)} />
+{/* .replace(/</g, "\\u003c") : JSON.stringify n'échappe pas "<", un titre
+    contenant "</script>" sortirait du bloc (XSS) — l'échappement unicode est
+    du JSON valide et neutralise toute balise. */}
+<script type="application/json" id="bundle-catalog" is:inline set:html={JSON.stringify(bundleCatalog).replace(/</g, "\\u003c")} />
+<script type="application/json" id="viewed-product" is:inline set:html={JSON.stringify(viewedProduct).replace(/</g, "\\u003c")} />
+<script type="application/json" id="meta-view-content" is:inline set:html={JSON.stringify(metaViewContentData).replace(/</g, "\\u003c")} />
 
 <script>
   import { addToCart, addManyToCart } from "../../../lib/cart";
   import { track } from "../../../lib/klaviyo";
+  import { metaViewContent, shopifyNumericId } from "../../../lib/meta";
 
   type BundleCatalogEntry = { handle: string; title: string; img: string | null; variantId: string; price: number };
   const bundleCatalog: BundleCatalogEntry[] = JSON.parse(
@@ -504,6 +519,21 @@ const coffrets = coffretContent
       track("Viewed Product", viewedProduct);
     } catch {
       // le tracking ne doit jamais faire échouer le rendu de la page
+    }
+  }
+
+  // "ViewContent" Meta — même déclenchement, double flux Pixel/CAPI.
+  const metaProduct = JSON.parse(document.getElementById("meta-view-content")?.textContent ?? "null");
+  if (metaProduct) {
+    try {
+      metaViewContent({
+        contentId: shopifyNumericId(metaProduct.variantGid),
+        contentName: metaProduct.name,
+        value: metaProduct.value,
+        currency: metaProduct.currency,
+      });
+    } catch {
+      // idem : jamais bloquant
     }
   }
 

@@ -16,9 +16,17 @@ import {
   addCartLine,
   removeCartLine,
   updateCartLines,
+  updateCartAttributes,
+  type CartAttributeInput,
   type ShopifyCart,
 } from "./shopify";
 import { track as trackKlaviyo } from "./klaviyo";
+import {
+  getMetaBrowserIds,
+  metaAddToCart,
+  metaInitiateCheckout,
+  shopifyNumericId,
+} from "./meta";
 
 const CART_ID_KEY = "maison-reflet:cartId";
 
@@ -66,7 +74,16 @@ function currentLangPrefix(): string {
   return match ? `/${match[1]}` : "/fr";
 }
 
-/** Événement Klaviyo "Added to Cart" (best effort — pas de blocage si klaviyo.js n'est pas chargé) */
+/** Attributs publicitaires (_fbp/_fbc) à attacher au panier — vide si le tracking Meta est désactivé. */
+function metaCartAttributes(): CartAttributeInput[] {
+  const { fbp, fbc } = getMetaBrowserIds();
+  const attributes: CartAttributeInput[] = [];
+  if (fbp) attributes.push({ key: "_fbp", value: fbp });
+  if (fbc) attributes.push({ key: "_fbc", value: fbc });
+  return attributes;
+}
+
+/** Événements "Added to Cart" Klaviyo + AddToCart Meta (best effort — jamais bloquant) */
 function trackAddedToCart(cart: ShopifyCart, lines: CartLine[]) {
   const addedItems = lines
     .map((l) => {
@@ -79,16 +96,19 @@ function trackAddedToCart(cart: ShopifyCart, lines: CartLine[]) {
         Quantity: l.quantity,
         ImageURL: line.merchandise.product.featuredImage?.url ?? null,
         ProductURL: `${window.location.origin}${currentLangPrefix()}/parfums/${line.merchandise.product.handle}`,
+        VariantId: l.variantId,
       };
     })
     .filter((l): l is NonNullable<typeof l> => l !== null);
 
   if (addedItems.length === 0) return;
 
+  const value = addedItems.reduce((sum, l) => sum + l.Price * l.Quantity, 0);
+
   const first = addedItems[0];
   try {
     trackKlaviyo("Added to Cart", {
-      $value: addedItems.reduce((sum, l) => sum + l.Price * l.Quantity, 0),
+      $value: value,
       AddedItemProductName: first.ProductName,
       AddedItemVariantTitle: first.VariantTitle,
       AddedItemPrice: first.Price,
@@ -97,10 +117,24 @@ function trackAddedToCart(cart: ShopifyCart, lines: CartLine[]) {
       AddedItemURL: first.ProductURL,
       ItemNames: addedItems.map((l) => l.ProductName),
       CheckoutURL: cart.checkoutUrl,
-      Items: addedItems,
+      Items: addedItems.map(({ VariantId: _, ...item }) => item),
     });
   } catch {
     // le tracking ne doit jamais faire échouer l'ajout au panier
+  }
+
+  try {
+    metaAddToCart({
+      contents: addedItems.map((l) => ({
+        id: shopifyNumericId(l.VariantId),
+        quantity: l.Quantity,
+        item_price: l.Price,
+      })),
+      value,
+      currency: cart.cost.subtotalAmount.currencyCode,
+    });
+  } catch {
+    // idem : jamais bloquant
   }
 }
 
@@ -143,7 +177,9 @@ export async function addManyToCart(lines: CartLine[]): Promise<ShopifyCart> {
   }
 
   if (!cart) {
-    const created = await createCart(shopifyLines);
+    // Les ids publicitaires (_fbp/_fbc) voyagent avec le panier jusqu'à la
+    // commande — voir metaCartAttributes() et le webhook shopify-orders.
+    const created = await createCart(shopifyLines, metaCartAttributes());
     if (!created) throw new Error("Impossible de créer le panier Shopify");
     cart = created;
 
@@ -225,6 +261,39 @@ export async function setVariantQuantity(
   }
   notifyCartUpdated(cart);
   return cart;
+}
+
+/**
+ * À appeler au clic sur le lien checkout (voir CartDrawer.astro), SANS
+ * bloquer la navigation :
+ *  - événement InitiateCheckout Meta (sendBeacon/fbq : survivent au départ) ;
+ *  - rafraîchissement fire-and-forget des attributs _fbp/_fbc du panier
+ *    (keepalive) — couvre le visiteur revenu via une pub (fbclid) APRÈS la
+ *    création du panier : sans ça, le Purchase du webhook ne serait pas
+ *    attribuable au clic publicitaire. Si la mutation n'aboutit pas avant que
+ *    Shopify fige le checkout, les attributs posés à la création restent.
+ */
+export function trackCheckoutDeparture(cart: ShopifyCart | null) {
+  if (!cart || cart.lines.nodes.length === 0) return;
+
+  try {
+    metaInitiateCheckout({
+      contents: cart.lines.nodes.map((line) => ({
+        id: shopifyNumericId(line.merchandise.id),
+        quantity: line.quantity,
+        item_price: Number(line.merchandise.price.amount),
+      })),
+      value: Number(cart.cost.subtotalAmount.amount),
+      currency: cart.cost.subtotalAmount.currencyCode,
+    });
+  } catch {
+    // le tracking ne doit jamais bloquer le départ vers le checkout
+  }
+
+  const attributes = metaCartAttributes();
+  if (attributes.length) {
+    updateCartAttributes(cart.id, attributes, { keepalive: true }).catch(() => {});
+  }
 }
 
 /**
