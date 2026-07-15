@@ -102,8 +102,9 @@ const pillars = [
 </Layout>
 
 <style>
-  /* Hero plein écran — ratio Figma (1440×680), plancher mobile, plafond
-     viewport ; <img fetchpriority> pour le LCP.
+  /* Hero plein écran — 16:9 fixe, y compris grand écran (pas de max-height :
+     ça écraserait le ratio dès qu'on dépasse une certaine largeur) ; <img
+     fetchpriority> pour le LCP.
      .maison-hero = pur canvas full-bleed (juste l'image + le dégradé).
      .maison-hero-inner porte le positionnement (texte bas-gauche) et surtout
      le plafond de largeur (1800px, comme <main>) : sans lui, le texte
@@ -111,9 +112,8 @@ const pillars = [
      contenu que le reste du site — flagrant sur les écrans très larges. */
   .maison-hero {
     position: relative;
-    aspect-ratio: 36 / 17;
+    aspect-ratio: 16 / 9;
     min-height: 560px;
-    max-height: min(90vh, 960px);
     background-color: #d3b69c;
     color: var(--cream);
     overflow: hidden;

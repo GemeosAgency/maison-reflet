@@ -236,9 +236,9 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
 </Layout>
 
 <style>
-  /* Hero — le ratio du Figma (1440×640 = 9:4) pilote la hauteur pour que le
-     cadrage reste identique à toutes les largeurs d'écran, avec un plancher
-     (lisibilité mobile) et un plafond (jamais plus haut que le viewport).
+  /* Hero — 16:9 fixe, y compris grand écran (pas de max-height : un plafond
+     px/vh écraserait le ratio dès qu'on dépasse une certaine largeur, ce
+     qu'on ne veut justement pas ici). Plancher pour la lisibilité mobile.
      .hero = pur canvas full-bleed. .hero-inner porte le plafond de largeur
      (1800px, comme <main>) : même centré, le texte doit rester dans la même
      colonne de contenu que le reste du site, pas juste centré dans les 100vw
@@ -246,9 +246,8 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
      dépasse 1800px de large. */
   .hero {
     position: relative;
-    aspect-ratio: 9 / 4;
+    aspect-ratio: 16 / 9;
     min-height: 560px;
-    max-height: min(85vh, 900px);
     background-color: #d3b69c;
     overflow: hidden;
   }

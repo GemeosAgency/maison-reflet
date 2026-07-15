@@ -158,17 +158,17 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
 </Layout>
 
 <style>
-  /* Hero catalogue — ratio Figma (1440×560 = 18:7), plancher mobile, plafond
-     viewport ; image en <img fetchpriority> pour le LCP.
+  /* Hero catalogue — 16:9 fixe, y compris grand écran (pas de max-height :
+     ça écraserait le ratio dès qu'on dépasse une certaine largeur) ; image
+     en <img fetchpriority> pour le LCP.
      .catalog-hero = pur canvas full-bleed. .catalog-hero-inner plafonne la
      largeur du contenu à 1800px (comme <main>) : c'est ici que le padding
      valait 24px au lieu des 64/72px utilisés partout ailleurs sur cette
      page — le texte n'était pas aligné avec les titres de section en dessous. */
   .catalog-hero {
     position: relative;
-    aspect-ratio: 18 / 7;
+    aspect-ratio: 16 / 9;
     min-height: 480px;
-    max-height: min(85vh, 840px);
     background-color: #dec9b8;
     overflow: hidden;
   }
