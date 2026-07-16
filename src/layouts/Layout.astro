@@ -458,7 +458,10 @@ const navLinks = [
 
         // Langue de la page (fr/ar/en, posée sur <html lang>) : stockée sur le
         // profil Klaviyo pour aiguiller les futurs emails par langue (splits
-        // sur la propriété `locale` — prérequis de la version arabe).
+        // sur la propriété perso `site_locale` — prérequis de la version
+        // arabe). Nom délibérément distinct de "locale" : Klaviyo réserve ce
+        // nom pour un champ système du profil, une propriété perso homonyme
+        // serait invisible dans le picker du champ système (constaté en réel).
         const locale = document.documentElement.lang || undefined;
 
         try {
@@ -472,7 +475,7 @@ const navLinks = [
             if (signupMsg) signupMsg.textContent = signupButton.dataset.msgSuccess ?? "";
             signupForm.reset();
             try {
-              identify({ email, locale });
+              identify({ email, site_locale: locale });
             } catch {
               // le tracking ne doit jamais faire échouer l'inscription
             }

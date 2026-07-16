@@ -92,9 +92,14 @@ async function subscribeToKlaviyo(email: string) {
 /**
  * Pose la langue du site (fr/ar/en) sur le profil Klaviyo, via un événement
  * "Subscribed to Newsletter" dont l'upsert de profil porte la propriété
- * `locale` — prérequis des futurs emails en arabe : un conditional split sur
- * cette propriété aiguillera chaque flow vers la bonne langue. L'événement
- * lui-même documente au passage l'inscription côté serveur (source, langue).
+ * personnalisée `site_locale` — prérequis des futurs emails en arabe : un
+ * conditional split sur cette propriété aiguillera chaque flow vers la bonne
+ * langue. Nom délibérément DIFFÉRENT de "locale" : Klaviyo réserve déjà un
+ * champ système `locale` sur chaque profil (rempli automatiquement, valeur
+ * observée "en" sur tous les profils du compte) — une propriété perso du
+ * même nom affiché ("Locale") serait invisible dans le picker du champ
+ * système au moment de construire un split, piège vécu en réel sur ce compte.
+ * L'événement documente au passage l'inscription côté serveur (source, langue).
  * Best effort, comme tout le tracking.
  */
 async function recordSignupLocale(email: string, locale: Locale) {
@@ -107,10 +112,10 @@ async function recordSignupLocale(email: string, locale: Locale) {
     data: {
       type: "event",
       attributes: {
-        properties: { source: "footer", locale },
+        properties: { source: "footer", site_locale: locale },
         metric: { data: { type: "metric", attributes: { name: "Subscribed to Newsletter" } } },
         profile: {
-          data: { type: "profile", attributes: { email, properties: { locale } } },
+          data: { type: "profile", attributes: { email, properties: { site_locale: locale } } },
         },
       },
     },
