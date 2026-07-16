@@ -27,6 +27,7 @@ import {
   metaInitiateCheckout,
   shopifyNumericId,
 } from "./meta";
+import { getGa4ClientId, ga4AddToCart, ga4BeginCheckout } from "./ga4";
 
 const CART_ID_KEY = "maison-reflet:cartId";
 
@@ -74,12 +75,14 @@ function currentLangPrefix(): string {
   return match ? `/${match[1]}` : "/fr";
 }
 
-/** Attributs publicitaires (_fbp/_fbc) à attacher au panier — vide si le tracking Meta est désactivé. */
-function metaCartAttributes(): CartAttributeInput[] {
+/** Attributs de tracking (_fbp/_fbc Meta, _ga GA4) à attacher au panier — vide pour tout tracker désactivé. */
+function trackingCartAttributes(): CartAttributeInput[] {
   const { fbp, fbc } = getMetaBrowserIds();
+  const ga4ClientId = getGa4ClientId();
   const attributes: CartAttributeInput[] = [];
   if (fbp) attributes.push({ key: "_fbp", value: fbp });
   if (fbc) attributes.push({ key: "_fbc", value: fbc });
+  if (ga4ClientId) attributes.push({ key: "_ga", value: ga4ClientId });
   return attributes;
 }
 
@@ -136,6 +139,21 @@ function trackAddedToCart(cart: ShopifyCart, lines: CartLine[]) {
   } catch {
     // idem : jamais bloquant
   }
+
+  try {
+    ga4AddToCart({
+      items: addedItems.map((l) => ({
+        item_id: shopifyNumericId(l.VariantId),
+        item_name: l.ProductName,
+        price: l.Price,
+        quantity: l.Quantity,
+      })),
+      value,
+      currency: cart.cost.subtotalAmount.currencyCode,
+    });
+  } catch {
+    // idem : jamais bloquant
+  }
 }
 
 /** Recharge le panier courant depuis Shopify — null si aucun panier ou panier expiré */
@@ -177,9 +195,9 @@ export async function addManyToCart(lines: CartLine[]): Promise<ShopifyCart> {
   }
 
   if (!cart) {
-    // Les ids publicitaires (_fbp/_fbc) voyagent avec le panier jusqu'à la
-    // commande — voir metaCartAttributes() et le webhook shopify-orders.
-    const created = await createCart(shopifyLines, metaCartAttributes());
+    // Les ids de tracking (_fbp/_fbc, _ga) voyagent avec le panier jusqu'à
+    // la commande — voir trackingCartAttributes() et le webhook shopify-orders.
+    const created = await createCart(shopifyLines, trackingCartAttributes());
     if (!created) throw new Error("Impossible de créer le panier Shopify");
     cart = created;
 
@@ -266,8 +284,9 @@ export async function setVariantQuantity(
 /**
  * À appeler au clic sur le lien checkout (voir CartDrawer.astro), SANS
  * bloquer la navigation :
- *  - événement InitiateCheckout Meta (sendBeacon/fbq : survivent au départ) ;
- *  - rafraîchissement fire-and-forget des attributs _fbp/_fbc du panier
+ *  - événements InitiateCheckout (Meta) / begin_checkout (GA4) — sendBeacon
+ *    ou fbq/gtag en file, survivent au départ ;
+ *  - rafraîchissement fire-and-forget des attributs de tracking du panier
  *    (keepalive) — couvre le visiteur revenu via une pub (fbclid) APRÈS la
  *    création du panier : sans ça, le Purchase du webhook ne serait pas
  *    attribuable au clic publicitaire. Si la mutation n'aboutit pas avant que
@@ -276,6 +295,9 @@ export async function setVariantQuantity(
 export function trackCheckoutDeparture(cart: ShopifyCart | null) {
   if (!cart || cart.lines.nodes.length === 0) return;
 
+  const value = Number(cart.cost.subtotalAmount.amount);
+  const currency = cart.cost.subtotalAmount.currencyCode;
+
   try {
     metaInitiateCheckout({
       contents: cart.lines.nodes.map((line) => ({
@@ -283,14 +305,29 @@ export function trackCheckoutDeparture(cart: ShopifyCart | null) {
         quantity: line.quantity,
         item_price: Number(line.merchandise.price.amount),
       })),
-      value: Number(cart.cost.subtotalAmount.amount),
-      currency: cart.cost.subtotalAmount.currencyCode,
+      value,
+      currency,
     });
   } catch {
     // le tracking ne doit jamais bloquer le départ vers le checkout
   }
 
-  const attributes = metaCartAttributes();
+  try {
+    ga4BeginCheckout({
+      items: cart.lines.nodes.map((line) => ({
+        item_id: shopifyNumericId(line.merchandise.id),
+        item_name: line.merchandise.product.title,
+        price: Number(line.merchandise.price.amount),
+        quantity: line.quantity,
+      })),
+      value,
+      currency,
+    });
+  } catch {
+    // idem : jamais bloquant
+  }
+
+  const attributes = trackingCartAttributes();
   if (attributes.length) {
     updateCartAttributes(cart.id, attributes, { keepalive: true }).catch(() => {});
   }

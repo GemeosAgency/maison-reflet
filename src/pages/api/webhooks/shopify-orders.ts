@@ -5,23 +5,25 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 export const prerender = false;
 
 /**
- * Webhook Shopify orders/paid → événement Purchase (Meta Conversions API).
+ * Webhook Shopify orders/paid → événement Purchase (Meta Conversions API +
+ * GA4 Measurement Protocol).
  *
  * Pourquoi un webhook : en headless, le checkout se passe hors de notre
  * domaine (checkout.shopify.com, voire shop.app avec Shop Pay) — aucun Pixel
- * chargé par CE site ne peut y voir la conversion. Le webhook serveur est la
- * seule source fiable du Purchase, avec en bonus les données exactes de la
- * commande (montant réel payé, lignes, email vérifié).
+ * ni gtag.js chargé par CE site ne peut y voir la conversion. Le webhook
+ * serveur est la seule source fiable du Purchase, avec en bonus les données
+ * exactes de la commande (montant réel payé, lignes, email vérifié).
  *
- * Attribution : les cookies _fbp/_fbc du navigateur sont posés en attributs
- * de panier à la création (voir cart.ts) et reviennent ici dans
- * note_attributes — c'est ce qui rattache l'achat au clic publicitaire
- * d'origine malgré le saut de domaine.
+ * Attribution : les cookies _fbp/_fbc (Meta) et le client_id _ga (GA4) sont
+ * posés en attributs de panier à la création (voir cart.ts) et reviennent
+ * ici dans note_attributes — c'est ce qui rattache l'achat au clic
+ * publicitaire d'origine / à la bonne session GA4 malgré le saut de domaine.
  *
- * Idempotence : event_id = "purchase:{order_id}". Shopify rejoue les webhooks
- * non acquittés (jusqu'à 19 fois sur 48 h) ; Meta dédoublonne sur event_id,
- * donc les rejeux sont sans effet — on peut répondre 5xx sans risque pour
- * forcer un rejeu quand Meta est temporairement injoignable.
+ * Idempotence : Meta dédoublonne sur event_id ("purchase:{order_id}"). GA4
+ * dédoublonne les "purchase" par transaction_id — les deux tolèrent donc les
+ * rejeux Shopify (jusqu'à 19 fois sur 48 h) sans compter la vente en double ;
+ * on peut répondre 5xx sans risque pour forcer un rejeu en cas d'incident
+ * passager côté Meta ou GA4.
  *
  * À CONFIGURER (Shopify Admin → Settings → Notifications → Webhooks) :
  *  - créer un webhook "Order payment" (orders/paid) vers
@@ -35,6 +37,15 @@ const ACCESS_TOKEN = import.meta.env.META_CAPI_ACCESS_TOKEN;
 const TEST_EVENT_CODE = import.meta.env.META_TEST_EVENT_CODE;
 const WEBHOOK_SECRET = import.meta.env.SHOPIFY_WEBHOOK_SECRET;
 const GRAPH_API_VERSION = "v23.0";
+
+const GA4_MEASUREMENT_ID = import.meta.env.PUBLIC_GA4_MEASUREMENT_ID;
+const GA4_API_SECRET = import.meta.env.GA4_API_SECRET;
+const GA4_DEBUG_MODE = import.meta.env.GA4_DEBUG_MODE === "true";
+const GA4_COLLECT_URL = GA4_DEBUG_MODE
+  ? "https://www.google-analytics.com/debug/mp/collect"
+  : "https://www.google-analytics.com/mp/collect";
+// Format posé par gtag.js / dérivé nous-mêmes (voir lib/ga4.ts) : {aléa}.{timestamp}.
+const GA4_CLIENT_ID_RE = /^\d+\.\d+$/;
 
 const MAX_EVENT_AGE_MS = 7 * 24 * 60 * 60 * 1000; // limite dure côté CAPI
 
@@ -130,11 +141,13 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: true, skipped: `topic ${topic ?? "inconnu"}` }, 200);
   }
 
-  // Tracking Meta pas encore configuré : acquitter sans traiter (mode
-  // placeholder — le webhook peut être branché avant les clés Meta).
-  if (!PIXEL_ID || !ACCESS_TOKEN) {
-    console.warn("[webhooks/shopify-orders] Clés Meta absentes — Purchase non relayé.");
-    return json({ ok: true, skipped: "tracking Meta non configuré" }, 200);
+  const metaConfigured = Boolean(PIXEL_ID && ACCESS_TOKEN);
+  const ga4Configured = Boolean(GA4_MEASUREMENT_ID && GA4_API_SECRET);
+  // Aucun tracker configuré : acquitter sans traiter (mode placeholder — le
+  // webhook peut être branché avant les clés Meta/GA4).
+  if (!metaConfigured && !ga4Configured) {
+    console.warn("[webhooks/shopify-orders] Aucun tracker configuré — Purchase non relayé.");
+    return json({ ok: true, skipped: "aucun tracker configuré" }, 200);
   }
 
   let order: ShopifyOrderWebhook;
@@ -177,10 +190,15 @@ export const POST: APIRoute = async ({ request }) => {
     userData.client_user_agent = order.client_details.user_agent;
   }
 
-  // _fbp/_fbc posés en attributs de panier par cart.ts, revenus avec la
+  // _fbp/_fbc/_ga posés en attributs de panier par cart.ts, revenus avec la
   // commande — format validé avant relais (attributs falsifiables côté client).
+  let ga4ClientId: string | null = null;
   for (const attr of order.note_attributes ?? []) {
     const value = attr.value ?? "";
+    if (attr.name === "_ga" && GA4_CLIENT_ID_RE.test(value)) {
+      ga4ClientId = value;
+      continue;
+    }
     if (!FB_COOKIE_RE.test(value)) continue;
     if (attr.name === "_fbp" && value.length <= 128) userData.fbp = value;
     if (attr.name === "_fbc" && value.length <= 512) userData.fbc = value;
@@ -211,58 +229,110 @@ export const POST: APIRoute = async ({ request }) => {
   const isWebsiteOrder = Boolean(order.client_details?.user_agent);
   const siteOrigin = import.meta.env.PUBLIC_SITE_URL || "https://maisonreflet.com";
 
-  const payload = {
-    data: [
-      {
-        event_name: "Purchase",
-        event_time: Math.floor(eventTimeMs / 1000),
-        event_id: `purchase:${order.id}`,
-        action_source: isWebsiteOrder ? "website" : "other",
-        ...(isWebsiteOrder && { event_source_url: siteOrigin }),
-        user_data: userData,
-        custom_data: {
-          value,
-          currency: order.currency ?? "AED",
-          content_type: "product",
-          content_ids: contents.map((c) => c.id),
-          contents,
-          num_items: contents.reduce((sum, c) => sum + c.quantity, 0),
-          order_id: String(order.id),
-        },
-      },
-    ],
-    access_token: ACCESS_TOKEN,
-    ...(TEST_EVENT_CODE && { test_event_code: TEST_EVENT_CODE }),
-  };
+  // Un 5xx sur l'un OU l'autre déclenche un rejeu Shopify du webhook entier —
+  // sans risque, les deux sont idempotents (event_id pour Meta, transaction_id
+  // pour GA4), un rejeu ne compte jamais la vente en double.
+  let hardFailure = false;
 
-  try {
-    const res = await fetch(
-      `https://graph.facebook.com/${GRAPH_API_VERSION}/${PIXEL_ID}/events`,
-      {
+  if (metaConfigured) {
+    const payload = {
+      data: [
+        {
+          event_name: "Purchase",
+          event_time: Math.floor(eventTimeMs / 1000),
+          event_id: `purchase:${order.id}`,
+          action_source: isWebsiteOrder ? "website" : "other",
+          ...(isWebsiteOrder && { event_source_url: siteOrigin }),
+          user_data: userData,
+          custom_data: {
+            value,
+            currency: order.currency ?? "AED",
+            content_type: "product",
+            content_ids: contents.map((c) => c.id),
+            contents,
+            num_items: contents.reduce((sum, c) => sum + c.quantity, 0),
+            order_id: String(order.id),
+          },
+        },
+      ],
+      access_token: ACCESS_TOKEN,
+      ...(TEST_EVENT_CODE && { test_event_code: TEST_EVENT_CODE }),
+    };
+
+    try {
+      const res = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${PIXEL_ID}/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      }
-    );
+      });
 
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      console.error(
-        "[webhooks/shopify-orders] Meta a refusé le Purchase :",
-        res.status,
-        detail.slice(0, 500)
-      );
-      // 4xx Meta = configuration (token invalide, payload refusé) : rejouer ne
-      // changera rien, on acquitte pour protéger le webhook. 5xx = incident
-      // passager : 502 pour que Shopify rejoue (dédoublonné par event_id).
-      return res.status >= 500
-        ? json({ ok: false, error: "Meta indisponible, rejeu demandé." }, 502)
-        : json({ ok: true, skipped: "refus Meta (voir logs)" }, 200);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        console.error(
+          "[webhooks/shopify-orders] Meta a refusé le Purchase :",
+          res.status,
+          detail.slice(0, 500)
+        );
+        // 4xx Meta = configuration (token invalide, payload refusé) : rejouer
+        // ne changera rien. 5xx = incident passager, on redemande un rejeu.
+        if (res.status >= 500) hardFailure = true;
+      }
+    } catch (error) {
+      console.error("[webhooks/shopify-orders] Meta injoignable :", error);
+      hardFailure = true;
     }
-  } catch (error) {
-    console.error("[webhooks/shopify-orders]", error);
-    return json({ ok: false, error: "Meta injoignable, rejeu demandé." }, 502);
   }
 
+  // GA4 exige un client_id — sans lui (Pixel jamais chargé ET jamais bloqué
+  // détecté, cas rare : panier créé avant l'activation de GA4_MEASUREMENT_ID)
+  // impossible de rattacher la vente à une session, on n'envoie rien plutôt
+  // que d'inventer un id qui créerait un profil GA4 fantôme.
+  if (ga4Configured && ga4ClientId) {
+    const ga4Payload = {
+      client_id: ga4ClientId,
+      events: [
+        {
+          name: "purchase",
+          params: {
+            transaction_id: String(order.id),
+            value,
+            currency: order.currency ?? "AED",
+            items: contents.map((c) => ({ item_id: c.id, quantity: c.quantity, price: c.item_price })),
+          },
+        },
+      ],
+    };
+
+    try {
+      const res = await fetch(
+        `${GA4_COLLECT_URL}?measurement_id=${GA4_MEASUREMENT_ID}&api_secret=${GA4_API_SECRET}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(ga4Payload),
+        }
+      );
+
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        console.error(
+          "[webhooks/shopify-orders] GA4 a refusé le Purchase :",
+          res.status,
+          detail.slice(0, 500)
+        );
+        if (res.status >= 500) hardFailure = true;
+      } else if (GA4_DEBUG_MODE) {
+        const detail = await res.text().catch(() => "");
+        console.warn("[webhooks/shopify-orders] Validation GA4 :", detail.slice(0, 1000));
+      }
+    } catch (error) {
+      console.error("[webhooks/shopify-orders] GA4 injoignable :", error);
+      hardFailure = true;
+    }
+  }
+
+  if (hardFailure) {
+    return json({ ok: false, error: "Tracker indisponible, rejeu demandé." }, 502);
+  }
   return json({ ok: true }, 200);
 };

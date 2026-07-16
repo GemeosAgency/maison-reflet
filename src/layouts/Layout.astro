@@ -408,6 +408,7 @@ const navLinks = [
       import { loadCart, initAddToCartButtons, type CartUpdatedEvent } from "../lib/cart";
       import { initKlaviyo, identify } from "../lib/klaviyo";
       import { initMetaPixel } from "../lib/meta";
+      import { initGa4 } from "../lib/ga4";
       import type { ShopifyCart } from "../lib/shopify";
 
       // Identité Klaviyo first-party (utm_email, rejeu de la file locale) —
@@ -417,6 +418,10 @@ const navLinks = [
       // Pixel Meta + PageView (double flux navigateur/serveur, voir lib/meta.ts).
       // Inerte tant que PUBLIC_META_PIXEL_ID n'est pas définie.
       initMetaPixel();
+
+      // gtag.js + page_view (aiguillage gtag/relais, voir lib/ga4.ts).
+      // Inerte tant que PUBLIC_GA4_MEASUREMENT_ID n'est pas définie.
+      initGa4();
 
       // Câblage global des boutons "Add to bag" (cartes produit/coffret, quelle
       // que soit la page) — voir cart.ts pour la raison de la délégation unique.

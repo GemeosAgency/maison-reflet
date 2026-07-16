@@ -506,6 +506,7 @@ const coffrets = coffretContent
   import { addToCart, addManyToCart } from "../../../lib/cart";
   import { track } from "../../../lib/klaviyo";
   import { metaViewContent, shopifyNumericId } from "../../../lib/meta";
+  import { ga4ViewItem } from "../../../lib/ga4";
 
   type BundleCatalogEntry = { handle: string; title: string; img: string | null; variantId: string; price: number };
   const bundleCatalog: BundleCatalogEntry[] = JSON.parse(
@@ -522,13 +523,27 @@ const coffrets = coffretContent
     }
   }
 
-  // "ViewContent" Meta — même déclenchement, double flux Pixel/CAPI.
+  // "ViewContent" Meta + "view_item" GA4 — même déclenchement, mêmes données
+  // (réutilise le bloc meta-view-content, identique pour les deux trackers).
   const metaProduct = JSON.parse(document.getElementById("meta-view-content")?.textContent ?? "null");
   if (metaProduct) {
     try {
       metaViewContent({
         contentId: shopifyNumericId(metaProduct.variantGid),
         contentName: metaProduct.name,
+        value: metaProduct.value,
+        currency: metaProduct.currency,
+      });
+    } catch {
+      // idem : jamais bloquant
+    }
+    try {
+      ga4ViewItem({
+        item: {
+          item_id: shopifyNumericId(metaProduct.variantGid),
+          item_name: metaProduct.name,
+          price: metaProduct.value,
+        },
         value: metaProduct.value,
         currency: metaProduct.currency,
       });

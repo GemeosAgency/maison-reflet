@@ -97,6 +97,7 @@ const metaViewContentData = {
   import { addToCart } from "../../../lib/cart";
   import { track } from "../../../lib/klaviyo";
   import { metaViewContent, shopifyNumericId } from "../../../lib/meta";
+  import { ga4ViewItem } from "../../../lib/ga4";
 
   const viewedProduct = JSON.parse(document.getElementById("viewed-product")?.textContent ?? "null");
   if (viewedProduct) {
@@ -107,13 +108,26 @@ const metaViewContentData = {
     }
   }
 
-  // "ViewContent" Meta — même déclenchement, double flux Pixel/CAPI.
+  // "ViewContent" Meta + "view_item" GA4 — même déclenchement, mêmes données.
   const metaProduct = JSON.parse(document.getElementById("meta-view-content")?.textContent ?? "null");
   if (metaProduct) {
     try {
       metaViewContent({
         contentId: shopifyNumericId(metaProduct.variantGid),
         contentName: metaProduct.name,
+        value: metaProduct.value,
+        currency: metaProduct.currency,
+      });
+    } catch {
+      // idem : jamais bloquant
+    }
+    try {
+      ga4ViewItem({
+        item: {
+          item_id: shopifyNumericId(metaProduct.variantGid),
+          item_name: metaProduct.name,
+          price: metaProduct.value,
+        },
         value: metaProduct.value,
         currency: metaProduct.currency,
       });
