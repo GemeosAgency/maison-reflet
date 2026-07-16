@@ -8,8 +8,11 @@ export const prerender = false;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Clé PRIVÉE dédiée, distincte de KLAVIYO_PRIVATE_API_KEY (scopée Events:Write
-// pour le relais /api/events) : celle-ci est scopée Subscriptions:Write
-// uniquement — même principe de moindre privilège, une capacité par clé.
+// pour le relais /api/events) — même principe de moindre privilège, une
+// capacité par clé. Scopes RÉELLEMENT requis (vérifié en réel, l'API rejette
+// sinon en 403 "missing required scopes") : Subscriptions:Write ET
+// Profiles:Write ET Lists:Write — le job touche aux trois ressources, pas
+// seulement au statut d'abonnement.
 const KLAVIYO_SUBSCRIBE_API_KEY = import.meta.env.KLAVIYO_SUBSCRIBE_API_KEY;
 // Clé Events:Write (la même que le relais /api/events) : sert ici à poser la
 // langue sur le profil via recordSignupLocale() — la job d'abonnement
