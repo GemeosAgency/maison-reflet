@@ -17,6 +17,15 @@ export const sanityClient = createClient({
   apiVersion: import.meta.env.SANITY_API_VERSION || "2025-01-01",
   token: import.meta.env.SANITY_READ_TOKEN,
   useCdn: !import.meta.env.SANITY_READ_TOKEN,
+  /*
+   * OBLIGATOIRE tant qu'on lit avec un token : sans perspective explicite, une
+   * requête renvoie le brouillon ET le document publié. Les projections en
+   * `[0]` (getParfumContent, getPageBySlug…) attrapaient alors le brouillon —
+   * "drafts.xxx" trie avant "xxx" — donc tout contenu non publié partait en
+   * production. `published` restaure le comportement attendu d'un site public.
+   * Un mode preview devra passer son propre client en perspective "drafts".
+   */
+  perspective: "published",
 });
 
 // ---------- Écriture (liste d'attente) ----------
