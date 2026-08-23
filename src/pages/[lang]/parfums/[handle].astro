@@ -158,22 +158,22 @@ const perfumerPhotoUrl = parfum?.perfumerPhoto
   ? urlForImage(parfum.perfumerPhoto as any).width(1000).url()
   : null;
 
+/*
+ * Visuel d'une colonne de la section « Scent Notes » : la photo vient de la
+ * BIBLIOTHÈQUE de matières (champ Image du document "note"), pas de la fiche
+ * parfum — une matière est photographiée une fois et réutilisée partout.
+ * On prend l'image de la note-clé (la première de la liste, celle affichée en
+ * gras) ; si elle n'en a pas, on prend la première note qui en a une.
+ */
+const levelImage = (notes: { image?: unknown }[] | undefined): string | null => {
+  const withImage = (notes ?? []).find((n) => n.image);
+  return withImage ? urlForImage(withImage.image as any).width(700).height(860).url() : null;
+};
+
 const scentLevels = [
-  {
-    label: t("product.notes.tete"),
-    notes: tete,
-    img: parfum?.imageNotesTete ? urlForImage(parfum.imageNotesTete as any).width(700).url() : null,
-  },
-  {
-    label: t("product.notes.coeur"),
-    notes: coeur,
-    img: parfum?.imageNotesCoeur ? urlForImage(parfum.imageNotesCoeur as any).width(700).url() : null,
-  },
-  {
-    label: t("product.notes.fond"),
-    notes: fond,
-    img: parfum?.imageNotesFond ? urlForImage(parfum.imageNotesFond as any).width(700).url() : null,
-  },
+  { label: t("product.notes.tete"), notes: tete, img: levelImage(parfum?.notes.tete) },
+  { label: t("product.notes.coeur"), notes: coeur, img: levelImage(parfum?.notes.coeur) },
+  { label: t("product.notes.fond"), notes: fond, img: levelImage(parfum?.notes.fond) },
 ];
 
 // Bandeau de réassurance : sélection/ordre gérés dans Sanity.

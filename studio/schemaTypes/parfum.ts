@@ -195,30 +195,12 @@ export default defineType({
       of: [{ type: "reference", to: [{ type: "note" }] }],
       group: "notes",
     }),
-    defineField({
-      name: "imageNotesTete",
-      title: "Image — Notes de tête",
-      type: "image",
-      options: { hotspot: true },
-      description: "Fond de la colonne « TOP » de la section Scent Notes.",
-      group: "medias",
-    }),
-    defineField({
-      name: "imageNotesCoeur",
-      title: "Image — Notes de cœur",
-      type: "image",
-      options: { hotspot: true },
-      description: "Fond de la colonne « HEART » de la section Scent Notes.",
-      group: "medias",
-    }),
-    defineField({
-      name: "imageNotesFond",
-      title: "Image — Notes de fond",
-      type: "image",
-      options: { hotspot: true },
-      description: "Fond de la colonne « BASE » de la section Scent Notes.",
-      group: "medias",
-    }),
+    /*
+     * Pas de champ image par niveau ici : le visuel des colonnes de la section
+     * « Scent Notes » vient du champ Image de la MATIÈRE (type "note"), via la
+     * note-clé de chaque niveau. Une matière est photographiée une fois et
+     * réutilisée sur tous les parfums qui l'emploient.
+     */
     defineField({
       name: "imageTwist",
       title: "Image — The Specific Twist",

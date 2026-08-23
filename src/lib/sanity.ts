@@ -125,9 +125,6 @@ export type ParfumContent = {
   parfumeur: string | null;
   couleurSignature: string | null;
   notes: { tete: NoteCard[]; coeur: NoteCard[]; fond: NoteCard[] };
-  imageNotesTete: unknown | null;
-  imageNotesCoeur: unknown | null;
-  imageNotesFond: unknown | null;
   imageTwist: unknown | null;
   images: { _key: string; asset: unknown; alt: string | null }[];
   reassurances: ReassuranceItem[];
@@ -169,9 +166,6 @@ export async function getParfumContent(
       "coeur": notesCoeur${noteCards},
       "fond": notesFond${noteCards}
     },
-    imageNotesTete,
-    imageNotesCoeur,
-    imageNotesFond,
     imageTwist,
     "images": imagesEditoriales[]{ _key, asset, "alt": coalesce(alt.${l}, alt.fr) },
     "reassurances": reassurances[]->{
