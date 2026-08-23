@@ -4,10 +4,12 @@
  * panoramique bordée en dessous. Texte = specificTwist (Sanity), image =
  * imageTwist (Sanity) avec repli sur une image de la galerie.
  */
+import type { ResponsiveImage } from "../../lib/sanity";
+
 interface Props {
   title: string;
   text: string;
-  img: string | null;
+  img: ResponsiveImage | null;
 }
 
 const { title, text, img } = Astro.props;
@@ -21,7 +23,7 @@ const { title, text, img } = Astro.props;
   {
     img && (
       <div class="twist-img">
-        <img src={img} alt="" loading="lazy" />
+        <img src={img.src} srcset={img.srcset} sizes="100vw" alt="" loading="lazy" decoding="async" />
       </div>
     )
   }

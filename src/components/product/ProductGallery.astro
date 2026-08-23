@@ -4,8 +4,10 @@
  * carrousel horizontal à snap sur mobile. Les images viennent de Sanity
  * (imagesEditoriales) avec repli sur les photos Shopify — voir la page.
  */
+import type { ResponsiveImage } from "../../lib/sanity";
+
 interface Props {
-  images: { src: string; alt: string }[];
+  images: (ResponsiveImage & { alt: string })[];
 }
 
 const { images } = Astro.props;
@@ -17,6 +19,8 @@ const { images } = Astro.props;
       <div class="pgallery-shot">
         <img
           src={im.src}
+          srcset={im.srcset}
+          sizes="(max-width: 900px) 100vw, 50vw"
           alt={im.alt}
           loading={i === 0 ? "eager" : "lazy"}
           fetchpriority={i === 0 ? "high" : undefined}

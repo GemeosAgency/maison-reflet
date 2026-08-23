@@ -6,11 +6,13 @@
  * progressivement ProductCard (survol) sur le catalogue et la home au fil
  * de leurs refontes.
  */
+import type { ResponsiveImage } from "../lib/sanity";
+
 interface Props {
   name: string;
   subtitle?: string | null;
   price: string;
-  img: string | null;
+  img: ResponsiveImage | null;
   href: string;
   badge?: string | null;
 }
@@ -20,7 +22,18 @@ const { name, subtitle, price, img, href, badge } = Astro.props;
 
 <a class="ptile" href={href}>
   <div class="ptile-media">
-    {img && <img src={img} alt={name} loading="lazy" />}
+    {
+      img && (
+        <img
+          src={img.src}
+          srcset={img.srcset}
+          sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw"
+          alt={name}
+          loading="lazy"
+          decoding="async"
+        />
+      )
+    }
     {badge && <span class="ptile-badge">{badge}</span>}
   </div>
   <div class="ptile-meta">

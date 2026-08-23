@@ -4,12 +4,14 @@
  * prix + CTA à droite. Contenu éditorial depuis Sanity (coffret), prix
  * depuis Shopify — assemblés par la page appelante.
  */
+import type { ResponsiveImage } from "../lib/sanity";
+
 interface Props {
   title: string;
   description: string | null;
   priceLabel: string;
   href: string;
-  img: string | null;
+  img: ResponsiveImage | null;
   ctaLabel: string;
 }
 
@@ -18,7 +20,18 @@ const { title, description, priceLabel, href, img, ctaLabel } = Astro.props;
 
 <section class="dset">
   <div class="dset-img">
-    {img && <img src={img} alt={title} loading="lazy" />}
+    {
+      img && (
+        <img
+          src={img.src}
+          srcset={img.srcset}
+          sizes="(max-width: 900px) 100vw, 56vw"
+          alt={title}
+          loading="lazy"
+          decoding="async"
+        />
+      )
+    }
   </div>
   <div class="dset-text">
     <h2>{title}</h2>

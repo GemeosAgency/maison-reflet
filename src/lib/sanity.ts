@@ -65,6 +65,72 @@ export function urlForImage(source: SanityImageSource) {
   return builder.image(source);
 }
 
+/**
+ * Largeur native d'une image, lue directement dans son `_ref` Sanity
+ * (`image-<hash>-958x1120-jpg`) — évite d'aller chercher
+ * `asset->metadata.dimensions` dans chaque requête.
+ */
+function nativeWidth(source: SanityImageSource): number | null {
+  const ref =
+    typeof source === "string"
+      ? source
+      : ((source as { asset?: { _ref?: string } }).asset?._ref ??
+        (source as { _ref?: string })._ref ??
+        null);
+  const match = typeof ref === "string" ? ref.match(/-(\d+)x(\d+)-[a-z]+$/) : null;
+  return match ? Number(match[1]) : null;
+}
+
+export type ResponsiveImage = { src: string; srcset: string };
+
+/**
+ * Prépare une image Sanity pour un affichage net sur écran haute densité.
+ *
+ * Demander une seule URL à la largeur CSS de l'emplacement donne une image
+ * floue sur un écran 2x (le cas de la majorité des mobiles et des portables) :
+ * il faut deux fois plus de pixels que la taille d'affichage. On génère donc
+ * plusieurs largeurs et on laisse le navigateur choisir selon la densité et le
+ * viewport — c'est le rôle de srcset + sizes (le `sizes` est fourni par le
+ * composant appelant, qui seul connaît la largeur de son emplacement).
+ *
+ * Les largeurs sont PLAFONNÉES à la taille native de l'original : au-delà,
+ * Sanity agrandit l'image, ce qui alourdit le transfert sans gagner en
+ * netteté. `auto("format")` sert du WebP/AVIF aux navigateurs compatibles,
+ * ce qui compense le surcoût du passage en 2x.
+ *
+ * @param aspect ratio largeur/hauteur du cadre (ex. 3/4) — recadrage centré
+ *   sur le hotspot défini dans le Studio. Omis = proportions d'origine.
+ */
+export function responsiveImage(
+  source: SanityImageSource,
+  options: { widths: number[]; aspect?: number; quality?: number }
+): ResponsiveImage {
+  const { widths, aspect, quality = 82 } = options;
+  const native = nativeWidth(source);
+
+  /*
+   * On écarte les largeurs supérieures à l'original (Sanity agrandirait sans
+   * gain de netteté), MAIS on ajoute la largeur native elle-même : sans ça, une
+   * source de 958 px plafonnerait au palier 720 et resterait floue sur un
+   * écran 2x, alors que ses 958 px réels suffisaient.
+   */
+  const capped = native ? widths.filter((w) => w <= native) : widths;
+  const usable = native
+    ? [...capped, ...(capped[capped.length - 1] === native ? [] : [native])]
+    : capped;
+
+  const url = (w: number) => {
+    let b = urlForImage(source).width(w).auto("format").quality(quality);
+    if (aspect) b = b.height(Math.round(w / aspect)).fit("crop");
+    return b.url();
+  };
+
+  return {
+    src: url(usable[usable.length - 1]),
+    srcset: usable.map((w) => `${url(w)} ${w}w`).join(", "),
+  };
+}
+
 /** Rendu HTML d'un champ "localeBlock" (Portable Text : paragraphes, listes, liens, images). */
 const richTextComponents: Partial<PortableTextComponents> = {
   types: {

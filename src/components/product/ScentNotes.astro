@@ -5,10 +5,12 @@
  * est la note-clé, affichée en gras (convention documentée dans le schéma
  * Sanity). Une colonne sans notes ni image est masquée.
  */
+import type { ResponsiveImage } from "../../lib/sanity";
+
 interface Level {
   label: string;
   notes: string[];
-  img: string | null;
+  img: ResponsiveImage | null;
 }
 
 interface Props {
@@ -27,7 +29,17 @@ const visible = levels.filter((l) => l.notes.length > 0 || l.img);
       <div class="snotes-grid full-bleed">
         {visible.map((l) => (
           <div class="snotes-col">
-            {l.img && <img class="snotes-img" src={l.img} alt="" loading="lazy" />}
+            {l.img && (
+              <img
+                class="snotes-img"
+                src={l.img.src}
+                srcset={l.img.srcset}
+                sizes="(max-width: 900px) 100vw, 33vw"
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
+            )}
             <span class="snotes-level">{l.label}</span>
             <p class="snotes-list">
               {l.notes.map((n, i) => (

@@ -31,6 +31,7 @@ import {
   getBestSellerMap,
   getCoffrets,
   richTextToHtml,
+  responsiveImage,
   urlForImage,
 } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
@@ -62,15 +63,21 @@ const bestSellerMap = await getBestSellerMap();
 
 // Galerie : images éditoriales Sanity (curées par parfum) → photos produit
 // Shopify → visuels de secours du design.
+// Largeurs de la galerie : la colonne fait 50vw en desktop (720px à 1440,
+// jusqu'à ~900px sur un très grand écran) et 100vw en mobile — il faut donc
+// monter jusqu'au double pour rester net en densité 2x.
+const GALLERY_WIDTHS = [480, 720, 960, 1440, 1800];
 const editorialImgs = (parfum?.images ?? []).map((im) => ({
-  src: urlForImage(im as any).width(1100).url(),
+  ...responsiveImage(im as any, { widths: GALLERY_WIDTHS, aspect: 720 / 896 }),
   alt: im.alt ?? product.title,
 }));
+// Images Shopify : URLs déjà servies par le CDN Shopify, pas de srcset ici.
 const shopifyImgs = [product.featuredImage?.url, ...product.images.nodes.map((n) => n.url)]
   .filter((u): u is string => Boolean(u))
-  .map((src) => ({ src, alt: product.title }));
+  .map((src) => ({ src, srcset: "", alt: product.title }));
 const placeholderImgs = ["/brand/gallery1.jpg", "/brand/gallery2.jpg", "/brand/gallery3.jpg"].map((src) => ({
   src,
+  srcset: "",
   alt: product.title,
 }));
 const gallery = editorialImgs.length ? editorialImgs : shopifyImgs.length ? shopifyImgs : placeholderImgs;
@@ -149,13 +156,20 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
 
 // ---------- Sections éditoriales ----------
 const specificTwist = parfum?.specificTwist ?? null;
+// Image panoramique quasi pleine largeur : jusqu'à 2x sur un écran large.
 const twistImg = parfum?.imageTwist
-  ? urlForImage(parfum.imageTwist as any).width(1600).url()
-  : (gallery[1]?.src ?? gallery[0]?.src ?? null);
+  ? responsiveImage(parfum.imageTwist as any, {
+      widths: [768, 1280, 1800, 2400, 3000],
+      aspect: 1296 / 560,
+    })
+  : (editorialImgs[1] ?? editorialImgs[0] ?? null);
 
 const perfumerWord = parfum?.perfumerWord ?? null;
-const perfumerPhotoUrl = parfum?.perfumerPhoto
-  ? urlForImage(parfum.perfumerPhoto as any).width(1000).url()
+const perfumerPhoto = parfum?.perfumerPhoto
+  ? responsiveImage(parfum.perfumerPhoto as any, {
+      widths: [640, 960, 1280, 1600],
+      aspect: 816 / 560,
+    })
   : null;
 
 /*
@@ -165,9 +179,16 @@ const perfumerPhotoUrl = parfum?.perfumerPhoto
  * On prend l'image de la note-clé (la première de la liste, celle affichée en
  * gras) ; si elle n'en a pas, on prend la première note qui en a une.
  */
-const levelImage = (notes: { image?: unknown }[] | undefined): string | null => {
+const levelImage = (notes: { image?: unknown }[] | undefined) => {
   const withImage = (notes ?? []).find((n) => n.image);
-  return withImage ? urlForImage(withImage.image as any).width(700).height(860).url() : null;
+  // Colonne = 33vw en desktop (480px à 1440, ~850px sur un 2560), 100vw en
+  // mobile ; on double pour la densité 2x. Pas de recadrage imposé ici : la
+  // colonne a une hauteur fixe et une largeur fluide, donc aucun ratio unique
+  // ne convient — on garde les proportions d'origine et c'est `object-fit:
+  // cover` qui recadre, ce qui préserve le maximum de pixels.
+  return withImage
+    ? responsiveImage(withImage.image as any, { widths: [480, 720, 960, 1440, 1920] })
+    : null;
 };
 
 const scentLevels = [
@@ -194,8 +215,10 @@ const related = products
       subtitle: inspiredMap[p.handle] ? `${t("product.twistOf")} ${inspiredMap[p.handle]}` : null,
       price: formatPrice(price.amount, price.currencyCode),
       img: recoImg?.main
-        ? urlForImage(recoImg.main as any).width(700).height(860).url()
-        : (p.featuredImage?.url ?? null),
+        ? responsiveImage(recoImg.main as any, { widths: [320, 480, 640, 860], aspect: 287 / 352 })
+        : p.featuredImage?.url
+          ? { src: p.featuredImage.url, srcset: "" }
+          : null,
       href: localePath(lang, `/parfums/${p.handle}`),
       badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
     };
@@ -214,7 +237,11 @@ const discoveryCandidates = coffretContent
       handle: sp.handle,
       titre: c.titre ?? sp.title,
       description: c.description,
-      img: c.image ? urlForImage(c.image as any).width(1200).url() : (sp.featuredImage?.url ?? null),
+      img: c.image
+        ? responsiveImage(c.image as any, { widths: [640, 960, 1280, 1600], aspect: 816 / 560 })
+        : sp.featuredImage?.url
+          ? { src: sp.featuredImage.url, srcset: "" }
+          : null,
       price: formatPrice(v.price.amount, v.price.currencyCode),
       href: localePath(lang, `/coffrets/${sp.handle}`),
     };
@@ -275,7 +302,7 @@ const discovery =
 
   {specificTwist && <TwistSection title={t("product.specificTwist")} text={specificTwist} img={twistImg} />}
 
-  {perfumerWord && <PerfumerWord title={t("product.perfumerWord")} quote={perfumerWord} img={perfumerPhotoUrl} />}
+  {perfumerWord && <PerfumerWord title={t("product.perfumerWord")} quote={perfumerWord} img={perfumerPhoto} />}
 
   <Reassurance items={reassurances} />
 

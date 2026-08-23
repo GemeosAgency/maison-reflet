@@ -3,10 +3,12 @@
  * « Perfumer's word » : image à gauche, citation à droite.
  * Image = perfumerPhoto (Sanity), citation = perfumerWord (Sanity).
  */
+import type { ResponsiveImage } from "../../lib/sanity";
+
 interface Props {
   title: string;
   quote: string;
-  img: string | null;
+  img: ResponsiveImage | null;
 }
 
 const { title, quote, img } = Astro.props;
@@ -14,7 +16,18 @@ const { title, quote, img } = Astro.props;
 
 <section class="pword">
   <div class="pword-img">
-    {img && <img src={img} alt="" loading="lazy" />}
+    {
+      img && (
+        <img
+          src={img.src}
+          srcset={img.srcset}
+          sizes="(max-width: 900px) 100vw, 56vw"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+      )
+    }
   </div>
   <div class="pword-text">
     <h2>{title}</h2>
