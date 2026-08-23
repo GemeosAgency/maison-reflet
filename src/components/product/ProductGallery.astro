@@ -1,0 +1,60 @@
+---
+/**
+ * Galerie de la fiche produit : images empilées verticalement (desktop),
+ * carrousel horizontal à snap sur mobile. Les images viennent de Sanity
+ * (imagesEditoriales) avec repli sur les photos Shopify — voir la page.
+ */
+interface Props {
+  images: { src: string; alt: string }[];
+}
+
+const { images } = Astro.props;
+---
+
+<div class="pgallery">
+  {
+    images.map((im, i) => (
+      <div class="pgallery-shot">
+        <img
+          src={im.src}
+          alt={im.alt}
+          loading={i === 0 ? "eager" : "lazy"}
+          fetchpriority={i === 0 ? "high" : undefined}
+          decoding="async"
+        />
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .pgallery {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .pgallery-shot {
+    aspect-ratio: 720 / 896;
+    background: var(--sand);
+    overflow: hidden;
+  }
+  .pgallery-shot img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  @media (max-width: 900px) {
+    .pgallery {
+      flex-direction: row;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+    .pgallery-shot {
+      flex: 0 0 100%;
+      scroll-snap-align: start;
+      aspect-ratio: 4 / 5;
+    }
+  }
+</style>

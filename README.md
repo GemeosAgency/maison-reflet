@@ -153,3 +153,33 @@ ne charge pas et **rien** ne remonte. Le site route donc les événements commer
 
 Les commandes (Placed Order, etc.) sont déjà en server-to-server via
 l'intégration Shopify ↔ Klaviyo native — rien à faire côté site.
+
+## Fiche produit v2 (refonte design, août 2026)
+
+La page produit est assemblée à partir de composants dédiés (`src/components/product/`) :
+
+| Section | Composant | Contenu piloté depuis Sanity (type `parfum`) |
+|---|---|---|
+| Galerie | `ProductGallery.astro` | `imagesEditoriales` (repli : images Shopify) |
+| Panneau d'achat | `ProductInfoPanel.astro` | `description`, `familles`, `intensite`, `sillage`, notes (accordéon) |
+| Scent Notes | `ScentNotes.astro` | `notesTete/Coeur/Fond` + `imageNotesTete/Coeur/Fond` |
+| The Specific Twist | `TwistSection.astro` | `specificTwist` + `imageTwist` |
+| Perfumer's word | `PerfumerWord.astro` | `perfumerWord` + `perfumerPhoto` |
+| Réassurance | `Reassurance.astro` | `reassurances` (références) |
+| You may also like | `ProductTile.astro` | `imageRecommandation`, `inspiredBy`, `bestSeller` |
+| Discovery Set | `DiscoverySetBanner.astro` | type `coffret` (handle contenant `sample`/`discovery`) |
+| FAQ | `Faq.astro` | `faqs` (références) |
+
+Chaque section se masque automatiquement si son contenu n'est pas rempli — on
+peut donc publier une fiche incomplète sans casser la page.
+
+**Champs ajoutés au schéma `parfum` :** `familles` (texte libre traduisible,
+remplace le menu `familleOlfactive`), `intensite` et `sillage` (1–5, rendus en
+jauge 5 segments), `bestSeller` (badge sur les cartes), `imageNotesTete/Coeur/Fond`,
+`imageTwist`. La **première note** de chaque niveau est la note-clé : elle est
+affichée en gras dans Scent Notes.
+
+**Tokens de couleur** (`Layout.astro`, `:root`) : `--ink` `#150e0a`,
+`--bg` `#f1eee9`, `--paper` `#f7f5f2`, `--sand` `#e7dfd0`, `--peach` `#efc5a9`,
+`--rose` `#812538`. `--cream`/`--cream-2` sont conservés comme alias le temps de
+refondre les autres pages.

@@ -1,0 +1,85 @@
+---
+/**
+ * Carte produit v2 (design d'août 2026) : image au ratio fixe, badge
+ * optionnel (« Best seller »), infos SOUS l'image (nom, twist, prix).
+ * Utilisée par « You may also like » sur la fiche produit — remplacera
+ * progressivement ProductCard (survol) sur le catalogue et la home au fil
+ * de leurs refontes.
+ */
+interface Props {
+  name: string;
+  subtitle?: string | null;
+  price: string;
+  img: string | null;
+  href: string;
+  badge?: string | null;
+}
+
+const { name, subtitle, price, img, href, badge } = Astro.props;
+---
+
+<a class="ptile" href={href}>
+  <div class="ptile-media">
+    {img && <img src={img} alt={name} loading="lazy" />}
+    {badge && <span class="ptile-badge">{badge}</span>}
+  </div>
+  <div class="ptile-meta">
+    <h3>{name}</h3>
+    {subtitle && <p class="ptile-subtitle">{subtitle}</p>}
+    <p class="ptile-price">{price}</p>
+  </div>
+</a>
+
+<style>
+  .ptile {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .ptile-media {
+    position: relative;
+    aspect-ratio: 287 / 352;
+    background: var(--sand);
+    overflow: hidden;
+  }
+  .ptile-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+  }
+  .ptile:hover .ptile-media img { transform: scale(1.03); }
+  .ptile-badge {
+    position: absolute;
+    top: 0;
+    inset-inline-start: 0;
+    padding: 11px 12px;
+    background: var(--peach);
+    color: var(--rose);
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+  .ptile-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px;
+  }
+  .ptile-meta h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .ptile-subtitle,
+  .ptile-price {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+</style>

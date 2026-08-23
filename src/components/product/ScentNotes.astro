@@ -1,0 +1,109 @@
+---
+/**
+ * Section « Scent Notes » : 3 colonnes plein écran (Tête / Cœur / Fond) sur
+ * images de fond, notes listées en bas — la PREMIÈRE note de chaque niveau
+ * est la note-clé, affichée en gras (convention documentée dans le schéma
+ * Sanity). Une colonne sans notes ni image est masquée.
+ */
+interface Level {
+  label: string;
+  notes: string[];
+  img: string | null;
+}
+
+interface Props {
+  title: string;
+  levels: Level[];
+}
+
+const { title, levels } = Astro.props;
+const visible = levels.filter((l) => l.notes.length > 0 || l.img);
+---
+
+{
+  visible.length > 0 && (
+    <section class="snotes">
+      <h2>{title}</h2>
+      <div class="snotes-grid full-bleed">
+        {visible.map((l) => (
+          <div class="snotes-col">
+            {l.img && <img class="snotes-img" src={l.img} alt="" loading="lazy" />}
+            <span class="snotes-level">{l.label}</span>
+            <p class="snotes-list">
+              {l.notes.map((n, i) => (
+                <span class:list={["snotes-note", { "is-key": i === 0 }]}>
+                  {n}
+                  {i < l.notes.length - 1 ? "," : ""}
+                </span>
+              ))}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .snotes {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .snotes h2 {
+    margin: 0;
+    padding: 112px var(--gutter-x) 40px;
+    font-size: 32px;
+    font-weight: 500;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .snotes-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    height: 560px;
+  }
+  .snotes-col {
+    position: relative;
+    overflow: hidden;
+    background: var(--sand);
+    padding: 32px;
+  }
+  .snotes-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .snotes-level {
+    position: relative;
+    z-index: 1;
+    font-size: 18px;
+    font-weight: 500;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .snotes-list {
+    position: absolute;
+    z-index: 1;
+    inset-inline-start: 32px;
+    bottom: 32px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    letter-spacing: 0.84px;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .snotes-note.is-key { font-weight: 700; }
+
+  @media (max-width: 900px) {
+    .snotes h2 { padding: 56px var(--gutter-x) 24px; font-size: 26px; }
+    .snotes-grid { grid-template-columns: 1fr; height: auto; }
+    .snotes-col { min-height: 360px; }
+  }
+</style>

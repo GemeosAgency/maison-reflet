@@ -109,9 +109,17 @@ export type ParfumContent = {
   imagePyramide: unknown | null;
   blocs: BlocEditorial[];
   familleOlfactive: string | null;
+  familles: string | null;
+  intensite: number | null;
+  sillage: number | null;
+  bestSeller: boolean | null;
   parfumeur: string | null;
   couleurSignature: string | null;
   notes: { tete: NoteCard[]; coeur: NoteCard[]; fond: NoteCard[] };
+  imageNotesTete: unknown | null;
+  imageNotesCoeur: unknown | null;
+  imageNotesFond: unknown | null;
+  imageTwist: unknown | null;
   images: { _key: string; asset: unknown; alt: string | null }[];
   reassurances: ReassuranceItem[];
   reassurancesCta: ReassuranceItem[];
@@ -141,6 +149,10 @@ export async function getParfumContent(
       imageAGauche
     },
     familleOlfactive,
+    "familles": coalesce(familles.${l}, familles.fr),
+    intensite,
+    sillage,
+    bestSeller,
     parfumeur,
     couleurSignature,
     "notes": {
@@ -148,6 +160,10 @@ export async function getParfumContent(
       "coeur": notesCoeur${noteCards},
       "fond": notesFond${noteCards}
     },
+    imageNotesTete,
+    imageNotesCoeur,
+    imageNotesFond,
+    imageTwist,
     "images": imagesEditoriales[]{ _key, asset, "alt": coalesce(alt.${l}, alt.fr) },
     "reassurances": reassurances[]->{
       icone,
@@ -188,6 +204,14 @@ export async function getInspiredByMap(): Promise<Record<string, string>> {
     `*[_type == "parfum" && defined(inspiredBy)]{ shopifyHandle, inspiredBy }`
   );
   return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.inspiredBy]));
+}
+
+/** Map handle -> badge "best seller" (cartes produit). */
+export async function getBestSellerMap(): Promise<Record<string, boolean>> {
+  const rows = await sanityClient.fetch<{ shopifyHandle: string }[]>(
+    `*[_type == "parfum" && bestSeller == true]{ shopifyHandle }`
+  );
+  return Object.fromEntries(rows.map((r) => [r.shopifyHandle, true]));
 }
 
 export type RecoImages = { main: unknown | null; hover: unknown | null };

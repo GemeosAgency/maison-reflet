@@ -322,7 +322,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     height: 48px;
     padding: 0 20px;
     border-radius: 999px;
-    background: #e9dac9;
+    background: var(--sand);
     color: var(--ink);
     font-size: 16px;
     font-weight: 500;
@@ -350,7 +350,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     flex-direction: column;
     gap: 32px;
     padding-bottom: 56px;
-    color: #0a1215;
+    color: var(--ink);
   }
   .story-text h2 { margin: 0; font-size: clamp(26px, 2.22vw, 38px); font-weight: 500; text-transform: uppercase; line-height: 1.2; }
   .story-copy { display: flex; flex-direction: column; gap: 12px; max-width: 26rem; }
@@ -376,7 +376,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
   .reviews-list { display: flex; flex-direction: column; }
   .review {
     display: flex; flex-direction: column; gap: 12px;
-    padding: 24px 0; border-top: 1px solid rgba(31, 31, 31, 0.12);
+    padding: 24px 0; border-top: 1px solid rgba(21, 14, 10, 0.12);
   }
   .review-head { display: flex; flex-direction: column; gap: 8px; }
   .review-author { margin: 0; font-size: 18px; font-weight: 500; }
@@ -390,7 +390,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     padding: 56px 64px 40px;
   }
   .pillars-head h2 { margin: 0; font-size: clamp(26px, 2.22vw, 38px); font-weight: 500; text-transform: uppercase; }
-  .pillars-head p { margin: 0; font-size: 18px; color: #0a1215; }
+  .pillars-head p { margin: 0; font-size: 18px; color: var(--ink); }
   /* Piliers — ratio Figma 1440×560 ; image en <img loading="lazy"> (et non en
      background CSS) pour ne pas peser sur le chargement initial : la section
      est sous la ligne de flottaison. */

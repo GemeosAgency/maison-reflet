@@ -35,6 +35,9 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
 
 const navLinks = [
   { href: localePath(lang, "/parfums"), label: t("nav.perfumes") },
+  // "Discovery" pointe vers la page du coffret découverte — handle Shopify
+  // du Discovery Set (à ajuster si le produit est renommé côté Shopify).
+  { href: localePath(lang, "/coffrets/sample-box"), label: t("nav.discovery") },
   { href: localePath(lang, "/maison"), label: t("nav.maison") },
 ];
 ---
@@ -112,7 +115,20 @@ const navLinks = [
         font-display: swap;
       }
       :root {
-        --rose: #812538; --ink: #1f1f1f; --cream: #eee3d6; --cream-2: #faf9ee;
+        /*
+         * Palette v2 (refonte du design, août 2026) : fond plus neutre, encre
+         * brun-noir plus profonde, deux surfaces claires. Les anciens noms
+         * --cream/--cream-2 restent des alias vers les nouvelles valeurs pour
+         * ne pas casser les usages existants — à résorber au fil des refontes.
+         */
+        --rose: #812538;
+        --ink: #150e0a;
+        --bg: #f1eee9;
+        --paper: #f7f5f2;
+        --sand: #e7dfd0;
+        --peach: #efc5a9;
+        --cream: var(--bg);
+        --cream-2: var(--paper);
         /*
          * Gouttière horizontale partagée par tout le contenu "lisible" (texte
          * de héros, titres de section, réassurance…), y compris à l'intérieur
@@ -187,8 +203,8 @@ const navLinks = [
           <img src="/brand/chevron.svg" alt="" width="8" height="8" class="chev" />
         </button>
         <div class="icons">
-          <img src="/brand/search.svg" alt="Search" width="20" height="20" />
-          <img src="/brand/account.svg" alt="Account" width="20" height="20" />
+          <img class="icon-desktop" src="/brand/search.svg" alt="Search" width="20" height="20" />
+          <img class="icon-desktop" src="/brand/account.svg" alt="Account" width="20" height="20" />
           <a href={localePath(lang, "/panier")} class="bag" aria-label={t("nav.panier")} data-cart-open-trigger>
             <img src="/brand/bag.svg" alt="" width="20" height="20" />
             <span data-cart-count class="cart-count"></span>
@@ -357,19 +373,19 @@ const navLinks = [
         margin: 0; font-size: 16px; font-weight: 500; text-transform: uppercase; color: var(--cream);
       }
       .footer-col-links { display: flex; flex-direction: column; gap: 8px; }
-      .footer-col-links a { font-size: 16px; color: rgba(238, 227, 214, 0.56); }
+      .footer-col-links a { font-size: 16px; color: rgba(241, 238, 233, 0.56); }
       .footer-col-links a:hover { opacity: 0.8; }
       .footer-logo { display: block; margin-top: auto; padding-top: 32px; }
       .footer-logo img { height: 28px; width: auto; filter: brightness(0) invert(1); }
 
-      .footer-signup-text { margin: 0; font-size: 16px; line-height: 1.24; color: rgba(238, 227, 214, 0.8); }
+      .footer-signup-text { margin: 0; font-size: 16px; line-height: 1.24; color: rgba(241, 238, 233, 0.8); }
       .footer-signup-form { display: flex; flex-direction: column; gap: 12px; }
       .footer-signup-form input {
         height: 48px; padding: 8px 24px; border-radius: 8px;
-        border: 1px solid rgba(233, 218, 201, 0.12); background: rgba(233, 218, 201, 0.08);
+        border: 1px solid rgba(231, 223, 208, 0.12); background: rgba(231, 223, 208, 0.08);
         color: var(--cream); font: inherit; font-size: 16px;
       }
-      .footer-signup-form input::placeholder { color: rgba(233, 218, 201, 0.8); }
+      .footer-signup-form input::placeholder { color: rgba(231, 223, 208, 0.8); }
       .footer-signup-form button {
         height: 48px; border: 0; border-radius: 999px; background: var(--rose); color: var(--cream);
         font: inherit; font-size: 16px; font-weight: 500; cursor: pointer; transition: opacity 0.15s;
@@ -377,14 +393,14 @@ const navLinks = [
       .footer-signup-form button:hover { opacity: 0.9; }
       .footer-signup-form button:disabled { opacity: 0.6; }
       .footer-signup-msg { margin: -4px 0 0; min-height: 1em; font-size: 14px; color: var(--cream); }
-      .footer-signup-disclaimer { margin: 0; font-size: 12px; line-height: 1.24; color: rgba(238, 227, 214, 0.56); }
+      .footer-signup-disclaimer { margin: 0; font-size: 12px; line-height: 1.24; color: rgba(241, 238, 233, 0.56); }
 
       .footer-bottom {
         max-width: 1800px; margin: 0 auto;
         display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
         padding: 24px 40px; font-size: 14px;
       }
-      .footer-copyright { margin: 0; color: rgba(233, 218, 201, 0.56); }
+      .footer-copyright { margin: 0; color: rgba(231, 223, 208, 0.56); }
       .footer-lang { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .footer-lang > span { opacity: 0.56; }
       .lang-switch { list-style: none; display: flex; gap: 1rem; margin: 0; padding: 0; }
@@ -392,8 +408,16 @@ const navLinks = [
       .lang-switch a[aria-current="true"] { opacity: 1; text-decoration: underline; }
 
       @media (max-width: 720px) {
-        .site-header { padding: 0 20px; }
+        /* Nav masquée => .site-actions devient l'unique enfant en flux :
+           on le cale à droite pour laisser le logo centré respirer. */
+        .site-header { padding: 0 20px; justify-content: flex-end; }
         .site-nav { display: none; }
+        /* Le sélecteur de devise et les icônes placeholder (recherche, compte)
+           chevauchent le logo centré sur petit écran — masqués en attendant le
+           menu mobile (burger) de la refonte. Seul le panier reste. */
+        .currency { display: none; }
+        .icon-desktop { display: none; }
+        .site-logo img { height: 22px; }
         .promo-banner p { padding: 10.5px 20px; font-size: 12px; }
       }
       @media (max-width: 900px) {
