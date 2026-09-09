@@ -206,9 +206,10 @@ const perfumerPhoto = parfum?.perfumerPhoto
  * caramel sous un « Jasmin Sambac » en gras. L'index est calculé après le
  * filtrage des notes sans nom, sinon il ne correspondrait plus à l'affichage.
  *
- * Largeurs : la colonne fait un tiers d'une bande plafonnée à 1440px, donc
- * 480px au maximum — 960 couvre la densité 2x, et 1120 est la largeur native
- * des photos de la bibliothèque (dernier palier utile).
+ * Largeurs : la colonne fait un tiers du container (--page-max, 1800px), donc
+ * 600px au maximum. 1120 est la largeur native des photos de la bibliothèque
+ * et donc le dernier palier utile — au-delà le CDN n'aurait plus rien à
+ * servir.
  */
 const scentLevel = (label: string, notes: { nom: string | null; image?: unknown }[] | undefined) => {
   const named = (notes ?? []).filter((n) => n.nom);
@@ -430,7 +431,7 @@ const productJsonLd = {
     related.length > 0 && (
       <section class="related">
         <h2>{t("product.related")}</h2>
-        <div class="related-grid full-bleed">
+        <div class="related-grid media-band">
           {related.map((p) => (
             <ProductTile
               name={p.name}

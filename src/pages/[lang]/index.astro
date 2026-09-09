@@ -251,10 +251,10 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
      px/vh écraserait le ratio dès qu'on dépasse une certaine largeur, ce
      qu'on ne veut justement pas ici). Plancher pour la lisibilité mobile.
      .hero = pur canvas full-bleed. .hero-inner porte le plafond de largeur
-     (1800px, comme <main>) : même centré, le texte doit rester dans la même
+     (--page-max, comme <main>) : même centré, le texte doit rester dans la même
      colonne de contenu que le reste du site, pas juste centré dans les 100vw
      du canvas — sinon toute la logique de grille se désynchronise dès qu'on
-     dépasse 1800px de large. */
+     dépasse --page-max de large. */
   .hero {
     position: relative;
     aspect-ratio: 2 / 1;
@@ -276,7 +276,7 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
   .hero-inner {
     position: relative;
     z-index: 2;
-    max-width: 1800px;
+    max-width: var(--page-max);
     height: 100%;
     margin: 0 auto;
     display: flex;

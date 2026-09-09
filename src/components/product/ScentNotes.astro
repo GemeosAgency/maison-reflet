@@ -12,6 +12,10 @@
  *    560px et une largeur fluide, le ratio se cassait dès qu'on quittait 1440
  *    et `object-fit: cover` rognait le sujet.
  *
+ *    La bande occupe tout le container --page-max, comme les autres sections,
+ *    pour que les bords s'alignent verticalement d'un bout à l'autre de la
+ *    page.
+ *
  * 2. La note en gras est CELLE DONT LA PHOTO EST AFFICHÉE (`keyIndex`), pas la
  *    première de la liste. Toutes les matières n'ont pas encore de photo dans
  *    Sanity : mettre la première en gras affichait du caramel sous un
@@ -48,9 +52,9 @@ const visible = levels.filter((l) => l.notes.length > 0 || l.img);
                 class="snotes-img"
                 src={l.img.src}
                 srcset={l.img.srcset}
-                /* Colonne = un tiers de la bande, elle-même plafonnée à
-                   --band-max (1440px) : jamais plus de 480px de large. */
-                sizes="(max-width: 900px) 100vw, min(33vw, 480px)"
+                /* Colonne = un tiers du container --page-max (1800px), donc
+                   600px au plus en desktop. */
+                sizes="(max-width: 720px) 100vw, (max-width: 1100px) 50vw, min(33vw, 600px)"
                 alt=""
                 loading="lazy"
                 decoding="async"

@@ -225,17 +225,20 @@ const navLinks = [
         --cream-2: var(--paper);
 
         /*
-         * Bandes de médias (triptyques « Scent Notes », piliers).
+         * --page-max : LE container du site. Un seul plafond, partagé par
+         * <main>, le footer, la réassurance et les bandes de médias, pour que
+         * toutes les sections s'alignent sur les mêmes bords. Les sections
+         * "lisibles" se décalent en plus de --gutter-x à l'intérieur, comme
+         * dans la maquette où la bande d'images va bord à bord et le texte est
+         * rentré de 72px.
          *
-         * --band-max : largeur de la maquette. Au-delà, la bande est plafonnée
-         * plutôt qu'étirée (voir .media-band).
-         * --band-col : ratio d'une colonne du triptyque (478,67 x 560 dans le
+         * --band-col : ratio d'une colonne de triptyque (478,67 x 560 dans le
          * Figma). Les photos de matières de la bibliothèque Sanity font
          * 958 x 1120, soit le MÊME ratio à 0,07 % près : en respectant ce
          * ratio, la matière tient dans le cadre telle qu'elle a été shootée,
-         * sans recadrage.
+         * sans recadrage, à n'importe quelle largeur.
          */
-        --band-max: 1440px;
+        --page-max: 1800px;
         --band-col: 478.6667 / 560;
         /*
          * Gouttière horizontale partagée par tout le contenu "lisible" (texte
@@ -272,7 +275,7 @@ const navLinks = [
       img { display: block; max-width: 100%; }
 
       /*
-       * <main> est plafonné à 1800px (voir plus bas) pour garder les longs
+       * <main> est plafonné à --page-max (voir plus bas) pour garder les longs
        * paragraphes lisibles sur très grand écran. Mais certaines sections
        * (héros, grilles produits, bandeau réassurance…) sont conçues dans le
        * Figma pour toucher les bords du navigateur, quelle que soit sa largeur.
@@ -281,21 +284,21 @@ const navLinks = [
        */
       /*
        * !important nécessaire : ces sections définissent presque toutes leur
-       * propre `width: 100%` (relatif à leur parent capé à 1800px) dans le CSS
+       * propre `width: 100%` (relatif à leur parent capé à --page-max) dans le CSS
        * scopé Astro, dont la spécificité (boostée par l'attribut data-astro-cid)
        * l'emporterait sinon sur cette classe utilitaire globale.
        */
       .full-bleed { width: 100vw !important; margin-left: calc(50% - 50vw) !important; margin-right: calc(50% - 50vw) !important; }
 
       /*
-       * Bande de médias : bord à bord jusqu'à --band-max, PLAFONNÉE au-delà.
+       * Bande de médias : occupe toute la largeur du container --page-max.
        *
-       * Différence avec .full-bleed, qui s'étire indéfiniment : ces bandes sont
-       * des triptyques d'images à hauteur figée. Passé la largeur de maquette,
-       * les colonnes s'élargissaient sans grandir, le ratio se cassait et
-       * `object-fit: cover` rognait le sujet — sur un 2560 les matières se
-       * perdaient dans le cadre. Les colonnes portent aussi
-       * `aspect-ratio: var(--band-col)`, donc la hauteur suit la largeur.
+       * Différence avec .full-bleed, qui s'étire jusqu'au bord de l'écran :
+       * une media-band s'arrête au container --page-max, donc à la MÊME
+       * verticale que le reste de la page. Les colonnes portent
+       * `aspect-ratio: var(--band-col)`, donc la hauteur suit la largeur et le
+       * sujet n'est jamais rogné — c'est ce qui remplace l'ancienne hauteur
+       * figée de 560px.
        *
        * `100%` et non `100vw` : <main> n'a pas de padding, donc 100% vaut déjà
        * la largeur du viewport — sans compter la scrollbar, contrairement à
@@ -305,7 +308,7 @@ const navLinks = [
        * concernés ne définissent pas leur propre largeur. Si l'un le fait un
        * jour, sa règle scopée gagnera — à vérifier en même temps.
        */
-      .media-band { width: min(100%, var(--band-max)); margin-inline: auto; }
+      .media-band { width: min(100%, var(--page-max)); margin-inline: auto; }
     </style>
   </head>
   <body>
@@ -449,7 +452,7 @@ const navLinks = [
         align-items: center;
         justify-content: space-between;
         height: 80px;
-        max-width: 1800px;
+        max-width: var(--page-max);
         margin: 0 auto;
         padding: 0 40px;
         border-bottom: 0.8px solid rgba(0, 0, 0, 0.1);
@@ -482,11 +485,11 @@ const navLinks = [
       .icons { display: flex; gap: 16px; align-items: center; }
       .bag { position: relative; display: inline-flex; }
       .cart-count { font-size: 12px; margin-inline-start: 2px; }
-      main { min-height: 50vh; max-width: 1800px; margin: 0 auto; }
+      main { min-height: 50vh; max-width: var(--page-max); margin: 0 auto; }
 
       /* Footer (d'après le Figma) */
       .site-footer { background: var(--ink); color: var(--cream); }
-      .footer-top { max-width: 1800px; margin: 0 auto; display: flex; align-items: flex-start; padding: 40px 8px 32px 24px; }
+      .footer-top { max-width: var(--page-max); margin: 0 auto; display: flex; align-items: flex-start; padding: 40px 8px 32px 24px; }
       .footer-main { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; }
       .footer-crumbs {
         display: flex; align-items: center; gap: 12px; padding: 0 0 24px; font-size: 14px;
@@ -524,7 +527,7 @@ const navLinks = [
       .footer-signup-disclaimer { margin: 0; font-size: 12px; line-height: 1.24; color: rgba(241, 238, 233, 0.56); }
 
       .footer-bottom {
-        max-width: 1800px; margin: 0 auto;
+        max-width: var(--page-max); margin: 0 auto;
         display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
         padding: 24px 40px; font-size: 14px;
       }

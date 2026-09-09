@@ -108,7 +108,7 @@ const pillars = [
      fetchpriority> pour le LCP.
      .maison-hero = pur canvas full-bleed (juste l'image + le dégradé).
      .maison-hero-inner porte le positionnement (texte bas-gauche) et surtout
-     le plafond de largeur (1800px, comme <main>) : sans lui, le texte
+     le plafond de largeur (--page-max, comme <main>) : sans lui, le texte
      s'alignait sur le bord RÉEL de la fenêtre au lieu de la même colonne de
      contenu que le reste du site — flagrant sur les écrans très larges. */
   .maison-hero {
@@ -133,7 +133,7 @@ const pillars = [
   .maison-hero-inner {
     position: relative;
     z-index: 2;
-    max-width: 1800px;
+    max-width: var(--page-max);
     height: 100%;
     margin: 0 auto;
     display: flex;

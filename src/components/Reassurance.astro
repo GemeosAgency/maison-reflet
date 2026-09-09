@@ -36,7 +36,7 @@ const { items } = Astro.props;
 <style>
   /* .reassurance = simple canvas full-bleed (fond couleur bord à bord).
      .reassurance-inner = colonne de contenu plafonnée à la même largeur que
-     <main> (1800px) et centrée, pour que les items s'alignent avec le reste
+     <main> (--page-max) et centrée, pour que les items s'alignent avec le reste
      du site sur très grand écran au lieu de s'écarter jusqu'aux bords réels
      de la fenêtre (justify-content: space-between sur 100vw). */
   .reassurance { position: relative; background: var(--sand); overflow: hidden; }
@@ -56,7 +56,7 @@ const { items } = Astro.props;
     align-items: flex-start;
     justify-content: space-between;
     gap: 24px;
-    max-width: 1800px;
+    max-width: var(--page-max);
     margin: 0 auto;
     padding: 64px var(--gutter-x);
   }
