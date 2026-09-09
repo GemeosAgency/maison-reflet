@@ -22,6 +22,7 @@ import {
   getPrimaryVariant,
   getDisplayPrice,
   isCoffret,
+  isSampleVariantTitle,
   type ShopifyProduct,
 } from "../../../lib/shopify";
 import {
@@ -61,8 +62,15 @@ const inspiredMap = await getInspiredByMap();
 const recoImages = await getRecoImages();
 const bestSellerMap = await getBestSellerMap();
 
-// Galerie : images éditoriales Sanity (curées par parfum) → photos produit
-// Shopify → visuels de secours du design.
+// Galerie : la photo produit Shopify d'abord — c'est le rendu du flacon, la
+// référence commerciale, celle qu'on remplace quand le packaging change — puis
+// les images éditoriales Sanity en complément, puis les visuels de secours.
+//
+// Les deux sources sont CONCATÉNÉES. Avant, un `editorialImgs.length ? … : …`
+// faisait qu'une seule image éditoriale dans Sanity masquait toutes les photos
+// Shopify : on a renommé les 6 parfums et poussé de nouveaux rendus sans qu'ils
+// apparaissent jamais sur la fiche.
+//
 // Largeurs de la galerie : la colonne fait 50vw en desktop (720px à 1440,
 // jusqu'à ~900px sur un très grand écran) et 100vw en mobile — il faut donc
 // monter jusqu'au double pour rester net en densité 2x.
@@ -71,16 +79,26 @@ const editorialImgs = (parfum?.images ?? []).map((im) => ({
   ...responsiveImage(im as any, { widths: GALLERY_WIDTHS, aspect: 720 / 896 }),
   alt: im.alt ?? product.title,
 }));
+// Les variantes échantillon ont leur propre visuel (une vignette de 192 px, vue
+// dans le panier) : dans la galerie de la fiche il serait étiré et illisible.
+const sampleImageUrls = new Set(
+  product.variants.nodes
+    .filter((v) => isSampleVariantTitle(v.title))
+    .map((v) => v.image?.url)
+    .filter((u): u is string => Boolean(u))
+);
 // Images Shopify : URLs déjà servies par le CDN Shopify, pas de srcset ici.
-const shopifyImgs = [product.featuredImage?.url, ...product.images.nodes.map((n) => n.url)]
-  .filter((u): u is string => Boolean(u))
+// featuredImage figure aussi dans images.nodes, d'où le dédoublonnage.
+const shopifyImgs = [...new Set([product.featuredImage?.url, ...product.images.nodes.map((n) => n.url)])]
+  .filter((u): u is string => Boolean(u) && !sampleImageUrls.has(u))
   .map((src) => ({ src, srcset: "", alt: product.title }));
 const placeholderImgs = ["/brand/gallery1.jpg", "/brand/gallery2.jpg", "/brand/gallery3.jpg"].map((src) => ({
   src,
   srcset: "",
   alt: product.title,
 }));
-const gallery = editorialImgs.length ? editorialImgs : shopifyImgs.length ? shopifyImgs : placeholderImgs;
+const galleryImgs = [...shopifyImgs, ...editorialImgs];
+const gallery = galleryImgs.length ? galleryImgs : placeholderImgs;
 
 // ---------- Tracking ----------
 // "Viewed Product" Klaviyo : propriétés au format standard (flows browse
