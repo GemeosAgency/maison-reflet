@@ -27,19 +27,36 @@ import { createClient } from "@sanity/client";
 // soit 0,8554 — celui de la colonne Scent Notes). Omettre si on n'en a pas.
 // ---------------------------------------------------------------------------
 const MATIERES = [
-  // Bois Brouge
+  // Bois Brouge (11088:5462)
   { fr: "Poivre noir", en: "Black Pepper", famille: "Épicée", photo: "poivre-noir.jpg" },
   { fr: "Patchouli", en: "Patchouli", famille: "Boisée", photo: "patchouli.jpg" },
   { fr: "Vétiver", en: "Vetiver", famille: "Boisée" },
   { fr: "Cèdre", en: "Cedarwood", famille: "Boisée" },
   { fr: "Ambre gris", en: "Ambergris", famille: "Ambrée" },
-  // Melting Mango
+  // Melting Mango (11088:3146)
   { fr: "Mangue", en: "Mango", famille: "Autre", photo: "mangue.jpg" },
   { fr: "Jasmin absolu", en: "Jasmine Abs", famille: "Florale", photo: "jasmin-absolu.jpg" },
   { fr: "Mousse de chêne", en: "Oak Moss", famille: "Boisée", photo: "mousse-de-chene.jpg" },
   { fr: "Praline", en: "Praline", famille: "Autre" },
   { fr: "Noyau d'abricot", en: "Apricot Seed", famille: "Autre" },
   { fr: "Vétiver Haïti", en: "Vetiver Haiti", famille: "Boisée" },
+  // Ultra Cuir (11088:3736) — la photo de safran et celle de cuir viennent
+  // compléter deux matières déjà présentes mais sans visuel.
+  { fr: "Framboise", en: "Raspberry", famille: "Autre", photo: "framboise.jpg" },
+  { fr: "Baie rouge", en: "Red Berry", famille: "Autre" },
+  { fr: "Safran", en: "Saffron", famille: "Épicée", photo: "safran.jpg" },
+  { fr: "Cuir", en: "Leather", famille: "Autre", photo: "cuir.jpg" },
+  // Minuit Bourbon (11088:4318)
+  { fr: "Cardamome", en: "Cardamom", famille: "Épicée", photo: "cardamome.jpg" },
+  { fr: "Fleur d'oranger", en: "Orange Blossom", famille: "Florale", photo: "fleur-d-oranger.jpg" },
+  { fr: "Amande", en: "Almond", famille: "Autre" },
+  { fr: "Lavande", en: "Lavender", famille: "Aromatique" },
+  { fr: "Fève tonka", en: "Tonka Bean", famille: "Ambrée", photo: "feve-tonka.jpg" },
+  // New Oud (11088:4890)
+  { fr: "Fruit de la passion", en: "Passion Fruit", famille: "Autre", photo: "fruit-de-la-passion.jpg" },
+  { fr: "Rose de Taïf", en: "Rose", famille: "Florale", photo: "rose.jpg" },
+  { fr: "Oud", en: "Agarwood", famille: "Boisée", photo: "oud.jpg" },
+  // Fifth Season (11003:7059) : aucune matière à créer, tout existe déjà.
 ];
 
 // ---------------------------------------------------------------------------
@@ -51,18 +68,49 @@ const MATIERES = [
 // ---------------------------------------------------------------------------
 const PYRAMIDES = [
   {
-    // node 11088:5462
+    // 11088:5462 — TOP Black Pepper / Saffron / Bergamot,
+    // HEART Jasmine / Ambre Gris / Caramel, BASE Vetiver / Patchouli / Cedarwood
     handle: "bois-brouge",
     tete: ["Poivre noir", "Safran", "Bergamote de Calabre"],
     coeur: ["Jasmin Sambac", "Ambre gris", "Caramel"],
     fond: ["Vétiver", "Patchouli", "Cèdre"],
   },
   {
-    // node 11088:3146
+    // 11088:3146
     handle: "melting-mango",
     tete: ["Mangue", "Safran", "Orange"],
     coeur: ["Praline", "Noyau d'abricot", "Jasmin absolu"],
     fond: ["Mousse de chêne", "Patchouli", "Vétiver Haïti"],
+  },
+  {
+    // 11088:3736 — "Olibanum" = encens, "Orris" = iris : on réutilise les
+    // matières déjà en bibliothèque plutôt que d'ajouter des doublons.
+    handle: "ultra-cuir",
+    tete: ["Framboise", "Bergamote de Calabre", "Baie rouge"],
+    coeur: ["Encens", "Safran", "Iris"],
+    fond: ["Cèdre", "Cuir", "Patchouli"],
+  },
+  {
+    // 11088:4318
+    handle: "minuit-bourbon",
+    tete: ["Cardamome", "Bergamote de Calabre", "Cannelle de Ceylan"],
+    coeur: ["Fleur d'oranger", "Amande", "Lavande"],
+    fond: ["Fève tonka", "Vanille Bourbon", "Cuir"],
+  },
+  {
+    // 11088:4890 — "Agarwood" = oud. La maquette dit "Rose" ; on garde
+    // "Rose de Taïf", le terme de la bibliothèque, plutôt qu'un doublon.
+    handle: "new-oud",
+    tete: ["Fruit de la passion", "Safran", "Mandarin"],
+    coeur: ["Rose de Taïf", "Muguet", "Ambre"],
+    fond: ["Bois de santal", "Oud", "Musc blanc"],
+  },
+  {
+    // 11003:7059 — ce sont les notes qui étaient à tort sur Bois Brouge.
+    handle: "fifth-season",
+    tete: ["Mandarin", "Orange", "Fruits exotiques"],
+    coeur: ["Jasmin Sambac", "Caramel", "Muguet"],
+    fond: ["Vanille Bourbon", "Musc blanc", "Fève tonka"],
   },
 ];
 
