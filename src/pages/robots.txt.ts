@@ -1,15 +1,31 @@
 import type { APIRoute } from "astro";
 
-// Robots piloté par la même variable que le noindex du Layout :
-// pré-lancement (PUBLIC_ALLOW_INDEXING != "true") → on bloque tout crawl ;
-// au lancement, passer PUBLIC_ALLOW_INDEXING=true sur la prod.
-const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
+/**
+ * robots.txt généré (et non un fichier statique) parce que la règle dépend de
+ * l'environnement : staging doit rester fermé aux moteurs, la prod ouverte.
+ * Même drapeau que la balise <meta name="robots"> du Layout, pour qu'on ne
+ * puisse pas avoir un site en noindex mais un robots.txt permissif.
+ */
+export const GET: APIRoute = ({ site }) => {
+  const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
 
-export const GET: APIRoute = () => {
   const body = indexable
-    ? "User-agent: *\nAllow: /\n"
-    : "User-agent: *\nDisallow: /\n";
-  return new Response(body, {
+    ? [
+        "User-agent: *",
+        "Allow: /",
+        "",
+        // Le checkout et le panier n'ont rien à faire dans l'index.
+        "Disallow: /*/panier",
+        "",
+        site ? `Sitemap: ${new URL("sitemap-index.xml", site).href}` : "",
+      ]
+    : [
+        // Staging / preview : tout est fermé.
+        "User-agent: *",
+        "Disallow: /",
+      ];
+
+  return new Response(body.filter((l) => l !== "").join("\n") + "\n", {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 };

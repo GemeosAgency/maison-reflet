@@ -251,12 +251,52 @@ const discovery =
   discoveryCandidates.find((c) => /sample|discovery|decouverte|découverte/i.test(c.handle)) ??
   discoveryCandidates[0] ??
   null;
+
+// ---------- SEO ----------
+// Le bloc `seo` de Sanity (rempli au cas par cas dans le Studio) surcharge le
+// titre, la description et l'image de partage ; sinon on retombe sur le
+// contenu de la fiche.
+const seo = parfum?.seo ?? null;
+const seoTitle = seo?.metaTitle ?? product.title;
+const seoDescription = seo?.metaDescription ?? parfum?.accroche ?? product.description;
+// Image de partage : réglage SEO > 1re image de la galerie > photo Shopify.
+const shareImage = seo?.ogImage
+  ? urlForImage(seo.ogImage as any).width(1200).height(630).fit("crop").url()
+  : (gallery[0]?.src ?? null);
+
+/*
+ * JSON-LD Product : c'est lui qui donne à Google le prix, la devise et la
+ * disponibilité affichés directement dans les résultats de recherche.
+ * `offers.url` doit être l'URL canonique de la page produit.
+ */
+const productJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: product.title,
+  description: seoDescription ?? undefined,
+  image: gallery.map((g) => g.src).slice(0, 4),
+  brand: { "@type": "Brand", name: "Maison Reflet" },
+  sku: variant.sku ?? undefined,
+  ...(familles ? { category: familles } : {}),
+  offers: {
+    "@type": "Offer",
+    url: productUrl,
+    price: Number(variant.price.amount),
+    priceCurrency: variant.price.currencyCode,
+    availability: variant.availableForSale
+      ? "https://schema.org/InStock"
+      : "https://schema.org/OutOfStock",
+  },
+};
 ---
 
 <Layout
-  title={product.title}
-  description={parfum?.accroche ?? product.description}
+  title={seoTitle}
+  description={seoDescription}
   lang={lang}
+  ogImage={shareImage}
+  ogType="product"
+  jsonLd={[productJsonLd]}
   breadcrumbs={[
     { label: t("nav.home"), href: localePath(lang, "/") },
     { label: t("nav.perfumes"), href: localePath(lang, "/parfums") },

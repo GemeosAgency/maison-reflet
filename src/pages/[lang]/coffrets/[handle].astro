@@ -57,12 +57,37 @@ const metaViewContentData = {
   value: Number(variant.price.amount),
   currency: variant.price.currencyCode,
 };
+
+// JSON-LD Product : prix + disponibilité remontés dans les résultats Google
+// (voir le commentaire détaillé dans parfums/[handle].astro).
+const productJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: title,
+  description: description ?? undefined,
+  image: gallery.slice(0, 4),
+  brand: { "@type": "Brand", name: "Maison Reflet" },
+  sku: variant.sku ?? undefined,
+  category: "Coffret",
+  offers: {
+    "@type": "Offer",
+    url: productUrl,
+    price: Number(variant.price.amount),
+    priceCurrency: variant.price.currencyCode,
+    availability: variant.availableForSale
+      ? "https://schema.org/InStock"
+      : "https://schema.org/OutOfStock",
+  },
+};
 ---
 
 <Layout
   title={title}
   description={description ?? undefined}
   lang={lang}
+  ogImage={gallery[0] ?? null}
+  ogType="product"
+  jsonLd={[productJsonLd]}
   breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: title }]}
 >
   <div class="coffret">

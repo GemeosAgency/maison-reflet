@@ -1,5 +1,13 @@
 ---
-import { type Locale, locales, localeNames, localePath, isRtl, useTranslations } from "../i18n";
+import {
+  type Locale,
+  locales,
+  localeNames,
+  localePath,
+  isRtl,
+  fallbackLocale,
+  useTranslations,
+} from "../i18n";
 import CartDrawer from "../components/CartDrawer.astro";
 
 type Breadcrumb = { label: string; href?: string };
@@ -9,6 +17,12 @@ interface Props {
   description?: string;
   lang: Locale;
   breadcrumbs?: Breadcrumb[];
+  /** Image de partage (URL absolue ou chemin racine). Repli sur le visuel de marque. */
+  ogImage?: string | null;
+  /** "product" pour une fiche produit/coffret — sinon "website". */
+  ogType?: "website" | "product";
+  /** JSON-LD à injecter (Product, BreadcrumbList…), déjà sérialisé par la page. */
+  jsonLd?: unknown[];
 }
 
 const {
@@ -16,11 +30,57 @@ const {
   description = "Maison Reflet — Parfums franco-arabes",
   lang,
   breadcrumbs = [{ label: useTranslations(lang)("nav.home") }],
+  ogImage = null,
+  ogType = "website",
+  jsonLd = [],
 } = Astro.props;
 const t = useTranslations(lang);
 
 const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
 const rest = Astro.url.pathname.replace(/^\/(fr|ar|en)/, "") || "/";
+
+/*
+ * URLs absolues pour le référencement. Astro.site vient de la config `site`
+ * (alimentée par PUBLIC_SITE_URL par environnement) : indispensable car Google
+ * IGNORE un hreflang en URL relative — c'est ce qui rendait tout le dispositif
+ * FR/AR/EN invisible jusqu'ici. Repli sur Astro.url si `site` manque, pour ne
+ * jamais produire de balise cassée.
+ */
+const base = Astro.site ?? new URL(Astro.url.origin);
+const absolute = (path: string) => new URL(path, base).href;
+
+const canonical = absolute(Astro.url.pathname);
+const socialImage = absolute(ogImage ?? "/brand/logo-email.png");
+
+// og:locale attend une balise de type "fr_FR" et non "fr".
+const ogLocales: Record<Locale, string> = { fr: "fr_FR", ar: "ar_AE", en: "en_US" };
+
+const structuredData = [
+  // Présent sur toutes les pages : identité de la marque pour le Knowledge Graph.
+  {
+    "@context": "https://schema.org",
+    "@type": "Brand",
+    name: "Maison Reflet",
+    url: absolute(localePath(lang, "/")),
+    logo: absolute("/brand/logo-email.png"),
+  },
+  // Fil d'Ariane : repris tel quel par Google sous le titre du résultat.
+  ...(breadcrumbs.length > 1
+    ? [
+        {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: breadcrumbs.map((c, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: c.label,
+            ...(c.href ? { item: absolute(c.href) } : {}),
+          })),
+        },
+      ]
+    : []),
+  ...jsonLd,
+];
 
 // Tracking onsite Klaviyo. Chargé seulement si la clé publique (company ID)
 // est définie — chaque environnement peut donc pointer vers un compte
@@ -49,8 +109,28 @@ const navLinks = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     {!indexable && <meta name="robots" content="noindex, nofollow" />}
+    <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
+
+    <!-- Open Graph : sans ces balises, un lien partagé (WhatsApp, Instagram,
+         LinkedIn) s'affiche sans image ni titre soigné. -->
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content="Maison Reflet" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={socialImage} />
+    <meta property="og:locale" content={ogLocales[lang]} />
+    {
+      locales
+        .filter((loc) => loc !== lang)
+        .map((loc) => <meta property="og:locale:alternate" content={ogLocales[loc]} />)
+    }
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={socialImage} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -59,7 +139,21 @@ const navLinks = [
     />
     <link rel="preload" href="/fonts/ppneuemontreal-book.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/ppneuemontreal-medium.woff2" as="font" type="font/woff2" crossorigin />
-    {locales.map((loc) => <link rel="alternate" hreflang={loc} href={localePath(loc, rest)} />)}
+    {locales.map((loc) => <link rel="alternate" hreflang={loc} href={absolute(localePath(loc, rest))} />)}
+    <!-- x-default : version servie à un visiteur dont la langue ne correspond
+         à aucune des nôtres. C'est exactement ce que fait detectLocale() —
+         repli sur fallbackLocale — donc on pointe la même version. Surtout,
+         PAS le chemin sans préfixe de langue : hors "/", il n'existe pas. -->
+    <link rel="alternate" hreflang="x-default" href={absolute(localePath(fallbackLocale, rest))} />
+    {
+      structuredData.map((data) => (
+        <script
+          type="application/ld+json"
+          is:inline
+          set:html={JSON.stringify(data).replace(/</g, "\\u003c")}
+        />
+      ))
+    }
     {
       klaviyoCompanyId && (
         <script

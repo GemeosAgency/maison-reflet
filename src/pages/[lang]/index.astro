@@ -89,7 +89,12 @@ const reviewPlaceholder = {
 const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quote: reviewPlaceholder }));
 ---
 
-<Layout title={settings?.brandName ?? "Maison Reflet"} description={baseline} lang={lang}>
+<Layout
+  title={settings?.brandName ?? "Maison Reflet"}
+  description={baseline}
+  lang={lang}
+  ogImage="/home/hero.jpg"
+>
   <section class="hero full-bleed">
     <!-- LCP : vraie balise img (fetchpriority) plutôt qu'un background CSS,
          que le navigateur ne peut ni prioriser ni précharger efficacement. -->

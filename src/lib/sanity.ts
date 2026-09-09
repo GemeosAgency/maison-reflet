@@ -174,6 +174,20 @@ export type FaqItem = {
   reponse: unknown[] | null;
 };
 
+/** Bloc SEO d'un document (titre/description surchargés + image de partage). */
+export type SeoFields = {
+  metaTitle: string | null;
+  metaDescription: string | null;
+  ogImage: unknown | null;
+};
+
+/** Projection GROQ du bloc `seo`, localisée — à interpoler dans une requête. */
+const seoProjection = (l: Locale) => `"seo": seo{
+    "metaTitle": coalesce(metaTitle.${l}, metaTitle.fr),
+    "metaDescription": coalesce(metaDescription.${l}, metaDescription.fr),
+    ogImage
+  }`;
+
 export type ParfumContent = {
   accroche: string | null;
   description: unknown[] | null;
@@ -197,6 +211,7 @@ export type ParfumContent = {
   reassurancesCta: ReassuranceItem[];
   ingredients: (string | null)[];
   faqs: FaqItem[];
+  seo: SeoFields | null;
 };
 
 /** Contenu éditorial d'un parfum dans une langue donnée (repli FR). */
@@ -246,12 +261,18 @@ export async function getParfumContent(
     "faqs": faqs[]->{
       "question": coalesce(question.${l}, question.fr),
       "reponse": coalesce(reponse.${l}, reponse.fr)
-    }
+    },
+    ${seoProjection(l)}
   }`;
   return sanityClient.fetch(query, { handle });
 }
 
-export type PageContent = { title: string | null; content: unknown[] | null; faqs: FaqItem[] };
+export type PageContent = {
+  title: string | null;
+  content: unknown[] | null;
+  faqs: FaqItem[];
+  seo: SeoFields | null;
+};
 
 /** Page de contenu libre (La Maison…) dans une langue donnée (repli FR). */
 export async function getPageBySlug(slug: string, locale: Locale): Promise<PageContent | null> {
@@ -262,7 +283,8 @@ export async function getPageBySlug(slug: string, locale: Locale): Promise<PageC
     "faqs": faqs[]->{
       "question": coalesce(question.${l}, question.fr),
       "reponse": coalesce(reponse.${l}, reponse.fr)
-    }
+    },
+    ${seoProjection(l)}
   }`;
   return sanityClient.fetch(query, { slug });
 }
