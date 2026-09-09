@@ -9,9 +9,13 @@
  *
  * Ce script fait deux choses :
  *
- * 1. imagesEditoriales — recopie les 4 photos de Bois Brouge sur les 5 autres
+ * 1. imagesEditoriales — recopie les photos de Bois Brouge sur les 5 autres
  *    parfums. C'est de l'habillage assumé : sur l'une d'elles l'étiquette
  *    "BOIS BROUGE" est lisible. À remplacer après le shooting.
+ *
+ *    Le jeu source contenait aussi un flacon étiqueté IMPERIAL ARMENIA, qui
+ *    n'avait rien à faire là ; il a été retiré des 6 fiches. Si tu remets des
+ *    photos dans Bois Brouge, vérifie l'étiquette avant de relancer.
  *
  * 2. imageRecommandation / imageRecommandationHover — vidées sur les 6. Elles
  *    alimentent les tuiles "You may also like" et étaient TOUTES de l'ancien
