@@ -58,7 +58,10 @@ const { title, text, img } = Astro.props;
     white-space: pre-line;
   }
   .twist-img {
-    height: 560px;
+    /* Ratio de la maquette (1296 x 560) plutôt qu'une hauteur figée : avec
+       560px fixes et une largeur fluide, l'image était étirée dès qu'on
+       quittait 1440px de viewport. */
+    aspect-ratio: 1296 / 560;
     border: 1px solid var(--ink);
     background: var(--sand);
     overflow: hidden;
@@ -74,6 +77,7 @@ const { title, text, img } = Astro.props;
     .twist-head { flex-direction: column; gap: 16px; }
     .twist-head h2 { font-size: 26px; max-width: none; }
     .twist-head p { font-size: 16px; }
-    .twist-img { height: 320px; }
+    /* En mobile, 2,31 donnerait une bande de 140px de haut : on resserre. */
+    .twist-img { aspect-ratio: 3 / 2; }
   }
 </style>

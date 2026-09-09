@@ -139,12 +139,6 @@ const metaViewContentData = {
 };
 
 // ---------- Contenu du panneau ----------
-const names = (arr: { nom: string | null }[] | undefined) =>
-  (arr ?? []).map((n) => n.nom).filter(Boolean) as string[];
-const tete = names(parfum?.notes.tete);
-const coeur = names(parfum?.notes.coeur);
-const fond = names(parfum?.notes.fond);
-
 const descriptionHtml =
   richTextToHtml(parfum?.description) ||
   (parfum?.accroche ? `<p>${parfum.accroche}</p>` : (product.descriptionHtml ?? ""));
@@ -200,28 +194,38 @@ const perfumerPhoto = parfum?.perfumerPhoto
   : null;
 
 /*
- * Visuel d'une colonne de la section « Scent Notes » : la photo vient de la
- * BIBLIOTHÈQUE de matières (champ Image du document "note"), pas de la fiche
- * parfum — une matière est photographiée une fois et réutilisée partout.
- * On prend l'image de la note-clé (la première de la liste, celle affichée en
- * gras) ; si elle n'en a pas, on prend la première note qui en a une.
+ * Une colonne de la section « Scent Notes ».
+ *
+ * La photo vient de la BIBLIOTHÈQUE de matières (champ Image du document
+ * "note"), pas de la fiche parfum — une matière est photographiée une fois et
+ * réutilisée partout.
+ *
+ * `keyIndex` est l'index, DANS LA LISTE AFFICHÉE, de la note dont la photo est
+ * montrée : c'est elle qui passe en gras. Toutes les matières n'ont pas encore
+ * de photo, et mettre en gras la première note de la liste affichait du
+ * caramel sous un « Jasmin Sambac » en gras. L'index est calculé après le
+ * filtrage des notes sans nom, sinon il ne correspondrait plus à l'affichage.
+ *
+ * Largeurs : la colonne fait un tiers d'une bande plafonnée à 1440px, donc
+ * 480px au maximum — 960 couvre la densité 2x, et 1120 est la largeur native
+ * des photos de la bibliothèque (dernier palier utile).
  */
-const levelImage = (notes: { image?: unknown }[] | undefined) => {
-  const withImage = (notes ?? []).find((n) => n.image);
-  // Colonne = 33vw en desktop (480px à 1440, ~850px sur un 2560), 100vw en
-  // mobile ; on double pour la densité 2x. Pas de recadrage imposé ici : la
-  // colonne a une hauteur fixe et une largeur fluide, donc aucun ratio unique
-  // ne convient — on garde les proportions d'origine et c'est `object-fit:
-  // cover` qui recadre, ce qui préserve le maximum de pixels.
-  return withImage
-    ? responsiveImage(withImage.image as any, { widths: [480, 720, 960, 1440, 1920] })
-    : null;
+const scentLevel = (label: string, notes: { nom: string | null; image?: unknown }[] | undefined) => {
+  const named = (notes ?? []).filter((n) => n.nom);
+  const keyIndex = named.findIndex((n) => n.image);
+  const key = keyIndex >= 0 ? named[keyIndex] : null;
+  return {
+    label,
+    notes: named.map((n) => n.nom as string),
+    keyIndex,
+    img: key ? responsiveImage(key.image as any, { widths: [320, 480, 640, 960, 1120] }) : null,
+  };
 };
 
 const scentLevels = [
-  { label: t("product.notes.tete"), notes: tete, img: levelImage(parfum?.notes.tete) },
-  { label: t("product.notes.coeur"), notes: coeur, img: levelImage(parfum?.notes.coeur) },
-  { label: t("product.notes.fond"), notes: fond, img: levelImage(parfum?.notes.fond) },
+  scentLevel(t("product.notes.tete"), parfum?.notes.tete),
+  scentLevel(t("product.notes.coeur"), parfum?.notes.coeur),
+  scentLevel(t("product.notes.fond"), parfum?.notes.fond),
 ];
 
 // Bandeau de réassurance : sélection/ordre gérés dans Sanity.
@@ -450,7 +454,7 @@ const productJsonLd = {
       </h2>
       <p>{t("home.pillars.subtitle")}</p>
     </div>
-    <div class="pillars-grid full-bleed">
+    <div class="pillars-grid media-band">
       <div class="pillar" style="background-image: url(/home/pillar-quality.jpg)">
         <h3>{t("home.pillars.quality.title")}</h3>
         <p>{t("home.pillars.quality.text")}</p>
@@ -604,10 +608,14 @@ const productJsonLd = {
   }
   .pillars-head h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
   .pillars-head p { margin: 0; font-size: 18px; }
-  .pillars-grid { display: flex; gap: 2px; height: 560px; }
+  /* Pas de `width` ici : c'est .media-band (globale) qui la fixe. La colonne
+     porte le ratio de la maquette plutôt qu'une hauteur figée — sinon au-delà
+     de 1440px elle s'élargissait sans grandir et le visuel était rogné. */
+  .pillars-grid { display: flex; gap: 2px; }
   .pillar {
     flex: 1 0 0;
     min-width: 0;
+    aspect-ratio: var(--band-col);
     position: relative;
     overflow: hidden;
     display: flex;
@@ -640,7 +648,12 @@ const productJsonLd = {
     .related-grid { grid-template-columns: repeat(2, 1fr); }
     .pillars-head { padding: 56px var(--gutter-x) 24px; }
     .pillars-head h2 { font-size: 26px; }
-    .pillars-grid { flex-direction: column; height: auto; }
-    .pillar { min-height: 360px; }
+    .pillars-grid { flex-direction: column; }
+    /* `flex: none` est indispensable : en flex-direction column, le
+       `flex: 1 0 0` du desktop s'applique à la HAUTEUR et écrase
+       l'aspect-ratio — les piliers s'effondraient à 48px de haut.
+       Et empilés en pleine largeur, le ratio de maquette donnerait des blocs
+       de 117vw de haut, d'où le 4/3 paysage. */
+    .pillar { flex: none; aspect-ratio: 4 / 3; padding: 24px; }
   }
 </style>

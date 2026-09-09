@@ -45,7 +45,9 @@ const { title, quote, img } = Astro.props;
   .pword-img {
     flex: 0 0 56%;
     max-width: 816px;
-    height: 560px;
+    /* Ratio de la maquette (816 x 560). Sous 816px de colonne, une hauteur
+       figée aurait écrasé le cadrage. */
+    aspect-ratio: 816 / 560;
     background: var(--sand);
     overflow: hidden;
   }
@@ -80,7 +82,8 @@ const { title, quote, img } = Astro.props;
 
   @media (max-width: 900px) {
     .pword { flex-direction: column; align-items: stretch; gap: 24px; padding-bottom: 40px; }
-    .pword-img { flex: none; max-width: none; height: 320px; }
+    /* Pleine largeur mobile : 1,457 serait trop haut, on passe en 3/2. */
+    .pword-img { flex: none; max-width: none; aspect-ratio: 3 / 2; }
     .pword-text { padding-bottom: 0; }
     .pword-text h2 { font-size: 26px; }
     .pword-text p { font-size: 16px; max-width: none; }

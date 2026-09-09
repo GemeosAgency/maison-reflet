@@ -223,6 +223,20 @@ const navLinks = [
         --peach: #efc5a9;
         --cream: var(--bg);
         --cream-2: var(--paper);
+
+        /*
+         * Bandes de médias (triptyques « Scent Notes », piliers).
+         *
+         * --band-max : largeur de la maquette. Au-delà, la bande est plafonnée
+         * plutôt qu'étirée (voir .media-band).
+         * --band-col : ratio d'une colonne du triptyque (478,67 x 560 dans le
+         * Figma). Les photos de matières de la bibliothèque Sanity font
+         * 958 x 1120, soit le MÊME ratio à 0,07 % près : en respectant ce
+         * ratio, la matière tient dans le cadre telle qu'elle a été shootée,
+         * sans recadrage.
+         */
+        --band-max: 1440px;
+        --band-col: 478.6667 / 560;
         /*
          * Gouttière horizontale partagée par tout le contenu "lisible" (texte
          * de héros, titres de section, réassurance…), y compris à l'intérieur
@@ -272,6 +286,26 @@ const navLinks = [
        * l'emporterait sinon sur cette classe utilitaire globale.
        */
       .full-bleed { width: 100vw !important; margin-left: calc(50% - 50vw) !important; margin-right: calc(50% - 50vw) !important; }
+
+      /*
+       * Bande de médias : bord à bord jusqu'à --band-max, PLAFONNÉE au-delà.
+       *
+       * Différence avec .full-bleed, qui s'étire indéfiniment : ces bandes sont
+       * des triptyques d'images à hauteur figée. Passé la largeur de maquette,
+       * les colonnes s'élargissaient sans grandir, le ratio se cassait et
+       * `object-fit: cover` rognait le sujet — sur un 2560 les matières se
+       * perdaient dans le cadre. Les colonnes portent aussi
+       * `aspect-ratio: var(--band-col)`, donc la hauteur suit la largeur.
+       *
+       * `100%` et non `100vw` : <main> n'a pas de padding, donc 100% vaut déjà
+       * la largeur du viewport — sans compter la scrollbar, contrairement à
+       * 100vw qui provoquerait un débordement horizontal.
+       *
+       * Pas de !important ici (contrairement à .full-bleed) : les composants
+       * concernés ne définissent pas leur propre largeur. Si l'un le fait un
+       * jour, sa règle scopée gagnera — à vérifier en même temps.
+       */
+      .media-band { width: min(100%, var(--band-max)); margin-inline: auto; }
     </style>
   </head>
   <body>
