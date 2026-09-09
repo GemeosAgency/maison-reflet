@@ -163,6 +163,7 @@ const FREE_SHIPPING_THRESHOLD = 400;
     error: t("cart.error"),
     inspiredBy: t("product.inspiredBy"),
     threshold: FREE_SHIPPING_THRESHOLD,
+    thumbWidth: THUMB_WIDTH,
   })}
 />
 
@@ -202,6 +203,7 @@ const FREE_SHIPPING_THRESHOLD = 400;
   );
   const I18N = JSON.parse(document.getElementById("cart-drawer-i18n")?.textContent ?? "{}");
   const THRESHOLD: number = I18N.threshold ?? 400;
+  const THUMB_WIDTH: number = I18N.thumbWidth ?? 240;
   const BUNDLE_TARGET = 3;
 
   const drawer = document.querySelector<HTMLElement>("[data-cart-drawer]");
@@ -255,6 +257,24 @@ const FREE_SHIPPING_THRESHOLD = 400;
     if (e.key === "Escape") closeDrawer();
   });
 
+  /**
+   * Borne la largeur d'une image du CDN Shopify.
+   *
+   * Les lignes de panier viennent de la Storefront API au runtime, pas du
+   * build : elles ne passent donc pas par shopifyImage() de lib/shopify.ts.
+   * Sans le paramètre `width`, le CDN sert le fichier d'origine — jusqu'à
+   * 7,4 Mo pour un rendu de flacon — dans une vignette de 120 px.
+   */
+  function sizedUrl(url: string, width: number): string {
+    try {
+      const u = new URL(url);
+      u.searchParams.set("width", String(width));
+      return u.href;
+    } catch {
+      return url; // URL relative ou malformée : on n'y touche pas
+    }
+  }
+
   type GroupedLine = {
     variantId: string;
     productTitle: string;
@@ -306,7 +326,7 @@ const FREE_SHIPPING_THRESHOLD = 400;
         : `<span class="cart-line-price">${formatPrice(String(line.amount), line.currency)}</span>`;
     return `
       <div class="cart-line" data-variant-id="${line.variantId}">
-        ${line.img ? `<img class="cart-line-img" src="${line.img.url}" alt="${line.productTitle}" width="120" height="120" />` : ""}
+        ${line.img ? `<img class="cart-line-img" src="${sizedUrl(line.img.url, THUMB_WIDTH)}" alt="${line.productTitle}" width="120" height="120" />` : ""}
         <div class="cart-line-body">
           <div class="cart-line-text">
             <div class="cart-line-top">
