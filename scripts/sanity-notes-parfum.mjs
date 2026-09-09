@@ -23,8 +23,20 @@ import { createClient } from "@sanity/client";
 
 // ---------------------------------------------------------------------------
 // MATIÈRES à garantir dans la bibliothèque.
-// `photo` : fichier local, déjà recadré au ratio de la bibliothèque (958x1120,
+//
+// `photo` : fichier local déjà recadré au ratio de la bibliothèque (958x1120,
 // soit 0,8554 — celui de la colonne Scent Notes). Omettre si on n'en a pas.
+//
+// Deux règles apprises en recadrant les 14 premières :
+//
+//  - prendre la source via `download_assets` sur le node du triptyque, PAS via
+//    `get_design_context` : celui-ci ne rend que des remplissages plafonnés à
+//    ~700-870px, l'autre rend la source telle que stockée dans Figma
+//    (1024-1332px), donc au-dessus du standard après recadrage.
+//
+//  - recadrer en CENTRANT LE SUJET, pas le cadre. Les sources sont plus hautes
+//    que 0,8554 et la matière n'y est pas au milieu : un recadrage centré sur
+//    le cadre la laissait 10 à 13 points trop bas dans la colonne.
 // ---------------------------------------------------------------------------
 const MATIERES = [
   // Bois Brouge (11088:5462)
