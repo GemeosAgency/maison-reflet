@@ -27,11 +27,19 @@ import { createClient } from "@sanity/client";
 // soit 0,8554 — celui de la colonne Scent Notes). Omettre si on n'en a pas.
 // ---------------------------------------------------------------------------
 const MATIERES = [
+  // Bois Brouge
   { fr: "Poivre noir", en: "Black Pepper", famille: "Épicée", photo: "poivre-noir.jpg" },
   { fr: "Patchouli", en: "Patchouli", famille: "Boisée", photo: "patchouli.jpg" },
   { fr: "Vétiver", en: "Vetiver", famille: "Boisée" },
   { fr: "Cèdre", en: "Cedarwood", famille: "Boisée" },
   { fr: "Ambre gris", en: "Ambergris", famille: "Ambrée" },
+  // Melting Mango
+  { fr: "Mangue", en: "Mango", famille: "Autre", photo: "mangue.jpg" },
+  { fr: "Jasmin absolu", en: "Jasmine Abs", famille: "Florale", photo: "jasmin-absolu.jpg" },
+  { fr: "Mousse de chêne", en: "Oak Moss", famille: "Boisée", photo: "mousse-de-chene.jpg" },
+  { fr: "Praline", en: "Praline", famille: "Autre" },
+  { fr: "Noyau d'abricot", en: "Apricot Seed", famille: "Autre" },
+  { fr: "Vétiver Haïti", en: "Vetiver Haiti", famille: "Boisée" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -43,10 +51,18 @@ const MATIERES = [
 // ---------------------------------------------------------------------------
 const PYRAMIDES = [
   {
+    // node 11088:5462
     handle: "bois-brouge",
     tete: ["Poivre noir", "Safran", "Bergamote de Calabre"],
     coeur: ["Jasmin Sambac", "Ambre gris", "Caramel"],
     fond: ["Vétiver", "Patchouli", "Cèdre"],
+  },
+  {
+    // node 11088:3146
+    handle: "melting-mango",
+    tete: ["Mangue", "Safran", "Orange"],
+    coeur: ["Praline", "Noyau d'abricot", "Jasmin absolu"],
+    fond: ["Mousse de chêne", "Patchouli", "Vétiver Haïti"],
   },
 ];
 
