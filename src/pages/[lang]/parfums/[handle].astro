@@ -259,10 +259,16 @@ const discovery =
 const seo = parfum?.seo ?? null;
 const seoTitle = seo?.metaTitle ?? product.title;
 const seoDescription = seo?.metaDescription ?? parfum?.accroche ?? product.description;
-// Image de partage : réglage SEO > 1re image de la galerie > photo Shopify.
-const shareImage = seo?.ogImage
-  ? urlForImage(seo.ogImage as any).width(1200).height(630).fit("crop").url()
-  : (gallery[0]?.src ?? null);
+/*
+ * Image de partage : réglage SEO > 1re image éditoriale > photo Shopify.
+ * Recadrée en 1200x630 (~1,91:1) car c'est le format attendu par les réseaux
+ * sociaux ; servir une image portrait comme nos visuels produit donnerait un
+ * aperçu mal cadré. Le recadrage respecte le hotspot défini dans le Studio.
+ */
+const ogSource = seo?.ogImage ?? parfum?.images?.[0] ?? null;
+const shareImage = ogSource
+  ? urlForImage(ogSource as any).width(1200).height(630).fit("crop").url()
+  : (product.featuredImage?.url ?? null);
 
 /*
  * JSON-LD Product : c'est lui qui donne à Google le prix, la devise et la

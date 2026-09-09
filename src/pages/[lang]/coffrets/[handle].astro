@@ -58,6 +58,12 @@ const metaViewContentData = {
   currency: variant.price.currencyCode,
 };
 
+// Image de partage recadrée au format des réseaux sociaux (~1,91:1) — voir
+// le commentaire détaillé dans parfums/[handle].astro.
+const shareImage = content?.image
+  ? urlForImage(content.image as any).width(1200).height(630).fit("crop").url()
+  : (product.featuredImage?.url ?? null);
+
 // JSON-LD Product : prix + disponibilité remontés dans les résultats Google
 // (voir le commentaire détaillé dans parfums/[handle].astro).
 const productJsonLd = {
@@ -85,7 +91,7 @@ const productJsonLd = {
   title={title}
   description={description ?? undefined}
   lang={lang}
-  ogImage={gallery[0] ?? null}
+  ogImage={shareImage}
   ogType="product"
   jsonLd={[productJsonLd]}
   breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: title }]}
