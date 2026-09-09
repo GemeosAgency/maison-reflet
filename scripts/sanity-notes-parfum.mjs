@@ -37,6 +37,11 @@ import { createClient } from "@sanity/client";
 //  - recadrer en CENTRANT LE SUJET, pas le cadre. Les sources sont plus hautes
 //    que 0,8554 et la matière n'y est pas au milieu : un recadrage centré sur
 //    le cadre la laissait 10 à 13 points trop bas dans la colonne.
+//
+//  - pour situer le sujet, prendre la MÉDIANE de ses pixels, pas le centre de
+//    sa boîte englobante. L'ombre portée entre dans la boîte et la tire : sur
+//    le poivre noir, dont l'ombre est aussi sombre que les grains, l'écart
+//    atteignait 4 points et le tas remontait trop haut ; sur le jasmin, 15.
 // ---------------------------------------------------------------------------
 const MATIERES = [
   // Bois Brouge (11088:5462)
