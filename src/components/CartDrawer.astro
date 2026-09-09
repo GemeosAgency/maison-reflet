@@ -3,14 +3,15 @@
  * Panier — modale coulissante globale (incluse une seule fois dans Layout.astro),
  * ouverte depuis l'icône panier du header sur n'importe quelle page.
  *
- * "Choisis ton échantillon" : aucune variante "échantillon" n'existe encore dans
- * Shopify (chaque parfum n'a qu'une variante à 360 AED). Cette section se
- * masque automatiquement tant que sampleOptions est vide — elle s'activera
- * d'elle-même dès qu'une variante dont le TITRE contient "sample", "échantillon"
- * ou "2 ml" existera sur un produit, sans changement de code nécessaire.
+ * "Choisis ton échantillon" : détecté automatiquement sur toute variante dont
+ * le TITRE contient "sample", "échantillon" ou "2 ml". La section se
+ * masque tant que sampleOptions est vide. La gratuité vient de la remise
+ * automatique Shopify "Échantillon offert dès 1 flacon 75 ml" — la variante
+ * 2 ml est vendable seule à 15 AED.
  *
- * Seuil de livraison offerte : 900 AED (aligné sur la bannière du header —
- * design v2 août 2026). Fixe, à ajuster ici si besoin.
+ * Seuil de livraison offerte : 400 AED — doit rester ALIGNÉ sur la remise
+ * automatique "Free shipping" de Shopify (minimum 400 AED), sinon le panier
+ * annonce un seuil que le checkout ne pratique pas.
  */
 import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle } from "../lib/shopify";
 import { getInspiredByMap } from "../lib/sanity";
@@ -59,7 +60,7 @@ const sampleOptions = allProducts.flatMap((p) =>
     }))
 );
 
-const FREE_SHIPPING_THRESHOLD = 900;
+const FREE_SHIPPING_THRESHOLD = 400;
 ---
 
 <div class="cart-drawer" data-cart-drawer aria-hidden="true">

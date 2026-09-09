@@ -26,7 +26,7 @@ export function localePath(locale: Locale, path = "/"): string {
 /** Libellés d'interface (le contenu éditorial vient de Sanity, lui). */
 const ui = {
   fr: {
-    "banner.promo": "Livraison offerte dès 900 AED",
+    "banner.promo": "Livraison offerte dès 400 AED",
     "nav.discovery": "Découverte",
     "product.olfactiveFamily": "Famille olfactive",
     "product.intensity": "Intensité",
@@ -168,7 +168,7 @@ const ui = {
     "cart.perkGift": "Un cadeau soigné à chaque commande",
   },
   ar: {
-    "banner.promo": "شحن مجاني للطلبات فوق 900 درهم",
+    "banner.promo": "شحن مجاني للطلبات فوق 400 درهم",
     "nav.discovery": "الاكتشاف",
     "product.olfactiveFamily": "العائلة العطرية",
     "product.intensity": "الشدة",
@@ -310,7 +310,7 @@ const ui = {
     "cart.perkGift": "هدية مُعتنى بها مع كل طلب",
   },
   en: {
-    "banner.promo": "Free shipping on orders over 900 AED",
+    "banner.promo": "Free shipping on orders over 400 AED",
     "nav.discovery": "Discovery",
     "product.olfactiveFamily": "Olfactive family",
     "product.intensity": "Intensity",
