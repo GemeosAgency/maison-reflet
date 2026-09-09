@@ -207,9 +207,9 @@ const perfumerPhoto = parfum?.perfumerPhoto
  * filtrage des notes sans nom, sinon il ne correspondrait plus à l'affichage.
  *
  * Largeurs : la colonne fait un tiers du container (--page-max, 1800px), donc
- * 600px au maximum. 1120 est la largeur native des photos de la bibliothèque
- * et donc le dernier palier utile — au-delà le CDN n'aurait plus rien à
- * servir.
+ * 600px au maximum, soit 1200 en densité 2x. responsiveImage() plafonne à la
+ * largeur native de chaque photo et l'ajoute comme dernier palier, donc rien
+ * à ajuster ici quand une matière est réexportée plus grande.
  */
 const scentLevel = (label: string, notes: { nom: string | null; image?: unknown }[] | undefined) => {
   const named = (notes ?? []).filter((n) => n.nom);
@@ -219,7 +219,7 @@ const scentLevel = (label: string, notes: { nom: string | null; image?: unknown 
     label,
     notes: named.map((n) => n.nom as string),
     keyIndex,
-    img: key ? responsiveImage(key.image as any, { widths: [320, 480, 640, 960, 1120] }) : null,
+    img: key ? responsiveImage(key.image as any, { widths: [320, 480, 640, 960, 1200] }) : null,
   };
 };
 
