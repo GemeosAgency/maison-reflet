@@ -1,6 +1,6 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
-import { formatPrice, getAllProducts, getPrimaryVariant, isCoffret, type ShopifyProduct } from "../../../lib/shopify";
+import { formatPrice, getAllProducts, getPrimaryVariant, isCoffret, shopifyImage, type ShopifyProduct } from "../../../lib/shopify";
 import { getCoffretByHandle, urlForImage } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 
@@ -29,7 +29,11 @@ const description = content?.description ?? product.description;
 // Galerie : image Sanity du coffret d'abord, puis les photos produit Shopify.
 const gallery = [
   content?.image ? urlForImage(content.image as any).width(1000).url() : null,
-  ...[product.featuredImage?.url, ...product.images.nodes.map((n) => n.url)],
+  // shopifyImage() borne la largeur : sans ça le CDN sert le fichier
+  // d'origine, plusieurs Mo pour une colonne de 720 px.
+  ...[product.featuredImage, ...product.images.nodes]
+    .filter((im) => im)
+    .map((im) => shopifyImage(im!, [480, 720, 960, 1440]).src),
 ].filter((u): u is string => Boolean(u));
 
 // Événement Klaviyo "Viewed Product" (voir src/lib/klaviyo.ts + script plus bas).
@@ -62,7 +66,9 @@ const metaViewContentData = {
 // le commentaire détaillé dans parfums/[handle].astro.
 const shareImage = content?.image
   ? urlForImage(content.image as any).width(1200).height(630).fit("crop").url()
-  : (product.featuredImage?.url ?? null);
+  : product.featuredImage
+    ? shopifyImage(product.featuredImage, [1200]).src
+    : null;
 
 // JSON-LD Product : prix + disponibilité remontés dans les résultats Google
 // (voir le commentaire détaillé dans parfums/[handle].astro).

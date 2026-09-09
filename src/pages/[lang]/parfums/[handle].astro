@@ -23,6 +23,7 @@ import {
   getDisplayPrice,
   isCoffret,
   isSampleVariantTitle,
+  shopifyImage,
   type ShopifyProduct,
 } from "../../../lib/shopify";
 import {
@@ -75,6 +76,9 @@ const bestSellerMap = await getBestSellerMap();
 // jusqu'à ~900px sur un très grand écran) et 100vw en mobile — il faut donc
 // monter jusqu'au double pour rester net en densité 2x.
 const GALLERY_WIDTHS = [480, 720, 960, 1440, 1800];
+// Tuiles « You may also like » et recommandations : 287 px de large dans la
+// maquette, donc 640 suffit en densité 2x, 860 pour les très grands écrans.
+const TILE_WIDTHS = [320, 480, 640, 860];
 const editorialImgs = (parfum?.images ?? []).map((im) => ({
   ...responsiveImage(im as any, { widths: GALLERY_WIDTHS, aspect: 720 / 896 }),
   alt: im.alt ?? product.title,
@@ -87,11 +91,16 @@ const sampleImageUrls = new Set(
     .map((v) => v.image?.url)
     .filter((u): u is string => Boolean(u))
 );
-// Images Shopify : URLs déjà servies par le CDN Shopify, pas de srcset ici.
-// featuredImage figure aussi dans images.nodes, d'où le dédoublonnage.
-const shopifyImgs = [...new Set([product.featuredImage?.url, ...product.images.nodes.map((n) => n.url)])]
-  .filter((u): u is string => Boolean(u) && !sampleImageUrls.has(u))
-  .map((src) => ({ src, srcset: "", alt: product.title }));
+// featuredImage figure aussi dans images.nodes, d'où le dédoublonnage par URL.
+// shopifyImage() ajoute le paramètre `width` du CDN : sans lui on servait le
+// fichier d'origine, jusqu'à 7,4 Mo pour un rendu de flacon en 2346x2884.
+const shopifyImgs = [product.featuredImage, ...product.images.nodes]
+  .filter((im) => im && !sampleImageUrls.has(im.url))
+  .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i)
+  .map((im) => ({
+    ...shopifyImage(im!, GALLERY_WIDTHS),
+    alt: im!.altText ?? product.title,
+  }));
 const placeholderImgs = ["/brand/gallery1.jpg", "/brand/gallery2.jpg", "/brand/gallery3.jpg"].map((src) => ({
   src,
   srcset: "",
@@ -232,10 +241,14 @@ const related = products
       name: p.title,
       subtitle: inspiredMap[p.handle] ? `${t("product.twistOf")} ${inspiredMap[p.handle]}` : null,
       price: formatPrice(price.amount, price.currencyCode),
+      // Sans imageRecommandation dans Sanity on retombe sur la photo produit
+      // Shopify — c'est le bon rendu du flacon, avec la bonne étiquette. Il
+      // faut la passer par shopifyImage() : servie brute, elle pèse jusqu'à
+      // 7,4 Mo pour une tuile de 287 px.
       img: recoImg?.main
-        ? responsiveImage(recoImg.main as any, { widths: [320, 480, 640, 860], aspect: 287 / 352 })
-        : p.featuredImage?.url
-          ? { src: p.featuredImage.url, srcset: "" }
+        ? responsiveImage(recoImg.main as any, { widths: TILE_WIDTHS, aspect: 287 / 352 })
+        : p.featuredImage
+          ? shopifyImage(p.featuredImage, TILE_WIDTHS)
           : null,
       href: localePath(lang, `/parfums/${p.handle}`),
       badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
@@ -257,8 +270,8 @@ const discoveryCandidates = coffretContent
       description: c.description,
       img: c.image
         ? responsiveImage(c.image as any, { widths: [640, 960, 1280, 1600], aspect: 816 / 560 })
-        : sp.featuredImage?.url
-          ? { src: sp.featuredImage.url, srcset: "" }
+        : sp.featuredImage
+          ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
           : null,
       price: formatPrice(v.price.amount, v.price.currencyCode),
       href: localePath(lang, `/coffrets/${sp.handle}`),
@@ -284,9 +297,13 @@ const seoDescription = seo?.metaDescription ?? parfum?.accroche ?? product.descr
  * aperçu mal cadré. Le recadrage respecte le hotspot défini dans le Studio.
  */
 const ogSource = seo?.ogImage ?? parfum?.images?.[0] ?? null;
+// Le recadrage 1200x630 n'existe que côté Sanity ; en repli Shopify on borne
+// au moins la largeur, sinon l'aperçu de partage pèse plusieurs Mo.
 const shareImage = ogSource
   ? urlForImage(ogSource as any).width(1200).height(630).fit("crop").url()
-  : (product.featuredImage?.url ?? null);
+  : product.featuredImage
+    ? shopifyImage(product.featuredImage, [1200]).src
+    : null;
 
 /*
  * JSON-LD Product : c'est lui qui donne à Google le prix, la devise et la

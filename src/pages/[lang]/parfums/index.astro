@@ -3,7 +3,7 @@ import Layout from "../../../layouts/Layout.astro";
 import ProductCard from "../../../components/ProductCard.astro";
 import BoxCard from "../../../components/BoxCard.astro";
 import Reassurance from "../../../components/Reassurance.astro";
-import { formatPrice, getAllProducts, getPrimaryVariant, getDisplayPrice, isCoffret } from "../../../lib/shopify";
+import { formatPrice, getAllProducts, getPrimaryVariant, getDisplayPrice, isCoffret, shopifyImage } from "../../../lib/shopify";
 import { getInspiredByMap, getRecoImages, getCoffrets, getReassurances, urlForImage } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 
@@ -31,7 +31,9 @@ const perfumes = allProducts
       price: formatPrice(price.amount, price.currencyCode),
       img: recoImg?.main
         ? urlForImage(recoImg.main as any).width(800).height(1000).url()
-        : (p.featuredImage?.url ?? null),
+        : p.featuredImage
+          ? shopifyImage(p.featuredImage, [400, 800]).src
+          : null,
       hoverImg: recoImg?.hover ? urlForImage(recoImg.hover as any).width(800).height(1000).url() : null,
       variantId: variant.id,
       href: localePath(lang, `/parfums/${p.handle}`),
@@ -48,7 +50,11 @@ const coffrets = coffretContent
     const variant = getPrimaryVariant(sp);
     return {
       titre: c.titre ?? sp.title,
-      img: c.image ? urlForImage(c.image as any).width(1000).url() : (sp.featuredImage?.url ?? null),
+      img: c.image
+        ? urlForImage(c.image as any).width(1000).url()
+        : sp.featuredImage
+          ? shopifyImage(sp.featuredImage, [1000]).src
+          : null,
       price: formatPrice(variant.price.amount, variant.price.currencyCode),
       variantId: variant.id,
       href: localePath(lang, `/coffrets/${sp.handle}`),

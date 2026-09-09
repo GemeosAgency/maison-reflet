@@ -552,3 +552,47 @@ export async function removeCartLine(cartId: string, lineId: string) {
   assertNoUserErrors(data.cartLinesRemove.userErrors);
   return data.cartLinesRemove.cart;
 }
+
+/**
+ * Variantes responsives d'une image servie par le CDN Shopify.
+ *
+ * Le CDN accepte un paramètre `width` et renvoie l'image redimensionnée (et
+ * réencodée dans un format adapté au navigateur). Sans ce paramètre il sert le
+ * fichier d'origine : un rendu de flacon en 2346x2884 pèse 7,4 Mo et partait
+ * tel quel dans une tuile de 287 px. Le même en `?width=320` fait 143 Ko.
+ *
+ * Pendant de responsiveImage() côté Sanity (voir src/lib/sanity.ts). Ici pas
+ * de recadrage : on ne touche qu'à la largeur, le ratio est préservé et c'est
+ * le CSS (object-fit) qui cadre.
+ *
+ * `native` est la largeur réelle du fichier (Shopify la renvoie dans ses
+ * requêtes) : on ne propose pas de palier au-dessus, le CDN n'agrandit pas et
+ * on paierait le poids de l'original pour rien.
+ */
+export function shopifyImage(
+  image: Pick<ShopifyImage, "url"> & Partial<Pick<ShopifyImage, "width">>,
+  widths: number[]
+): { src: string; srcset: string } {
+  const at = (w: number) => {
+    const u = new URL(image.url);
+    u.searchParams.set("width", String(w));
+    return u.href;
+  };
+
+  const sorted = [...new Set(widths)].sort((a, b) => a - b);
+  const native = image.width;
+  let usable = native ? sorted.filter((w) => w <= native) : sorted;
+  // Source plus petite que le plus petit palier : on garde ce palier plutôt
+  // que de renvoyer une liste vide (le CDN plafonnera de lui-même).
+  if (usable.length === 0) usable = [sorted[0]];
+  // La largeur native complète la liste quand elle tombe entre deux paliers,
+  // sinon une source de 958 px resterait servie au palier 720.
+  else if (native && native < sorted[sorted.length - 1] && !usable.includes(native)) {
+    usable = [...usable, native];
+  }
+
+  return {
+    src: at(usable[usable.length - 1]),
+    srcset: usable.map((w) => `${at(w)} ${w}w`).join(", "),
+  };
+}

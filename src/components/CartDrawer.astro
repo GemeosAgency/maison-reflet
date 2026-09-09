@@ -13,7 +13,7 @@
  * automatique "Free shipping" de Shopify (minimum 400 AED), sinon le panier
  * annonce un seuil que le checkout ne pratique pas.
  */
-import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle } from "../lib/shopify";
+import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle, shopifyImage } from "../lib/shopify";
 import { getInspiredByMap } from "../lib/sanity";
 import { type Locale, useTranslations } from "../i18n";
 
@@ -27,6 +27,9 @@ const t = useTranslations(lang);
 const allProducts = await getAllProducts();
 const inspiredMap = await getInspiredByMap();
 
+// Plus grande vignette du panier : 120 px de côté, soit 240 en densité 2x.
+const THUMB_WIDTH = 240;
+
 // Catalogue pour l'upsell "2+1 offert" : parfums réels (hors coffrets).
 // getPrimaryVariant exclut la variante échantillon (0 AED) — sinon l'upsell
 // ajouterait un échantillon au lieu du parfum plein tarif.
@@ -38,7 +41,10 @@ const upsellCatalog = allProducts
       handle: p.handle,
       title: p.title,
       inspiredBy: inspiredMap[p.handle] ?? null,
-      img: p.featuredImage?.url ?? null,
+      // Vignette de 120 px (240 en densité 2x). Le panier est monté dans
+      // Layout.astro, donc ces images partent sur CHAQUE page : servies
+      // brutes, c'était jusqu'à 7,4 Mo par parfum.
+      img: p.featuredImage ? shopifyImage(p.featuredImage, [THUMB_WIDTH]).src : null,
       variantId: variant.id,
       price: Number(variant.price.amount),
       currency: variant.price.currencyCode,
@@ -56,7 +62,10 @@ const sampleOptions = allProducts.flatMap((p) =>
       variantId: v.id,
       // Image propre à la variante échantillon si définie dans Shopify,
       // sinon repli sur l'image principale du produit (flacon 75 ml).
-      img: v.image?.url ?? p.featuredImage?.url ?? null,
+      img: (() => {
+        const im = v.image ?? p.featuredImage;
+        return im ? shopifyImage(im, [THUMB_WIDTH]).src : null;
+      })(),
     }))
 );
 
