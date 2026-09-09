@@ -22,21 +22,36 @@ const { title, text, img } = Astro.props;
   </div>
   {
     img && (
-      <div class="twist-img">
-        <img src={img.src} srcset={img.srcset} sizes="100vw" alt="" loading="lazy" decoding="async" />
+      <div class="twist-img media-band">
+        <img
+          src={img.src}
+          srcset={img.srcset}
+          {/* La bande occupe le container, jamais plus. */}
+          sizes="min(100vw, 1800px)"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
       </div>
     )
   }
 </section>
 
 <style>
+  /*
+   * La gouttière est portée par le bloc de texte, pas par la section : l'image
+   * est une bande de médias qui occupe tout le container --page-max, comme
+   * Scent Notes, les piliers et « You may also like ». Le texte reste rentré
+   * de --gutter-x, comme les titres de ces mêmes sections.
+   */
   .twist {
     display: flex;
     flex-direction: column;
     gap: 48px;
-    padding: 120px var(--gutter-x) 72px;
+    padding-block: 120px 72px;
   }
   .twist-head {
+    padding-inline: var(--gutter-x);
     display: flex;
     align-items: flex-start;
     gap: 80px;
@@ -73,7 +88,7 @@ const { title, text, img } = Astro.props;
   }
 
   @media (max-width: 900px) {
-    .twist { padding: 56px var(--gutter-x) 40px; gap: 24px; }
+    .twist { padding-block: 56px 40px; gap: 24px; }
     .twist-head { flex-direction: column; gap: 16px; }
     .twist-head h2 { font-size: 26px; max-width: none; }
     .twist-head p { font-size: 16px; }
