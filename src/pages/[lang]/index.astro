@@ -360,6 +360,12 @@ const heroPanels = [
     display: flex;
     gap: 2px;
     aspect-ratio: 1440 / 760;
+    /* Bord à bord, le ratio de la maquette donne un héros plus haut que
+       l'écran dès ~1700px de large, et l'accroche tombait sous la ligne de
+       flottaison. On plafonne donc à la place réellement visible : les
+       photos étant en `object-fit: cover`, ça les RECADRE au lieu de les
+       déformer, et le texte reste juste au-dessus du bord. */
+    max-height: var(--hero-max-h);
   }
   .hero-panel {
     flex: 1 0 0;
@@ -490,7 +496,9 @@ const heroPanels = [
   @media (max-width: 900px) {
     /* Volets empilés : le ratio de la maquette (0,95) donnerait deux blocs
        quasi carrés de 100vw, soit tout l'écran avant le premier scroll. */
-    .hero { flex-direction: column; aspect-ratio: auto; }
+    /* Empilés, chaque volet porte son propre ratio : un plafond global
+       écraserait la colonne entière. */
+    .hero { flex-direction: column; aspect-ratio: auto; max-height: none; }
     .hero-panel { flex: none; aspect-ratio: 4 / 5; min-height: 420px; padding: 24px; }
     .hero-text h1, .hero-text h2 { font-size: 26px; }
     .hero-text p { font-size: 16px; }

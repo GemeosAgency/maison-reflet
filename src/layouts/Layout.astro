@@ -256,6 +256,15 @@ const navLinks = [
            fiches produit et coffret s'en servent pour ne pas passer dessous,
            et html.scroll-padding-top pour que les ancres restent visibles. */
         --header-h: 80px;
+        /* Hauteur du bandeau promo, mesurée sur le rendu (le Figma dit 31px,
+           notre bandeau a son propre padding). Sert, avec --header-h, à
+           plafonner les héros à la hauteur réellement visible. */
+        --banner-h: 42px;
+        /* Place restante sous le bandeau et la barre de navigation : c'est la
+           hauteur maximale d'un héros pour que son texte reste au-dessus de
+           la ligne de flottaison. `svh` et non `vh` : sur mobile, `vh` compte
+           la barre d'URL et le bas du visuel passerait dessous. */
+        --hero-max-h: calc(100svh - var(--header-h) - var(--banner-h));
       }
       html { scroll-padding-top: var(--header-h); }
       * { box-sizing: border-box; }

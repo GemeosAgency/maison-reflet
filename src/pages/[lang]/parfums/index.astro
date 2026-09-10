@@ -217,6 +217,9 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     position: relative;
     aspect-ratio: 1440 / 560;
     min-height: 480px;
+    /* Même plafond que le héros de l'accueil : bord à bord, le ratio finit
+       par dépasser la hauteur visible. Photo en `cover`, donc recadrage. */
+    max-height: var(--hero-max-h);
     background-color: #dec9b8;
     overflow: hidden;
   }
