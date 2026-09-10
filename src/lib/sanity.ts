@@ -28,15 +28,25 @@ export const sanityClient = createClient({
   useCdn: !import.meta.env.SANITY_READ_TOKEN,
 });
 
-// Client d'écriture (liste d'attente) — lazy, nécessite SANITY_WRITE_TOKEN.
-// Séparé du client de lecture : les écritures ne passent jamais par le CDN.
+// Client d'écriture (liste d'attente) — lazy, séparé du client de lecture :
+// les écritures ne passent jamais par le CDN.
+//
+// Token accepté sous ses DEUX noms : il a été renommé `_V2` lors d'une
+// rotation, et c'est le seul nom présent côté Vercel. Ne chercher que
+// l'ancien faisait échouer /api/subscribe en 500 sur la page d'attente —
+// l'email n'arrivait ni dans Sanity ni dans Klaviyo.
+const WRITE_TOKEN_NAMES = ["SANITY_WRITE_TOKEN_V2", "SANITY_WRITE_TOKEN"] as const;
+
 let _writeClient: ReturnType<typeof createClient> | null = null;
 function getWriteClient() {
   // import.meta.env au build, process.env au runtime serverless (Vercel)
-  const token =
-    import.meta.env.SANITY_WRITE_TOKEN ||
-    (typeof process !== "undefined" ? process.env.SANITY_WRITE_TOKEN : undefined);
-  if (!token) throw new Error("SANITY_WRITE_TOKEN manquant (token d'écriture Sanity)");
+  const env = import.meta.env as Record<string, string | undefined>;
+  const token = WRITE_TOKEN_NAMES.map(
+    (name) => env[name] || (typeof process !== "undefined" ? process.env[name] : undefined)
+  ).find(Boolean);
+  if (!token) {
+    throw new Error(`Token d'écriture Sanity manquant (${WRITE_TOKEN_NAMES.join(" ou ")})`);
+  }
   if (!_writeClient) {
     _writeClient = createClient({
       projectId: import.meta.env.SANITY_PROJECT_ID,

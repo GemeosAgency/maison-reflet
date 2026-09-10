@@ -171,7 +171,7 @@ const HOLDING_PAGE = `<!doctype html>
           fetch("/api/subscribe", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: email }),
+            body: JSON.stringify({ email: email, locale: "en", source: "teaser" }),
           })
             .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
             .then(function (res) {
