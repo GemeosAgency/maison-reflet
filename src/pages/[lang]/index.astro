@@ -1,17 +1,29 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import DiscoverySetBanner from "../../components/DiscoverySetBanner.astro";
 import Faq from "../../components/Faq.astro";
+import Pillars from "../../components/Pillars.astro";
 import ProductCard from "../../components/ProductCard.astro";
-import BoxCard from "../../components/BoxCard.astro";
 import Reassurance from "../../components/Reassurance.astro";
-import { formatPrice, getAllProducts, getPrimaryVariant, isCoffret, shopifyImage } from "../../lib/shopify";
+import Reviews from "../../components/Reviews.astro";
+import {
+  formatPrice,
+  getAllProducts,
+  getDisplayPrice,
+  getPrimaryVariant,
+  isCoffret,
+  isSampleVariantTitle,
+  shopifyImage,
+} from "../../lib/shopify";
 import {
   getSettings,
   getInspiredByMap,
   getRecoImages,
   getCoffrets,
   getReassurances,
+  getBestSellerMap,
   getPageBySlug,
+  responsiveImage,
   urlForImage,
 } from "../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../i18n";
@@ -30,49 +42,98 @@ const allProducts = await getAllProducts();
 const perfumes = allProducts.filter((p) => !isCoffret(p));
 const inspiredMap = await getInspiredByMap();
 const recoImages = await getRecoImages();
+const bestSellerMap = await getBestSellerMap();
 
-// "Bestsellers" : pas encore de vrai classement des ventes — les 4 premiers
-// parfums du catalogue, en attendant un signal réel (Shopify Analytics…).
-const bestsellers = perfumes.slice(0, 4).map((p) => {
-  const recoImg = recoImages[p.handle];
-  const variant = getPrimaryVariant(p);
-  return {
-    name: p.title,
-    inspired: inspiredMap[p.handle] ?? null,
-    price: formatPrice(variant.price.amount, variant.price.currencyCode),
-    img: recoImg?.main
-      ? urlForImage(recoImg.main as any).width(800).height(1200).url()
-      : p.featuredImage
-        ? shopifyImage(p.featuredImage, [400, 800]).src
-        : null,
-    hoverImg: recoImg?.hover ? urlForImage(recoImg.hover as any).width(800).height(1200).url() : null,
-    variantId: variant.id,
-    href: localePath(lang, `/parfums/${p.handle}`),
-  };
-});
+/*
+ * Bestsellers — la maquette (node 10573:5817) en montre QUATRE, dont trois
+ * portent la pastille « BEST SELLER ». Le classement vient du marquage
+ * `bestSeller` de Sanity (le même qui alimente les pastilles du catalogue) :
+ * les parfums marqués d'abord, puis les autres pour compléter la rangée. Pas
+ * de vrai classement des ventes tant que Shopify Analytics n'est pas branché.
+ */
+const TILE_RATIO = 358.5 / 528;
+const TILE_WIDTH = 900; // ~449 px de large dans le container, x2 pour les écrans denses
+const tileImage = (source: unknown) =>
+  urlForImage(source as any)
+    .width(TILE_WIDTH)
+    .height(Math.round(TILE_WIDTH / TILE_RATIO))
+    .auto("format")
+    .url();
 
-// "The Perfumer's Set" : mêmes coffrets que la section "Nos coffrets" de la
-// fiche produit (contenu Sanity croisé avec le produit Shopify correspondant).
+const bestsellers = [...perfumes]
+  .sort(
+    (a, b) =>
+      Number(Boolean(bestSellerMap[b.handle])) - Number(Boolean(bestSellerMap[a.handle]))
+  )
+  .slice(0, 4)
+  .map((p) => {
+    const recoImg = recoImages[p.handle];
+    const variant = getPrimaryVariant(p);
+    const price = getDisplayPrice(p);
+    return {
+      name: p.title,
+      inspired: inspiredMap[p.handle] ?? null,
+      price: formatPrice(price.amount, price.currencyCode),
+      img: recoImg?.main
+        ? tileImage(recoImg.main)
+        : p.featuredImage
+          ? shopifyImage(p.featuredImage, [480, 720, TILE_WIDTH]).src
+          : null,
+      // Seconde photo du survol — même chaîne de repli que le catalogue : la
+      // version curée dans Sanity, sinon la deuxième photo produit de Shopify
+      // (hors visuels de variante échantillon, qui sont des vignettes de 192 px
+      // destinées au panier).
+      hoverImg: recoImg?.hover
+        ? tileImage(recoImg.hover)
+        : (() => {
+            const sampleUrls = new Set(
+              p.variants.nodes
+                .filter((v) => isSampleVariantTitle(v.title))
+                .map((v) => v.image?.url)
+                .filter((u): u is string => Boolean(u))
+            );
+            const autres = [p.featuredImage, ...p.images.nodes]
+              .filter((im) => im && !sampleUrls.has(im.url))
+              .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i);
+            return autres[1] ? shopifyImage(autres[1]!, [480, 720, TILE_WIDTH]).src : null;
+          })(),
+      variantId: variant.id,
+      href: localePath(lang, `/parfums/${p.handle}`),
+      badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
+    };
+  });
+
+/*
+ * « The Discovery Set » (node 11026:16156) remplace l'ancienne rangée de
+ * cartes coffret : même bandeau que le catalogue et la fiche produit, image à
+ * gauche, texte et CTA à droite. Même sélection que là-bas — le coffret dont
+ * le handle évoque un set d'échantillons, sinon le premier.
+ */
 const coffretProducts = allProducts.filter(isCoffret);
 const coffretContent = await getCoffrets(lang);
-const coffrets = coffretContent
+const discoveryCandidates = coffretContent
   .map((c) => {
     const sp = coffretProducts.find((p) => p.handle === c.shopifyHandle);
     if (!sp) return null;
     const variant = getPrimaryVariant(sp);
     return {
+      handle: sp.handle,
       titre: c.titre ?? sp.title,
+      description: c.description,
       img: c.image
-        ? urlForImage(c.image as any).width(1000).url()
+        ? responsiveImage(c.image as any, { widths: [640, 960, 1280, 1600], aspect: 816 / 560 })
         : sp.featuredImage
-          ? shopifyImage(sp.featuredImage, [1000]).src
+          ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
           : null,
       price: formatPrice(variant.price.amount, variant.price.currencyCode),
-      variantId: variant.id,
       href: localePath(lang, `/coffrets/${sp.handle}`),
     };
   })
   .filter((c): c is NonNullable<typeof c> => c !== null);
+const discovery =
+  discoveryCandidates.find((c) => /sample|discovery|decouverte|découverte/i.test(c.handle)) ??
+  discoveryCandidates[0] ??
+  null;
 
 const reassurances = (await getReassurances(lang)).map((r) => ({
   icone: r.icone ? urlForImage(r.icone as any).width(80).url() : null,
@@ -93,6 +154,33 @@ const reviewPlaceholder = {
   en: "Customer review coming soon — placeholder content pending a real reviews system.",
 }[lang];
 const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quote: reviewPlaceholder }));
+
+/*
+ * Héros scindé en deux volets (node 11101:6088). Les photos sont statiques
+ * (public/home) et non éditoriales : elles fixent le ton de la page d'accueil.
+ * Deux fichiers par volet, servis en srcset 1x/2x — c'est le LCP de la page,
+ * on ne peut pas se contenter d'un 1800 px pour tout le monde.
+ */
+const heroPanels = [
+  {
+    title1: t("home.hero.title1"),
+    title2: t("home.hero.title2"),
+    text: t("home.hero.text"),
+    cta: t("home.hero.cta"),
+    href: localePath(lang, "/parfums"),
+    img: "hero-left",
+  },
+  {
+    title1: t("home.hero2.title1"),
+    title2: t("home.hero2.title2"),
+    // La maquette reprend ici, mot pour mot, la première phrase du récit de
+    // marque plus bas dans la page — d'où la clé partagée.
+    text: t("home.story.p1"),
+    cta: t("home.story.cta"),
+    href: localePath(lang, "/maison"),
+    img: "hero-right",
+  },
+];
 ---
 
 <Layout
@@ -101,20 +189,49 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
   lang={lang}
   ogImage="/home/hero.jpg"
 >
-  <section class="hero full-bleed">
-    <!-- LCP : vraie balise img (fetchpriority) plutôt qu'un background CSS,
-         que le navigateur ne peut ni prioriser ni précharger efficacement. -->
-    <img class="hero-img" src="/home/hero.jpg" alt="" fetchpriority="high" decoding="async" />
-    <div class="hero-inner">
-      <div class="hero-content">
-        <h1>
-          {t("home.hero.title1")}<br />
-          {t("home.hero.title2")}
-        </h1>
-        <p>{t("home.hero.description")}</p>
-      </div>
-      <a href={localePath(lang, "/parfums")} class="hero-cta">{t("home.hero.cta")}</a>
-    </div>
+  <section class="hero media-band">
+    {
+      heroPanels.map((panel, i) => (
+        <a class="hero-panel" href={panel.href}>
+          {/* LCP : vraie balise img (fetchpriority) plutôt qu'un background
+              CSS, que le navigateur ne peut ni prioriser ni précharger.
+              Aucun `loading="lazy"` : les DEUX volets sont au-dessus de la
+              ligne de flottaison sur desktop, différer le second ne ferait
+              que le faire apparaître en retard. */}
+          <img
+            class="hero-img"
+            src={`/home/${panel.img}.jpg`}
+            srcset={`/home/${panel.img}.jpg 900w, /home/${panel.img}@2x.jpg 1800w`}
+            sizes="(max-width: 900px) 100vw, (min-width: 1800px) 900px, 50vw"
+            alt=""
+            fetchpriority={i === 0 ? "high" : undefined}
+            decoding="async"
+          />
+          <div class="hero-text">
+            {i === 0 ? (
+              <h1>
+                {panel.title1}
+                <br />
+                {panel.title2}
+              </h1>
+            ) : (
+              <h2>
+                {panel.title1}
+                <br />
+                {panel.title2}
+              </h2>
+            )}
+            <p>{panel.text}</p>
+          </div>
+          <div class="hero-cta-wrap">
+            <span class="btn-square">
+              {panel.cta}
+              <img src="/brand/arrow-right.svg" alt="" width="12" height="12" />
+            </span>
+          </div>
+        </a>
+      ))
+    }
   </section>
 
   {
@@ -122,22 +239,23 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
       <section class="bestsellers">
         <div class="section-head">
           <h2>{t("home.bestsellers")}</h2>
-          <a class="pill-link" href={localePath(lang, "/parfums")}>
+          <a class="btn-square" href={localePath(lang, "/parfums")}>
             {t("home.seeAll")}
             <img src="/brand/arrow-right.svg" alt="" width="12" height="12" />
           </a>
         </div>
-        <div class="bestsellers-grid">
+        <div class="bestsellers-grid media-band">
           {bestsellers.map((p) => (
             <ProductCard
               name={p.name}
               inspired={p.inspired}
-              inspiredByLabel={t("product.inspiredBy")}
+              inspiredByLabel={t("product.twistOf")}
               price={p.price}
               img={p.img}
               hoverImg={p.hoverImg}
               href={p.href}
               variantId={p.variantId}
+              badge={p.badge}
             />
           ))}
         </div>
@@ -156,284 +274,242 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
         <p>{t("home.story.p2")}</p>
         <p>{t("home.story.p3")}</p>
       </div>
-      <a class="pill-link" href={localePath(lang, "/maison")}>
+      <a class="btn-square" href={localePath(lang, "/maison")}>
         {t("home.story.cta")}
         <img src="/brand/arrow-right.svg" alt="" width="12" height="12" />
       </a>
     </div>
     <div class="story-img">
-      <img src="/home/story.jpg" alt="" loading="lazy" />
+      <img src="/home/story.jpg" alt="" loading="lazy" decoding="async" />
     </div>
   </section>
 
   {
-    coffrets.length > 0 && (
-      <section class="perfumers-set">
-        <h2>{t("home.perfumersSet")}</h2>
-        <div class="perfumers-set-grid">
-          {coffrets.map((c) => (
-            <BoxCard title={c.titre} price={c.price} img={c.img} href={c.href} variantId={c.variantId} />
-          ))}
-        </div>
-      </section>
+    discovery && (
+      <DiscoverySetBanner
+        title={discovery.titre}
+        description={discovery.description}
+        priceLabel={discovery.price}
+        href={discovery.href}
+        img={discovery.img}
+        ctaLabel={t("home.hero.cta")}
+      />
     )
   }
 
-  <!--
-    Avis clients : aucun système d'avis en place — bloc de démonstration
-    (voir commentaire en frontmatter). À remplacer avant le lancement.
-  -->
-  <section class="reviews">
-    <div class="reviews-head">
-      <h2>{t("home.reviews.title").replace("{count}", String(reviewCount))}</h2>
-      <div class="reviews-rating">
-        <span class="stars">
-          {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="18" height="18" />)}
-        </span>
-        <span class="reviews-rated">
-          <strong>{t("home.reviews.rated")}</strong>
-          <span>{t("home.reviews.customers")}</span>
-        </span>
-      </div>
-    </div>
-    <div class="reviews-list">
-      {
-        reviews.map((r) => (
-          <div class="review">
-            <div class="review-head">
-              <span class="stars">
-                {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="18" height="18" />)}
-              </span>
-              <p class="review-author">{r.author}</p>
-              {r.date && <p class="review-date">{r.date}</p>}
-            </div>
-            <p class="review-quote">“{r.quote}”</p>
-          </div>
-        ))
-      }
-    </div>
-  </section>
+  {/* Avis : bloc de démonstration, voir le commentaire en frontmatter. */}
+  <Reviews
+    title={t("home.reviews.title")}
+    ratingLabel={t("home.reviews.rated")}
+    customersLabel={t("home.reviews.customers")}
+    reviews={reviews}
+    totalCount={reviewCount}
+    previousLabel={t("reviews.previous")}
+    nextLabel={t("reviews.next")}
+  />
 
-  <section class="pillars">
-    <div class="pillars-head">
-      <h2>
-        {t("home.pillars.title1")}<br />
-        {t("home.pillars.title2")}
-      </h2>
-      <p>{t("home.pillars.subtitle")}</p>
-    </div>
-    <div class="pillars-grid full-bleed">
-      <div class="pillar">
-        <img class="pillar-img" src="/home/pillar-quality.jpg" alt="" loading="lazy" decoding="async" />
-        <h3>{t("home.pillars.quality.title")}</h3>
-        <p>{t("home.pillars.quality.text")}</p>
-      </div>
-      <div class="pillar">
-        <img class="pillar-img" src="/home/pillar-performance.jpg" alt="" loading="lazy" decoding="async" />
-        <h3>{t("home.pillars.performance.title")}</h3>
-        <p>{t("home.pillars.performance.text")}</p>
-      </div>
-      <div class="pillar">
-        <img class="pillar-img" src="/home/pillar-character.jpg" alt="" loading="lazy" decoding="async" />
-        <h3>{t("home.pillars.character.title")}</h3>
-        <p>{t("home.pillars.character.text")}</p>
-      </div>
-    </div>
-  </section>
-
-  <Reassurance items={reassurances} />
+  <Pillars
+    title1={t("home.pillars.title1")}
+    title2={t("home.pillars.title2")}
+    subtitle={t("home.pillars.subtitle")}
+    pillars={[
+      { title: t("home.pillars.quality.title"), text: t("home.pillars.quality.text"), image: "/home/pillar-quality.jpg" },
+      { title: t("home.pillars.performance.title"), text: t("home.pillars.performance.text"), image: "/home/pillar-performance.jpg" },
+      { title: t("home.pillars.character.title"), text: t("home.pillars.character.text"), image: "/home/pillar-character.jpg" },
+    ]}
+  />
 
   <Faq items={homePage?.faqs ?? []} title={t("nav.faq")} />
+
+  <Reassurance items={reassurances} />
 </Layout>
 
 <style>
-  /* Hero — 2:1 fixe, y compris grand écran (pas de max-height : un plafond
-     px/vh écraserait le ratio dès qu'on dépasse une certaine largeur, ce
-     qu'on ne veut justement pas ici). Plancher pour la lisibilité mobile.
-     .hero = pur canvas full-bleed. .hero-inner porte le plafond de largeur
-     (--page-max, comme <main>) : même centré, le texte doit rester dans la même
-     colonne de contenu que le reste du site, pas juste centré dans les 100vw
-     du canvas — sinon toute la logique de grille se désynchronise dès qu'on
-     dépasse --page-max de large. */
-  .hero {
-    position: relative;
-    aspect-ratio: 2 / 1;
-    min-height: 560px;
-    background-color: #d3b69c;
-    overflow: hidden;
-  }
-  .hero-img {
-    position: absolute; inset: 0; z-index: 0;
-    width: 100%; height: 100%; object-fit: cover; object-position: center;
-  }
-  .hero::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 20%, rgba(31, 31, 31, 0.64) 72%);
-  }
-  .hero-inner {
-    position: relative;
-    z-index: 2;
-    max-width: var(--page-max);
-    height: 100%;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 24px;
-    padding: 64px var(--gutter-x);
-    text-align: center;
-  }
-  .hero-content {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-width: 32rem;
-    color: var(--cream-2);
-    filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.56));
-  }
-  .hero-content h1 { margin: 0; font-size: clamp(30px, 2.78vw, 48px); font-weight: 500; text-transform: uppercase; line-height: 1.2; }
-  .hero-content p { margin: 0; font-size: 18px; line-height: 1.32; letter-spacing: -0.36px; }
-  .hero-cta {
-    display: inline-flex;
-    align-items: center;
-    height: 48px;
-    padding: 0 20px;
-    border-radius: 999px;
-    background: var(--cream);
-    color: var(--ink);
-    font-size: 16px;
-    font-weight: 500;
-    text-transform: uppercase;
-    transition: opacity 0.15s;
-  }
-  .hero-cta:hover { opacity: 0.85; }
-
-  /* En-têtes de section génériques */
-  .section-head {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    padding: 96px 64px 40px;
-  }
-  .section-head h2, .bestsellers > h2, .perfumers-set > h2 {
-    margin: 0;
-    font-size: clamp(26px, 2.22vw, 38px);
-    font-weight: 500;
-    text-transform: uppercase;
-    text-align: center;
-  }
-  .pill-link {
+  /*
+   * BOUTON — la maquette n'utilise QUE des rectangles sable (#e7dfd0, 48 px de
+   * haut, 20 px de retrait, flèche à 12 px). Plus aucune pastille arrondie :
+   * c'est le même bouton que `.dset-cta` du bandeau coffret.
+   */
+  .btn-square {
     display: inline-flex;
     align-items: center;
     gap: 12px;
     height: 48px;
     padding: 0 20px;
-    border-radius: 999px;
     background: var(--sand);
     color: var(--ink);
     font-size: 16px;
     font-weight: 500;
     text-transform: uppercase;
-    transition: opacity 0.15s;
     white-space: nowrap;
+    transition: opacity 0.15s;
   }
-  .pill-link:hover { opacity: 0.85; }
+  .btn-square:hover { opacity: 0.85; }
 
-  /* Bestsellers — hauteur pilotée par le ratio Figma (1440×520) et plus par
-     une valeur fixe : les cartes gardent leurs proportions sur écran large. */
-  .bestsellers-grid { display: flex; gap: 2px; width: 100%; aspect-ratio: 36 / 13; max-height: 720px; }
+  /*
+   * HÉROS — deux volets côte à côte (node 11101:6088), ratio de la bande
+   * 1440 x 760 et 2 px de filet entre les deux, comme les autres triptyques
+   * du site.
+   *
+   * `media-band` et non `full-bleed` : la couture centrale du héros est une
+   * verticale très visible. Étirée à 100vw, elle ne tomberait plus au même
+   * endroit que les limites de tuiles de la rangée bestsellers juste en
+   * dessous, plafonnée à --page-max. Le héros s'arrête donc au container,
+   * comme la bande des piliers.
+   */
+  .hero {
+    display: flex;
+    gap: 2px;
+    aspect-ratio: 1440 / 760;
+  }
+  .hero-panel {
+    flex: 1 0 0;
+    min-width: 0;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 24px;
+    padding: 40px;
+    background-color: #d3b69c;
+    color: var(--bg);
+  }
+  .hero-img {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Photos recadrées au ratio du volet et ancrées en bas : au-dessus du
+       sujet il n'y a que du fond, sous ses pieds il y a le sujet. */
+    object-position: bottom;
+  }
+  .hero-panel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 46%, rgba(31, 31, 31, 0.72) 87%);
+  }
+  .hero-text {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 504px;
+    filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.56));
+  }
+  .hero-text h1,
+  .hero-text h2 {
+    margin: 0;
+    font-size: clamp(24px, 2.22vw, 32px);
+    font-weight: 500;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .hero-text p { margin: 0; font-size: 18px; line-height: 1.32; letter-spacing: -0.36px; }
+  /* Le CTA n'apparaît qu'au survol (curseur dessiné dans la maquette sur le
+     volet de droite) — même mécanique que la tuile produit. Le volet entier
+     étant un lien, le bouton est un <span> : pas de lien imbriqué. */
+  .hero-cta-wrap {
+    position: relative;
+    z-index: 2;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition:
+      max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.3s ease;
+  }
+  .hero-panel:hover .hero-cta-wrap,
+  .hero-panel:focus-visible .hero-cta-wrap { max-height: 48px; opacity: 1; }
 
-  /* Histoire de marque */
+  /* En-têtes de section (node 10573:5818 : 96 px au-dessus, 40 px en dessous) */
+  .section-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 96px var(--gutter-x) 40px;
+  }
+  .section-head h2 {
+    margin: 0;
+    font-size: clamp(26px, 2.22vw, 32px);
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  /* Bestsellers — la tuile porte le ratio de la maquette (358,5 x 528), donc
+     la hauteur suit la largeur du container au lieu d'une valeur figée. */
+  .bestsellers-grid { display: flex; gap: 2px; }
+  .bestsellers-grid :global(.product-card) { aspect-ratio: 358.5 / 528; }
+
+  /* Récit de marque (node 10582:5942) — texte à gauche, photo à droite.
+     Géométrie identique au bandeau coffret juste en dessous et aux blocs
+     éditoriaux de la fiche produit : les deux rangées doivent s'aligner. */
   .story {
     display: flex;
     align-items: flex-end;
     gap: 64px;
-    padding: 72px;
+    padding: 72px var(--gutter-x) 0;
   }
   .story-text {
     flex: 1 0 0;
     min-width: 0;
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 32px;
     padding-bottom: 56px;
+    padding-inline-end: 56px;
     color: var(--ink);
   }
-  .story-text h2 { margin: 0; font-size: clamp(26px, 2.22vw, 38px); font-weight: 500; text-transform: uppercase; line-height: 1.2; }
-  .story-copy { display: flex; flex-direction: column; gap: 12px; max-width: 26rem; }
-  .story-copy p { margin: 0; font-size: 16px; line-height: 1.36; }
-  .story-text .pill-link { align-self: flex-start; }
-  .story-img { flex: 0 0 50%; max-width: 816px; height: 560px; background: #dec9b8; overflow: hidden; }
+  .story-text h2 {
+    margin: 0;
+    font-size: clamp(26px, 2.22vw, 32px);
+    font-weight: 500;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  /* La maquette n'a qu'un seul bloc de texte, avec une ligne vide avant le
+     dernier paragraphe — d'où le gap nul et la respiration sur le seul p3. */
+  .story-copy { display: flex; flex-direction: column; gap: 0; max-width: 416px; }
+  .story-copy p { margin: 0; font-size: 18px; line-height: 1.36; }
+  .story-copy p:last-child { margin-top: 1.36em; }
+  .story-img {
+    flex: 0 0 56%;
+    max-width: 816px;
+    aspect-ratio: 816 / 560;
+    background: var(--sand);
+    overflow: hidden;
+  }
   .story-img img { width: 100%; height: 100%; object-fit: cover; object-position: bottom; }
 
-  /* The Perfumer's Set — ratio Figma 1440×560 */
-  .perfumers-set { display: flex; flex-direction: column; align-items: center; }
-  .perfumers-set-grid { display: flex; gap: 2px; width: 100%; aspect-ratio: 18 / 7; max-height: 760px; }
-  .perfumers-set-grid :global(.box-card) { aspect-ratio: auto; }
-
-  /* Avis */
-  .reviews { display: flex; flex-direction: column; gap: 32px; padding: 96px 72px; }
-  .reviews-head { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
-  .reviews-head h2 { margin: 0; font-size: clamp(26px, 2.22vw, 38px); font-weight: 500; text-transform: uppercase; }
-  .reviews-rating { display: flex; align-items: center; gap: 8px; }
-  .stars { display: inline-flex; gap: 2px; }
-  .reviews-rated { display: flex; align-items: baseline; gap: 4px; color: var(--ink); }
-  .reviews-rated strong { font-size: 16px; font-weight: 500; }
-  .reviews-rated span { font-size: 14px; }
-  .reviews-list { display: flex; flex-direction: column; }
-  .review {
-    display: flex; flex-direction: column; gap: 12px;
-    padding: 24px 0; border-top: 1px solid rgba(21, 14, 10, 0.12);
-  }
-  .review-head { display: flex; flex-direction: column; gap: 8px; }
-  .review-author { margin: 0; font-size: 18px; font-weight: 500; }
-  .review-date { margin: 0; font-size: 16px; opacity: 0.7; }
-  .review-quote { margin: 0; font-size: 20px; line-height: 1.2; max-width: 60rem; }
-
-  /* Piliers ("Designed to be worn…") */
-  .pillars { display: flex; flex-direction: column; align-items: center; }
-  .pillars-head {
-    display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
-    padding: 56px 64px 40px;
-  }
-  .pillars-head h2 { margin: 0; font-size: clamp(26px, 2.22vw, 38px); font-weight: 500; text-transform: uppercase; }
-  .pillars-head p { margin: 0; font-size: 18px; color: var(--ink); }
-  /* Piliers — ratio Figma 1440×560 ; image en <img loading="lazy"> (et non en
-     background CSS) pour ne pas peser sur le chargement initial : la section
-     est sous la ligne de flottaison. */
-  .pillars-grid { display: flex; gap: 2px; width: 100%; aspect-ratio: 18 / 7; max-height: 760px; }
-  .pillar {
-    flex: 1 0 0; min-width: 0; height: 100%; position: relative; overflow: hidden;
-    display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;
-    padding: 24px; background: #e0cdbb; color: #fff;
-  }
-  .pillar-img { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
-  .pillar::after {
-    content: ""; position: absolute; inset: 0; z-index: 1;
-    background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 50%, #171717 87%);
-  }
-  .pillar h3 { position: relative; z-index: 2; margin: 0; font-size: 20px; font-weight: 500; text-transform: uppercase; }
-  .pillar p { position: relative; z-index: 2; margin: 0; font-size: 16px; line-height: 1.3; max-width: 20rem; }
-
   @media (max-width: 900px) {
-    .hero { min-height: 480px; }
-    .hero-inner { padding: 32px var(--gutter-x); }
-    .hero-content h1 { font-size: 28px; }
-    .section-head { padding: 56px 20px 32px; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
-    .bestsellers-grid, .perfumers-set-grid, .pillars-grid { flex-wrap: wrap; aspect-ratio: auto; max-height: none; }
-    .bestsellers-grid :global(.product-card),
-    .perfumers-set-grid :global(.box-card) { min-height: 320px; }
-    .pillar { flex: 1 1 100%; min-height: 320px; }
-    .story { flex-direction: column; align-items: stretch; gap: 24px; padding: 40px 20px; }
+    /* Volets empilés : le ratio de la maquette (0,95) donnerait deux blocs
+       quasi carrés de 100vw, soit tout l'écran avant le premier scroll. */
+    .hero { flex-direction: column; aspect-ratio: auto; }
+    .hero-panel { flex: none; aspect-ratio: 4 / 5; min-height: 420px; padding: 24px; }
+    .hero-text h1, .hero-text h2 { font-size: 26px; }
+    .hero-text p { font-size: 16px; }
+    /* Pas de survol au doigt : le CTA reste visible. */
+    .hero-cta-wrap { max-height: none; opacity: 1; overflow: visible; }
+    .section-head { padding: 56px var(--gutter-x) 32px; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+    .bestsellers-grid { flex-wrap: wrap; }
+    .bestsellers-grid :global(.product-card) { flex: 1 1 45%; aspect-ratio: 358.5 / 528; }
+    .story { flex-direction: column; align-items: stretch; gap: 24px; padding: 40px var(--gutter-x) 0; }
     .story-text { padding: 0; gap: 24px; }
-    .story-text h2 { font-size: 28px; }
-    .story-img { max-width: 100%; height: auto; aspect-ratio: 816 / 560; }
-    .reviews { padding: 56px 20px; }
-    .reviews-head { flex-direction: column; align-items: flex-start; gap: 16px; }
-    .pillars-head { padding: 40px 20px 24px; }
+    .story-text h2 { font-size: 26px; }
+    .story-copy { max-width: none; }
+    .story-copy p { font-size: 16px; }
+    /* Pleine largeur mobile, comme le bandeau coffret. */
+    .story-img { flex: none; max-width: none; aspect-ratio: 3 / 2; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-cta-wrap { transition: none; }
   }
 </style>
