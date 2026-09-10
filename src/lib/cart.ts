@@ -197,7 +197,7 @@ export type AddToCartOptions = {
   openDrawer?: boolean;
 };
 
-/** Ajoute une ou plusieurs lignes au panier (ex : lot Buy 2 Get 1 Free), en créant le panier au premier ajout */
+/** Ajoute une ou plusieurs lignes au panier d'un coup, en le créant au premier ajout */
 export async function addManyToCart(
   lines: CartLine[],
   options: AddToCartOptions = {}
@@ -291,10 +291,10 @@ export async function updateCartLineQuantity(
 /**
  * Fixe la quantité TOTALE d'une variante donnée, tous azimuts.
  *
- * Une remise automatique Shopify (ex "2 achetés, le 3e offert") peut scinder
- * une même variante en plusieurs lignes de panier (unités payantes + unité à
- * 0 remisée) — ne toucher qu'une seule de ces lignes laisserait les autres
- * inchangées et fausserait le total. On envoie donc, dans UNE SEULE mutation,
+ * Une remise automatique Shopify peut scinder une même variante en plusieurs
+ * lignes de panier (unités payantes + unité remisée à 0) — ne toucher qu'une
+ * seule de ces lignes laisserait les autres inchangées et fausserait le
+ * total. On envoie donc, dans UNE SEULE mutation,
  * la quantité voulue sur la première ligne et 0 sur les suivantes : Shopify
  * repart d'un état propre et rescinde la remise lui-même.
  *

@@ -30,8 +30,8 @@ const inspiredMap = await getInspiredByMap();
 // Plus grande vignette du panier : 120 px de côté, soit 240 en densité 2x.
 const THUMB_WIDTH = 240;
 
-// Catalogue pour l'upsell "2+1 offert" : parfums réels (hors coffrets).
-// getPrimaryVariant exclut la variante échantillon (0 AED) — sinon l'upsell
+// Catalogue des suggestions du panier : parfums réels (hors coffrets).
+// getPrimaryVariant exclut la variante échantillon (0 AED) — sinon la carte
 // ajouterait un échantillon au lieu du parfum plein tarif.
 const upsellCatalog = allProducts
   .filter((p) => !isCoffret(p))
@@ -114,16 +114,17 @@ const FREE_SHIPPING_THRESHOLD = 400;
         <ul class="cart-sample-options" data-cart-sample-options hidden></ul>
       </div>
 
+      {/*
+        Suggestions du panier. C'était la mécanique « 2 achetés, le 3e
+        offert » (barre de progression, décompte, pastille OFFERT), retirée
+        en septembre 2026 — l'offre n'a plus cours et la remise automatique
+        Shopify est désactivée. Il reste une simple sélection de parfums
+        absents du panier, sous le même titre que sur la fiche produit.
+      */}
       <div class="cart-drawer-divider" data-cart-upsell-divider hidden></div>
       <div class="cart-upsell" data-cart-upsell-section hidden>
-        <div class="cart-upsell-head">
-          <p class="cart-upsell-title" data-cart-upsell-title></p>
-          <span class="cart-badge" data-cart-upsell-badge hidden>{t("cart.free")}</span>
-        </div>
+        <p class="cart-upsell-title">{t("product.related")}</p>
         <div class="cart-upsell-scroll" data-cart-upsell-list></div>
-        <div class="cart-upsell-track">
-          <div class="cart-upsell-fill" data-cart-upsell-fill></div>
-        </div>
       </div>
     </div>
 
@@ -150,9 +151,6 @@ const FREE_SHIPPING_THRESHOLD = 400;
   set:html={JSON.stringify({
     freeShippingRemaining: t("cart.freeShippingRemaining"),
     freeShippingUnlocked: t("cart.freeShippingUnlocked"),
-    addOneMore: t("cart.addOneMore"),
-    addNMore: t("cart.addNMore"),
-    addFreeFragrance: t("cart.addFreeFragrance"),
     free: t("cart.free"),
     add: t("cart.add"),
     added: t("cart.added"),
@@ -204,7 +202,6 @@ const FREE_SHIPPING_THRESHOLD = 400;
   const I18N = JSON.parse(document.getElementById("cart-drawer-i18n")?.textContent ?? "{}");
   const THRESHOLD: number = I18N.threshold ?? 400;
   const THUMB_WIDTH: number = I18N.thumbWidth ?? 240;
-  const BUNDLE_TARGET = 3;
 
   const drawer = document.querySelector<HTMLElement>("[data-cart-drawer]");
   const backdrop = drawer?.querySelector<HTMLElement>("[data-cart-drawer-backdrop]");
@@ -222,10 +219,7 @@ const FREE_SHIPPING_THRESHOLD = 400;
   const sampleOptionsList = drawer?.querySelector<HTMLElement>("[data-cart-sample-options]");
   const upsellDivider = drawer?.querySelector<HTMLElement>("[data-cart-upsell-divider]");
   const upsellSection = drawer?.querySelector<HTMLElement>("[data-cart-upsell-section]");
-  const upsellTitle = drawer?.querySelector<HTMLElement>("[data-cart-upsell-title]");
-  const upsellBadge = drawer?.querySelector<HTMLElement>("[data-cart-upsell-badge]");
   const upsellList = drawer?.querySelector<HTMLElement>("[data-cart-upsell-list]");
-  const upsellFill = drawer?.querySelector<HTMLElement>("[data-cart-upsell-fill]");
   const subtotalEl = drawer?.querySelector<HTMLElement>("[data-cart-drawer-subtotal]");
   const checkoutLink = drawer?.querySelector<HTMLAnchorElement>("[data-cart-drawer-checkout]");
 
@@ -287,10 +281,10 @@ const FREE_SHIPPING_THRESHOLD = 400;
   };
 
   /**
-   * Regroupe les lignes par variante : une remise automatique Shopify (ex.
-   * "2 achetés, le 3e offert") peut scinder une même variante en plusieurs
-   * lignes de panier (unités payantes + unité remisée à 0) — on les fusionne
-   * en une seule ligne affichée, quantité et montant sommés.
+   * Regroupe les lignes par variante : une remise automatique Shopify peut
+   * scinder une même variante en plusieurs lignes de panier (unités payantes
+   * + unité remisée à 0) — on les fusionne en une seule ligne affichée,
+   * quantité et montant sommés.
    */
   function groupLines(cart: ShopifyCart | null): GroupedLine[] {
     const groups = new Map<string, GroupedLine>();
@@ -318,8 +312,8 @@ const FREE_SHIPPING_THRESHOLD = 400;
 
   function lineHtml(line: GroupedLine): string {
     const catalogEntry = upsellCatalog.find((p) => p.handle === line.handle);
-    // Ligne remisée à 0 par l'offre "2+1 offert" Shopify (voir groupLines) : on
-    // annonce le cadeau via le badge plutôt que d'afficher un prix à 0.
+    // Ligne remisée à 0 par une remise automatique Shopify (voir groupLines) :
+    // on annonce le cadeau via le badge plutôt que d'afficher un prix à 0.
     const priceHtml =
       line.amount === 0
         ? `<span class="cart-badge">${I18N.free}</span>`
@@ -351,12 +345,8 @@ const FREE_SHIPPING_THRESHOLD = 400;
       </div>`;
   }
 
-  function upsellCardHtml(p: UpsellItem, opts: { featured: boolean; free: boolean }): string {
-    const price = opts.featured
-      ? opts.free
-        ? `<span class="cart-upsell-price"><s>${formatPrice(String(p.price), p.currency)}</s> ${formatPrice("0", p.currency)}</span>`
-        : `<span class="cart-upsell-price">${formatPrice(String(p.price), p.currency)}</span>`
-      : "";
+  function upsellCardHtml(p: UpsellItem): string {
+    const price = `<span class="cart-upsell-price">${formatPrice(String(p.price), p.currency)}</span>`;
     return `
       <div class="cart-upsell-card">
         ${p.img ? `<img src="${p.img}" alt="${p.title}" width="120" height="120" />` : ""}
@@ -473,36 +463,15 @@ const FREE_SHIPPING_THRESHOLD = 400;
       }
     }
 
-    // Upsell "2+1 offert"
-    const eligibleQty = (cart?.lines.nodes ?? [])
-      .filter((l) => upsellCatalog.some((p) => p.variantId === l.merchandise.id))
-      .reduce((sum, l) => sum + l.quantity, 0);
-    const needed = Math.max(0, BUNDLE_TARGET - eligibleQty);
-    const showUpsell = needed > 0 && upsellCatalog.length > 0;
+    // Suggestions : les parfums qui ne sont pas déjà dans le panier. Masquées
+    // quand le panier est vide — il n'y a alors rien à compléter.
+    const inCart = new Set((cart?.lines.nodes ?? []).map((l) => l.merchandise.product.handle));
+    const suggestions = upsellCatalog.filter((p) => !inCart.has(p.handle));
+    const showUpsell = grouped.length > 0 && suggestions.length > 0;
     upsellDivider?.toggleAttribute("hidden", !showUpsell);
     upsellSection?.toggleAttribute("hidden", !showUpsell);
-    if (showUpsell) {
-      // Le dernier parfum manquant (needed === 1) est celui qui devient offert : on
-      // l'annonce comme tel plutôt que de dire "encore 1 parfum" — le décompte
-      // affiché aux étapes précédentes exclut donc ce dernier parfum (needed - 1).
-      const isFreeStep = needed === 1;
-      const displayCount = needed - 1;
-      if (upsellTitle) {
-        upsellTitle.textContent = isFreeStep
-          ? I18N.addFreeFragrance
-          : displayCount === 1
-            ? I18N.addOneMore
-            : I18N.addNMore.replace("{n}", String(displayCount));
-      }
-      upsellBadge?.toggleAttribute("hidden", !isFreeStep);
-      if (upsellFill) upsellFill.style.width = `${(eligibleQty / BUNDLE_TARGET) * 100}%`;
-      if (upsellList) {
-        const inCart = new Set((cart?.lines.nodes ?? []).map((l) => l.merchandise.product.handle));
-        const suggestions = upsellCatalog.filter((p) => !inCart.has(p.handle));
-        upsellList.innerHTML = suggestions
-          .map((p, i) => upsellCardHtml(p, { featured: isFreeStep || i === 0, free: isFreeStep }))
-          .join("");
-      }
+    if (showUpsell && upsellList) {
+      upsellList.innerHTML = suggestions.map(upsellCardHtml).join("");
     }
 
     // Sous-total + checkout
@@ -710,7 +679,6 @@ const FREE_SHIPPING_THRESHOLD = 400;
   .cart-sample-option img { width: 32px; height: 32px; object-fit: cover; }
 
   .cart-upsell { display: flex; flex-direction: column; gap: 12px; }
-  .cart-upsell-head { display: flex; align-items: center; justify-content: space-between; }
   .cart-upsell-title { margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; color: var(--ink); }
   .cart-upsell-scroll { display: flex; gap: 4px; overflow-x: auto; }
   .cart-upsell-card { flex: 0 0 auto; display: flex; gap: 20px; align-items: center; background: var(--cream); padding-inline-end: 24px; }
@@ -727,9 +695,6 @@ const FREE_SHIPPING_THRESHOLD = 400;
   }
   .cart-upsell-add svg { width: 14px; height: 14px; flex-shrink: 0; }
   .cart-upsell-price { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; }
-  .cart-upsell-price s { opacity: 0.6; text-decoration: line-through; margin-inline-end: 6px; }
-  .cart-upsell-track { height: 2px; background: rgba(21, 14, 10, 0.12); }
-  .cart-upsell-fill { height: 2px; background: var(--ink); transition: width 0.3s ease; }
 
   .cart-drawer-footer { flex-shrink: 0; border-top: 1px solid rgba(21, 14, 10, 0.12); padding: 24px 32px 32px; display: flex; flex-direction: column; gap: 16px; }
   .cart-drawer-subtotal-row { display: flex; align-items: baseline; justify-content: space-between; }

@@ -392,8 +392,8 @@ export type CartLineInput = { merchandiseId: string; quantity: number };
 export type CartAttributeInput = { key: string; value: string };
 
 /**
- * Crée un panier Shopify (Cart API) avec une ou plusieurs lignes (ex : lot
- * Buy 2 Get 1 Free). Les `attributes` optionnels suivent le panier jusqu'à la
+ * Crée un panier Shopify (Cart API) avec une ou plusieurs lignes. Les
+ * `attributes` optionnels suivent le panier jusqu'à la
  * commande (note_attributes du webhook) — utilisés pour transporter les ids
  * publicitaires _fbp/_fbc à travers le saut de domaine du checkout (voir
  * cart.ts et api/webhooks/shopify-orders.ts). Préfixe "_" = masqué au client
