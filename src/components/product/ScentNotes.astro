@@ -104,12 +104,12 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
           {p.levels.map((l) => (
             <div class="snotes-col">
               {l.img && (
+                /* Colonne = un tiers du container --page-max (1800px), donc
+                   600px au plus en desktop. */
                 <img
                   class="snotes-img"
                   src={l.img.src}
                   srcset={l.img.srcset}
-                  /* Colonne = un tiers du container --page-max (1800px), donc
-                     600px au plus en desktop. */
                   sizes="(max-width: 720px) 100vw, (max-width: 1100px) 50vw, min(33vw, 600px)"
                   alt=""
                   loading="lazy"

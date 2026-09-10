@@ -272,7 +272,7 @@ export function secondaryImage(
       .filter((u): u is string => Boolean(u))
   );
   const photos = [product.featuredImage, ...product.images.nodes]
-    .filter((im): im is ShopifyImage => Boolean(im) && !sampleUrls.has(im.url))
+    .filter((im): im is ShopifyImage => im !== null && !sampleUrls.has(im.url))
     .filter((im, i, arr) => arr.findIndex((x) => x.url === im.url) === i);
   return photos[1] ?? null;
 }
