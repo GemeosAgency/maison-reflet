@@ -1,9 +1,23 @@
 ---
 /**
- * Carte produit pleine image avec bouton "Add to bag" révélé au survol.
- * Réutilisée par la page produit ("Vous aimerez aussi") et la home
- * ("Bestsellers") — le clic sur le bouton est câblé globalement par
+ * Carte produit pleine image, texte en surimpression en bas, bouton
+ * « Add to bag » révélé au survol.
+ *
+ * Réutilisée par le catalogue (maquette « Produits », node 11003:9970) et la
+ * home (Bestsellers). Le clic sur le bouton est câblé globalement par
  * initAddToCartButtons() (voir src/lib/cart.ts), rien à faire ici.
+ *
+ * Deux états, deux voiles, et deux couleurs de texte :
+ *
+ * - AU REPOS, `-veil` (permanent) reprend la maquette : transparent jusqu'à
+ *   74 % de la hauteur puis --bg à 56 %. C'est lui qui rend l'encre lisible
+ *   sur la photo. Sans lui, le nom et le prix passent sur le flacon.
+ * - AU SURVOL, la carte bascule sur la SECONDE photo, `-overlay` assombrit
+ *   toute la tuile et le texte passe en clair. Le prix quitte sa ligne pour
+ *   rejoindre le CTA « ADD TO BAG », un rectangle pâle pleine largeur.
+ *
+ * Sans seconde photo dans Sanity (imageRecommandationHover), le survol garde
+ * la même image : l'assombrissement et le CTA fonctionnent quand même.
  */
 interface Props {
   name: string;
@@ -14,20 +28,27 @@ interface Props {
   hoverImg?: string | null;
   href: string;
   variantId: string;
+  /** Pastille d'angle, ex. « BEST SELLER ». Masquée si absente. */
+  badge?: string | null;
 }
 
-const { name, inspired, inspiredByLabel, price, img, hoverImg, href, variantId } = Astro.props;
+const { name, inspired, inspiredByLabel, price, img, hoverImg, href, variantId, badge = null } =
+  Astro.props;
 ---
 
 <div class="product-card">
-  <a class="product-card-link" href={href} aria-label={name} />
+  <a class="product-card-link" href={href} aria-label={name}></a>
   {img && <img class="product-card-img product-card-img-base" src={img} alt={name} loading="lazy" />}
   {hoverImg && <img class="product-card-img product-card-img-hover" src={hoverImg} alt="" loading="lazy" />}
-  <div class="product-card-overlay" aria-hidden="true" />
+  <div class="product-card-veil" aria-hidden="true"></div>
+  <div class="product-card-overlay" aria-hidden="true"></div>
+  {badge && <span class="product-card-badge">{badge}</span>}
   <div class="product-card-meta">
     <h3>{name}</h3>
-    {inspired && <p class="product-card-inspired">{inspiredByLabel} {inspired}</p>}
-    <p class="product-card-price">{price}</p>
+    <div class="product-card-row">
+      {inspired ? <p class="product-card-inspired">{inspiredByLabel} {inspired}</p> : <span></span>}
+      <p class="product-card-price">{price}</p>
+    </div>
     <div class="product-card-add-wrap">
       <button type="button" class="product-card-add" data-add-to-cart data-variant-id={variantId}>
         <span data-reco-add-label>ADD TO BAG</span>
@@ -47,43 +68,89 @@ const { name, inspired, inspiredByLabel, price, img, hoverImg, href, variantId }
   }
   .product-card-link { position: absolute; inset: 0; z-index: 1; }
   .product-card-img {
-    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: bottom;
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    /* La maquette ancre la photo en haut et laisse déborder 8,7 % en bas. On
+       garde `bottom` : le débordement rognerait le pied du flacon, alors
+       qu'en haut il n'y a que du fond — et cette zone est sous le voile. */
+    object-position: bottom;
     pointer-events: none; transition: opacity 0.6s ease;
   }
   .product-card-img-hover { opacity: 0; }
   .product-card:hover .product-card-img-base { opacity: 0; }
   .product-card:hover .product-card-img-hover { opacity: 1; }
+
+  /* Voile de lisibilité, valeurs de la maquette. */
+  .product-card-veil {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(241, 238, 233, 0) 74%, rgba(241, 238, 233, 0.56) 100%);
+    transition: opacity 0.4s ease;
+  }
+  /* Survol : la tuile s'assombrit pour porter le texte clair et le CTA. */
   .product-card-overlay {
     position: absolute; inset: 0; z-index: 1; pointer-events: none;
-    background: linear-gradient(to bottom, rgba(213, 187, 162, 0) 45%, #d5bba2 100%);
+    background: linear-gradient(to bottom, rgba(21, 14, 10, 0.26) 0%, rgba(21, 14, 10, 0.58) 100%);
     opacity: 0; transition: opacity 0.5s ease;
   }
-  .product-card:hover .product-card-overlay { opacity: 0.85; }
+  .product-card:hover .product-card-overlay { opacity: 1; }
+  /* Le voile clair du repos s'efface, sinon il éclaircit le bas de la tuile
+     assombrie et le CTA perd son contraste. */
+  .product-card:hover .product-card-veil { opacity: 0; }
+
+  .product-card-badge {
+    position: absolute; top: 0; inset-inline-start: 0; z-index: 2;
+    padding: 11px 12px;
+    background: var(--peach); color: var(--rose);
+    font-size: 14px; font-weight: 500; text-transform: uppercase; line-height: 1;
+  }
+
   .product-card-meta {
-    position: absolute; left: 24px; right: 24px; bottom: 24px; z-index: 2; pointer-events: none;
+    position: absolute; inset-inline: 24px; bottom: 24px; z-index: 2; pointer-events: none;
+    color: var(--ink);
+    transition: color 0.35s ease;
   }
-  .product-card-meta h3 { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; }
-  .product-card-inspired { margin: 4px 0 0; font-size: 14px; font-weight: 500; }
+  .product-card:hover .product-card-meta { color: var(--paper); }
+  .product-card-meta h3 { margin: 0; font-size: 18px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  /* « Specific Twist of X » à gauche, prix à droite, sur une même ligne. */
+  .product-card-row {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    margin-top: 4px; letter-spacing: 0.96px;
+  }
+  .product-card-inspired { margin: 0; font-size: 16px; line-height: 1.5; }
   .product-card-price {
-    margin: 4px 0 0; font-size: 14px; font-weight: 500; max-height: 20px; overflow: hidden;
-    transition: opacity 0.25s ease, max-height 0.3s ease, margin-top 0.3s ease;
+    margin: 0; font-size: 16px; line-height: 1.5; text-align: end; white-space: nowrap;
+    transition: opacity 0.25s ease;
   }
-  .product-card:hover .product-card-price { opacity: 0; max-height: 0; margin-top: 0; }
+  .product-card:hover .product-card-price { opacity: 0; }
   .product-card-add-wrap {
     max-height: 0; opacity: 0; overflow: hidden;
     transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  .product-card:hover .product-card-add-wrap { max-height: 48px; opacity: 1; margin-top: 8px; }
+  .product-card:hover .product-card-add-wrap { max-height: 56px; opacity: 1; margin-top: 16px; }
+  /* Rectangle pâle sur fond assombri, pas une pastille colorée — maquette du
+     survol catalogue : libellé à gauche, prix à droite. */
   .product-card-add {
-    pointer-events: auto; width: 100%; height: 48px; border: 0; border-radius: 999px;
-    background: var(--rose); color: #fff; display: flex; align-items: center; justify-content: space-between;
-    padding: 0 20px; font: inherit; font-size: 14px; font-weight: 500; text-transform: uppercase;
-    cursor: pointer; transition: opacity 0.15s;
+    pointer-events: auto; width: 100%; height: 56px; border: 0;
+    background: var(--bg); color: var(--ink);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; font: inherit; font-size: 16px; font-weight: 500; text-transform: uppercase;
+    cursor: pointer; transition: background-color 0.15s;
   }
-  .product-card-add:hover { opacity: 0.9; }
+  .product-card-add:hover { background: var(--paper); }
   .product-card-add:disabled { opacity: 0.6; }
 
   @media (max-width: 900px) {
     .product-card { flex: 1 1 45%; min-height: 320px; }
+    .product-card-meta { inset-inline: 16px; bottom: 16px; }
+    .product-card-row { flex-direction: column; gap: 2px; }
+    .product-card-price { text-align: start; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .product-card-img,
+    .product-card-overlay,
+    .product-card-veil,
+    .product-card-meta,
+    .product-card-price,
+    .product-card-add-wrap { transition: none; }
   }
 </style>
