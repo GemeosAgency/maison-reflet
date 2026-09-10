@@ -8,15 +8,23 @@
  * sur mobile. Monté UNE FOIS par le layout ; le déclencheur vit dans le header.
  *
  * Ce que le brief (§5) interdit, et qu'on ne fait donc pas : la bulle ronde en
- * bas à droite, les bulles de chat colorées, les cartes produit à prix gras et
- * bouton panier. Ici : du texte, sans bulles — Luma en italique du côté de la
- * lecture, le visiteur de l'autre côté ; un Reflet se montre par une image sur
- * fond neutre, son nom, une phrase, un seul lien « Découvrir » ; le prix ne
- * s'affiche qu'au survol. Luma ne s'ouvre jamais seule.
+ * bas à droite, les bulles de chat colorées. Ici : du texte, sans bulles — Luma
+ * en italique du côté de la lecture, le visiteur de l'autre côté. Luma ne
+ * s'ouvre jamais seule.
+ *
+ * Décisions de Sandro après le premier test en staging (11 septembre 2026),
+ * qui priment sur le brief là où elles le contredisent :
+ *  - chaque Reflet recommandé se montre par une fiche complète — visuel, nom,
+ *    phrase, prix affiché, « Ajouter au panier » (sans ouvrir le tiroir : on
+ *    reste avec Luma) et « Voir le produit » ;
+ *  - Luma propose des réponses toutes faites à chaque message, un clic envoie ;
+ *  - la conversation suit la session d'un bout à l'autre du site : le fil
+ *    complet (fiches comprises) vit dans sessionStorage le temps de l'onglet,
+ *    et un nouvel onglet sur la même session récupère le texte du serveur.
  *
  * Le serveur vérifie la réponse avant de l'envoyer ; c'est ici que se fait
  * l'effet de frappe (mot à mot, curseur discret, instantané si le visiteur
- * préfère moins d'animation).
+ * préfère moins d'animation, et instantané pour un fil rejoué).
  */
 import { useTranslations, type Locale } from "../i18n";
 import { CONTACT_EMAIL } from "../lib/luma/collection";
@@ -43,6 +51,11 @@ const t = useTranslations(lang);
     emailConsent: t("luma.emailConsent"),
     emailSend: t("luma.send"),
     emailDone: t("luma.emailDone"),
+    addToCart: t("luma.addToCart"),
+    viewProduct: t("luma.viewProduct"),
+    added: t("luma.added"),
+    soldOut: t("luma.soldOut"),
+    resume: t("luma.resume"),
     you: t("luma.you"),
     name: t("luma.name"),
     contact: CONTACT_EMAIL,
@@ -92,6 +105,9 @@ const t = useTranslations(lang);
 </div>
 
 <script>
+  import { addToCart, loadCart, type CartUpdatedEvent } from "../lib/cart";
+  import type { ShopifyCart } from "../lib/shopify";
+
   type Card = {
     handle: string;
     name: string;
@@ -100,17 +116,28 @@ const t = useTranslations(lang);
     image: string | null;
     price: string | null;
     available: boolean;
+    variantId: string | null;
   };
   type Action =
     | { type: "recommend_reflet"; reflet: Card; alternative: Card | null; reason: string }
     | { type: "show_product"; product: Card }
     | { type: "propose_email_capture"; pretext: string }
-    | { type: "handoff_to_human"; email: string; reason: string };
-  type Event =
+    | { type: "handoff_to_human"; email: string; reason: string }
+    | { type: "suggest_replies"; replies: string[] };
+  type Frame =
     | { type: "status"; state: string }
     | { type: "text"; text: string }
     | { type: "action"; action: Action }
     | { type: "done"; sessionId: string | null; fallback: boolean; reason?: string };
+  /** Une ligne du fil, telle qu'on la garde le temps de l'onglet. */
+  type Entry =
+    | { role: "visitor"; text: string }
+    | { role: "luma"; text: string; actions: Action[]; emailDone?: boolean };
+  type Transcript = { locale: string; entries: Entry[] };
+
+  const TRANSCRIPT_KEY = "maison-reflet:luma";
+  const TRANSCRIPT_MAX = 60;
+  const TYPING_MS = 34;
 
   const i18n: Record<string, string> = JSON.parse(document.getElementById("luma-i18n")?.textContent || "{}");
   const fill = (template: string, tokens: Record<string, string>) =>
@@ -126,6 +153,52 @@ const t = useTranslations(lang);
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   if (root && panel && log && status && form && input) {
+    /* ---------------- Mémoire du fil (le temps de l'onglet) ---------------- */
+
+    function loadTranscript(): Entry[] {
+      try {
+        const parsed = JSON.parse(sessionStorage.getItem(TRANSCRIPT_KEY) ?? "null") as Transcript | null;
+        return parsed && parsed.locale === locale && Array.isArray(parsed.entries) ? parsed.entries : [];
+      } catch {
+        return [];
+      }
+    }
+    const transcript: Entry[] = loadTranscript();
+    function saveTranscript() {
+      try {
+        const data: Transcript = { locale, entries: transcript.slice(-TRANSCRIPT_MAX) };
+        sessionStorage.setItem(TRANSCRIPT_KEY, JSON.stringify(data));
+      } catch {
+        /* sans stockage, le fil ne survit pas au changement de page — la session serveur, si */
+      }
+    }
+    /** Le déclencheur du header dit « Reprendre la conversation » dès qu'il y a un fil. */
+    function markResumable() {
+      for (const line of document.querySelectorAll<HTMLElement>(".luma-trigger-line")) line.textContent = i18n.resume;
+    }
+    function removeOpeningChips() {
+      root!.querySelector("[data-luma-opening] .luma-chips")?.remove();
+    }
+
+    /* ---------------- Panier (pour le contexte de Luma) ---------------- */
+
+    let cart: ShopifyCart | null = null;
+    let cartRequested = false;
+    document.addEventListener("cart:updated", (e) => {
+      cart = (e as CartUpdatedEvent).detail.cart;
+    });
+    function cartContext() {
+      const lines = cart?.lines.nodes ?? [];
+      if (!lines.length) return undefined;
+      return {
+        lines: lines.map((l) => ({
+          handle: l.merchandise.product.handle,
+          title: l.merchandise.product.title,
+          quantity: l.quantity,
+        })),
+      };
+    }
+
     /* ---------------- Ouverture / fermeture ---------------- */
 
     let lastFocused: HTMLElement | null = null;
@@ -136,6 +209,13 @@ const t = useTranslations(lang);
       root!.setAttribute("aria-hidden", "false");
       document.body.style.overflow = "hidden";
       input!.focus();
+      void hydrate();
+      if (!cartRequested) {
+        cartRequested = true;
+        loadCart()
+          .then((c) => (cart = c))
+          .catch(() => {});
+      }
     }
     function close() {
       root!.classList.remove("is-open");
@@ -176,11 +256,13 @@ const t = useTranslations(lang);
     function pageContext() {
       const path = location.pathname.replace(/^\/(fr|en|ar)(?=\/|$)/, "");
       const product = path.match(/^\/(parfums|coffrets)\/([^/]+)/);
-      if (product) return { page: { type: product[1] === "coffrets" ? "coffret" : "product", handle: product[2] } };
-      if (path.startsWith("/parfums")) return { page: { type: "collection" } };
-      if (path.startsWith("/panier")) return { page: { type: "cart" } };
-      if (path.startsWith("/maison")) return { page: { type: "maison" } };
-      return { page: { type: "home" } };
+      let page: { type: string; handle?: string };
+      if (product) page = { type: product[1] === "coffrets" ? "coffret" : "product", handle: product[2] };
+      else if (path.startsWith("/parfums")) page = { type: "collection" };
+      else if (path.startsWith("/panier")) page = { type: "cart" };
+      else if (path.startsWith("/maison")) page = { type: "maison" };
+      else page = { type: "home" };
+      return { page, cart: cartContext() };
     }
 
     /* ---------------- Rendu ---------------- */
@@ -203,25 +285,39 @@ const t = useTranslations(lang);
       scrollToEnd();
     }
 
-    /** Luma parle : mot à mot, avec un curseur, puis le curseur s'efface. */
-    async function addLuma(text: string): Promise<HTMLElement> {
+    /**
+     * Luma parle : mot à mot, avec un curseur, puis le curseur s'efface.
+     * Instantané pour un fil rejoué, et pour un onglet caché. La cadence suit le
+     * temps écoulé, pas le nombre de réveils : Chrome ralentit les timers d'un
+     * onglet passé en arrière-plan (jusqu'à un par minute), et le texte doit
+     * être là, complet, quand le visiteur revient — pas continuer à s'écrire.
+     */
+    async function addLuma(text: string, instant = reduceMotion): Promise<HTMLElement> {
       const msg = el("div", "luma-msg luma-msg-luma");
       log!.append(msg);
       const paragraphs = text.split(/\n+/).filter(Boolean);
       for (const paragraph of paragraphs) {
         const p = el("p");
         msg.append(p);
-        if (reduceMotion) {
+        if (instant || document.hidden) {
           p.textContent = paragraph;
           continue;
         }
         const cursor = el("span", "luma-cursor");
         p.append(cursor);
         const words = paragraph.split(" ");
-        for (let i = 0; i < words.length; i++) {
-          cursor.before(document.createTextNode((i ? " " : "") + words[i]));
+        const started = performance.now();
+        let shown = 0;
+        while (shown < words.length) {
+          const due = document.hidden
+            ? words.length
+            : Math.min(words.length, Math.floor((performance.now() - started) / TYPING_MS) + 1);
+          while (shown < due) {
+            cursor.before(document.createTextNode((shown ? " " : "") + words[shown]));
+            shown++;
+          }
           scrollToEnd();
-          await new Promise((r) => setTimeout(r, 34));
+          if (shown < words.length) await new Promise((r) => setTimeout(r, TYPING_MS));
         }
         cursor.remove();
       }
@@ -229,34 +325,63 @@ const t = useTranslations(lang);
       return msg;
     }
 
+    /** La fiche d'un Reflet : visuel, nom et prix, la phrase de Luma, les deux gestes du site. */
     function cardNode(card: Card, line?: string): HTMLElement {
       const node = el("article", "luma-card");
       if (card.image) {
         const img = el("img", "luma-card-img") as HTMLImageElement;
         img.src = card.image;
         img.alt = "";
-        img.loading = "lazy";
+        img.decoding = "async";
         node.append(img);
       }
       const body = el("div", "luma-card-body");
-      body.append(el("p", "luma-card-name", card.name));
+      const head = el("div", "luma-card-head");
+      head.append(el("p", "luma-card-name", card.name));
+      if (card.price) head.append(el("p", "luma-card-price", card.price));
+      body.append(head);
       if (line) body.append(el("p", "luma-card-line", line));
-      const foot = el("div", "luma-card-foot");
-      const link = el("a", "luma-card-link", fill(i18n.discover, { name: card.name })) as HTMLAnchorElement;
+
+      const actions = el("div", "luma-card-actions");
+      if (card.available && card.variantId) {
+        const add = el("button", "luma-card-add", i18n.addToCart) as HTMLButtonElement;
+        add.type = "button";
+        add.addEventListener("click", async () => {
+          add.disabled = true;
+          try {
+            // Le tiroir panier ne surgit pas : le visiteur reste avec Luma, le
+            // compteur du header suit (cart:updated), et Luma voit le panier au tour suivant.
+            await addToCart(card.variantId!, 1, { openDrawer: false });
+            add.textContent = i18n.added;
+            add.classList.add("is-added");
+          } catch {
+            add.disabled = false;
+          }
+        });
+        actions.append(add);
+      } else if (!card.available) {
+        actions.append(el("span", "luma-card-soldout", i18n.soldOut));
+      }
+      const link = el("a", "luma-card-link", i18n.viewProduct) as HTMLAnchorElement;
       link.href = card.url;
-      foot.append(link);
-      if (card.price) foot.append(el("span", "luma-card-price", card.price));
-      body.append(foot);
+      actions.append(link);
+      body.append(actions);
       node.append(body);
-      // Sur tactile, pas de survol : un tap sur la carte (hors lien) révèle le prix.
-      node.addEventListener("click", (e) => {
-        if ((e.target as HTMLElement).closest("a")) return;
-        node.classList.toggle("is-revealed");
-      });
       return node;
     }
 
-    function render(action: Action, into: HTMLElement) {
+    function chipsNode(replies: string[]): HTMLElement {
+      const chips = el("div", "luma-chips");
+      for (const reply of replies) {
+        const chip = el("button", "luma-chip", reply) as HTMLButtonElement;
+        chip.type = "button";
+        chip.addEventListener("click", () => void say(reply));
+        chips.append(chip);
+      }
+      return chips;
+    }
+
+    function render(action: Action, into: HTMLElement, entry?: Entry) {
       switch (action.type) {
         case "recommend_reflet": {
           into.append(cardNode(action.reflet, action.reason));
@@ -282,14 +407,19 @@ const t = useTranslations(lang);
           break;
         }
         case "propose_email_capture":
-          into.append(emailForm());
+          if (entry && entry.role === "luma" && entry.emailDone) into.append(el("p", "luma-email-done", i18n.emailDone));
+          else into.append(emailForm(entry));
+          break;
+        case "suggest_replies":
+          // Toujours en dernier dans le message : sous la fiche, sous le formulaire.
+          into.append(chipsNode(action.replies));
           break;
       }
       scrollToEnd();
     }
 
     /** Le champ email n'apparaît que quand Luma le propose ; consentement à part, décoché. */
-    function emailForm(): HTMLElement {
+    function emailForm(entry?: Entry): HTMLElement {
       const f = el("form", "luma-email") as HTMLFormElement;
       const mail = el("input", "luma-input") as HTMLInputElement;
       mail.type = "email";
@@ -318,11 +448,91 @@ const t = useTranslations(lang);
           });
           if (!res.ok) throw new Error(String(res.status));
           f.replaceWith(el("p", "luma-email-done", i18n.emailDone));
+          if (entry && entry.role === "luma") {
+            entry.emailDone = true;
+            saveTranscript();
+          }
         } catch {
           send.disabled = false;
         }
       });
       return f;
+    }
+
+    /* ---------------- Reprise du fil ---------------- */
+
+    function replay(entry: Entry, last: boolean) {
+      if (entry.role === "visitor") return addVisitor(entry.text);
+      void addLuma(entry.text, true).then((msg) => {
+        for (const action of entry.actions) {
+          // Les réponses toutes faites d'un tour passé n'ont plus de sens.
+          if (action.type === "suggest_replies" && !last) continue;
+          render(action, msg, entry);
+        }
+      });
+    }
+
+    async function fetchHistory(): Promise<{ role: string; content: string }[]> {
+      const res = await fetch(`/api/luma/history?locale=${encodeURIComponent(locale)}`, { credentials: "same-origin" });
+      if (!res.ok) return [];
+      const data = (await res.json()) as { messages?: { role: string; content: string }[] };
+      return (data.messages ?? []).filter((m) => m.content);
+    }
+
+    /**
+     * Le visiteur a quitté la page pendant que Luma répondait : le fil s'arrête
+     * sur sa question, mais le serveur a la réponse. On la rejoue (texte seul).
+     */
+    async function recoverLastReply() {
+      const asked = transcript[transcript.length - 1];
+      if (!asked || asked.role !== "visitor") return;
+      try {
+        const messages = await fetchHistory();
+        const last = messages[messages.length - 1];
+        const before = messages[messages.length - 2];
+        if (last?.role === "assistant" && before?.role === "user" && before.content === asked.text) {
+          const entry: Entry = { role: "luma", text: last.content, actions: [] };
+          transcript.push(entry);
+          saveTranscript();
+          replay(entry, true);
+        }
+      } catch {
+        /* la réponse n'est pas perdue : le modèle l'a en mémoire pour le tour suivant */
+      }
+    }
+
+    let hydrated = false;
+    async function hydrate() {
+      if (hydrated) return;
+      hydrated = true;
+      if (transcript.length) {
+        removeOpeningChips();
+        transcript.forEach((entry, i) => replay(entry, i === transcript.length - 1));
+        await recoverLastReply();
+        return;
+      }
+      // Nouvel onglet, même session (cookie) : le texte revient du serveur, sans fiches.
+      try {
+        const messages = await fetchHistory();
+        if (!messages.length) return;
+        removeOpeningChips();
+        for (const m of messages) {
+          const entry: Entry =
+            m.role === "user" ? { role: "visitor", text: m.content } : { role: "luma", text: m.content, actions: [] };
+          transcript.push(entry);
+          replay(entry, false);
+        }
+        saveTranscript();
+        markResumable();
+      } catch {
+        /* pas d'historique : la conversation commence ici */
+      }
+    }
+
+    // Un fil existe déjà dans cet onglet : le header le dit, et le panneau est prêt avant d'être ouvert.
+    if (transcript.length) {
+      markResumable();
+      void hydrate();
     }
 
     /* ---------------- Un tour ---------------- */
@@ -335,11 +545,17 @@ const t = useTranslations(lang);
       busy = true;
       input!.value = "";
       input!.disabled = true;
-      root!.querySelector("[data-luma-opening] .luma-chips")?.remove();
+      // Les réponses toutes faites appartiennent au tour qui les a proposées.
+      for (const chips of log!.querySelectorAll(".luma-chips")) chips.remove();
       addVisitor(message);
+      transcript.push({ role: "visitor", text: message });
+      saveTranscript();
+      markResumable();
       status!.textContent = i18n.thinking;
 
       let lumaMsg: HTMLElement | null = null;
+      let lumaText = "";
+      const pending: Action[] = [];
       try {
         const res = await fetch("/api/luma/chat", {
           method: "POST",
@@ -352,7 +568,6 @@ const t = useTranslations(lang);
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        const pending: Action[] = [];
         for (;;) {
           const { value, done } = await reader.read();
           if (done) break;
@@ -362,20 +577,29 @@ const t = useTranslations(lang);
             const frame = buffer.slice(0, cut).trim();
             buffer = buffer.slice(cut + 2);
             if (!frame.startsWith("data:")) continue;
-            const event = JSON.parse(frame.slice(5)) as Event;
+            const event = JSON.parse(frame.slice(5)) as Frame;
             if (event.type === "text") {
               status!.textContent = "";
+              lumaText = event.text;
               lumaMsg = await addLuma(event.text);
             } else if (event.type === "action") {
               pending.push(event.action);
             }
           }
         }
-        if (!lumaMsg) lumaMsg = await addLuma(i18n.unavailable);
-        for (const action of pending) render(action, lumaMsg);
+        if (!lumaMsg) {
+          lumaText = i18n.unavailable;
+          lumaMsg = await addLuma(lumaText);
+        }
+        const entry: Entry = { role: "luma", text: lumaText, actions: pending };
+        transcript.push(entry);
+        saveTranscript();
+        for (const action of pending) render(action, lumaMsg, entry);
       } catch {
         status!.textContent = "";
         await addLuma(i18n.unavailable);
+        transcript.push({ role: "luma", text: i18n.unavailable, actions: [] });
+        saveTranscript();
       } finally {
         status!.textContent = "";
         busy = false;
@@ -489,6 +713,7 @@ const t = useTranslations(lang);
   }
   @keyframes luma-blink { to { opacity: 0; } }
 
+  /* Les réponses toutes faites : un clic envoie. */
   .luma-chips { display: flex; gap: 8px; flex-wrap: wrap; }
   .luma-chip {
     padding: 8px 14px;
@@ -500,10 +725,11 @@ const t = useTranslations(lang);
     font-size: 14px;
     color: inherit;
     cursor: pointer;
+    text-align: start;
   }
   .luma-chip:hover { background: var(--paper); }
 
-  /* Un Reflet : image sur fond neutre, nom, une phrase, un seul lien. Le prix attend le survol. */
+  /* La fiche d'un Reflet : visuel sur fond neutre, nom et prix, la phrase, les deux gestes du site. */
   .luma-card {
     display: flex;
     gap: 16px;
@@ -512,11 +738,27 @@ const t = useTranslations(lang);
     border-radius: 8px;
     font-style: normal;
   }
-  .luma-card-img { width: 88px; height: 88px; object-fit: cover; background: var(--sand); border-radius: 4px; flex: none; }
-  .luma-card-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; justify-content: center; }
+  .luma-card-img { width: 96px; height: 96px; object-fit: cover; background: var(--sand); border-radius: 4px; flex: none; }
+  .luma-card-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+  .luma-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .luma-card-name { font-size: 15px; font-weight: 500; text-transform: uppercase; }
+  .luma-card-price { font-size: 14px; opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .luma-card-line { font-size: 14px; line-height: 1.45; opacity: 0.85; }
-  .luma-card-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 2px; }
+  .luma-card-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
+  .luma-card-add {
+    padding: 9px 14px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    background: var(--ink);
+    color: var(--bg);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .luma-card-add:disabled { cursor: default; opacity: 0.7; }
+  .luma-card-add.is-added { background: transparent; color: inherit; border-color: rgba(21, 14, 10, 0.16); opacity: 0.85; }
+  .luma-card-soldout { font-size: 13px; opacity: 0.6; }
   .luma-card-link {
     font-size: 14px;
     font-weight: 500;
@@ -524,15 +766,6 @@ const t = useTranslations(lang);
     text-decoration: underline;
     text-underline-offset: 3px;
   }
-  .luma-card-price {
-    font-size: 13px;
-    opacity: 0;
-    transition: opacity 0.2s;
-    font-variant-numeric: tabular-nums;
-  }
-  .luma-card:hover .luma-card-price,
-  .luma-card:focus-within .luma-card-price,
-  .luma-card.is-revealed .luma-card-price { opacity: 0.7; }
 
   .luma-alt { font-size: 14px; font-style: normal; }
   .luma-alt a, .luma-handoff a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
@@ -569,7 +802,7 @@ const t = useTranslations(lang);
   .luma-send:disabled { opacity: 0.5; cursor: default; }
   .luma-consent { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.4; opacity: 0.8; }
   .luma-consent input { margin-top: 3px; }
-  .luma-email-done { font-size: 14px; opacity: 0.8; }
+  .luma-email-done { font-size: 14px; opacity: 0.8; font-style: normal; }
 
   .luma-privacy { margin: 0; font-size: 12px; opacity: 0.55; }
 
@@ -590,7 +823,7 @@ const t = useTranslations(lang);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .luma-backdrop, .luma-panel, .luma-card-price { transition: none; }
+    .luma-backdrop, .luma-panel { transition: none; }
     .luma-cursor { animation: none; }
   }
 </style>

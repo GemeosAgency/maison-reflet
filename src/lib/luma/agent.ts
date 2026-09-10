@@ -21,7 +21,7 @@ import type { Locale } from "../../i18n";
 import { checkNumbers, checkOutput, reminderFor, type Violation } from "./guardrails";
 import type { Knowledge } from "./knowledge";
 import { FALLBACK_REPLY, UNAVAILABLE_REPLY, buildSystemBlocks, type VisitContext } from "./persona";
-import { LUMA_TOOLS, extractActions, type LumaAction } from "./tools";
+import { LUMA_TOOLS, extractActions, productsNamedIn, type LumaAction } from "./tools";
 
 export const LUMA_MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 1024;
@@ -105,6 +105,13 @@ async function generate(input: AnswerInput, reminder?: string): Promise<Attempt>
 
   const text = textOf(message);
   const { actions, violations } = extractActions(message, input.knowledge);
+  // La fiche accompagne toujours un Reflet nommé (Sandro, 11 septembre 2026) :
+  // si le modèle a parlé d'un produit sans appeler l'outil, la carte du premier
+  // produit nommé s'ajoute ici — ce n'est pas une infraction, c'est un oubli.
+  if (!actions.some((a) => a.type === "recommend_reflet" || a.type === "show_product")) {
+    const named = productsNamedIn(text, input.knowledge);
+    if (named[0]) actions.push({ type: "show_product", handle: named[0].handle });
+  }
   violations.push(
     ...checkOutput(text),
     ...checkNumbers(text, input.knowledge.allowedNumbers, input.knowledge.allowedDelays)

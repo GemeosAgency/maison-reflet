@@ -210,6 +210,11 @@ const ui = {
     "luma.emailDone": "Bien noté.",
     "luma.privacy": "Cette conversation est conservée 90 jours, puis anonymisée.",
     "luma.you": "Vous",
+    "luma.addToCart": "Ajouter au panier",
+    "luma.viewProduct": "Voir le produit",
+    "luma.added": "Ajouté au panier",
+    "luma.soldOut": "Indisponible pour le moment",
+    "luma.resume": "Reprendre la conversation",
   },
   ar: {
     "banner.promo": "شحن مجاني للطلبات من {amount}",
@@ -392,6 +397,11 @@ const ui = {
     "luma.emailDone": "تمّ.",
     "luma.privacy": "تُحفظ هذه المحادثة 90 يوماً ثم تُجعل مجهولة الهوية.",
     "luma.you": "أنتم",
+    "luma.addToCart": "أضف إلى الحقيبة",
+    "luma.viewProduct": "عرض المنتج",
+    "luma.added": "أُضيف إلى السلة",
+    "luma.soldOut": "غير متوفر حالياً",
+    "luma.resume": "متابعة الحديث",
   },
   en: {
     "banner.promo": "Free shipping on orders over {amount}",
@@ -575,6 +585,11 @@ const ui = {
     "luma.emailDone": "Noted.",
     "luma.privacy": "This conversation is kept for 90 days, then anonymised.",
     "luma.you": "You",
+    "luma.addToCart": "Add to bag",
+    "luma.viewProduct": "View the product",
+    "luma.added": "Added to your bag",
+    "luma.soldOut": "Unavailable for now",
+    "luma.resume": "Resume the conversation",
   },
 } as const;
 

@@ -12,10 +12,14 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { checkNumbers, checkOutput, type Violation } from "./guardrails";
-import type { Knowledge } from "./knowledge";
+import type { Knowledge, KnowledgeProduct } from "./knowledge";
 
 const str = { type: "string" } as const;
 const strOrNull = { type: ["string", "null"] } as const;
+
+// Réponses toutes faites : deux à quatre d'ordinaire, six quand ce sont les parfums d'origine.
+const MAX_REPLIES = 6;
+const MAX_REPLY_CHARS = 60;
 
 export const LUMA_TOOLS: Anthropic.Tool[] = [
   {
@@ -70,6 +74,24 @@ export const LUMA_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "suggest_replies",
+    description:
+      "Propose au visiteur des réponses toutes faites, cliquables, sous ta phrase : deux à quatre (six quand ce sont les parfums d'origine de la collection), courtes, dans la langue de la conversation, formulées comme le visiteur les dirait (« Plutôt le soir », « Je porte Baccarat Rouge 540 »). À appeler à chaque message qui pose une question ou ouvre une suite.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        replies: {
+          type: "array",
+          items: { type: "string" },
+          description: "Les réponses proposées, dans l'ordre d'affichage, moins de 40 caractères chacune.",
+        },
+      },
+      required: ["replies"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "log_profile_signal",
     description:
       "Enregistre ce que Luma apprend du visiteur, dès qu'elle l'apprend : ce qu'il porte, le parfum d'origine cité, pour qui, l'occasion. Un champ inconnu reste null.",
@@ -94,6 +116,7 @@ export type LumaAction =
   | { type: "show_product"; handle: string }
   | { type: "propose_email_capture"; pretext: string }
   | { type: "handoff_to_human"; reason: string }
+  | { type: "suggest_replies"; replies: string[] }
   | {
       type: "log_profile_signal";
       wearsToday: string | null;
@@ -147,6 +170,16 @@ export function extractActions(
       case "handoff_to_human":
         actions.push({ type: "handoff_to_human", reason: typeof input.reason === "string" ? input.reason : "" });
         break;
+      case "suggest_replies": {
+        const replies = (Array.isArray(input.replies) ? input.replies : [])
+          .filter((r): r is string => typeof r === "string")
+          .map((r) => r.trim())
+          .filter((r) => r.length > 0 && r.length <= MAX_REPLY_CHARS)
+          .slice(0, MAX_REPLIES);
+        for (const r of replies) shown(r);
+        if (replies.length) actions.push({ type: "suggest_replies", replies });
+        break;
+      }
       case "log_profile_signal":
         actions.push({
           type: "log_profile_signal",
@@ -161,4 +194,18 @@ export function extractActions(
     }
   }
   return { actions, violations };
+}
+
+/**
+ * Les produits du catalogue que le texte nomme, dans l'ordre d'apparition. Sert
+ * à garantir la fiche : la Maison veut la voir chaque fois qu'un Reflet est
+ * nommé (Sandro, 11 septembre 2026), même si le modèle a oublié l'outil.
+ */
+export function productsNamedIn(text: string, knowledge: Knowledge): KnowledgeProduct[] {
+  const lower = text.toLowerCase();
+  return knowledge.products
+    .map((product) => ({ product, at: lower.indexOf(product.name.toLowerCase()) }))
+    .filter((x) => x.at >= 0)
+    .sort((a, b) => a.at - b.at)
+    .map((x) => x.product);
 }

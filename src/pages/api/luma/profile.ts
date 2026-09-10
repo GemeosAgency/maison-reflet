@@ -1,16 +1,23 @@
 import type { APIRoute } from "astro";
 import { locales, type Locale } from "../../../i18n";
-import { logEvent, setSessionEmail, visitorOf } from "../../../lib/luma/store";
+import { COUNTRY_COOKIE, getCountry, isShippedCountry } from "../../../lib/markets";
+import { syncLumaEmail } from "../../../lib/luma/klaviyo";
+import { findProduct } from "../../../lib/luma/knowledge";
+import { getKnowledge } from "../../../lib/luma/knowledge-live";
+import { latestProfile, logEvent, setSessionEmail, visitorOf } from "../../../lib/luma/store";
 
 export const prerender = false;
 
 /**
  * L'email que le visiteur donne à Luma (brief §3.2 `/api/luma/profile`).
  *
- * v1 : il est posé sur la session vivante, avec le consentement marketing tel
- * que coché — un profil est créé SANS souscription par défaut (brief §4) ; la
- * synchronisation Klaviyo (propriétés `luma_*`, événements) viendra à l'étape
- * 8. Sans cookie de session, rien à rattacher : on refuse.
+ * Il est posé sur la session vivante, puis synchronisé vers Klaviyo (voir
+ * src/lib/luma/klaviyo.ts) : un événement « Luma Sheet Requested » qui porte le
+ * Reflet recommandé — c'est lui qui déclenchera l'envoi de la fiche — et, si la
+ * case est cochée, l'abonnement à la newsletter. Sans consentement : un profil,
+ * pas d'abonnement (brief §4). Klaviyo est « best effort » : l'email est déjà en
+ * base, on répond OK au visiteur même si Klaviyo tousse, et le journal garde le
+ * résultat. Sans cookie de session, rien à rattacher : on refuse.
  */
 
 const SESSION_COOKIE = "mr_luma";
@@ -54,8 +61,34 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const visitor = await visitorOf(anonId, locale);
     const session = visitor.live ?? null;
     if (!session) return json({ ok: false, error: "Pas de conversation en cours." }, 400);
-    await setSessionEmail(session.id, email);
-    await logEvent(session.id, "email_captured", { consent, locale });
+
+    const cookieCountry = cookies.get(COUNTRY_COOKIE)?.value;
+    const country = getCountry(
+      isShippedCountry(cookieCountry) ? cookieCountry : request.headers.get("x-vercel-ip-country")
+    );
+
+    // Le profil (Reflet recommandé, signaux) et le catalogue (cache) se lisent
+    // pendant que l'email s'écrit : rien ne dépend de l'autre.
+    const [profile, knowledge] = await Promise.all([
+      latestProfile({ ...visitor, email }),
+      getKnowledge({ country: country.code, locale }),
+      setSessionEmail(session.id, email),
+    ]);
+    const product = profile.recommended ? (findProduct(knowledge, profile.recommended) ?? null) : null;
+    const alternative = profile.alternative ? (findProduct(knowledge, profile.alternative) ?? null) : null;
+
+    const klaviyo = await syncLumaEmail({
+      email,
+      consent,
+      locale,
+      country: country.code,
+      origin: new URL(request.url).origin,
+      sessionId: session.id,
+      profile,
+      product,
+      alternative,
+    });
+    await logEvent(session.id, "email_captured", { consent, locale, klaviyo });
     return json({ ok: true }, 200);
   } catch (error) {
     console.error("[luma/profile] échec :", error);

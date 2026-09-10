@@ -54,8 +54,9 @@ const RATE_PER_DAY = 150;
 const DAILY_TOKEN_CAP = Number(import.meta.env.LUMA_DAILY_TOKEN_CAP) || 1_500_000;
 
 /**
- * Ce que le widget affiche d'un produit — nom, visuel, lien localisé, prix. Le
- * prix voyage mais ne s'affiche qu'au survol (brief §5) ; la disponibilité se
+ * Ce que le widget affiche d'un produit — nom, visuel, lien localisé, prix,
+ * variante à ajouter au panier (décision de Sandro du 11 septembre 2026 : la
+ * fiche est complète, prix visible et boutons du site). La disponibilité se
  * dit, ne se compte pas.
  */
 function card(p: KnowledgeProduct, lang: Locale) {
@@ -68,6 +69,7 @@ function card(p: KnowledgeProduct, lang: Locale) {
     image: p.image,
     price: main ? `${main.price} ${main.currency}` : null,
     available: p.available,
+    variantId: main?.id ?? null,
   };
 }
 
@@ -96,6 +98,8 @@ function forClient(action: LumaAction, knowledge: Knowledge, lang: Locale): Reco
       return { type: action.type, pretext: action.pretext };
     case "handoff_to_human":
       return { type: action.type, email: CONTACT_EMAIL, reason: action.reason };
+    case "suggest_replies":
+      return { type: action.type, replies: action.replies };
     case "log_profile_signal":
       return null;
   }
