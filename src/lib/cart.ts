@@ -406,20 +406,24 @@ export function initAddToCartButtons() {
     const feedback = btn.parentElement?.querySelector<HTMLElement>("[data-feedback]") ?? null;
     const inlineLabel = btn.querySelector<HTMLElement>("[data-reco-add-label]");
     const inlineLabelDefault = inlineLabel?.textContent ?? "";
+    // Libellés fournis par le composant appelant (donc traduits). Les valeurs
+    // par défaut ne servent qu'aux boutons qui n'en passent pas encore.
+    const addedLabel = btn.dataset.addedLabel || "AJOUTÉ ✓";
+    const errorLabel = btn.dataset.errorLabel || "ERREUR";
 
     btn.disabled = true;
     try {
       await addToCart(variantId, 1);
       if (feedback) feedback.textContent = "✓";
       if (inlineLabel) {
-        inlineLabel.textContent = "AJOUTÉ ✓";
+        inlineLabel.textContent = addedLabel;
         setTimeout(() => (inlineLabel.textContent = inlineLabelDefault), 1600);
       }
     } catch (error) {
       console.error(error);
       if (feedback) feedback.textContent = "×";
       if (inlineLabel) {
-        inlineLabel.textContent = "ERREUR";
+        inlineLabel.textContent = errorLabel;
         setTimeout(() => (inlineLabel.textContent = inlineLabelDefault), 1600);
       }
     } finally {

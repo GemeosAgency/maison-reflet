@@ -1,0 +1,386 @@
+---
+/**
+ * Panneau d'informations de la fiche produit (colonne sticky à droite) :
+ * titre + contenance, note moyenne, description, rangées à séparateurs
+ * (famille olfactive, pyramide en accordéon, jauges intensité/sillage),
+ * sélecteur de quantité + « Add to bag », avantages sous le CTA.
+ *
+ * Le bouton d'achat gère sa propre quantité (pas le câblage global
+ * [data-add-to-cart] qui ajoute toujours 1) — voir le <script> plus bas.
+ */
+interface NoteLevel {
+  label: string;
+  notes: string[];
+}
+
+interface Props {
+  title: string;
+  sizeLabel: string | null;
+  rating: string;
+  reviewCount: number;
+  reviewsWord: string;
+  descriptionHtml: string;
+  famillesLabel: string;
+  familles: string | null;
+  pyramidLabel: string;
+  pyramidImg: string | null;
+  noteLevels: NoteLevel[];
+  intensityLabel: string;
+  intensity: number | null;
+  intensityValueLabel: string | null;
+  sillageLabel: string;
+  sillage: number | null;
+  sillageValueLabel: string | null;
+  /**
+   * Rangées à séparateurs sans étiquette, centrées — la page coffret y met
+   * « 6 x 2 ML individual samples ». Affichées avant les rangées libellées.
+   */
+  plainRows?: string[];
+  variantId: string;
+  priceLabel: string;
+  addLabel: string;
+  addedLabel: string;
+  errorLabel: string;
+  decreaseLabel: string;
+  increaseLabel: string;
+  perks: { icon: string; label: string }[];
+}
+
+const {
+  title,
+  sizeLabel,
+  rating,
+  reviewCount,
+  reviewsWord,
+  descriptionHtml,
+  famillesLabel,
+  familles,
+  pyramidLabel,
+  pyramidImg,
+  noteLevels,
+  intensityLabel,
+  intensity,
+  intensityValueLabel,
+  sillageLabel,
+  sillage,
+  sillageValueLabel,
+  plainRows = [],
+  variantId,
+  priceLabel,
+  addLabel,
+  addedLabel,
+  errorLabel,
+  decreaseLabel,
+  increaseLabel,
+  perks,
+} = Astro.props;
+
+const gauges = [
+  { label: intensityLabel, value: intensity, valueLabel: intensityValueLabel },
+  { label: sillageLabel, value: sillage, valueLabel: sillageValueLabel },
+].filter((g) => g.value != null);
+
+const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length > 0);
+---
+
+<div class="ppanel">
+  <div class="ppanel-head">
+    <h1 class="ppanel-title">
+      {title}
+      {sizeLabel && <span class="ppanel-size">{sizeLabel}</span>}
+    </h1>
+    <div class="ppanel-rating">
+      <span class="ppanel-stars">
+        {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="14" height="14" />)}
+      </span>
+      <strong>{rating}</strong>
+      <span class="ppanel-rating-count">· {reviewCount} {reviewsWord}</span>
+    </div>
+    {descriptionHtml && <div class="ppanel-desc" set:html={descriptionHtml} />}
+  </div>
+
+  <div class="ppanel-meta">
+    {
+      plainRows.map((row) => (
+        <div class="ppanel-row is-plain">
+          <span class="ppanel-row-value">{row}</span>
+        </div>
+      ))
+    }
+    {
+      familles && (
+        <div class="ppanel-row">
+          <span class="ppanel-row-label">{famillesLabel}</span>
+          <span class="ppanel-row-value">{familles}</span>
+        </div>
+      )
+    }
+    {
+      hasPyramid && (
+        <div class="ppanel-acc" data-pyramid>
+          <button type="button" class="ppanel-row ppanel-acc-toggle" aria-expanded="false" data-pyramid-toggle>
+            <span class="ppanel-row-label">{pyramidLabel}</span>
+            <svg class="ppanel-acc-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path class="acc-v" d="M10 4V16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+              <path d="M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+            </svg>
+          </button>
+          <div class="ppanel-acc-content" data-pyramid-content inert>
+            <div class="ppanel-acc-inner">
+              {pyramidImg && <img class="ppanel-pyramid-img" src={pyramidImg} alt="" loading="lazy" />}
+              {noteLevels
+                .filter((l) => l.notes.length > 0)
+                .map((l) => (
+                  <p class="ppanel-notes-line">
+                    <strong>{l.label}</strong> — {l.notes.join(", ")}
+                  </p>
+                ))}
+            </div>
+          </div>
+        </div>
+      )
+    }
+    {
+      gauges.map((g) => (
+        <div class="ppanel-row">
+          <span class="ppanel-row-label">{g.label}</span>
+          <span class="ppanel-gauge">
+            <span class="ppanel-gauge-bar" role="img" aria-label={`${g.valueLabel} (${g.value}/5)`}>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <span class:list={["ppanel-gauge-seg", { "is-filled": i <= (g.value ?? 0) }]} />
+              ))}
+            </span>
+            <span class="ppanel-row-value">{g.valueLabel}</span>
+          </span>
+        </div>
+      ))
+    }
+  </div>
+
+  <div class="ppanel-buy">
+    <div class="ppanel-buy-row">
+      <div class="ppanel-qty">
+        <button type="button" class="ppanel-qty-btn" data-qty-decrease aria-label={decreaseLabel}>
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </button>
+        <span class="ppanel-qty-value" data-qty-value aria-live="polite">1</span>
+        <button type="button" class="ppanel-qty-btn" data-qty-increase aria-label={increaseLabel}>
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <button
+        type="button"
+        class="ppanel-add"
+        data-panel-add
+        data-variant-id={variantId}
+        data-added-label={addedLabel}
+        data-error-label={errorLabel}
+      >
+        <span>{addLabel}</span>
+        <span data-panel-add-price>{priceLabel}</span>
+      </button>
+    </div>
+    <ul class="ppanel-perks">
+      {
+        perks.map((p) => (
+          <li>
+            <img src={p.icon} alt="" width="20" height="20" />
+            {p.label}
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</div>
+
+<script>
+  import { addToCart } from "../../lib/cart";
+
+  // Accordéon pyramide olfactive (même technique que Faq.astro)
+  document.querySelectorAll<HTMLElement>("[data-pyramid]").forEach((acc) => {
+    const toggle = acc.querySelector<HTMLButtonElement>("[data-pyramid-toggle]");
+    const content = acc.querySelector<HTMLElement & { inert: boolean }>("[data-pyramid-content]");
+    toggle?.addEventListener("click", () => {
+      const open = toggle.getAttribute("aria-expanded") === "true";
+      toggle.setAttribute("aria-expanded", String(!open));
+      acc.classList.toggle("is-open", !open);
+      if (content) content.inert = open;
+    });
+  });
+
+  // Quantité + ajout au panier (quantité choisie, d'où un câblage dédié)
+  const addBtn = document.querySelector<HTMLButtonElement>("[data-panel-add]");
+  if (addBtn) {
+    const qtyValue = document.querySelector<HTMLElement>("[data-qty-value]");
+    let qty = 1;
+    const renderQty = () => {
+      if (qtyValue) qtyValue.textContent = String(qty);
+    };
+    document.querySelector("[data-qty-decrease]")?.addEventListener("click", () => {
+      qty = Math.max(1, qty - 1);
+      renderQty();
+    });
+    document.querySelector("[data-qty-increase]")?.addEventListener("click", () => {
+      qty = Math.min(9, qty + 1);
+      renderQty();
+    });
+
+    const labelEl = addBtn.querySelector("span");
+    const defaultLabel = labelEl?.textContent ?? "";
+    addBtn.addEventListener("click", async () => {
+      const variantId = addBtn.dataset.variantId;
+      if (!variantId) return;
+      addBtn.disabled = true;
+      try {
+        await addToCart(variantId, qty);
+        if (labelEl) labelEl.textContent = addBtn.dataset.addedLabel ?? defaultLabel;
+      } catch (e) {
+        console.error(e);
+        if (labelEl) labelEl.textContent = addBtn.dataset.errorLabel ?? defaultLabel;
+      } finally {
+        addBtn.disabled = false;
+        setTimeout(() => {
+          if (labelEl) labelEl.textContent = defaultLabel;
+        }, 1800);
+      }
+    });
+  }
+</script>
+
+<style>
+  .ppanel {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .ppanel-head { display: flex; flex-direction: column; gap: 8px; }
+  .ppanel-title {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 32px;
+    font-weight: 500;
+    letter-spacing: -0.64px;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .ppanel-size { font-size: 16px; font-weight: 500; letter-spacing: 0.96px; }
+  .ppanel-rating { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+  .ppanel-stars { display: inline-flex; gap: 2px; }
+  .ppanel-rating strong { font-weight: 500; }
+  .ppanel-rating-count { font-size: 14px; }
+  .ppanel-desc { font-size: 16px; line-height: 1.32; letter-spacing: 0.96px; }
+  .ppanel-desc :global(p) { margin: 0 0 0.6em; }
+  .ppanel-desc :global(p:last-child) { margin-bottom: 0; }
+
+  /* Rangées à séparateurs */
+  .ppanel-meta { display: flex; flex-direction: column; }
+  .ppanel-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 0;
+    border-top: 1px solid rgba(21, 14, 10, 0.12);
+  }
+  .ppanel-meta > :last-child,
+  .ppanel-meta .ppanel-acc:last-child .ppanel-acc-toggle { border-bottom: 0; }
+  .ppanel-meta { border-bottom: 1px solid rgba(21, 14, 10, 0.12); }
+  .ppanel-row-label { font-size: 14px; font-weight: 500; text-transform: uppercase; }
+  .ppanel-row-value { font-size: 16px; font-weight: 500; letter-spacing: 0.96px; }
+  /* Rangée sans étiquette : la valeur occupe la ligne entière et se centre.
+     20px de part et d'autre comme dans la maquette, au lieu des 14px des
+     rangées libellées. */
+  .ppanel-row.is-plain { justify-content: center; padding: 20px 0; }
+  .ppanel-row.is-plain .ppanel-row-value { line-height: 1.28; text-align: center; }
+
+  .ppanel-acc-toggle {
+    width: 100%;
+    background: none;
+    border-inline: 0;
+    border-bottom: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+  .ppanel-acc-icon { width: 20px; height: 20px; flex-shrink: 0; }
+  .ppanel-acc.is-open .acc-v { display: none; }
+  .ppanel-acc-content {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease;
+  }
+  .ppanel-acc.is-open .ppanel-acc-content { grid-template-rows: 1fr; }
+  .ppanel-acc-inner { overflow: hidden; display: flex; flex-direction: column; gap: 8px; }
+  .ppanel-acc.is-open .ppanel-acc-inner { padding-bottom: 16px; }
+  .ppanel-pyramid-img { max-width: 320px; margin: 4px auto 8px; }
+  .ppanel-notes-line { margin: 0; font-size: 14px; letter-spacing: 0.84px; }
+  .ppanel-notes-line strong { font-weight: 500; text-transform: uppercase; }
+
+  /* Jauge 5 segments */
+  .ppanel-gauge { display: inline-flex; align-items: center; gap: 12px; }
+  .ppanel-gauge-bar { display: inline-flex; gap: 2px; width: 56px; }
+  .ppanel-gauge-seg { flex: 1 0 0; height: 8px; background: rgba(21, 14, 10, 0.12); }
+  .ppanel-gauge-seg.is-filled { background: var(--rose); }
+
+  /* Achat */
+  .ppanel-buy { display: flex; flex-direction: column; gap: 32px; }
+  .ppanel-buy-row { display: flex; gap: 12px; align-items: stretch; }
+  .ppanel-qty { display: flex; }
+  .ppanel-qty-btn,
+  .ppanel-qty-value {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border: 1px solid #dbd5ce;
+    margin-inline-end: -1px;
+    background: transparent;
+    color: var(--ink);
+  }
+  .ppanel-qty-btn { cursor: pointer; padding: 0; }
+  .ppanel-qty-btn svg { width: 20px; height: 20px; }
+  .ppanel-qty-value { font-size: 18px; font-weight: 500; }
+  .ppanel-add {
+    flex: 1 0 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 56px;
+    padding: 8px 24px;
+    border: 0;
+    background: var(--rose);
+    color: var(--paper);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .ppanel-add:hover { opacity: 0.92; }
+  .ppanel-add:disabled { opacity: 0.6; }
+
+  .ppanel-perks {
+    list-style: none;
+    margin: 0;
+    padding: 0 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ppanel-perks li { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+  .ppanel-perks img { flex-shrink: 0; }
+
+  /* Sur petit écran, le libellé + prix du bouton ne tiennent pas à côté du
+     sélecteur de quantité : le CTA passe en pleine largeur en dessous. */
+  @media (max-width: 560px) {
+    .ppanel-buy-row { flex-wrap: wrap; }
+    .ppanel-add { flex: 1 1 100%; }
+  }
+</style>

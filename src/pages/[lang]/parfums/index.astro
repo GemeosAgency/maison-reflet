@@ -12,7 +12,7 @@ import {
   getPrimaryVariant,
   getDisplayPrice,
   isCoffret,
-  isSampleVariantTitle,
+  secondaryImage,
   shopifyImage,
 } from "../../../lib/shopify";
 import {
@@ -62,16 +62,8 @@ const perfumes = allProducts
       hoverImg: recoImg?.hover
         ? urlForImage(recoImg.hover as any).width(1200).height(1605).url()
         : (() => {
-            const sampleUrls = new Set(
-              p.variants.nodes
-                .filter((v) => isSampleVariantTitle(v.title))
-                .map((v) => v.image?.url)
-                .filter((u): u is string => Boolean(u))
-            );
-            const autres = [p.featuredImage, ...p.images.nodes]
-              .filter((im) => im && !sampleUrls.has(im.url))
-              .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i);
-            return autres[1] ? shopifyImage(autres[1]!, [480, 720, 1200]).src : null;
+            const im = secondaryImage(p);
+            return im ? shopifyImage(im, [480, 720, 1200]).src : null;
           })(),
       variantId: variant.id,
       href: localePath(lang, `/parfums/${p.handle}`),
@@ -166,6 +158,9 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
           href={p.href}
           variantId={p.variantId}
           badge={p.badge}
+          addLabel={t("product.addToCart")}
+          addedLabel={t("cart.added")}
+          errorLabel={t("product.error")}
         />
       ))
     }

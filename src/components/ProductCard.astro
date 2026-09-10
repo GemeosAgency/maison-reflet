@@ -30,10 +30,26 @@ interface Props {
   variantId: string;
   /** Pastille d'angle, ex. « BEST SELLER ». Masquée si absente. */
   badge?: string | null;
+  /** Libellés du bouton d'ajout (traduits par la page appelante). */
+  addLabel?: string;
+  addedLabel?: string;
+  errorLabel?: string;
 }
 
-const { name, inspired, inspiredByLabel, price, img, hoverImg, href, variantId, badge = null } =
-  Astro.props;
+const {
+  name,
+  inspired,
+  inspiredByLabel,
+  price,
+  img,
+  hoverImg,
+  href,
+  variantId,
+  badge = null,
+  addLabel = "Add to bag",
+  addedLabel = "",
+  errorLabel = "",
+} = Astro.props;
 ---
 
 <div class="product-card">
@@ -50,8 +66,15 @@ const { name, inspired, inspiredByLabel, price, img, hoverImg, href, variantId, 
       <p class="product-card-price">{price}</p>
     </div>
     <div class="product-card-add-wrap">
-      <button type="button" class="product-card-add" data-add-to-cart data-variant-id={variantId}>
-        <span data-reco-add-label>ADD TO BAG</span>
+      <button
+        type="button"
+        class="product-card-add"
+        data-add-to-cart
+        data-variant-id={variantId}
+        data-added-label={addedLabel}
+        data-error-label={errorLabel}
+      >
+        <span data-reco-add-label>{addLabel}</span>
         <span>{price}</span>
       </button>
     </div>

@@ -12,7 +12,7 @@ import {
   getDisplayPrice,
   getPrimaryVariant,
   isCoffret,
-  isSampleVariantTitle,
+  secondaryImage,
   shopifyImage,
 } from "../../lib/shopify";
 import {
@@ -86,16 +86,8 @@ const bestsellers = [...perfumes]
       hoverImg: recoImg?.hover
         ? tileImage(recoImg.hover)
         : (() => {
-            const sampleUrls = new Set(
-              p.variants.nodes
-                .filter((v) => isSampleVariantTitle(v.title))
-                .map((v) => v.image?.url)
-                .filter((u): u is string => Boolean(u))
-            );
-            const autres = [p.featuredImage, ...p.images.nodes]
-              .filter((im) => im && !sampleUrls.has(im.url))
-              .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i);
-            return autres[1] ? shopifyImage(autres[1]!, [480, 720, TILE_WIDTH]).src : null;
+            const im = secondaryImage(p);
+            return im ? shopifyImage(im, [480, 720, TILE_WIDTH]).src : null;
           })(),
       variantId: variant.id,
       href: localePath(lang, `/parfums/${p.handle}`),
@@ -256,6 +248,9 @@ const heroPanels = [
               href={p.href}
               variantId={p.variantId}
               badge={p.badge}
+              addLabel={t("product.addToCart")}
+              addedLabel={t("cart.added")}
+              errorLabel={t("product.error")}
             />
           ))}
         </div>

@@ -24,6 +24,7 @@ import {
   getDisplayPrice,
   isCoffret,
   isSampleVariantTitle,
+  secondaryImage,
   shopifyImage,
   type ShopifyProduct,
 } from "../../../lib/shopify";
@@ -256,8 +257,18 @@ const related = products
         : p.featuredImage
           ? shopifyImage(p.featuredImage, TILE_WIDTHS)
           : null,
+      // Photo du survol : la version curée dans Sanity si elle existe, sinon
+      // la deuxième photo produit de Shopify (voir secondaryImage). Même
+      // chaîne de repli que les tuiles du catalogue et de l'accueil.
+      hoverImg: recoImg?.hover
+        ? responsiveImage(recoImg.hover as any, { widths: TILE_WIDTHS, aspect: 287 / 352 })
+        : (() => {
+            const im = secondaryImage(p);
+            return im ? shopifyImage(im, TILE_WIDTHS) : null;
+          })(),
       href: localePath(lang, `/parfums/${p.handle}`),
       badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
+      variantId: getPrimaryVariant(p).id,
     };
   });
 
@@ -428,7 +439,13 @@ const productJsonLd = {
     </div>
   </section>
 
-  <RelatedProducts title={t("product.related")} items={related} />
+  <RelatedProducts
+    title={t("product.related")}
+    items={related}
+    addLabel={t("product.addToCart")}
+    addedLabel={t("cart.added")}
+    errorLabel={t("product.error")}
+  />
 
   <Pillars
     title1={t("home.pillars.title1")}

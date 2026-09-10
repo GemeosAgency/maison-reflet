@@ -12,24 +12,16 @@ export interface RelatedItem {
   subtitle: string | null;
   price: string;
   img: ResponsiveImage | null;
-  /** Photo du survol (voir ProductTile). */
-  hoverImg?: ResponsiveImage | null;
   href: string;
   badge: string | null;
-  /** Variante à ajouter au panier depuis le survol. */
-  variantId?: string | null;
 }
 
 interface Props {
   title: string;
   items: RelatedItem[];
-  /** Libellés du bouton d'ajout révélé au survol. */
-  addLabel?: string;
-  addedLabel?: string;
-  errorLabel?: string;
 }
 
-const { title, items, addLabel, addedLabel, errorLabel } = Astro.props;
+const { title, items } = Astro.props;
 ---
 
 {
@@ -43,13 +35,8 @@ const { title, items, addLabel, addedLabel, errorLabel } = Astro.props;
             subtitle={p.subtitle}
             price={p.price}
             img={p.img}
-            hoverImg={p.hoverImg}
             href={p.href}
             badge={p.badge}
-            variantId={p.variantId}
-            addLabel={addLabel}
-            addedLabel={addedLabel}
-            errorLabel={errorLabel}
           />
         ))}
       </div>

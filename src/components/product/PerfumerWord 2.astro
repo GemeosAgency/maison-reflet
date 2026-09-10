@@ -1,0 +1,91 @@
+---
+/**
+ * « Perfumer's word » : image à gauche, citation à droite.
+ * Image = perfumerPhoto (Sanity), citation = perfumerWord (Sanity).
+ */
+import type { ResponsiveImage } from "../../lib/sanity";
+
+interface Props {
+  title: string;
+  quote: string;
+  img: ResponsiveImage | null;
+}
+
+const { title, quote, img } = Astro.props;
+---
+
+<section class="pword">
+  <div class="pword-img">
+    {
+      img && (
+        <img
+          src={img.src}
+          srcset={img.srcset}
+          sizes="(max-width: 900px) 100vw, 56vw"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+      )
+    }
+  </div>
+  <div class="pword-text">
+    <h2>{title}</h2>
+    <p>“{quote}”</p>
+  </div>
+</section>
+
+<style>
+  .pword {
+    display: flex;
+    align-items: flex-end;
+    gap: 64px;
+    padding: 0 var(--gutter-x) 72px;
+  }
+  .pword-img {
+    flex: 0 0 56%;
+    max-width: 816px;
+    /* Ratio de la maquette (816 x 560). Sous 816px de colonne, une hauteur
+       figée aurait écrasé le cadrage. */
+    aspect-ratio: 816 / 560;
+    background: var(--sand);
+    overflow: hidden;
+  }
+  .pword-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: bottom;
+  }
+  .pword-text {
+    flex: 1 0 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding-bottom: 32px;
+  }
+  .pword-text h2 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 500;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .pword-text p {
+    margin: 0;
+    max-width: 416px;
+    font-size: 18px;
+    line-height: 1.28;
+    letter-spacing: 1.08px;
+  }
+
+  @media (max-width: 900px) {
+    .pword { flex-direction: column; align-items: stretch; gap: 24px; padding-bottom: 40px; }
+    /* Pleine largeur mobile : 1,457 serait trop haut, on passe en 3/2. */
+    .pword-img { flex: none; max-width: none; aspect-ratio: 3 / 2; }
+    .pword-text { padding-bottom: 0; }
+    .pword-text h2 { font-size: 26px; }
+    .pword-text p { font-size: 16px; max-width: none; }
+  }
+</style>

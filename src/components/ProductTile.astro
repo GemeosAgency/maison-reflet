@@ -2,9 +2,18 @@
 /**
  * Carte produit v2 (design d'août 2026) : image au ratio fixe, badge
  * optionnel (« Best seller »), infos SOUS l'image (nom, twist, prix).
- * Utilisée par « You may also like » sur la fiche produit — remplacera
- * progressivement ProductCard (survol) sur le catalogue et la home au fil
- * de leurs refontes.
+ * Utilisée par « Vous aimerez aussi » sur la fiche produit et la page
+ * coffret.
+ *
+ * Survol — le même que la tuile du catalogue (voir ProductCard) : la photo
+ * bascule sur une SECONDE image, la tuile s'assombrit et un bouton
+ * « Ajouter au panier » apparaît en bas du visuel. Sans seconde photo
+ * (`hoverImg` absent), le reste du survol fonctionne quand même sur la
+ * première.
+ *
+ * La tuile n'est PAS un <a> : le bouton d'ajout serait alors un bouton
+ * imbriqué dans un lien. C'est `.ptile-link`, en recouvrement, qui porte le
+ * lien — même montage que ProductCard.
  */
 import type { ResponsiveImage } from "../lib/sanity";
 
@@ -13,60 +22,134 @@ interface Props {
   subtitle?: string | null;
   price: string;
   img: ResponsiveImage | null;
+  /** Photo du survol. Sans elle, le survol garde la première image. */
+  hoverImg?: ResponsiveImage | null;
   href: string;
   badge?: string | null;
+  /** Variante à ajouter au panier. Sans elle, pas de bouton au survol. */
+  variantId?: string | null;
+  addLabel?: string;
+  addedLabel?: string;
+  errorLabel?: string;
 }
 
-const { name, subtitle, price, img, href, badge } = Astro.props;
+const {
+  name,
+  subtitle,
+  price,
+  img,
+  hoverImg = null,
+  href,
+  badge,
+  variantId = null,
+  addLabel = "",
+  addedLabel = "",
+  errorLabel = "",
+} = Astro.props;
+
+const SIZES = "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw";
 ---
 
-<a class="ptile" href={href}>
+<div class="ptile">
+  <a class="ptile-link" href={href} aria-label={name}></a>
   <div class="ptile-media">
     {
       img && (
         <img
+          class="ptile-img ptile-img-base"
           src={img.src}
           srcset={img.srcset}
-          sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw"
+          sizes={SIZES}
           alt={name}
           loading="lazy"
           decoding="async"
         />
       )
     }
+    {
+      hoverImg && (
+        <img
+          class="ptile-img ptile-img-hover"
+          src={hoverImg.src}
+          srcset={hoverImg.srcset}
+          sizes={SIZES}
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+      )
+    }
+    <div class="ptile-overlay" aria-hidden="true"></div>
     {badge && <span class="ptile-badge">{badge}</span>}
+    {
+      variantId && (
+        <div class="ptile-add-wrap">
+          <button
+            type="button"
+            class="ptile-add"
+            data-add-to-cart
+            data-variant-id={variantId}
+            data-added-label={addedLabel}
+            data-error-label={errorLabel}
+          >
+            <span data-reco-add-label>{addLabel}</span>
+          </button>
+        </div>
+      )
+    }
   </div>
   <div class="ptile-meta">
     <h3>{name}</h3>
     {subtitle && <p class="ptile-subtitle">{subtitle}</p>}
     <p class="ptile-price">{price}</p>
   </div>
-</a>
+</div>
 
 <style>
   .ptile {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
   }
+  /* Couvre l'image ET les infos : toute la tuile reste cliquable. */
+  .ptile-link { position: absolute; inset: 0; z-index: 1; }
   .ptile-media {
     position: relative;
     aspect-ratio: 287 / 352;
     background: var(--sand);
     overflow: hidden;
   }
-  .ptile-media img {
+  .ptile-img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.5s ease;
+    pointer-events: none;
+    transition: opacity 0.6s ease, transform 0.5s ease;
   }
-  .ptile:hover .ptile-media img { transform: scale(1.03); }
+  .ptile-img-hover { opacity: 0; }
+  .ptile:hover .ptile-img { transform: scale(1.03); }
+  .ptile:hover .ptile-img-base { opacity: 0; }
+  .ptile:hover .ptile-img-hover { opacity: 1; }
+  /* Mêmes valeurs que le survol de la tuile catalogue. */
+  .ptile-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(21, 14, 10, 0.26) 0%, rgba(21, 14, 10, 0.58) 100%);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+  .ptile:hover .ptile-overlay { opacity: 1; }
   .ptile-badge {
     position: absolute;
     top: 0;
     inset-inline-start: 0;
+    z-index: 2;
     padding: 11px 12px;
     background: var(--peach);
     color: var(--rose);
@@ -75,6 +158,38 @@ const { name, subtitle, price, img, href, badge } = Astro.props;
     text-transform: uppercase;
     line-height: 1;
   }
+  /* Bouton en bas du visuel, rentré comme les infos en dessous (16 px). */
+  .ptile-add-wrap {
+    position: absolute;
+    z-index: 2;
+    inset-inline: 16px;
+    bottom: 16px;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition:
+      max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.3s ease;
+  }
+  .ptile:hover .ptile-add-wrap,
+  .ptile:focus-within .ptile-add-wrap { max-height: 48px; opacity: 1; }
+  .ptile-add {
+    pointer-events: auto;
+    width: 100%;
+    height: 48px;
+    border: 0;
+    padding: 0 16px;
+    background: var(--bg);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background-color 0.15s;
+  }
+  .ptile-add:hover { background: var(--paper); }
+  .ptile-add:disabled { opacity: 0.6; }
   .ptile-meta {
     display: flex;
     flex-direction: column;
@@ -94,5 +209,18 @@ const { name, subtitle, price, img, href, badge } = Astro.props;
     font-size: 14px;
     font-weight: 500;
     line-height: 1.5;
+  }
+
+  /* Pas de survol au doigt : le bouton resterait inatteignable. */
+  @media (hover: none) {
+    .ptile-add-wrap { max-height: 48px; opacity: 1; overflow: visible; }
+    .ptile-overlay { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ptile-img,
+    .ptile-overlay,
+    .ptile-add-wrap { transition: none; }
+    .ptile:hover .ptile-img { transform: none; }
   }
 </style>

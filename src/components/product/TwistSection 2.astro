@@ -1,0 +1,98 @@
+---
+/**
+ * « The Specific Twist » : titre à gauche, texte long à droite, grande image
+ * panoramique bordée en dessous. Texte = specificTwist (Sanity), image =
+ * imageTwist (Sanity) avec repli sur une image de la galerie.
+ */
+import type { ResponsiveImage } from "../../lib/sanity";
+
+interface Props {
+  title: string;
+  text: string;
+  img: ResponsiveImage | null;
+}
+
+const { title, text, img } = Astro.props;
+---
+
+<section class="twist">
+  <div class="twist-head">
+    <h2>{title}</h2>
+    <p>{text}</p>
+  </div>
+  {
+    img && (
+      <div class="twist-img media-band">
+        <img
+          src={img.src}
+          srcset={img.srcset}
+          {/* La bande occupe le container, jamais plus. */}
+          sizes="min(100vw, 1800px)"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+    )
+  }
+</section>
+
+<style>
+  /*
+   * La gouttière est portée par le bloc de texte, pas par la section : l'image
+   * est une bande de médias qui occupe tout le container --page-max, comme
+   * Scent Notes, les piliers et « You may also like ». Le texte reste rentré
+   * de --gutter-x, comme les titres de ces mêmes sections.
+   */
+  .twist {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+    padding-block: 120px 72px;
+  }
+  .twist-head {
+    padding-inline: var(--gutter-x);
+    display: flex;
+    align-items: flex-start;
+    gap: 80px;
+  }
+  .twist-head h2 {
+    margin: 0;
+    max-width: 260px;
+    font-size: 32px;
+    font-weight: 500;
+    text-transform: uppercase;
+    line-height: 1.2;
+    flex-shrink: 0;
+  }
+  .twist-head p {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.28;
+    letter-spacing: 1.08px;
+    white-space: pre-line;
+  }
+  .twist-img {
+    /* Ratio de la maquette (1296 x 560) plutôt qu'une hauteur figée : avec
+       560px fixes et une largeur fluide, l'image était étirée dès qu'on
+       quittait 1440px de viewport. */
+    aspect-ratio: 1296 / 560;
+    border: 1px solid var(--ink);
+    background: var(--sand);
+    overflow: hidden;
+  }
+  .twist-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  @media (max-width: 900px) {
+    .twist { padding-block: 56px 40px; gap: 24px; }
+    .twist-head { flex-direction: column; gap: 16px; }
+    .twist-head h2 { font-size: 26px; max-width: none; }
+    .twist-head p { font-size: 16px; }
+    /* En mobile, 2,31 donnerait une bande de 140px de haut : on resserre. */
+    .twist-img { aspect-ratio: 3 / 2; }
+  }
+</style>

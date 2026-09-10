@@ -252,6 +252,31 @@ export function isSampleVariantTitle(title: string): boolean {
   return SAMPLE_VARIANT_KEYWORDS.some((k) => l.includes(k));
 }
 
+/**
+ * Deuxième visuel d'un produit — la photo montrée au survol des tuiles,
+ * quand Sanity n'en a pas de dédiée (imageRecommandationHover).
+ *
+ * Deux filtres, appris à l'usage :
+ *  - les visuels de variante ÉCHANTILLON sont écartés ; ce sont des vignettes
+ *    de 192 px destinées au panier, pas des angles de flacon ;
+ *  - les doublons d'URL aussi, `featuredImage` figurant presque toujours déjà
+ *    dans `images.nodes` — sans ça la "deuxième" photo était la première.
+ */
+export function secondaryImage(
+  product: Pick<ShopifyProduct, "featuredImage" | "images" | "variants">
+): ShopifyImage | null {
+  const sampleUrls = new Set(
+    product.variants.nodes
+      .filter((v) => isSampleVariantTitle(v.title))
+      .map((v) => v.image?.url)
+      .filter((u): u is string => Boolean(u))
+  );
+  const photos = [product.featuredImage, ...product.images.nodes]
+    .filter((im): im is ShopifyImage => Boolean(im) && !sampleUrls.has(im.url))
+    .filter((im, i, arr) => arr.findIndex((x) => x.url === im.url) === i);
+  return photos[1] ?? null;
+}
+
 type ProductVariant = ShopifyProduct["variants"]["nodes"][number];
 
 /**
