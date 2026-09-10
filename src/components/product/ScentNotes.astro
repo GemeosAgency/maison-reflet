@@ -71,6 +71,9 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
         <h2>{title}</h2>
         {hasTabs && (
           <div class="snotes-tabs" role="tablist" aria-label={title} data-snotes-tabs>
+            {/* Pastille unique glissée d'un onglet à l'autre. Un fond posé sur
+                chaque bouton ne peut que se fondre ; celle-ci se déplace. */}
+            <span class="snotes-tabs-pill" data-snotes-pill aria-hidden="true"></span>
             {panels.map((p, i) => (
               <button
                 type="button"
@@ -131,10 +134,64 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
 }
 
 <script>
+  /*
+   * Apparition en fondu des photos de matières.
+   *
+   * `loading="lazy"` reste dans le markup pour ne pas alourdir le premier
+   * rendu, mais dès que la section approche du viewport on repasse TOUTES ses
+   * images en `eager`, y compris celles des onglets masqués : sinon changer
+   * d'onglet laisse un cadre sable le temps du téléchargement. Le fondu ne
+   * joue donc qu'une fois, au premier chargement.
+   */
+  const revealImages = (root: ParentNode) => {
+    root.querySelectorAll<HTMLImageElement>(".snotes-img").forEach((img) => {
+      if (img.complete && img.naturalWidth > 0) {
+        img.classList.add("is-loaded");
+      } else {
+        img.addEventListener("load", () => img.classList.add("is-loaded"), { once: true });
+        // Une image en erreur ne doit pas rester invisible pour toujours.
+        img.addEventListener("error", () => img.classList.add("is-loaded"), { once: true });
+      }
+    });
+  };
+
+  document.querySelectorAll<HTMLElement>(".snotes").forEach((section) => {
+    revealImages(section);
+    const preload = () =>
+      section.querySelectorAll<HTMLImageElement>('.snotes-img[loading="lazy"]').forEach((img) => {
+        img.loading = "eager";
+      });
+    if (!("IntersectionObserver" in window)) {
+      preload();
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        preload();
+      },
+      { rootMargin: "400px" }
+    );
+    io.observe(section);
+  });
+
   document.querySelectorAll<HTMLElement>("[data-snotes-tabs]").forEach((bar) => {
     const tabs = [...bar.querySelectorAll<HTMLButtonElement>("[data-snotes-tab]")];
     const section = bar.closest("section");
     if (!section) return;
+    const pill = bar.querySelector<HTMLElement>("[data-snotes-pill]");
+
+    /*
+     * Place la pastille sur l'onglet actif. offsetLeft est mesuré depuis le
+     * bord de la barre, donc la valeur reste juste même quand la barre est
+     * défilée, et en RTL.
+     */
+    const movePill = (tab: HTMLElement) => {
+      if (!pill) return;
+      bar.style.setProperty("--pill-w", `${tab.offsetWidth}px`);
+      bar.style.setProperty("--pill-x", `${tab.offsetLeft - bar.clientLeft}px`);
+    };
 
     const show = (id: string) => {
       tabs.forEach((tab) => {
@@ -143,6 +200,7 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
         // Un seul onglet dans l'ordre de tabulation : les flèches font le
         // reste, c'est le comportement attendu d'un tablist.
         tab.tabIndex = on ? 0 : -1;
+        if (on) movePill(tab);
       });
       section
         .querySelectorAll<HTMLElement>("[data-snotes-panel]")
@@ -150,6 +208,41 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
           panel.hidden = panel.dataset.snotesPanel !== id;
         });
     };
+
+    const active = () => tabs.find((t) => t.getAttribute("aria-selected") === "true") ?? tabs[0];
+
+    /*
+     * Position initiale SANS transition, sinon la pastille glisserait depuis
+     * le bord gauche au chargement.
+     *
+     * La lecture de `offsetWidth` force le navigateur à recalculer les styles
+     * tout de suite : la position part donc dans un rendu où la transition
+     * n'existe pas encore, et `.is-ready` n'arme l'animation que pour les
+     * changements suivants. Pas de requestAnimationFrame ici — il ne se
+     * déclenche pas dans un onglet en arrière-plan, et la pastille resterait
+     * invisible jusqu'à ce que l'onglet passe au premier plan.
+     */
+    if (pill && active()) {
+      movePill(active());
+      void bar.offsetWidth;
+      pill.classList.add("is-ready");
+    }
+
+    // Les libellés bougent avec la police et la largeur : on recale.
+    if ("ResizeObserver" in window) {
+      const ro = new ResizeObserver(() => {
+        const t = active();
+        if (t) movePill(t);
+      });
+      ro.observe(bar);
+      tabs.forEach((t) => ro.observe(t));
+    }
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(() => {
+        const t = active();
+        if (t) movePill(t);
+      });
+    }
 
     tabs.forEach((tab, i) => {
       tab.addEventListener("click", () => show(tab.dataset.snotesTab ?? ""));
@@ -164,6 +257,8 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
         const next = tabs[(i + (rtl ? -step : step) + tabs.length) % tabs.length];
         show(next.dataset.snotesTab ?? "");
         next.focus();
+        // La barre déborde à 6 onglets : l'onglet choisi doit rester visible.
+        next.scrollIntoView({ inline: "nearest", block: "nearest" });
       });
     });
   });
@@ -195,6 +290,7 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
   }
 
   .snotes-tabs {
+    position: relative;
     display: flex;
     padding: 4px;
     background: var(--sand);
@@ -205,7 +301,35 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
     scrollbar-width: none;
   }
   .snotes-tabs::-webkit-scrollbar { display: none; }
+  /*
+   * La pastille est en position absolue DANS la barre, donc elle défile avec
+   * les onglets quand la barre déborde. Sa largeur et sa position sont posées
+   * en JS d'après l'onglet actif ; `--pill-x` / `--pill-w` restent à 0 tant
+   * que le script n'a pas tourné, et `.is-ready` évite qu'elle glisse depuis
+   * le bord gauche au premier rendu.
+   */
+  .snotes-tabs-pill {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 0;
+    width: var(--pill-w, 0);
+    transform: translateX(var(--pill-x, 0));
+    background: var(--bg);
+    filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.04));
+    opacity: 0;
+    pointer-events: none;
+  }
+  .snotes-tabs-pill.is-ready {
+    opacity: 1;
+    transition:
+      transform 0.34s cubic-bezier(0.4, 0, 0.2, 1),
+      width 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
   .snotes-tab {
+    position: relative;
+    z-index: 1;
     flex: 0 0 auto;
     border: 0;
     background: transparent;
@@ -220,8 +344,11 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
     cursor: pointer;
     transition: opacity 0.15s ease, background-color 0.15s ease;
   }
-  .snotes-tab[aria-selected="true"] {
-    opacity: 1;
+  /* Le fond de l'état actif est porté par la pastille, plus par le bouton.
+     Repli si le script ne tourne pas : sans pastille visible, l'onglet actif
+     reprend son propre fond. */
+  .snotes-tab[aria-selected="true"] { opacity: 1; }
+  .snotes-tabs:not(:has(.snotes-tabs-pill.is-ready)) .snotes-tab[aria-selected="true"] {
     background: var(--bg);
     filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.04));
   }
@@ -245,7 +372,15 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
     background: var(--sand);
     padding: 32px;
   }
+  /*
+   * La matière apparaît en fondu une fois chargée, sur le fond sable de la
+   * colonne. `.is-loaded` est posé par le script — y compris sur les images
+   * déjà en cache — donc changer d'onglet n'entraîne aucun re-fondu.
+   */
   .snotes-img {
+    opacity: 0;
+    transform: scale(1.015);
+    transition: opacity 0.6s ease, transform 0.9s cubic-bezier(0.2, 0, 0.2, 1);
     position: absolute;
     inset: 0;
     width: 100%;
@@ -277,7 +412,16 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
     text-transform: uppercase;
     line-height: 1.2;
   }
+  .snotes-img.is-loaded { opacity: 1; transform: none; }
+
   .snotes-note.is-key { font-weight: 700; }
+
+  /* Glissement et fondu sont du décor : on les retire si l'utilisateur a
+     demandé moins d'animations, sans rien casser de l'état affiché. */
+  @media (prefers-reduced-motion: reduce) {
+    .snotes-tabs-pill.is-ready { transition: none; }
+    .snotes-img { transition: none; transform: none; }
+  }
 
   /* Sous 1100px les colonnes deviendraient trop étroites pour que la matière
      reste lisible : on passe à deux colonnes, puis une. */
