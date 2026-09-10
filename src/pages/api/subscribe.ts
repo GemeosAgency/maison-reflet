@@ -1,5 +1,12 @@
 import type { APIRoute } from "astro";
-import { locales, type Locale } from "../../i18n";
+
+/*
+ * Langues du site, en dur : cette branche (prod, mode page d'attente) n'a pas
+ * encore le module src/i18n.ts du site trilingue. A remplacer par l'import
+ * depuis ce module le jour de la fusion.
+ */
+const locales = ["fr", "ar", "en"] as const;
+type Locale = (typeof locales)[number];
 
 // Rendu à la demande (fonction serverless Vercel), pas prégénéré.
 export const prerender = false;
