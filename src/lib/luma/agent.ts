@@ -21,7 +21,15 @@ import type { Locale } from "../../i18n";
 import { checkNumbers, checkOutput, reminderFor, type Violation } from "./guardrails";
 import type { Knowledge } from "./knowledge";
 import { FALLBACK_REPLY, UNAVAILABLE_REPLY, buildSystemBlocks, type VisitContext } from "./persona";
-import { LUMA_TOOLS, extractActions, fallbackReplies, normalizeReplies, productsNamedIn, type LumaAction } from "./tools";
+import {
+  LUMA_TOOLS,
+  extractActions,
+  fallbackReplies,
+  normalizeReplies,
+  productsNamedIn,
+  repliesFromQuestion,
+  type LumaAction,
+} from "./tools";
 
 export const LUMA_MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 1024;
@@ -69,6 +77,8 @@ export type AgentReply = {
    * oubliées. Ils valent une seconde chance, jamais une réponse de secours.
    */
   soft: Violation[];
+  /** D'où viennent les réponses toutes faites : le modèle, le complément, la question elle-même, ou le secours générique. */
+  chipsSource: "model" | "completion" | "question" | "fallback" | "none";
   regenerated: boolean;
   /** Réponse de secours servie (deux régénérations fautives, refus, panne). */
   fallback: boolean;
@@ -95,7 +105,14 @@ function textOf(message: Anthropic.Message): string {
     .trim();
 }
 
-type Attempt = { text: string; actions: LumaAction[]; violations: Violation[]; soft: Violation[]; message: Anthropic.Message };
+type Attempt = {
+  text: string;
+  actions: LumaAction[];
+  violations: Violation[];
+  soft: Violation[];
+  chipsSource: AgentReply["chipsSource"];
+  message: Anthropic.Message;
+};
 
 async function generate(input: AnswerInput, reminder?: string): Promise<Attempt> {
   const message = await getClient().messages.create({
@@ -142,7 +159,7 @@ async function generate(input: AnswerInput, reminder?: string): Promise<Attempt>
   if (recommends(actions) && text && !/[?؟]/.test(lastParagraph)) {
     soft.push({ rule: "recommandation sans question de suite", match: lastParagraph.slice(-60) });
   }
-  return { text, actions, violations, soft, message };
+  return { text, actions, violations, soft, chipsSource: soft.some((v) => v.match === "suggest_replies") ? "none" : "model", message };
 }
 
 function recommends(actions: LumaAction[]): boolean {
@@ -185,11 +202,13 @@ async function complete(a: Attempt, input: AnswerInput): Promise<{ attempt: Atte
         { role: "user", content: COMPLETE_INSTRUCTION },
       ],
     });
-    const raw = textOf(res).replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
+    // Le modèle entoure parfois le JSON de texte ou de clôtures : on prend le premier objet.
+    const raw = textOf(res).match(/\{[\s\S]*\}/)?.[0] ?? "";
     const parsed = JSON.parse(raw) as { question?: unknown; replies?: unknown };
 
     let text = a.text;
     let actions = a.actions;
+    let chipsSource = a.chipsSource;
     const question = typeof parsed.question === "string" ? parsed.question.trim() : "";
     if (needsQuestion && question && question.length <= 160 && /[?؟]$/.test(question) && clean(question)) {
       text = `${text}\n\n${question}`;
@@ -200,19 +219,32 @@ async function complete(a: Attempt, input: AnswerInput): Promise<{ attempt: Atte
         .map((r) => r.trim())
         .filter((r) => r.length > 0 && r.length <= 60 && r.toLowerCase() !== input.userMessage.trim().toLowerCase() && clean(r))
         .slice(0, 6);
-      if (replies.length >= 2) actions = normalizeReplies([...actions, { type: "suggest_replies", replies }], input.knowledge);
+      if (replies.length >= 2) {
+        actions = normalizeReplies([...actions, { type: "suggest_replies", replies }], input.knowledge);
+        chipsSource = "completion";
+      }
     }
-    return { attempt: withFallbackChips({ ...a, text, actions }, input), usage: res.usage };
+    return { attempt: withFallbackChips({ ...a, text, actions, chipsSource }, input), usage: res.usage };
   } catch (error) {
     console.error("[luma/agent] complément non obtenu :", error instanceof Error ? error.message : String(error));
     return { attempt: withFallbackChips(a, input), usage: null };
   }
 }
 
-/** Si les réponses toutes faites manquent encore, le code les fournit. */
+/**
+ * Si les réponses toutes faites manquent encore, le code les fournit : d'abord
+ * les deux options de la question elle-même quand elle en oppose deux, sinon
+ * le jeu générique — toujours en rapport avec ce que Luma vient de dire.
+ */
 function withFallbackChips(a: Attempt, input: AnswerInput): Attempt {
   if (a.actions.some((x) => x.type === "suggest_replies")) return a;
-  return { ...a, actions: [...a.actions, { type: "suggest_replies", replies: fallbackReplies(input.locale, a.text, recommends(a.actions)) }] };
+  const fromQuestion = repliesFromQuestion(a.text);
+  const replies = fromQuestion.length ? fromQuestion : fallbackReplies(input.locale, a.text, recommends(a.actions));
+  return {
+    ...a,
+    chipsSource: fromQuestion.length ? "question" : "fallback",
+    actions: [...a.actions, { type: "suggest_replies", replies }],
+  };
 }
 
 export async function answer(input: AnswerInput): Promise<AgentReply> {
@@ -231,27 +263,18 @@ export async function answer(input: AnswerInput): Promise<AgentReply> {
         usage,
         violations: [{ rule: "refus du modèle", match: first.message.stop_details?.category ?? "" }],
         soft: [],
+        chipsSource: "none",
         regenerated: false,
         fallback: true,
       };
     }
-    if (first.violations.length === 0) {
-      if (first.soft.length === 0) {
-        return { ...pick(first), model: first.message.model, usage, violations: [], soft: [], regenerated: false, fallback: false };
-      }
-      // Rien d'interdit, mais la conversation s'arrête ou n'offre rien à
-      // cliquer : un complément, jamais une réécriture ni un secours.
-      const { attempt, usage: extra } = await complete(first, input);
-      if (extra) usage = addUsage(usage, extra);
-      return { ...pick(attempt), model: first.message.model, usage, violations: [], soft: first.soft, regenerated: false, fallback: false };
-    }
+    if (first.violations.length === 0) return finish(first, input, usage, [], false);
     allViolations.push(...first.violations);
 
     const second = await generate(input, reminderFor(first.violations));
     usage = addUsage(usage, second.message.usage);
     if (second.message.stop_reason !== "refusal" && second.violations.length === 0) {
-      const chosen = withFallbackChips(second, input);
-      return { ...pick(chosen), model: chosen.message.model, usage, violations: allViolations, soft: second.soft, regenerated: true, fallback: false };
+      return finish(second, input, usage, allViolations, true);
     }
     allViolations.push(...second.violations);
     return {
@@ -261,6 +284,7 @@ export async function answer(input: AnswerInput): Promise<AgentReply> {
       usage,
       violations: allViolations,
       soft: [],
+      chipsSource: "none",
       regenerated: true,
       fallback: true,
     };
@@ -281,6 +305,7 @@ export async function answer(input: AnswerInput): Promise<AgentReply> {
       usage,
       violations: allViolations,
       soft: [],
+      chipsSource: "none",
       regenerated: false,
       fallback: true,
       error: detail,
@@ -290,4 +315,29 @@ export async function answer(input: AnswerInput): Promise<AgentReply> {
 
 function pick(a: Attempt): Pick<AgentReply, "text" | "actions"> {
   return { text: a.text, actions: a.actions };
+}
+
+/**
+ * Une réponse propre : si la conversation s'arrête ou n'offre rien à cliquer,
+ * le complément d'abord — quel que soit le chemin (première tentative ou
+ * régénération) —, puis les réponses de secours en dernier recours.
+ */
+async function finish(a: Attempt, input: AnswerInput, usage: Usage, violations: Violation[], regenerated: boolean): Promise<AgentReply> {
+  let attempt = a;
+  let total = usage;
+  if (a.soft.length) {
+    const { attempt: completed, usage: extra } = await complete(a, input);
+    attempt = completed;
+    if (extra) total = addUsage(total, extra);
+  }
+  return {
+    ...pick(attempt),
+    model: a.message.model,
+    usage: total,
+    violations,
+    soft: a.soft,
+    chipsSource: attempt.chipsSource,
+    regenerated,
+    fallback: false,
+  };
 }

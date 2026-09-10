@@ -75,7 +75,7 @@ async function play(name, turns) {
       if (a.type === "recommend_reflet") Object.assign(profile, { recommended: a.reflet, alternative: a.alternative });
       if (a.type === "log_profile_signal") for (const [k, v] of Object.entries(a)) if (k !== "type" && v) profile[k] = v;
     }
-    if (reply.soft?.length) console.log(`    ↻ manques doux (complément demandé) : ${reply.soft.map((v) => v.rule).join(" · ")}`);
+    if (reply.soft?.length) console.log(`    ↻ manques doux (complément demandé) : ${reply.soft.map((v) => v.rule).join(" · ")} → réponses : ${reply.chipsSource}`);
     if (reply.violations.length) {
       console.log(`    ⚠ infractions ${reply.regenerated ? "(corrigées par régénération)" : ""}: ${reply.violations.map((v) => `${v.rule} « ${v.match} »`).join(" · ")}`);
       if (!reply.regenerated || reply.fallback) fautes++;

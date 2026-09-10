@@ -261,3 +261,30 @@ export function normalizeReplies(actions: LumaAction[], knowledge: Knowledge): L
     a.type === "suggest_replies" && a.replies.filter(isName).length >= 2 ? { ...a, replies: names } : a
   );
 }
+
+/**
+ * Dernier recours avant le générique : quand la question de Luma oppose deux
+ * options — « plutôt un boisé net, ou une gourmandise fruitée ? », « rather X,
+ * or Y? », « X أم Y؟ » —, les réponses sont ces deux options. Déterministe,
+ * donc toujours en rapport avec la question (Sandro, 11 septembre 2026).
+ */
+export function repliesFromQuestion(text: string): string[] {
+  const last = text.split(/\n+/).filter(Boolean).pop() ?? "";
+  const question = last.match(/([^.!?؟]*[?؟])\s*$/)?.[1]?.trim() ?? "";
+  if (!question) return [];
+  const parts = question.replace(/[?؟]\s*$/, "").split(/\s*,?\s+(?:ou|or)\s+|\s+أم\s+/i);
+  if (parts.length !== 2) return [];
+  const marker = /(?:plutôt|plutot|rather|prefer|préférez|préfère|toward|towards|vers)\s+/i;
+  let [first, second] = parts.map((x) => x.trim());
+  // Le début de la question précède la première option : on coupe au marqueur.
+  const m = first.match(marker);
+  if (!m) return [];
+  first = first.slice((m.index ?? 0) + m[0].length);
+  const tidy = (x: string) =>
+    x
+      .replace(/^(?:sur|pour|vers|de|d'|to|for|on)\s+/i, "")
+      .trim()
+      .replace(/^[a-zà-ÿ]/, (c) => c.toUpperCase());
+  const options = [tidy(first), tidy(second)].filter((x) => x.length >= 3 && x.length <= 48);
+  return options.length === 2 ? options : [];
+}
