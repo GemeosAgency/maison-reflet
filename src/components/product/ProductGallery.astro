@@ -8,12 +8,17 @@ import type { ResponsiveImage } from "../../lib/sanity";
 
 interface Props {
   images: (ResponsiveImage & { alt: string })[];
+  /**
+   * Ratio d'un cliché. 720/896 sur la fiche parfum, 1/1 sur la page coffret
+   * (maquette Discovery : deux carrés de 720).
+   */
+  ratio?: string;
 }
 
-const { images } = Astro.props;
+const { images, ratio = "720 / 896" } = Astro.props;
 ---
 
-<div class="pgallery">
+<div class="pgallery" style={`--pgallery-ratio: ${ratio}`}>
   {
     images.map((im, i) => (
       <div class="pgallery-shot">
@@ -38,7 +43,7 @@ const { images } = Astro.props;
     gap: 2px;
   }
   .pgallery-shot {
-    aspect-ratio: 720 / 896;
+    aspect-ratio: var(--pgallery-ratio, 720 / 896);
     background: var(--sand);
     overflow: hidden;
   }

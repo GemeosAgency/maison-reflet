@@ -328,9 +328,25 @@ export type CoffretContent = {
   shopifyHandle: string;
   titre: string | null;
   description: string | null;
+  /** Ligne entre filets sous la description, ex. « 6 x 2 ML individual samples ». */
+  contenance?: string | null;
   image: unknown | null;
+  perfumerWord?: string | null;
+  perfumerPhoto?: unknown | null;
   faqs?: FaqItem[];
+  /** Parfums du coffret, avec leurs notes — alimente les onglets Scent Notes. */
+  parfums?: CoffretParfum[];
 };
+
+/** Un parfum inclus dans un coffret, réduit à ce que la page coffret affiche. */
+export type CoffretParfum = {
+  shopifyHandle: string;
+  /** Repère du Studio — le nom affiché vient de Shopify, c'est un repli. */
+  nom: string | null;
+  notes: { tete: CoffretNote[]; coeur: CoffretNote[]; fond: CoffretNote[] };
+};
+
+export type CoffretNote = { nom: string | null; image: unknown | null };
 
 /** Coffrets (sets multi-parfums) dans une langue donnée (repli FR), triés par "ordre". */
 export async function getCoffrets(locale: Locale): Promise<CoffretContent[]> {
@@ -344,6 +360,12 @@ export async function getCoffrets(locale: Locale): Promise<CoffretContent[]> {
   return sanityClient.fetch(query);
 }
 
+/**
+ * Projection d'un niveau de notes pour un parfum de coffret : seulement le nom
+ * et la photo de matière, c'est tout ce que le triptyque Scent Notes affiche.
+ */
+const coffretNoteCards = (l: string) => `[]->{ "nom": coalesce(nom.${l}, nom.fr), image }`;
+
 /** Contenu d'un coffret par son handle Shopify, dans une langue donnée (repli FR). */
 export async function getCoffretByHandle(handle: string, locale: Locale): Promise<CoffretContent | null> {
   const l = safeLocale(locale);
@@ -351,10 +373,22 @@ export async function getCoffretByHandle(handle: string, locale: Locale): Promis
     shopifyHandle,
     "titre": coalesce(titre.${l}, titre.fr),
     "description": coalesce(description.${l}, description.fr),
+    "contenance": coalesce(contenance.${l}, contenance.fr),
     image,
+    "perfumerWord": coalesce(perfumerWord.${l}, perfumerWord.fr),
+    perfumerPhoto,
     "faqs": faqs[]->{
       "question": coalesce(question.${l}, question.fr),
       "reponse": coalesce(reponse.${l}, reponse.fr)
+    },
+    "parfums": parfums[]->{
+      shopifyHandle,
+      "nom": nomAffiche,
+      "notes": {
+        "tete": notesTete${coffretNoteCards(l)},
+        "coeur": notesCoeur${coffretNoteCards(l)},
+        "fond": notesFond${coffretNoteCards(l)}
+      }
     }
   }`;
   return sanityClient.fetch(query, { handle });

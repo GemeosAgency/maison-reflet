@@ -1,0 +1,67 @@
+---
+/**
+ * Section « You may also like » : bande de cartes produit sous un titre
+ * centré. Extraite de la fiche produit pour être partagée avec la page
+ * coffret — rendu identique.
+ */
+import ProductTile from "./ProductTile.astro";
+import type { ResponsiveImage } from "../lib/sanity";
+
+export interface RelatedItem {
+  name: string;
+  subtitle: string | null;
+  price: string;
+  img: ResponsiveImage | null;
+  href: string;
+  badge: string | null;
+}
+
+interface Props {
+  title: string;
+  items: RelatedItem[];
+}
+
+const { title, items } = Astro.props;
+---
+
+{
+  items.length > 0 && (
+    <section class="related">
+      <h2>{title}</h2>
+      <div class="related-grid media-band">
+        {items.map((p) => (
+          <ProductTile
+            name={p.name}
+            subtitle={p.subtitle}
+            price={p.price}
+            img={p.img}
+            href={p.href}
+            badge={p.badge}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .related { display: flex; flex-direction: column; align-items: center; }
+  .related h2 {
+    margin: 0;
+    padding: 56px var(--gutter-x) 40px;
+    font-size: 32px;
+    font-weight: 500;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .related-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2px;
+  }
+
+  @media (max-width: 900px) {
+    .related h2 { font-size: 26px; padding: 40px var(--gutter-x) 24px; }
+    .related-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>

@@ -1,0 +1,269 @@
+---
+/**
+ * Section « avis clients » de la page coffret (maquette Discovery).
+ *
+ * Une ligne par avis : note + auteur + date à gauche, photo au centre,
+ * citation à droite. Pagination client sous la liste, affichée seulement
+ * quand il y a plus d'une page.
+ *
+ * ATTENTION — aucun système d'avis n'est branché à ce jour. La page appelante
+ * passe des avis de démonstration ; à remplacer par de vrais avis (Judge.me,
+ * Loox, Okendo…) avant le lancement. Le composant, lui, est déjà prêt : il
+ * affiche ce qu'on lui donne, photo comprise si l'avis en a une.
+ */
+import type { ResponsiveImage } from "../lib/sanity";
+
+export interface Review {
+  author: string;
+  date: string;
+  quote: string;
+  /** Note sur 5, arrondie à l'entier pour l'affichage des étoiles. */
+  rating?: number;
+  img?: (ResponsiveImage & { alt?: string }) | null;
+}
+
+interface Props {
+  /** « Avis ({count}) » — le composant remplace {count} par le nombre réel. */
+  title: string;
+  ratingLabel: string;
+  customersLabel: string;
+  reviews: Review[];
+  /** Nombre total d'avis, s'il dépasse ce qui est passé dans `reviews`. */
+  totalCount?: number;
+  perPage?: number;
+  previousLabel: string;
+  nextLabel: string;
+}
+
+const {
+  title,
+  ratingLabel,
+  customersLabel,
+  reviews,
+  totalCount,
+  perPage = 5,
+  previousLabel,
+  nextLabel,
+} = Astro.props;
+
+const count = totalCount ?? reviews.length;
+const heading = title.replace("{count}", String(count));
+const pages = Math.ceil(reviews.length / perPage);
+const stars = (n: number) => Array.from({ length: Math.max(0, Math.min(5, Math.round(n))) });
+---
+
+{
+  reviews.length > 0 && (
+    <section class="reviews">
+      <div class="reviews-head">
+        <h2>{heading}</h2>
+        <div class="reviews-rating">
+          <span class="stars">
+            {stars(5).map(() => (
+              <img src="/brand/star.svg" alt="" width="14" height="14" />
+            ))}
+          </span>
+          <span class="reviews-rated">
+            <strong>{ratingLabel}</strong>
+            <span>{customersLabel}</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="reviews-list">
+        {reviews.map((r, i) => (
+          <article class="review" data-review-page={Math.floor(i / perPage) + 1} hidden={i >= perPage}>
+            <div class="review-meta">
+              <span class="stars">
+                {stars(r.rating ?? 5).map(() => (
+                  <img src="/brand/star.svg" alt="" width="14" height="14" />
+                ))}
+              </span>
+              <div class="review-who">
+                <p class="review-author">{r.author}</p>
+                {r.date && (
+                  <p class="review-date">
+                    <time>{r.date}</time>
+                  </p>
+                )}
+              </div>
+            </div>
+            {r.img && (
+              <div class="review-media">
+                <img
+                  src={r.img.src}
+                  srcset={r.img.srcset}
+                  sizes="200px"
+                  alt={r.img.alt ?? ""}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+            )}
+            <p class="review-quote">“{r.quote}”</p>
+          </article>
+        ))}
+      </div>
+
+      {pages > 1 && (
+        <nav class="reviews-pager" aria-label={heading} data-reviews-pager data-per-page={perPage}>
+          <button type="button" class="reviews-arrow" data-reviews-prev aria-label={previousLabel}>
+            <img src="/brand/chevron.svg" alt="" width="10" height="10" />
+          </button>
+          {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
+            <button
+              type="button"
+              class="reviews-page"
+              data-reviews-page={p}
+              aria-current={p === 1 ? "true" : "false"}
+            >
+              {p}
+            </button>
+          ))}
+          <button type="button" class="reviews-arrow is-next" data-reviews-next aria-label={nextLabel}>
+            <img src="/brand/chevron.svg" alt="" width="10" height="10" />
+          </button>
+        </nav>
+      )}
+    </section>
+  )
+}
+
+<script>
+  document.querySelectorAll<HTMLElement>("[data-reviews-pager]").forEach((pager) => {
+    const section = pager.closest("section");
+    if (!section) return;
+
+    const items = [...section.querySelectorAll<HTMLElement>("[data-review-page]")];
+    const buttons = [...pager.querySelectorAll<HTMLButtonElement>("[data-reviews-page]")];
+    const last = buttons.length;
+    let current = 1;
+
+    const show = (page: number) => {
+      current = Math.min(Math.max(1, page), last);
+      items.forEach((item) => {
+        item.hidden = Number(item.dataset.reviewPage) !== current;
+      });
+      buttons.forEach((b) => {
+        b.setAttribute("aria-current", String(Number(b.dataset.reviewsPage) === current));
+      });
+      pager.querySelector<HTMLButtonElement>("[data-reviews-prev]")!.disabled = current === 1;
+      pager.querySelector<HTMLButtonElement>("[data-reviews-next]")!.disabled = current === last;
+    };
+
+    buttons.forEach((b) => b.addEventListener("click", () => show(Number(b.dataset.reviewsPage))));
+    pager.querySelector("[data-reviews-prev]")?.addEventListener("click", () => show(current - 1));
+    pager.querySelector("[data-reviews-next]")?.addEventListener("click", () => show(current + 1));
+
+    show(1);
+  });
+</script>
+
+<style>
+  .reviews {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding: 96px var(--gutter-x) 80px;
+  }
+  .reviews-head { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+  .reviews-head h2 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 500;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .reviews-rating { display: flex; align-items: center; gap: 8px; }
+  .stars { display: inline-flex; gap: 2px; }
+  .stars img { width: 14px; height: 14px; }
+  .reviews-rated { display: flex; align-items: baseline; gap: 4px; }
+  .reviews-rated strong { font-size: 16px; font-weight: 500; }
+  .reviews-rated span { font-size: 14px; }
+
+  .reviews-list { display: flex; flex-direction: column; }
+  .review {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+    padding: 24px 0;
+    border-top: 1px solid rgba(21, 14, 10, 0.12);
+  }
+  /* `display: flex` bat la règle `hidden` du navigateur : sans ceci, les avis
+     des pages suivantes resteraient visibles. */
+  .review[hidden] { display: none; }
+  .reviews-list .review:last-of-type { border-bottom: 1px solid rgba(21, 14, 10, 0.12); }
+
+  .review-meta {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+  }
+  .review-who { display: flex; flex-direction: column; gap: 8px; }
+  .review-author { margin: 0; font-size: 16px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  .review-date { margin: 0; font-size: 16px; line-height: 1.2; }
+
+  .review-media {
+    flex: 0 0 200px;
+    width: 200px;
+    height: 128px;
+    background: var(--sand);
+    overflow: hidden;
+  }
+  .review-media img { width: 100%; height: 100%; object-fit: cover; }
+
+  .review-quote {
+    /* La citation prend la place restante (698px sur 1296 dans la maquette)
+       et reste alignée à droite de la rangée. */
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
+    max-width: 698px;
+    font-size: 18px;
+    line-height: 1.28;
+    letter-spacing: 1.08px;
+  }
+
+  .reviews-pager { display: flex; align-items: center; gap: 16px; }
+  .reviews-page,
+  .reviews-arrow {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .reviews-page {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.2;
+    opacity: 0.48;
+  }
+  .reviews-page[aria-current="true"] { opacity: 1; text-decoration: underline; }
+  .reviews-page:hover { opacity: 1; }
+  .reviews-arrow { display: flex; align-items: center; justify-content: center; width: 10px; height: 10px; }
+  /* chevron.svg est l'asset « Arrow-Button-Up-2 » de la maquette : il pointe
+     vers le HAUT, la maquette le fait pivoter de -90° (précédent) et +90°
+     (suivant). En RTL les deux sens s'inversent avec le reste de la page. */
+  .reviews-arrow img { width: 10px; height: 10px; transform: rotate(-90deg); }
+  .reviews-arrow.is-next img { transform: rotate(90deg); }
+  :global([dir="rtl"]) .reviews-arrow img { transform: rotate(90deg); }
+  :global([dir="rtl"]) .reviews-arrow.is-next img { transform: rotate(-90deg); }
+  .reviews-arrow:disabled { opacity: 0.24; cursor: default; }
+  .reviews-page:focus-visible,
+  .reviews-arrow:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+
+  /* La rangée en trois blocs ne tient plus : on repasse en colonne, photo
+     sous l'identité, citation en dessous. */
+  @media (max-width: 900px) {
+    .reviews { padding: 56px var(--gutter-x) 48px; gap: 24px; }
+    .reviews-head h2 { font-size: 26px; }
+    .review { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .review-media { flex: none; width: 100%; height: auto; aspect-ratio: 200 / 128; }
+    .review-quote { max-width: none; font-size: 16px; }
+  }
+</style>

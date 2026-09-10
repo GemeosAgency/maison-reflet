@@ -1,23 +1,67 @@
 ---
+/**
+ * Page coffret v2 (maquette Figma « Discovery », septembre 2026) — assemblage
+ * de sections : galerie + panneau sticky, Scent Notes à onglets (un par parfum
+ * du coffret), Perfumer's word, réassurance, avis, You may also like, piliers,
+ * FAQ. Commerce (prix / variantes / panier) = Shopify ; éditorial = Sanity.
+ *
+ * Comme la fiche parfum, chaque section se masque si son contenu n'est pas
+ * rempli dans le Studio : un coffret cadeau sans parfums liés n'affichera pas
+ * le triptyque à onglets, un coffret sans mot du parfumeur sautera la section.
+ * La maquette décrit le Discovery Set, qui est le coffret le mieux garni ;
+ * cette route sert tous les coffrets et se dégrade proprement pour les autres.
+ */
 import Layout from "../../../layouts/Layout.astro";
-import { formatPrice, getAllProducts, getPrimaryVariant, isCoffret, shopifyImage, type ShopifyProduct } from "../../../lib/shopify";
-import { getCoffretByHandle, urlForImage } from "../../../lib/sanity";
+import Faq from "../../../components/Faq.astro";
+import Pillars from "../../../components/Pillars.astro";
+import Reassurance from "../../../components/Reassurance.astro";
+import RelatedProducts from "../../../components/RelatedProducts.astro";
+import Reviews from "../../../components/Reviews.astro";
+import ProductGallery from "../../../components/product/ProductGallery.astro";
+import ProductInfoPanel from "../../../components/product/ProductInfoPanel.astro";
+import ScentNotes from "../../../components/product/ScentNotes.astro";
+import PerfumerWord from "../../../components/product/PerfumerWord.astro";
+import {
+  formatPrice,
+  getAllProducts,
+  getDisplayPrice,
+  getPrimaryVariant,
+  isCoffret,
+  shopifyImage,
+  type ShopifyProduct,
+} from "../../../lib/shopify";
+import {
+  getBestSellerMap,
+  getCoffretByHandle,
+  getInspiredByMap,
+  getReassurances,
+  getRecoImages,
+  responsiveImage,
+  richTextToHtml,
+  urlForImage,
+} from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 
 export async function getStaticPaths() {
-  const coffrets = (await getAllProducts()).filter(isCoffret);
+  const products = await getAllProducts();
+  const coffrets = products.filter(isCoffret);
   return locales.flatMap((lang) =>
-    coffrets.map((product) => ({ params: { lang, handle: product.handle }, props: { product } }))
+    coffrets.map((product) => ({ params: { lang, handle: product.handle }, props: { product, products } }))
   );
 }
 
 interface Props {
   product: ShopifyProduct;
+  products: ShopifyProduct[];
 }
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
-const { product } = Astro.props;
+const { product, products } = Astro.props;
+
+// Largeurs des tuiles "You may also like" (287px de large dans la maquette,
+// jusqu'à 860 pour la densité 2x sur grand écran).
+const TILE_WIDTHS = [320, 480, 640, 860];
 
 const content = await getCoffretByHandle(product.handle, lang);
 const variant = getPrimaryVariant(product);
@@ -26,16 +70,124 @@ const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode)
 const title = content?.titre ?? product.title;
 const description = content?.description ?? product.description;
 
-// Galerie : image Sanity du coffret d'abord, puis les photos produit Shopify.
+// ---------- Galerie ----------
+// Deux carrés empilés dans la maquette : image Sanity du coffret d'abord,
+// puis les photos produit Shopify.
+// shopifyImage() borne la largeur : sans ça le CDN sert le fichier d'origine,
+// plusieurs Mo pour une colonne de 720 px.
 const gallery = [
-  content?.image ? urlForImage(content.image as any).width(1000).url() : null,
-  // shopifyImage() borne la largeur : sans ça le CDN sert le fichier
-  // d'origine, plusieurs Mo pour une colonne de 720 px.
+  content?.image
+    ? { ...responsiveImage(content.image as any, { widths: [480, 720, 960, 1440], aspect: 1 }), alt: title }
+    : null,
   ...[product.featuredImage, ...product.images.nodes]
     .filter((im) => im)
-    .map((im) => shopifyImage(im!, [480, 720, 960, 1440]).src),
-].filter((u): u is string => Boolean(u));
+    .map((im) => ({ ...shopifyImage(im!, [480, 720, 960, 1440]), alt: im!.altText ?? title })),
+].filter((g): g is NonNullable<typeof g> => g !== null);
 
+// ---------- Panneau d'achat ----------
+const descriptionHtml = description ? `<p>${description.replace(/\n/g, "</p><p>")}</p>` : "";
+
+// Avantages sous le CTA — la maquette n'en garde que deux sur la page coffret.
+const perks = [
+  { icon: "/brand/shipment.svg", label: t("product.perkDelivery") },
+  { icon: "/brand/love.svg", label: t("product.perkTreat") },
+];
+
+// Note / avis : placeholders (pas encore de système d'avis branché).
+const rating = "4,9";
+const panelReviewCount = 147;
+const reviewCount = 267;
+const reviewPlaceholder = {
+  fr: "Avis client à venir — contenu de démonstration en attendant un vrai système d'avis.",
+  ar: "رأي العميل قادم — محتوى تجريبي بانتظار نظام تقييمات حقيقي.",
+  en: "Customer review coming soon — placeholder content pending a real reviews system.",
+}[lang];
+const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quote: reviewPlaceholder }));
+
+// ---------- Scent Notes à onglets ----------
+/*
+ * Un onglet par parfum du coffret. Le nom affiché vient de Shopify (source de
+ * vérité du catalogue), avec le repère du Studio en repli si le produit n'a pas
+ * encore été créé côté Shopify.
+ *
+ * `keyIndex` est l'index, DANS LA LISTE AFFICHÉE, de la note dont la photo est
+ * montrée : c'est elle qui passe en gras. Même règle que sur la fiche parfum —
+ * toutes les matières n'ont pas de photo, et mettre la première en gras
+ * afficherait du caramel sous un « Jasmin Sambac » en gras.
+ */
+const scentLevel = (label: string, notes: { nom: string | null; image?: unknown }[] | undefined) => {
+  const named = (notes ?? []).filter((n) => n.nom);
+  const keyIndex = named.findIndex((n) => n.image);
+  const key = keyIndex >= 0 ? named[keyIndex] : null;
+  return {
+    label,
+    notes: named.map((n) => n.nom as string),
+    keyIndex,
+    img: key ? responsiveImage(key.image as any, { widths: [320, 480, 640, 960, 1200] }) : null,
+  };
+};
+
+const scentTabs = (content?.parfums ?? []).map((p) => ({
+  id: p.shopifyHandle,
+  label: products.find((sp) => sp.handle === p.shopifyHandle)?.title ?? p.nom ?? p.shopifyHandle,
+  levels: [
+    scentLevel(t("product.notes.tete"), p.notes?.tete),
+    scentLevel(t("product.notes.coeur"), p.notes?.coeur),
+    scentLevel(t("product.notes.fond"), p.notes?.fond),
+  ],
+}));
+
+// ---------- Sections éditoriales ----------
+const perfumerWord = content?.perfumerWord ?? null;
+const perfumerPhoto = content?.perfumerPhoto
+  ? responsiveImage(content.perfumerPhoto as any, {
+      widths: [640, 960, 1280, 1600],
+      aspect: 816 / 560,
+    })
+  : null;
+
+// Bandeau de réassurance : bibliothèque complète, comme sur la home — la
+// maquette en affiche les cinq.
+const reassurances = (await getReassurances(lang)).map((r) => ({
+  icone: r.icone ? urlForImage(r.icone as any).width(80).url() : null,
+  lignes: (r.texte ?? "").split("\n").filter(Boolean),
+}));
+
+// "You may also like" : les parfums de la collection (5 max, maquette).
+const [inspiredMap, bestSellerMap, recoImages] = await Promise.all([
+  getInspiredByMap(),
+  getBestSellerMap(),
+  getRecoImages(),
+]);
+const related = products
+  .filter((p) => !isCoffret(p))
+  .slice(0, 5)
+  .map((p) => {
+    const recoImg = recoImages[p.handle];
+    const price = getDisplayPrice(p);
+    return {
+      name: p.title,
+      subtitle: inspiredMap[p.handle] ? `${t("product.twistOf")} ${inspiredMap[p.handle]}` : null,
+      price: formatPrice(price.amount, price.currencyCode),
+      // Sans imageRecommandation dans Sanity on retombe sur la photo produit
+      // Shopify — servie brute elle pèse jusqu'à 7,4 Mo pour une tuile de 287px.
+      img: recoImg?.main
+        ? responsiveImage(recoImg.main as any, { widths: TILE_WIDTHS, aspect: 287 / 352 })
+        : p.featuredImage
+          ? shopifyImage(p.featuredImage, TILE_WIDTHS)
+          : null,
+      href: localePath(lang, `/parfums/${p.handle}`),
+      badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
+    };
+  });
+
+const pillars = [
+  { title: t("home.pillars.quality.title"), text: t("home.pillars.quality.text"), image: "/home/pillar-quality.jpg" },
+  { title: t("home.pillars.performance.title"), text: t("home.pillars.performance.text"), image: "/home/pillar-performance.jpg" },
+  { title: t("home.pillars.character.title"), text: t("home.pillars.character.text"), image: "/home/pillar-character.jpg" },
+];
+
+// ---------- Tracking ----------
 // Événement Klaviyo "Viewed Product" (voir src/lib/klaviyo.ts + script plus bas).
 // Voir le commentaire équivalent dans parfums/[handle].astro : ces pages
 // sont pré-générées au build, Astro.url.href y est donc faux sans ceci.
@@ -47,7 +199,7 @@ const viewedProduct = {
   ProductID: product.id,
   SKU: variant.sku ?? null,
   Categories: ["Coffret"],
-  ImageURL: gallery[0] ?? null,
+  ImageURL: gallery[0]?.src ?? null,
   URL: productUrl,
   Brand: "Maison Reflet",
   Price: Number(variant.price.amount),
@@ -62,25 +214,32 @@ const metaViewContentData = {
   currency: variant.price.currencyCode,
 };
 
-// Image de partage recadrée au format des réseaux sociaux (~1,91:1) — voir
-// le commentaire détaillé dans parfums/[handle].astro.
+// ---------- SEO ----------
+/*
+ * Image de partage recadrée en 1200x630 (~1,91:1), format attendu par les
+ * réseaux sociaux ; servir un visuel carré donnerait un aperçu mal cadré.
+ * Le recadrage n'existe que côté Sanity : en repli Shopify on borne au moins
+ * la largeur, sinon l'aperçu pèse plusieurs Mo.
+ */
 const shareImage = content?.image
   ? urlForImage(content.image as any).width(1200).height(630).fit("crop").url()
   : product.featuredImage
     ? shopifyImage(product.featuredImage, [1200]).src
     : null;
 
-// JSON-LD Product : prix + disponibilité remontés dans les résultats Google
-// (voir le commentaire détaillé dans parfums/[handle].astro).
+/*
+ * JSON-LD Product : c'est lui qui donne à Google le prix, la devise et la
+ * disponibilité affichés directement dans les résultats de recherche.
+ * `offers.url` doit être l'URL canonique de la page produit.
+ */
 const productJsonLd = {
   "@context": "https://schema.org",
   "@type": "Product",
   name: title,
   description: description ?? undefined,
-  image: gallery.slice(0, 4),
+  image: gallery.map((g) => g.src).slice(0, 4),
   brand: { "@type": "Brand", name: "Maison Reflet" },
   sku: variant.sku ?? undefined,
-  category: "Coffret",
   offers: {
     "@type": "Offer",
     url: productUrl,
@@ -104,25 +263,66 @@ const productJsonLd = {
 >
   <div class="coffret">
     <div class="coffret-gallery">
-      {
-        gallery.map((src) => (
-          <div class="shot">
-            <img src={src} alt={title} loading="lazy" />
-          </div>
-        ))
-      }
+      <ProductGallery images={gallery} ratio="1 / 1" />
     </div>
-
-    <aside class="coffret-info">
-      <h1>{title}</h1>
-      {description && <p class="desc">{description}</p>}
-
-      <button type="button" class="add-to-bag" data-add-to-cart data-variant-id={variant.id}>
-        ADD TO BAG · {priceLabel}
-      </button>
-      <p class="feedback" data-feedback role="status" aria-live="polite" />
+    <aside class="coffret-panel">
+      <ProductInfoPanel
+        title={title}
+        sizeLabel={null}
+        rating={rating}
+        reviewCount={panelReviewCount}
+        reviewsWord={t("product.reviews")}
+        descriptionHtml={descriptionHtml}
+        famillesLabel={t("product.olfactiveFamily")}
+        familles={null}
+        pyramidLabel={t("product.pyramid")}
+        pyramidImg={null}
+        noteLevels={[]}
+        intensityLabel={t("product.intensity")}
+        intensity={null}
+        intensityValueLabel={null}
+        sillageLabel={t("product.sillage")}
+        sillage={null}
+        sillageValueLabel={null}
+        plainRows={content?.contenance ? [content.contenance] : []}
+        variantId={variant.id}
+        priceLabel={priceLabel}
+        addLabel={t("product.addToCart")}
+        addedLabel={t("product.added")}
+        errorLabel={t("product.error")}
+        decreaseLabel={t("cart.decrease")}
+        increaseLabel={t("cart.increase")}
+        perks={perks}
+      />
     </aside>
   </div>
+
+  <ScentNotes title={t("product.notes")} tabs={scentTabs} />
+
+  {perfumerWord && <PerfumerWord title={t("product.perfumerWord")} quote={perfumerWord} img={perfumerPhoto} />}
+
+  <Reassurance items={reassurances} />
+
+  <Reviews
+    title={t("home.reviews.title")}
+    ratingLabel={t("home.reviews.rated")}
+    customersLabel={t("home.reviews.customers")}
+    reviews={reviews}
+    totalCount={reviewCount}
+    previousLabel={t("reviews.previous")}
+    nextLabel={t("reviews.next")}
+  />
+
+  <RelatedProducts title={t("product.related")} items={related} />
+
+  <Pillars
+    title1={t("home.pillars.title1")}
+    title2={t("home.pillars.title2")}
+    subtitle={t("home.pillars.subtitle")}
+    pillars={pillars}
+  />
+
+  <Faq items={content?.faqs ?? []} title={t("product.faqTitle")} />
 </Layout>
 
 {/* .replace(/</g, "\\u003c") : JSON.stringify n'échappe pas "<", un titre
@@ -131,7 +331,6 @@ const productJsonLd = {
 <script type="application/json" id="meta-view-content" is:inline set:html={JSON.stringify(metaViewContentData).replace(/</g, "\\u003c")} />
 
 <script>
-  import { addToCart } from "../../../lib/cart";
   import { track } from "../../../lib/klaviyo";
   import { metaViewContent, shopifyNumericId } from "../../../lib/meta";
   import { ga4ViewItem } from "../../../lib/ga4";
@@ -172,65 +371,26 @@ const productJsonLd = {
       // idem : jamais bloquant
     }
   }
-
-  document.querySelectorAll<HTMLButtonElement>("[data-add-to-cart]").forEach((btn) => {
-    const feedback = btn.parentElement?.querySelector<HTMLElement>("[data-feedback]") ?? null;
-    btn.addEventListener("click", async () => {
-      const id = btn.dataset.variantId;
-      if (!id) return;
-      btn.disabled = true;
-      try {
-        await addToCart(id, 1);
-        if (feedback) feedback.textContent = "✓";
-      } catch (e) {
-        console.error(e);
-        if (feedback) feedback.textContent = "×";
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  });
 </script>
 
 <style>
-  .coffret { display: flex; align-items: flex-start; }
-  .coffret-gallery { display: flex; flex-direction: column; gap: 2px; flex: 0 0 50%; min-width: 0; }
-  .shot { background: var(--sand); aspect-ratio: 800 / 960; overflow: hidden; }
-  .shot img { width: 100%; height: 100%; object-fit: cover; }
-
-  .coffret-info {
+  /* Galerie + panneau sticky, mêmes règles que la fiche parfum.
+     minmax(0, 1fr) et non 1fr : 1fr = minmax(auto, 1fr), donc le min-content
+     du panneau (rangée quantité + bouton insécable) élargirait la colonne et
+     provoquerait un débordement horizontal sur mobile. */
+  .coffret {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .coffret-panel {
     position: sticky;
     top: 0;
-    flex: 0 0 50%;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    padding: 56px 64px;
+    padding: 56px var(--gutter-x) 32px;
   }
-  .coffret-info h1 { margin: 0; font-size: 40px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
-  .desc { margin: 0; font-size: 16px; line-height: 1.5; }
-
-  .add-to-bag {
-    height: 56px;
-    border: 0;
-    border-radius: 999px;
-    background: var(--rose);
-    color: #fff;
-    font: inherit;
-    font-weight: 500;
-    font-size: 16px;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: opacity 0.15s;
-  }
-  .add-to-bag:hover { opacity: 0.9; }
-  .add-to-bag:disabled { opacity: 0.6; }
-  .feedback { margin: -12px 0 0; min-height: 1em; color: var(--rose); }
 
   @media (max-width: 900px) {
-    .coffret { flex-direction: column; }
-    .coffret-gallery { width: 100%; max-width: 100%; }
-    .coffret-info { position: static; padding: 32px 20px; width: 100%; }
+    .coffret { grid-template-columns: minmax(0, 1fr); }
+    .coffret-panel { position: static; padding: 32px var(--gutter-x); }
   }
 </style>

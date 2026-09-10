@@ -28,8 +28,27 @@ export default defineType({
     defineField({ name: "titre", title: "Titre", type: "localeString" }),
     defineField({ name: "description", title: "Description", type: "localeText" }),
     defineField({
+      name: "contenance",
+      title: "Contenance",
+      type: "localeString",
+      description:
+        "Ligne affichée entre deux filets sous la description, ex. « 6 x 2 ML individual samples ». Laisser vide pour ne pas l'afficher.",
+    }),
+    defineField({
       name: "image",
       title: "Image",
+      type: "image",
+      options: { hotspot: true },
+    }),
+    defineField({
+      name: "perfumerWord",
+      title: "Le mot du parfumeur",
+      type: "localeText",
+      description: "Citation affichée à droite de la photo. Laisser vide pour masquer la section.",
+    }),
+    defineField({
+      name: "perfumerPhoto",
+      title: "Photo — mot du parfumeur",
       type: "image",
       options: { hotspot: true },
     }),

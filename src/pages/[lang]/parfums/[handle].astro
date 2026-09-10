@@ -8,8 +8,9 @@
  */
 import Layout from "../../../layouts/Layout.astro";
 import Faq from "../../../components/Faq.astro";
-import ProductTile from "../../../components/ProductTile.astro";
+import Pillars from "../../../components/Pillars.astro";
 import Reassurance from "../../../components/Reassurance.astro";
+import RelatedProducts from "../../../components/RelatedProducts.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import ProductGallery from "../../../components/product/ProductGallery.astro";
 import ProductInfoPanel from "../../../components/product/ProductInfoPanel.astro";
@@ -427,49 +428,18 @@ const productJsonLd = {
     </div>
   </section>
 
-  {
-    related.length > 0 && (
-      <section class="related">
-        <h2>{t("product.related")}</h2>
-        <div class="related-grid media-band">
-          {related.map((p) => (
-            <ProductTile
-              name={p.name}
-              subtitle={p.subtitle}
-              price={p.price}
-              img={p.img}
-              href={p.href}
-              badge={p.badge}
-            />
-          ))}
-        </div>
-      </section>
-    )
-  }
+  <RelatedProducts title={t("product.related")} items={related} />
 
-  <section class="pillars">
-    <div class="pillars-head">
-      <h2>
-        {t("home.pillars.title1")}<br />
-        {t("home.pillars.title2")}
-      </h2>
-      <p>{t("home.pillars.subtitle")}</p>
-    </div>
-    <div class="pillars-grid media-band">
-      <div class="pillar" style="background-image: url(/home/pillar-quality.jpg)">
-        <h3>{t("home.pillars.quality.title")}</h3>
-        <p>{t("home.pillars.quality.text")}</p>
-      </div>
-      <div class="pillar" style="background-image: url(/home/pillar-performance.jpg)">
-        <h3>{t("home.pillars.performance.title")}</h3>
-        <p>{t("home.pillars.performance.text")}</p>
-      </div>
-      <div class="pillar" style="background-image: url(/home/pillar-character.jpg)">
-        <h3>{t("home.pillars.character.title")}</h3>
-        <p>{t("home.pillars.character.text")}</p>
-      </div>
-    </div>
-  </section>
+  <Pillars
+    title1={t("home.pillars.title1")}
+    title2={t("home.pillars.title2")}
+    subtitle={t("home.pillars.subtitle")}
+    pillars={[
+      { title: t("home.pillars.quality.title"), text: t("home.pillars.quality.text"), image: "/home/pillar-quality.jpg" },
+      { title: t("home.pillars.performance.title"), text: t("home.pillars.performance.text"), image: "/home/pillar-performance.jpg" },
+      { title: t("home.pillars.character.title"), text: t("home.pillars.character.text"), image: "/home/pillar-character.jpg" },
+    ]}
+  />
 
   {
     discovery && (
@@ -581,80 +551,14 @@ const productJsonLd = {
   .review-date { margin: 0; font-size: 16px; opacity: 0.7; }
   .review-quote { margin: 0; max-width: 60rem; font-size: 18px; line-height: 1.28; letter-spacing: 1.08px; }
 
-  /* You may also like */
-  .related { display: flex; flex-direction: column; align-items: center; }
-  .related h2 {
-    margin: 0;
-    padding: 56px var(--gutter-x) 40px;
-    font-size: 32px;
-    font-weight: 500;
-    text-transform: uppercase;
-    text-align: center;
-  }
-  .related-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 2px;
-  }
-
-  /* Piliers (Designed to be worn…) */
-  .pillars { display: flex; flex-direction: column; align-items: center; }
-  .pillars-head {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    text-align: center;
-    padding: 112px var(--gutter-x) 40px;
-  }
-  .pillars-head h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
-  .pillars-head p { margin: 0; font-size: 18px; }
-  /* Pas de `width` ici : c'est .media-band (globale) qui la fixe. La colonne
-     porte le ratio de la maquette plutôt qu'une hauteur figée — sinon au-delà
-     de 1440px elle s'élargissait sans grandir et le visuel était rogné. */
-  .pillars-grid { display: flex; gap: 2px; }
-  .pillar {
-    flex: 1 0 0;
-    min-width: 0;
-    aspect-ratio: var(--band-col);
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    gap: 8px;
-    padding: 32px;
-    background-size: cover;
-    background-position: center;
-    color: var(--paper);
-  }
-  .pillar::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    background: linear-gradient(to bottom, rgba(31, 31, 31, 0) 47%, rgba(23, 23, 23, 0.96) 86%);
-  }
-  .pillar h3,
-  .pillar p { position: relative; z-index: 1; margin: 0; }
-  .pillar h3 { font-size: 20px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
-  .pillar p { max-width: 360px; font-size: 18px; line-height: 1.28; letter-spacing: 1.08px; }
-
   @media (max-width: 900px) {
     .produit { grid-template-columns: minmax(0, 1fr); }
     .produit-panel { position: static; padding: 32px var(--gutter-x); }
     .reviews { padding: 56px var(--gutter-x) 40px; }
     .reviews-head h2 { font-size: 26px; }
-    .related h2 { font-size: 26px; padding: 40px var(--gutter-x) 24px; }
-    .related-grid { grid-template-columns: repeat(2, 1fr); }
-    .pillars-head { padding: 56px var(--gutter-x) 24px; }
-    .pillars-head h2 { font-size: 26px; }
-    .pillars-grid { flex-direction: column; }
     /* `flex: none` est indispensable : en flex-direction column, le
        `flex: 1 0 0` du desktop s'applique à la HAUTEUR et écrase
        l'aspect-ratio — les piliers s'effondraient à 48px de haut.
        Et empilés en pleine largeur, le ratio de maquette donnerait des blocs
        de 117vw de haut, d'où le 4/3 paysage. */
-    .pillar { flex: none; aspect-ratio: 4 / 3; padding: 24px; }
-  }
-</style>
+  }</style>

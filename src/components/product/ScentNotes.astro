@@ -3,6 +3,13 @@
  * Section « Scent Notes » : triptyque Tête / Cœur / Fond, chaque colonne étant
  * la photo d'une matière première avec le niveau en haut et les notes en bas.
  *
+ * Deux modes :
+ *
+ * - `levels` seul (fiche parfum) : un seul triptyque, celui du parfum affiché.
+ * - `tabs` (page coffret) : un triptyque par parfum du coffret, avec une barre
+ *   d'onglets au-dessus. Le coffret met en avant les 6 parfums, il faut donc
+ *   pouvoir passer de l'un à l'autre sans quitter la page.
+ *
  * Deux choses à garder en tête :
  *
  * 1. La colonne respecte `--band-col` (le ratio de la maquette, 478,67 x 560).
@@ -31,50 +38,136 @@ interface Level {
   img: ResponsiveImage | null;
 }
 
-interface Props {
-  title: string;
+interface Tab {
+  /** Identifiant stable (handle Shopify) — sert aux id ARIA. */
+  id: string;
+  label: string;
   levels: Level[];
 }
 
-const { title, levels } = Astro.props;
-const visible = levels.filter((l) => l.notes.length > 0 || l.img);
+interface Props {
+  title: string;
+  /** Mode « un seul parfum ». Ignoré si `tabs` est fourni. */
+  levels?: Level[];
+  /** Mode « plusieurs parfums » : une barre d'onglets au-dessus du triptyque. */
+  tabs?: Tab[];
+}
+
+const { title, levels = [], tabs } = Astro.props;
+
+// Un panneau = un triptyque. Une colonne vide (ni note ni photo) est retirée
+// plutôt qu'affichée en cadre sable vide.
+const panels = (tabs ?? [{ id: "unique", label: title, levels }])
+  .map((p) => ({ ...p, levels: p.levels.filter((l) => l.notes.length > 0 || l.img) }))
+  .filter((p) => p.levels.length > 0);
+
+const hasTabs = Boolean(tabs) && panels.length > 1;
 ---
 
 {
-  visible.length > 0 && (
+  panels.length > 0 && (
     <section class="snotes">
-      <h2>{title}</h2>
-      <div class="snotes-grid media-band">
-        {visible.map((l) => (
-          <div class="snotes-col">
-            {l.img && (
-              <img
-                class="snotes-img"
-                src={l.img.src}
-                srcset={l.img.srcset}
-                /* Colonne = un tiers du container --page-max (1800px), donc
-                   600px au plus en desktop. */
-                sizes="(max-width: 720px) 100vw, (max-width: 1100px) 50vw, min(33vw, 600px)"
-                alt=""
-                loading="lazy"
-                decoding="async"
-              />
-            )}
-            <span class="snotes-level">{l.label}</span>
-            <p class="snotes-list">
-              {l.notes.map((n, i) => (
-                <span class:list={["snotes-note", { "is-key": i === l.keyIndex }]}>
-                  {n}
-                  {i < l.notes.length - 1 ? "," : ""}
-                </span>
-              ))}
-            </p>
+      <div class="snotes-head">
+        <h2>{title}</h2>
+        {hasTabs && (
+          <div class="snotes-tabs" role="tablist" aria-label={title} data-snotes-tabs>
+            {panels.map((p, i) => (
+              <button
+                type="button"
+                role="tab"
+                id={`snotes-tab-${p.id}`}
+                class="snotes-tab"
+                aria-selected={i === 0 ? "true" : "false"}
+                aria-controls={`snotes-panel-${p.id}`}
+                tabindex={i === 0 ? 0 : -1}
+                data-snotes-tab={p.id}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
-        ))}
+        )}
       </div>
+
+      {panels.map((p, i) => (
+        <div
+          class="snotes-grid media-band"
+          id={`snotes-panel-${p.id}`}
+          role={hasTabs ? "tabpanel" : undefined}
+          aria-labelledby={hasTabs ? `snotes-tab-${p.id}` : undefined}
+          data-snotes-panel={p.id}
+          hidden={hasTabs && i > 0}
+        >
+          {p.levels.map((l) => (
+            <div class="snotes-col">
+              {l.img && (
+                <img
+                  class="snotes-img"
+                  src={l.img.src}
+                  srcset={l.img.srcset}
+                  /* Colonne = un tiers du container --page-max (1800px), donc
+                     600px au plus en desktop. */
+                  sizes="(max-width: 720px) 100vw, (max-width: 1100px) 50vw, min(33vw, 600px)"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+              <span class="snotes-level">{l.label}</span>
+              <p class="snotes-list">
+                {l.notes.map((n, j) => (
+                  <span class:list={["snotes-note", { "is-key": j === l.keyIndex }]}>
+                    {n}
+                    {j < l.notes.length - 1 ? "," : ""}
+                  </span>
+                ))}
+              </p>
+            </div>
+          ))}
+        </div>
+      ))}
     </section>
   )
 }
+
+<script>
+  document.querySelectorAll<HTMLElement>("[data-snotes-tabs]").forEach((bar) => {
+    const tabs = [...bar.querySelectorAll<HTMLButtonElement>("[data-snotes-tab]")];
+    const section = bar.closest("section");
+    if (!section) return;
+
+    const show = (id: string) => {
+      tabs.forEach((tab) => {
+        const on = tab.dataset.snotesTab === id;
+        tab.setAttribute("aria-selected", String(on));
+        // Un seul onglet dans l'ordre de tabulation : les flèches font le
+        // reste, c'est le comportement attendu d'un tablist.
+        tab.tabIndex = on ? 0 : -1;
+      });
+      section
+        .querySelectorAll<HTMLElement>("[data-snotes-panel]")
+        .forEach((panel) => {
+          panel.hidden = panel.dataset.snotesPanel !== id;
+        });
+    };
+
+    tabs.forEach((tab, i) => {
+      tab.addEventListener("click", () => show(tab.dataset.snotesTab ?? ""));
+      tab.addEventListener("keydown", (e) => {
+        const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+        if (!step) return;
+        e.preventDefault();
+        // Le sens des flèches suit la direction du document : en arabe, la
+        // flèche droite doit aller vers l'onglet visuellement à droite, qui
+        // est le PRÉCÉDENT dans l'ordre du DOM.
+        const rtl = getComputedStyle(bar).direction === "rtl";
+        const next = tabs[(i + (rtl ? -step : step) + tabs.length) % tabs.length];
+        show(next.dataset.snotesTab ?? "");
+        next.focus();
+      });
+    });
+  });
+</script>
 
 <style>
   .snotes {
@@ -82,21 +175,69 @@ const visible = levels.filter((l) => l.notes.length > 0 || l.img);
     flex-direction: column;
     align-items: center;
   }
+  /* En-tête = titre (+ onglets). Sans onglets, le `gap` ne s'applique à rien :
+     le rendu de la fiche parfum est inchangé. */
+  .snotes-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+    padding: 112px var(--gutter-x) 40px;
+    max-width: 100%;
+  }
   .snotes h2 {
     margin: 0;
-    padding: 112px var(--gutter-x) 40px;
     font-size: 32px;
     font-weight: 500;
     text-transform: uppercase;
     text-align: center;
     line-height: 1.2;
   }
+
+  .snotes-tabs {
+    display: flex;
+    padding: 4px;
+    background: var(--sand);
+    /* Six parfums ne tiennent pas sur un écran étroit : la barre défile
+       plutôt que de casser la ligne ou de rogner les libellés. */
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .snotes-tabs::-webkit-scrollbar { display: none; }
+  .snotes-tab {
+    flex: 0 0 auto;
+    border: 0;
+    background: transparent;
+    padding: 19px 24px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: var(--ink);
+    opacity: 0.48;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+  }
+  .snotes-tab[aria-selected="true"] {
+    opacity: 1;
+    background: var(--bg);
+    filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.04));
+  }
+  .snotes-tab:hover { opacity: 1; }
+  .snotes-tab:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+
   /* Pas de `width` ici : c'est .media-band (globale) qui la fixe. */
   .snotes-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 2px;
   }
+  /* `display: grid` bat la règle `hidden` du navigateur : sans ceci, tous les
+     triptyques resteraient empilés à l'écran. */
+  .snotes-grid[hidden] { display: none; }
+
   .snotes-col {
     position: relative;
     aspect-ratio: var(--band-col);
@@ -144,7 +285,9 @@ const visible = levels.filter((l) => l.notes.length > 0 || l.img);
     .snotes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 720px) {
-    .snotes h2 { padding: 56px var(--gutter-x) 24px; font-size: 26px; }
+    .snotes-head { padding: 56px var(--gutter-x) 24px; gap: 24px; }
+    .snotes h2 { font-size: 26px; }
+    .snotes-tab { padding: 14px 16px; }
     .snotes-grid { grid-template-columns: minmax(0, 1fr); }
     /* 3/4 plutôt que le ratio de maquette : en pleine largeur mobile, 0,855
        donnerait une colonne de 117vh de haut. */

@@ -31,6 +31,11 @@ interface Props {
   sillageLabel: string;
   sillage: number | null;
   sillageValueLabel: string | null;
+  /**
+   * Rangées à séparateurs sans étiquette, centrées — la page coffret y met
+   * « 6 x 2 ML individual samples ». Affichées avant les rangées libellées.
+   */
+  plainRows?: string[];
   variantId: string;
   priceLabel: string;
   addLabel: string;
@@ -59,6 +64,7 @@ const {
   sillageLabel,
   sillage,
   sillageValueLabel,
+  plainRows = [],
   variantId,
   priceLabel,
   addLabel,
@@ -94,6 +100,13 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   </div>
 
   <div class="ppanel-meta">
+    {
+      plainRows.map((row) => (
+        <div class="ppanel-row is-plain">
+          <span class="ppanel-row-value">{row}</span>
+        </div>
+      ))
+    }
     {
       familles && (
         <div class="ppanel-row">
@@ -277,6 +290,11 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   .ppanel-meta { border-bottom: 1px solid rgba(21, 14, 10, 0.12); }
   .ppanel-row-label { font-size: 14px; font-weight: 500; text-transform: uppercase; }
   .ppanel-row-value { font-size: 16px; font-weight: 500; letter-spacing: 0.96px; }
+  /* Rangée sans étiquette : la valeur occupe la ligne entière et se centre.
+     20px de part et d'autre comme dans la maquette, au lieu des 14px des
+     rangées libellées. */
+  .ppanel-row.is-plain { justify-content: center; padding: 20px 0; }
+  .ppanel-row.is-plain .ppanel-row-value { line-height: 1.28; text-align: center; }
 
   .ppanel-acc-toggle {
     width: 100%;
