@@ -69,6 +69,23 @@ function notifyCartUpdated(cart: ShopifyCart | null) {
   );
 }
 
+/**
+ * Ouvre le panier latéral (écouté par CartDrawer.astro, présent dans le
+ * Layout donc sur toutes les pages).
+ *
+ * Émis depuis addManyToCart() et NON depuis chaque bouton : il y a quatre
+ * chemins d'ajout au panier (la délégation [data-add-to-cart] plus bas, le
+ * panneau de la fiche produit avec sa quantité, le sélecteur d'échantillon et
+ * les cartes upsell du tiroir). Les câbler un par un, c'est en oublier un au
+ * prochain composant.
+ *
+ * Sans effet si le tiroir est déjà ouvert — c'est le cas des ajouts faits
+ * DEPUIS le tiroir (échantillon, upsell) et de la page /panier.
+ */
+function openCartDrawer() {
+  document.dispatchEvent(new CustomEvent("cart:open"));
+}
+
 /** Préfixe de langue courant (/fr, /ar, /en) déduit de l'URL, pour reconstruire un lien produit absolu. */
 function currentLangPrefix(): string {
   const match = window.location.pathname.match(/^\/(fr|ar|en)(?:\/|$)/);
@@ -216,6 +233,7 @@ export async function addManyToCart(lines: CartLine[]): Promise<ShopifyCart> {
   }
 
   notifyCartUpdated(cart);
+  openCartDrawer();
   trackAddedToCart(cart, lines);
   return cart;
 }
