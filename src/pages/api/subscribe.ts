@@ -19,9 +19,25 @@ const KLAVIYO_SUBSCRIBE_API_KEY = import.meta.env.KLAVIYO_SUBSCRIBE_API_KEY;
 // ci-dessous n'accepte que email/téléphone/consentement, pas de propriétés.
 const KLAVIYO_EVENTS_API_KEY = import.meta.env.KLAVIYO_PRIVATE_API_KEY;
 const KLAVIYO_REVISION = "2025-04-15";
-// Liste "Newsletter" (single_opt_in), créée dédiée à ce formulaire — distincte
-// de "Waitlist Lancement" qui garde son usage d'origine.
-const KLAVIYO_NEWSLETTER_LIST_ID = "R6AmNZ";
+/*
+ * Liste d'atterrissage, selon le formulaire d'origine — les deux sont en
+ * single_opt_in, donc le consentement a la même valeur de part et d'autre.
+ *
+ *  - la page d'attente alimente "Waitlist Lancement" : ce sont des gens qui
+ *    s'inscrivent pour être prévenus du lancement, pas pour une newsletter ;
+ *  - le formulaire du pied de page continue d'alimenter "Newsletter".
+ *
+ * Toute autre provenance retombe sur "Newsletter".
+ */
+const KLAVIYO_LISTS: Record<string, string> = {
+  teaser: "RvF9tD", // Waitlist Lancement
+  footer: "R6AmNZ", // Newsletter
+};
+const KLAVIYO_LIST_PAR_DEFAUT = KLAVIYO_LISTS.footer;
+
+function klaviyoListId(source: string): string {
+  return KLAVIYO_LISTS[source] ?? KLAVIYO_LIST_PAR_DEFAUT;
+}
 
 /**
  * Formulaire d'origine ("teaser", "footer"…). Sert à la fois de `source` sur
@@ -58,7 +74,7 @@ function json(data: unknown, status: number) {
  * Renvoie vrai si l'abonnement est passé : l'appelant s'en sert pour décider
  * s'il reste au moins un enregistrement de l'email avant de répondre OK.
  */
-async function subscribeToKlaviyo(email: string): Promise<boolean> {
+async function subscribeToKlaviyo(email: string, source: string): Promise<boolean> {
   if (!KLAVIYO_SUBSCRIBE_API_KEY) {
     console.error("[subscribe] KLAVIYO_SUBSCRIBE_API_KEY absente — abonnement Klaviyo ignoré.");
     return false;
@@ -82,7 +98,7 @@ async function subscribeToKlaviyo(email: string): Promise<boolean> {
         historical_import: false,
       },
       relationships: {
-        list: { data: { type: "list", id: KLAVIYO_NEWSLETTER_LIST_ID } },
+        list: { data: { type: "list", id: klaviyoListId(source) } },
       },
     },
   };
@@ -196,7 +212,7 @@ export const POST: APIRoute = async ({ request }) => {
    */
   const [sanity, klaviyo] = await Promise.allSettled([
     createSubscriber(email, source),
-    subscribeToKlaviyo(email),
+    subscribeToKlaviyo(email, source),
   ]);
   const sanityOk = sanity.status === "fulfilled";
   const klaviyoOk = klaviyo.status === "fulfilled" && klaviyo.value;
