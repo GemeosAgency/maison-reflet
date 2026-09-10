@@ -6,10 +6,12 @@
  * les 32 pays des zones de livraison Shopify — « Domestic » (Émirats),
  * « Golfe (CCG) » (5 pays) et « International » (26 pays).
  *
- * Six devises, sept marchés : Émirats (AED), Arabie saoudite (SAR), reste du
- * Golfe (AED), Europe continentale (EUR), Royaume-Uni (GBP), Suisse (CHF),
- * Amériques + Asie-Pacifique (USD). Une devise par marché, pour que chaque
- * prix puisse être fixé rond au lieu d'être converti automatiquement.
+ * Six devises, huit marchés : Émirats (AED), Golfe (AED), Arabie saoudite
+ * (SAR), Europe continentale (EUR), Royaume-Uni (GBP), Suisse (CHF),
+ * Amériques (USD), Asie-Pacifique (USD). Une devise par marché, pour que
+ * chaque prix puisse être fixé rond au lieu d'être converti automatiquement —
+ * la grille et les mutations qui restent à passer sont dans
+ * `docs/grille-tarifaire.md`.
  *
  * ⚠️ À garder synchronisé avec Shopify si les zones changent :
  *   Admin > Paramètres > Expédition > General profile.
