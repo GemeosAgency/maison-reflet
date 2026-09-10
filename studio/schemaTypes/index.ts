@@ -13,7 +13,6 @@ import coffret from "./coffret";
 import reassurance from "./reassurance";
 import faq from "./faq";
 import page from "./page";
-import subscriber from "./subscriber";
 
 export const schemaTypes = [
   // objets
@@ -30,5 +29,4 @@ export const schemaTypes = [
   reassurance,
   faq,
   page,
-  subscriber,
 ];

@@ -21,5 +21,4 @@ export const structure: StructureResolver = (S) =>
       S.documentTypeListItem("faq").title("FAQ"),
       S.documentTypeListItem("page").title("Pages"),
       S.divider(),
-      S.documentTypeListItem("subscriber").title("Inscrits (liste d'attente)"),
     ]);

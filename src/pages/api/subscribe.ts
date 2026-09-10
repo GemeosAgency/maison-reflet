@@ -1,5 +1,4 @@
 import type { APIRoute } from "astro";
-import { createSubscriber } from "../../lib/sanity";
 import { locales, type Locale } from "../../i18n";
 
 // Rendu à la demande (fonction serverless Vercel), pas prégénéré.
@@ -203,24 +202,12 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   /*
-   * Les deux enregistrements partent EN PARALLÈLE et chacun encaisse son
-   * propre échec. Ils étaient enchaînés, Sanity d'abord : un token d'écriture
-   * Sanity manquant levait une exception AVANT l'appel à Klaviyo, donc
-   * l'email n'arrivait ni dans l'un ni dans l'autre et le visiteur recevait
-   * une erreur serveur. Klaviyo est le système de référence pour l'emailing,
-   * il n'a pas à dépendre d'un journal de confort.
+   * Klaviyo est le SEUL système d'enregistrement des inscrits : le double
+   * stockage dans Sanity a été retiré le 10 septembre 2026, on se réfère à
+   * Klaviyo pour tout ce qui est email.
    */
-  const [sanity, klaviyo] = await Promise.allSettled([
-    createSubscriber(email, source),
-    subscribeToKlaviyo(email, source),
-  ]);
-  const sanityOk = sanity.status === "fulfilled";
-  const klaviyoOk = klaviyo.status === "fulfilled" && klaviyo.value;
-  if (!sanityOk) console.error("[subscribe] écriture Sanity échouée :", sanity.reason);
-
-  // On ne renvoie une erreur que si l'email n'a été retenu NULLE PART : sinon
-  // le visiteur verrait un échec alors qu'il est bien inscrit.
-  if (!sanityOk && !klaviyoOk) {
+  const abonne = await subscribeToKlaviyo(email, source);
+  if (!abonne) {
     return json({ ok: false, error: "Erreur serveur, réessayez." }, 500);
   }
 

@@ -28,53 +28,6 @@ export const sanityClient = createClient({
   perspective: "published",
 });
 
-// ---------- Écriture (liste d'attente) ----------
-
-/*
- * Token d'écriture Sanity, sous ses DEUX noms.
- *
- * Le token a été renommé `_V2` lors d'une rotation, et c'est le seul nom
- * présent côté Vercel. Ne chercher que l'ancien faisait échouer
- * /api/subscribe en 500 sur la page d'attente : l'exception partait avant
- * l'appel à Klaviyo, donc l'email n'arrivait NI dans Sanity NI dans Klaviyo,
- * et le visiteur voyait "Erreur serveur".
- */
-const WRITE_TOKEN_NAMES = ["SANITY_WRITE_TOKEN_V2", "SANITY_WRITE_TOKEN"] as const;
-
-let _writeClient: ReturnType<typeof createClient> | null = null;
-function getWriteClient() {
-  const env = import.meta.env as Record<string, string | undefined>;
-  const token = WRITE_TOKEN_NAMES.map(
-    (name) => env[name] || (typeof process !== "undefined" ? process.env[name] : undefined)
-  ).find(Boolean);
-  if (!token) {
-    throw new Error(`Token d'écriture Sanity manquant (${WRITE_TOKEN_NAMES.join(" ou ")})`);
-  }
-  if (!_writeClient) {
-    _writeClient = createClient({
-      projectId: import.meta.env.SANITY_PROJECT_ID,
-      dataset: import.meta.env.SANITY_DATASET || "production",
-      apiVersion: import.meta.env.SANITY_API_VERSION || "2025-01-01",
-      token,
-      useCdn: false,
-    });
-  }
-  return _writeClient;
-}
-
-/** Ajoute un email à la liste d'attente. _id déterministe => pas de doublon. */
-export async function createSubscriber(email: string, source = "teaser") {
-  const clean = email.trim().toLowerCase();
-  const safe = clean.replace(/[^a-z0-9]/g, "-");
-  return getWriteClient().createIfNotExists({
-    _id: `subscriber-${safe}`,
-    _type: "subscriber",
-    email: clean,
-    createdAt: new Date().toISOString(),
-    source,
-  });
-}
-
 const builder = createImageUrlBuilder(sanityClient);
 export function urlForImage(source: SanityImageSource) {
   return builder.image(source);
