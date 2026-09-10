@@ -171,7 +171,12 @@ const EMOJI =
  * cri.
  */
 const SHOUTING = /(?<![\p{L}])\p{Lu}{3,}(?![\p{L}])/gu;
-const ALLOWED_UPPERCASE = new Set(["AED", "SAR", "EUR", "GBP", "CHF", "USD", "ML", "EDP", "CPO"]);
+// ADN/DNA : les six descriptions Sanity de la collection commencent par « l'ADN
+// boisé de… » ; MFK : le document persona nomme lui-même « Baccarat Rouge 540,
+// MFK ». Constaté sur le contenu réel le 10 septembre 2026.
+const ALLOWED_UPPERCASE = new Set([
+  "AED", "SAR", "EUR", "GBP", "CHF", "USD", "ML", "EDP", "CPO", "ADN", "DNA", "MFK",
+]);
 
 /**
  * Vérifie une sortie de Luma. Retourne la liste des infractions, vide si tout
@@ -212,9 +217,12 @@ export function checkOutput(text: string): Violation[] {
  * Contexte de délai : ce qui suit un chiffre et en fait une promesse.
  *
  * La section 7 interdit « un délai de livraison qui n'est pas dans Sanity ou
- * Shopify », et aucun n'y est renseigné — tout chiffre de jours est donc une
- * invention, quelle que soit sa taille. Les heures sont déjà couvertes par
- * `UNDOCUMENTED_LONGEVITY`.
+ * Shopify ». Le site, lui, en affiche un par marché (`DELIVERY_DAYS` et
+ * `UAE_DELIVERY_DAYS` dans markets.ts, via ShippingPromise). Décision du
+ * 10 septembre 2026 avec Sandro : Luma peut répéter EXACTEMENT ce que le site
+ * promet au visiteur, rien d'autre — d'où le paramètre `allowedDelays` de
+ * `checkNumbers`. Tout délai qui n'y est pas reste une invention. Les heures
+ * sont déjà couvertes par `UNDOCUMENTED_LONGEVITY`.
  */
 const DELAY_CONTEXT =
   /\d+\s*(?:à|-|–|et)?\s*\d*\s*(?:jours?|jour ouvré|ouvrés?|ouvrables?|semaines?|mois|days?|business days?|weeks?|months?|أيام|يوم|أسابيع|أسبوع)/giu;
@@ -229,9 +237,12 @@ const STOCK_CONTEXT =
  * « Aucun chiffre qui ne vienne d'une fiche ou de la FAQ. » Deux filets :
  *
  * 1. **Le contexte** — un chiffre accolé à des jours, des semaines ou du stock
- *    est fautif quelle que soit sa valeur. C'est ce qui rattrape « comptez 3 à
- *    5 jours ouvrés », qu'un simple seuil de grandeur laissait passer alors que
- *    c'est précisément l'invention la plus probable.
+ *    est fautif quelle que soit sa valeur, SAUF un délai dont tous les nombres
+ *    sont dans `allowedDelays` (la promesse du site pour le marché du visiteur,
+ *    fournie par knowledge.ts). « 3 à 5 jours ouvrés » passe pour un visiteur
+ *    du Golfe, pas pour un Émirati à qui le site promet 1 à 2 jours. Le stock,
+ *    lui, reste interdit en toutes circonstances : la disponibilité se dit
+ *    (« indisponible pour le moment »), elle ne se compte pas.
  *
  * 2. **La grandeur** — au-delà de 100, tout nombre doit figurer dans `allowed`.
  *    En dessous, les nombres comptent des notes, des parfums ou des
@@ -243,18 +254,26 @@ const STOCK_CONTEXT =
  * chiffre inventé, et Luma a le droit de le citer. `allowedNumbers()` de
  * `knowledge.ts` s'en charge.
  */
-export function checkNumbers(text: string, allowed: number[]): Violation[] {
+export function checkNumbers(
+  text: string,
+  allowed: number[],
+  allowedDelays: number[] = []
+): Violation[] {
   const permitted = new Set(allowed.map((n) => String(n)));
+  const permittedDelays = new Set(allowedDelays.map((n) => String(n)));
   const violations: Violation[] = [];
 
-  for (const [re, rule] of [
-    [DELAY_CONTEXT, "délai non sourcé"],
-    [STOCK_CONTEXT, "stock non sourcé"],
-  ] as const) {
-    re.lastIndex = 0;
-    for (const match of new Set(text.match(re) ?? [])) {
-      violations.push({ rule, match: match.trim() });
-    }
+  DELAY_CONTEXT.lastIndex = 0;
+  for (const match of new Set(text.match(DELAY_CONTEXT) ?? [])) {
+    const numbers = match.match(/\d+/g) ?? [];
+    const sourced =
+      numbers.length > 0 && numbers.every((n) => permittedDelays.has(String(Number(n))));
+    if (!sourced) violations.push({ rule: "délai non sourcé", match: match.trim() });
+  }
+
+  STOCK_CONTEXT.lastIndex = 0;
+  for (const match of new Set(text.match(STOCK_CONTEXT) ?? [])) {
+    violations.push({ rule: "stock non sourcé", match: match.trim() });
   }
 
   for (const raw of text.match(/\d[\d\s.,]*/g) ?? []) {
