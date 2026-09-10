@@ -292,6 +292,18 @@ const t = useTranslations(lang);
       scrollToEnd(true);
     }
 
+    /** « Luma est en train d'écrire » et trois points, dans le fil, comme une messagerie. */
+    function showTyping(): HTMLElement {
+      const node = el("div", "luma-msg luma-msg-luma luma-typing");
+      node.setAttribute("aria-hidden", "true");
+      const dots = el("span", "luma-dots");
+      dots.append(el("i"), el("i"), el("i"));
+      node.append(el("span", undefined, i18n.thinking), dots);
+      log!.append(node);
+      scrollToEnd();
+      return node;
+    }
+
     /**
      * Luma parle : mot à mot, avec un curseur, puis le curseur s'efface.
      * Instantané pour un fil rejoué, et pour un onglet caché. La cadence suit le
@@ -592,6 +604,7 @@ const t = useTranslations(lang);
       saveTranscript();
       markResumable();
       status!.textContent = i18n.thinking;
+      const typing = showTyping();
 
       let lumaMsg: HTMLElement | null = null;
       let lumaText = "";
@@ -620,6 +633,7 @@ const t = useTranslations(lang);
             const event = JSON.parse(frame.slice(5)) as Frame;
             if (event.type === "text") {
               status!.textContent = "";
+              typing.remove();
               lumaText = event.text;
               lumaMsg = await addLuma(event.text);
             } else if (event.type === "action") {
@@ -637,11 +651,13 @@ const t = useTranslations(lang);
         for (const action of pending) render(action, lumaMsg, entry);
       } catch {
         status!.textContent = "";
+        typing.remove();
         await addLuma(i18n.unavailable);
         transcript.push({ role: "luma", text: i18n.unavailable, actions: [] });
         saveTranscript();
       } finally {
         status!.textContent = "";
+        typing.remove();
         busy = false;
         input!.disabled = false;
         input!.focus();
@@ -822,7 +838,24 @@ const t = useTranslations(lang);
   .luma-handoff a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
   .luma-handoff { font-style: normal; }
 
-  .luma-status { margin: 0; min-height: 1.3em; font-size: 14px; opacity: 0.6; }
+  .luma-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); margin: 0; }
+
+  /* L'indicateur de frappe : le texte et trois points qui respirent. */
+  .luma-typing { flex-direction: row; align-items: center; gap: 8px; font-size: 14px; opacity: 0.6; }
+  .luma-dots { display: inline-flex; gap: 3px; align-items: center; }
+  .luma-dots i {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: luma-bounce 1.2s ease-in-out infinite;
+  }
+  .luma-dots i:nth-child(2) { animation-delay: 0.15s; }
+  .luma-dots i:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes luma-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-3px); opacity: 1; }
+  }
 
   .luma-form, .luma-email-row { display: flex; gap: 8px; }
   .luma-email { display: flex; flex-direction: column; gap: 10px; font-style: normal; }
@@ -875,6 +908,6 @@ const t = useTranslations(lang);
 
   @media (prefers-reduced-motion: reduce) {
     .luma-backdrop, .luma-panel { transition: none; }
-    .luma-cursor { animation: none; }
+    .luma-cursor, .luma-dots i { animation: none; }
   }
 </style>
