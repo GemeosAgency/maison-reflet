@@ -6,143 +6,154 @@ import { defineMiddleware } from "astro:middleware";
 // Le jour du lancement : retirer PUBLIC_COMING_SOON de la prod.
 const COMING_SOON = import.meta.env.PUBLIC_COMING_SOON === "true";
 
+// Tracking onsite Klaviyo sur la page teaser (même variable que Layout.astro,
+// voir le commentaire là-bas pour la limite mono-compte staging/prod).
+const KLAVIYO_ID = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
+const KLAVIYO_SNIPPET = KLAVIYO_ID
+  ? `<script type="text/javascript" async src="https://static.klaviyo.com/onsite/js/${KLAVIYO_ID}/klaviyo.js"></script>`
+  : "";
+
 const HOLDING_PAGE = `<!doctype html>
-<html lang="fr">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <title>Maison Reflet — Bientôt</title>
-    <meta property="og:title" content="Maison Reflet — Bientôt" />
-    <meta property="og:description" content="Six parfums, six reflets d'une identité franco-arabe." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
+    <title>Maison Reflet — The art of a different reflection</title>
+    <meta property="og:title" content="Maison Reflet" />
+    <meta property="og:description" content="The art of a different reflection. Get early access and be the first to discover the collection." />
+    <meta property="og:image" content="/teaser/bg.jpg" />
+    <link rel="preload" as="image" href="/teaser/bg.jpg" imagesrcset="/teaser/bg.jpg 1600w, /teaser/bg@2x.jpg 2560w" imagesizes="100vw" fetchpriority="high" />
+    ${KLAVIYO_SNIPPET}
     <style>
+      /* Mêmes fichiers que le site (public/fonts), pas de Google Fonts :
+         la maquette du teaser n'utilise que PP Neue Montreal. */
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/fonts/ppneuemontreal-book.woff2") format("woff2");
+        font-weight: 400; font-style: normal; font-display: swap;
+      }
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/fonts/ppneuemontreal-medium.woff2") format("woff2");
+        font-weight: 500; font-style: normal; font-display: swap;
+      }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { height: 100%; }
       body {
-        background: #1c1714;
-        color: #efe6d8;
-        font-family: "Cormorant Garamond", Georgia, serif;
+        background: #150e0a;
+        color: #f1eee9;
+        font-family: "PP Neue Montreal", "Helvetica Neue", Arial, sans-serif;
         overflow: hidden;
       }
-      .stage { position: fixed; inset: 0; z-index: 0; }
-      .slide {
-        position: absolute; inset: 0;
-        background-size: cover; background-position: center;
-        opacity: 0;
-        animation: fade 63s infinite;
-        will-change: opacity, transform;
+      .bg {
+        position: fixed; inset: 0; z-index: 0;
+        width: 100%; height: 100%; object-fit: cover;
+        /* La photo est déjà recadrée au cadrage de la maquette. Le flacon est
+           à ~70 % de la largeur : sur un écran étroit, un recadrage centré le
+           couperait, d'où l'ancrage à 70 %. */
+        object-position: 70% center;
       }
-      .slide:nth-child(1) { background-image: url("/teaser/t1.jpg"); animation-delay: 0s; }
-      .slide:nth-child(2) { background-image: url("/teaser/t2.jpg"); animation-delay: 7s; }
-      .slide:nth-child(3) { background-image: url("/teaser/t3.jpg"); animation-delay: 14s; }
-      .slide:nth-child(4) { background-image: url("/teaser/t4.jpg"); animation-delay: 21s; }
-      .slide:nth-child(5) { background-image: url("/teaser/t5.jpg"); animation-delay: 28s; }
-      .slide:nth-child(6) { background-image: url("/teaser/t6.jpg"); animation-delay: 35s; }
-      .slide:nth-child(7) { background-image: url("/teaser/t7.jpg"); animation-delay: 42s; }
-      .slide:nth-child(8) { background-image: url("/teaser/t8.jpg"); animation-delay: 49s; }
-      .slide:nth-child(9) { background-image: url("/teaser/t9.jpg"); animation-delay: 56s; }
-      @keyframes fade {
-        0%   { opacity: 0; transform: scale(1.06); }
-        2%   { opacity: 1; }
-        11%  { opacity: 1; }
-        14%  { opacity: 0; transform: scale(1.12); }
-        100% { opacity: 0; transform: scale(1.12); }
+      /* La maquette ne porte qu'une ombre portée sur le titre. Ce voile très
+         léger protège la même accroche quand le recadrage mobile ramène la
+         zone claire de la photo derrière le texte. */
+      .scrim {
+        position: fixed; inset: 0; z-index: 1; pointer-events: none;
+        background: linear-gradient(to top, rgba(21, 14, 10, 0.5) 0%, rgba(21, 14, 10, 0) 46%);
       }
-      .overlay {
-        position: fixed; inset: 0; z-index: 1;
-        background: radial-gradient(ellipse at center, rgba(20,16,14,0.30) 0%, rgba(20,16,14,0.74) 100%);
-      }
-      .content {
+      .frame {
         position: fixed; inset: 0; z-index: 2;
         display: flex; flex-direction: column;
-        align-items: center; justify-content: center;
-        text-align: center; padding: 2rem;
+        align-items: flex-start; justify-content: space-between;
+        padding: 48px;
       }
-      .kicker {
-        letter-spacing: 0.5em; text-transform: uppercase;
-        font-size: clamp(0.7rem, 2vw, 0.95rem);
-        opacity: 0.85; margin-bottom: 2rem; padding-left: 0.5em;
+      .logo { display: block; width: 272px; height: 32px; }
+      .block { display: flex; flex-direction: column; align-items: flex-start; gap: 24px; }
+      h1 {
+        max-width: 504px;
+        font-size: clamp(28px, 2.78vw, 40px);
+        font-weight: 500; line-height: 1.2; text-transform: uppercase;
+        filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.56));
       }
-      .bientot {
-        font-weight: 300; line-height: 1; letter-spacing: 0.02em;
-        font-size: clamp(3.4rem, 13vw, 7.5rem);
+      .signup { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+      .signup-lead { font-size: 16px; line-height: 1.32; letter-spacing: -0.32px; }
+      .field {
+        display: flex; align-items: center; gap: 12px;
+        padding: 4px; background: rgba(231, 223, 208, 0.24);
       }
-      .ar {
-        font-family: "Amiri", serif;
-        font-size: clamp(2rem, 7vw, 3.6rem);
-        margin-top: 0.5rem; opacity: 0.95;
+      .field input {
+        width: 288px; padding: 16px; border: 0; background: none;
+        color: #f1eee9; font: inherit; font-size: 16px; font-weight: 500;
+        text-transform: uppercase; outline: none;
       }
-      .tag {
-        font-weight: 300; line-height: 1.6; opacity: 0.9;
-        font-size: clamp(1rem, 2.6vw, 1.35rem); max-width: 30rem;
-        margin-top: 2.4rem;
+      .field input::placeholder { color: rgba(241, 238, 233, 0.64); }
+      .field input:focus-visible { outline: 1px solid rgba(241, 238, 233, 0.64); outline-offset: 2px; }
+      .field button {
+        display: inline-flex; align-items: center; gap: 12px;
+        padding: 16px; border: 0; background: #812538;
+        color: #f1eee9; font: inherit; font-size: 16px; font-weight: 500;
+        text-transform: uppercase; cursor: pointer; transition: opacity 0.15s;
       }
-      .signup {
-        margin-top: 2.4rem; width: 100%; max-width: 30rem;
-        display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center;
-      }
-      .signup input {
-        flex: 1 1 15rem; min-width: 0;
-        background: rgba(239, 230, 216, 0.06);
-        border: 1px solid rgba(239, 230, 216, 0.35);
-        color: #efe6d8; font-family: inherit; font-size: 1rem;
-        padding: 0.85rem 1.1rem; border-radius: 2px; outline: none;
-      }
-      .signup input::placeholder { color: rgba(239, 230, 216, 0.55); }
-      .signup input:focus { border-color: #b7a861; }
-      .signup button {
-        background: #efe6d8; color: #1c1714; border: none;
-        font-family: inherit; font-size: 1rem; letter-spacing: 0.04em;
-        padding: 0.85rem 1.6rem; border-radius: 2px; cursor: pointer;
-        transition: background 0.2s ease;
-      }
-      .signup button:hover { background: #b7a861; }
-      .signup button:disabled { opacity: 0.6; cursor: default; }
-      .signup-msg {
-        margin-top: 1rem; min-height: 1.3em;
-        font-size: 0.95rem; opacity: 0.9;
-      }
-      .fadein { opacity: 0; animation: rise 1.6s ease forwards; }
-      .fadein:nth-child(2) { animation-delay: 0.15s; }
-      .fadein:nth-child(3) { animation-delay: 0.3s; }
-      .fadein:nth-child(4) { animation-delay: 0.45s; }
-      .fadein:nth-child(5) { animation-delay: 0.6s; }
+      .field button:hover { opacity: 0.88; }
+      .field button:disabled { opacity: 0.6; cursor: default; }
+      .field button svg { width: 12px; height: auto; flex: none; }
+      .signup-msg { min-height: 1.3em; font-size: 16px; line-height: 1.32; }
+      .fadein { opacity: 0; animation: rise 1.2s ease forwards; }
+      .fadein-2 { animation-delay: 0.12s; }
       @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+      @media (max-width: 700px) {
+        .frame { padding: 24px; }
+        .logo { width: 204px; height: 24px; }
+        .block { gap: 20px; width: 100%; }
+        .signup { width: 100%; }
+        .field { width: 100%; flex-wrap: wrap; }
+        .field input { flex: 1 1 12rem; width: auto; min-width: 0; }
+        .field button { flex: 1 1 100%; justify-content: center; }
+      }
       @media (prefers-reduced-motion: reduce) {
-        .slide { animation: none; }
-        .slide:nth-child(1) { opacity: 1; }
         .fadein { animation: none; opacity: 1; }
       }
     </style>
   </head>
   <body>
-    <div class="stage" aria-hidden="true">
-      <div class="slide"></div>
-      <div class="slide"></div>
-      <div class="slide"></div>
-      <div class="slide"></div>
-      <div class="slide"></div>
-      <div class="slide"></div>
-      <div class="slide"></div>
-      <div class="slide"></div>
-      <div class="slide"></div>
-    </div>
-    <div class="overlay" aria-hidden="true"></div>
-    <main class="content">
-      <p class="kicker fadein">Maison Reflet</p>
-      <h1 class="bientot fadein">Bientôt</h1>
-      <p class="ar fadein" dir="rtl" lang="ar">قريبًا</p>
-      <p class="tag fadein">Six parfums, six reflets d'une identité franco-arabe.</p>
-      <form class="signup fadein" id="signup">
-        <input type="email" name="email" required placeholder="Votre adresse email" aria-label="Votre adresse email" />
-        <button type="submit">Prévenez-moi</button>
-      </form>
-      <p class="signup-msg" id="signup-msg" role="status" aria-live="polite"></p>
+    <img
+      class="bg"
+      src="/teaser/bg.jpg"
+      srcset="/teaser/bg.jpg 1600w, /teaser/bg@2x.jpg 2560w"
+      sizes="100vw"
+      alt=""
+      fetchpriority="high"
+      decoding="async"
+    />
+    <div class="scrim" aria-hidden="true"></div>
+    <main class="frame">
+      <img class="logo fadein" src="/teaser/logo.svg" alt="Maison Reflet" width="272" height="32" />
+      <div class="block">
+        <h1 class="fadein">The art of a<br />different reflection</h1>
+        <div class="signup fadein fadein-2">
+          <p class="signup-lead">Get early access and be the first to discover the collection</p>
+          <form class="field" id="signup">
+            <input
+              type="email"
+              name="email"
+              required
+              autocomplete="email"
+              placeholder="Your email address"
+              aria-label="Your email address"
+            />
+            <button type="submit">
+              <span>Join the list</span>
+              <svg viewBox="0 0 13.5 11.0459" fill="none" aria-hidden="true" focusable="false">
+                <path d="M0.75 4.77297C0.335786 4.77297 0 5.10876 0 5.52297C0 5.93718 0.335786 6.27297 0.75 6.27297V5.52297V4.77297ZM13.2803 6.0533C13.5732 5.76041 13.5732 5.28553 13.2803 4.99264L8.50736 0.21967C8.21447 -0.0732231 7.73959 -0.0732231 7.4467 0.21967C7.15381 0.512564 7.15381 0.987437 7.4467 1.28033L11.6893 5.52297L7.4467 9.76561C7.15381 10.0585 7.15381 10.5334 7.4467 10.8263C7.73959 11.1192 8.21447 11.1192 8.50736 10.8263L13.2803 6.0533ZM0.75 5.52297V6.27297H12.75V5.52297V4.77297H0.75V5.52297Z" fill="#F1EEE9"/>
+              </svg>
+            </button>
+          </form>
+          <p class="signup-msg" id="signup-msg" role="status" aria-live="polite"></p>
+        </div>
+      </div>
     </main>
     <script>
       (function () {
@@ -156,7 +167,7 @@ const HOLDING_PAGE = `<!doctype html>
           var email = (input.value || "").trim();
           if (!email) return;
           btn.disabled = true;
-          msg.textContent = "Un instant…";
+          msg.textContent = "One moment…";
           fetch("/api/subscribe", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -166,14 +177,25 @@ const HOLDING_PAGE = `<!doctype html>
             .then(function (res) {
               if (res.ok && res.d && res.d.ok) {
                 f.style.display = "none";
-                msg.textContent = "Merci. Vous serez parmi les premiers prévenus.";
+                msg.textContent = "Thank you. You will be among the first to know.";
+                // Identifie aussi le profil dans Klaviyo (best effort, sans bloquer).
+                // On attend que klaviyo.js soit réellement chargé (objet avec .push)
+                // avant de pousser, sinon l'appel est perdu — cf. src/lib/klaviyo.ts.
+                (function identifyWhenReady(tries) {
+                  var k = window.klaviyo;
+                  if (k && !Array.isArray(k) && typeof k.push === "function") {
+                    try { k.push(["identify", { email: email }]); } catch (_) {}
+                  } else if (tries > 0) {
+                    setTimeout(function () { identifyWhenReady(tries - 1); }, 150);
+                  }
+                })(120);
               } else {
-                msg.textContent = (res.d && res.d.error) || "Une erreur est survenue.";
+                msg.textContent = (res.d && res.d.error) || "Something went wrong.";
                 btn.disabled = false;
               }
             })
             .catch(function () {
-              msg.textContent = "Vérifiez votre connexion et réessayez.";
+              msg.textContent = "Check your connection and try again.";
               btn.disabled = false;
             });
         });
