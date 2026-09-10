@@ -1,0 +1,76 @@
+---
+/**
+ * Promesse de livraison — « Livraison aujourd'hui à Dubaï », « Livraison vers
+ * la France », le délai et les frais.
+ *
+ * Le rendu ci-dessous est celui du marché primaire (Émirats), cuit au build :
+ * la ligne est donc lisible avant tout JavaScript, et `shipping-promise.ts`
+ * la réécrit pour le pays choisi — et fait battre le rebours de Dubaï.
+ *
+ * `sub={false}` ne garde que la ligne principale, pour les emplacements
+ * étroits (colonne d'achat de la fiche produit).
+ */
+import { useTranslations, type Locale } from "../i18n";
+import {
+  DEFAULT_COUNTRY,
+  DELIVERY_DAYS,
+  formatMoney,
+  freeShippingThreshold,
+  getCountry,
+  shippingRate,
+} from "../lib/markets";
+
+interface Props {
+  lang: Locale;
+  /** Afficher la seconde ligne (délai et frais). */
+  sub?: boolean;
+  /** Variante compacte : texte plus petit, pas d'icône. */
+  compact?: boolean;
+}
+
+const { lang, sub = true, compact = false } = Astro.props;
+const t = useTranslations(lang);
+
+const country = getCountry(DEFAULT_COUNTRY);
+const days = DELIVERY_DAYS[country.group];
+const rate = formatMoney(shippingRate(country.zone, country.currency), country.currency, lang);
+const free = formatMoney(freeShippingThreshold(country.currency), country.currency, lang);
+
+// État « guichet fermé » au build : le rebours n'a de sens qu'à l'exécution,
+// et annoncer une heure limite déjà passée serait un mensonge dans le HTML
+// statique servi par le CDN.
+const mainLabel = t("shipping.sameDayClosed");
+const subLabel = `${t("shipping.restOfUae")
+  .replace("{min}", String(days.min))
+  .replace("{max}", String(days.max))} · ${rate}, ${t("shipping.freeFrom").replace("{amount}", free)}`;
+---
+
+<div class:list={["ship", { "ship-compact": compact }]} data-shipping-promise>
+  {!compact && <img class="ship-icon" src="/brand/shipment.svg" alt="" width="20" height="20" />}
+  <div class="ship-text">
+    <p class="ship-main" data-ship-main>{mainLabel}</p>
+    {sub && <p class="ship-sub" data-ship-sub>{subLabel}</p>}
+  </div>
+</div>
+
+<style>
+  .ship {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    line-height: 1.36;
+  }
+  .ship-icon { flex: none; margin-top: 1px; }
+  .ship-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .ship-main { margin: 0; font-weight: 500; }
+  .ship-sub { margin: 0; opacity: 0.7; }
+  .ship-compact { font-size: 13px; }
+
+  /*
+   * Guichet ouvert : la ligne passe en rose de marque pour signaler que le
+   * temps court. Pas de clignotement ni de compte à rebours géant — l'urgence
+   * se dit une fois, avec la couleur.
+   */
+  .ship.is-urgent .ship-main { color: var(--rose, #812538); }
+</style>

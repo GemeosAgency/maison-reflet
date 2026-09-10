@@ -9,6 +9,15 @@ import {
   useTranslations,
 } from "../i18n";
 import CartDrawer from "../components/CartDrawer.astro";
+import CountryDrawer from "../components/CountryDrawer.astro";
+import {
+  COUNTRIES,
+  DEFAULT_COUNTRY,
+  formatMoney,
+  freeShippingThreshold,
+  getCountry,
+  countryPill,
+} from "../lib/markets";
 
 type Breadcrumb = { label: string; href?: string };
 
@@ -38,6 +47,19 @@ const t = useTranslations(lang);
 
 const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
 const rest = Astro.url.pathname.replace(/^\/(fr|ar|en)/, "") || "/";
+
+/*
+ * État initial du sélecteur de pays : le marché primaire, cuit au build. Le
+ * choix réel du visiteur vit dans un cookie et n'est connu que du navigateur —
+ * `country.ts` recale pastille, prix et seuils au chargement.
+ */
+const initialCountry = getCountry(DEFAULT_COUNTRY);
+const initialThreshold = formatMoney(
+  freeShippingThreshold(initialCountry.currency),
+  initialCountry.currency,
+  lang
+);
+const initialPill = countryPill(initialCountry, lang);
 
 /*
  * URLs absolues pour le référencement. Astro.site vient de la config `site`
@@ -331,7 +353,15 @@ const navLinks = [
     </script>
 
     <div class="promo-banner">
-      <p>{t("banner.promo")}</p>
+      {/*
+        Le seuil dépend de la devise du pays choisi (voir src/lib/markets.ts).
+        Le HTML statique porte celui du marché primaire ; l'attribut garde le
+        gabarit traduit pour que `hydrateShippingThresholds` n'ait plus qu'à
+        remplacer le montant, sans retraduire la phrase dans le navigateur.
+      */}
+      <p data-free-shipping-threshold={t("banner.promo")}>
+        {t("banner.promo").replace("{amount}", initialThreshold)}
+      </p>
     </div>
 
     {/*
@@ -349,9 +379,22 @@ const navLinks = [
         <img src="/brand/logo.svg" alt="Maison Reflet" height="28" />
       </a>
       <div class="site-actions">
-        <button type="button" class="currency">
-          <img src="/brand/flag.png" alt="" width="20" height="20" class="flag" />
-          AE (AED د.إ)
+        <button
+          type="button"
+          class="currency"
+          data-region-open
+          aria-label={t("region.open")}
+        >
+          <img
+            src={`/flags/${initialCountry.code.toLowerCase()}.png`}
+            srcset={`/flags/${initialCountry.code.toLowerCase()}.png 1x, /flags/${initialCountry.code.toLowerCase()}@2x.png 2x`}
+            alt=""
+            width="20"
+            height="20"
+            class="flag"
+            data-region-flag
+          />
+          <span class="currency-label" data-region-label>{initialPill}</span>
           <img src="/brand/chevron.svg" alt="" width="8" height="8" class="chev" />
         </button>
         <div class="icons">
@@ -444,6 +487,9 @@ const navLinks = [
       <div class="footer-bottom">
         <p class="footer-copyright">{t("footer.copyright").replace("{year}", String(new Date().getFullYear()))}</p>
         <div class="footer-lang">
+          <button type="button" class="footer-region" data-region-open>
+            {t("region.shippedCount").replace("{count}", String(COUNTRIES.length))}
+          </button>
           <span>{t("footer.countryLanguage")}</span>
           <ul class="lang-switch">
             {
@@ -461,6 +507,7 @@ const navLinks = [
     </footer>
 
     <CartDrawer lang={lang} />
+    <CountryDrawer lang={lang} rest={rest} />
 
     <style>
       .promo-banner { background: #efc5a9; }
@@ -563,6 +610,16 @@ const navLinks = [
       .footer-copyright { margin: 0; color: rgba(231, 223, 208, 0.56); }
       .footer-lang { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .footer-lang > span { opacity: 0.56; }
+      .footer-region {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        font: inherit;
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        cursor: pointer;
+      }
       .lang-switch { list-style: none; display: flex; gap: 1rem; margin: 0; padding: 0; }
       .lang-switch a { opacity: 0.8; font-weight: 500; }
       .lang-switch a[aria-current="true"] { opacity: 1; text-decoration: underline; }
@@ -572,10 +629,29 @@ const navLinks = [
            on le cale à droite pour laisser le logo centré respirer. */
         .site-header { padding: 0 20px; justify-content: flex-end; }
         .site-nav { display: none; }
-        /* Le sélecteur de devise et les icônes placeholder (recherche, compte)
-           chevauchent le logo centré sur petit écran — masqués en attendant le
-           menu mobile (burger) de la refonte. Seul le panier reste. */
-        .currency { display: none; }
+        /* Les icônes placeholder (recherche, compte) chevauchent le logo
+           centré sur petit écran — masquées en attendant le menu mobile
+           (burger) de la refonte.
+
+           Le sélecteur de pays, lui, RESTE : sans lui, la seule porte d'entrée
+           du tiroir sur mobile serait le lien du pied de page. Il se réduit à
+           son drapeau — la devise et le chevron ne tiendraient pas à côté du
+           logo. */
+        /* La colonne de gauche est vide (nav masquée) et le logo est
+           absolument centré : le drapeau s'y installe, à l'opposé du panier.
+           Le laisser dans le flux à droite le faisait chevaucher le logo de
+           douze pixels. */
+        .currency {
+          position: absolute;
+          /* Décalé de 10 px et rembourré de 10 px : le drapeau reste aligné
+             sur la gouttière de 20 px, mais la cible tactile fait 40 px. */
+          inset-inline-start: 10px;
+          top: 50%;
+          transform: translateY(-50%);
+          padding: 8px 10px;
+        }
+        .currency-label,
+        .currency .chev { display: none; }
         .icon-desktop { display: none; }
         .site-logo img { height: 22px; }
         .promo-banner p { padding: 10.5px 20px; font-size: 12px; }

@@ -8,6 +8,8 @@
  * Le bouton d'achat gère sa propre quantité (pas le câblage global
  * [data-add-to-cart] qui ajoute toujours 1) — voir le <script> plus bas.
  */
+import ShippingPromise from "../ShippingPromise.astro";
+import type { Locale } from "../../i18n";
 interface NoteLevel {
   label: string;
   notes: string[];
@@ -44,6 +46,8 @@ interface Props {
   decreaseLabel: string;
   increaseLabel: string;
   perks: { icon: string; label: string }[];
+  /** Langue de la page — pour la promesse de livraison. */
+  lang: Locale;
 }
 
 const {
@@ -73,6 +77,7 @@ const {
   decreaseLabel,
   increaseLabel,
   perks,
+  lang,
 } = Astro.props;
 
 const gauges = [
@@ -163,8 +168,16 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
         data-error-label={errorLabel}
       >
         <span>{addLabel}</span>
-        <span data-panel-add-price>{priceLabel}</span>
+        <span data-panel-add-price data-money={variantId}>{priceLabel}</span>
       </button>
+    </div>
+    {/*
+      Promesse de livraison juste sous le bouton : c'est le dernier doute avant
+      l'ajout au panier — « quand est-ce que je le reçois, et combien ça
+      coûte ». À Dubaï, le rebours du jour même s'y affiche.
+    */}
+    <div class="ppanel-ship">
+      <ShippingPromise lang={lang} />
     </div>
     <ul class="ppanel-perks">
       {
@@ -339,6 +352,7 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   .ppanel-add:hover { opacity: 0.92; }
   .ppanel-add:disabled { opacity: 0.6; }
 
+  .ppanel-ship { padding-top: 4px; }
   .ppanel-perks {
     list-style: none;
     margin: 0;

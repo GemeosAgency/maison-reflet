@@ -101,7 +101,7 @@ const SIZES = "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw";
   <div class="ptile-meta">
     <h3>{name}</h3>
     {subtitle && <p class="ptile-subtitle">{subtitle}</p>}
-    <p class="ptile-price">{price}</p>
+    <p class="ptile-price" data-money={variantId}>{price}</p>
   </div>
 </div>
 

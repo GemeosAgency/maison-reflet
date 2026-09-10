@@ -1,0 +1,556 @@
+---
+/**
+ * Tiroir « Pays et langue ».
+ *
+ * Même géométrie et même mécanique que le panier et la pyramide olfactive :
+ * 480 px collés à droite, 8 px de marge, coins à 8 px, voile à 56 %, glissement
+ * latéral, fermeture au voile / à la croix / par Échap. Monté UNE FOIS par le
+ * layout — c'est lui qui émet le blob `#region-i18n` dont dépendent aussi les
+ * promesses de livraison de la fiche produit.
+ *
+ * Le pays gouverne la devise et la livraison ; la langue gouverne le texte.
+ * Les deux vivent dans le même tiroir parce que le visiteur les pense ensemble,
+ * mais ce sont deux mécanismes distincts : le pays est un cookie plus un
+ * rafraîchissement des prix sans rechargement, la langue est une vraie
+ * navigation vers `/fr`, `/ar` ou `/en`.
+ */
+import {
+  localeNames,
+  locales,
+  localePath,
+  useTranslations,
+  type Locale,
+} from "../i18n";
+import {
+  COUNTRIES,
+  DEFAULT_COUNTRY,
+  DELIVERY_DAYS,
+  GROUP_ORDER,
+  countryName,
+  getCountry,
+  intlLocale,
+  countryPill,
+} from "../lib/markets";
+import ShippingPromise from "./ShippingPromise.astro";
+
+interface Props {
+  lang: Locale;
+  /** Chemin courant SANS préfixe de langue, pour les liens de langue. */
+  rest: string;
+}
+
+const { lang, rest } = Astro.props;
+const t = useTranslations(lang);
+
+/** Retire les diacritiques : « Émirats » se trouve en tapant « emirats ». */
+const fold = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+/**
+ * Les pays, groupés et triés par nom dans la langue de la page. La clé de
+ * recherche cumule les trois langues et le code ISO : un francophone qui tape
+ * « Germany » ou « DE » trouve l'Allemagne.
+ */
+const groups = GROUP_ORDER.map((group) => ({
+  group,
+  label: t(`region.group.${group}` as Parameters<typeof t>[0]),
+  countries: COUNTRIES.filter((c) => c.group === group)
+    .map((c) => ({
+      ...c,
+      name: countryName(c.code, lang),
+      days: DELIVERY_DAYS[c.group],
+      search: [c.code, ...locales.map((loc) => countryName(c.code, loc))].map(fold).join(" "),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, intlLocale(lang))),
+})).filter((g) => g.countries.length > 0);
+
+const initial = getCountry(DEFAULT_COUNTRY);
+const currencyNote = t("region.currencyNote").replace("{currency}", initial.currency);
+const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIES.length));
+---
+
+<script
+  type="application/json"
+  id="region-i18n"
+  is:inline
+  set:html={JSON.stringify({
+    "region.currencyNote": t("region.currencyNote"),
+    "region.noResult": t("region.noResult"),
+    "region.suggestion": t("region.suggestion"),
+    "region.suggestionAccept": t("region.suggestionAccept"),
+    "region.suggestionDismiss": t("region.suggestionDismiss"),
+    "shipping.toCountry": t("shipping.toCountry"),
+    "shipping.days": t("shipping.days"),
+    "shipping.freeFrom": t("shipping.freeFrom"),
+    "shipping.sameDayOpen": t("shipping.sameDayOpen"),
+    "shipping.sameDayClosed": t("shipping.sameDayClosed"),
+    "shipping.restOfUae": t("shipping.restOfUae"),
+    "shipping.countdownHM": t("shipping.countdownHM"),
+    "shipping.countdownMS": t("shipping.countdownMS"),
+  })}
+/>
+
+<div class="cdr" data-region-drawer aria-hidden="true">
+  <div class="cdr-backdrop" data-region-close></div>
+  <aside class="cdr-panel" role="dialog" aria-modal="true" aria-label={t("region.title")}>
+    <button type="button" class="cdr-close" data-region-close aria-label={t("cart.close")}>
+      <img src="/brand/close.svg" alt="" width="16" height="16" />
+    </button>
+
+    <div class="cdr-head">
+      <h2 class="cdr-title">{t("region.title")}</h2>
+      <p class="cdr-count">{shippedCount}</p>
+    </div>
+
+    <section class="cdr-section">
+      <p class="cdr-label">{t("region.languageLabel")}</p>
+      <div class="cdr-langs">
+        {
+          locales.map((loc) => (
+            <a
+              href={localePath(loc, rest)}
+              lang={loc}
+              aria-current={loc === lang ? "true" : undefined}
+            >
+              {localeNames[loc]}
+            </a>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="cdr-section cdr-countries">
+      <p class="cdr-label">{t("region.countryLabel")}</p>
+      <input
+        type="search"
+        class="cdr-search"
+        data-region-search
+        placeholder={t("region.search")}
+        aria-label={t("region.search")}
+        autocomplete="off"
+      />
+
+      <div class="cdr-list" data-region-list>
+        {
+          groups.map((g) => (
+            <div class="cdr-group" data-region-group>
+              <p class="cdr-group-title">{g.label}</p>
+              {g.countries.map((c) => (
+                <button
+                  type="button"
+                  class="cdr-row"
+                  data-region-country={c.code}
+                  data-region-search-key={c.search}
+                  aria-pressed={c.code === initial.code ? "true" : "false"}
+                >
+                  <img
+                    class="cdr-flag"
+                    src={`/flags/${c.code.toLowerCase()}.png`}
+                    srcset={`/flags/${c.code.toLowerCase()}.png 1x, /flags/${c.code.toLowerCase()}@2x.png 2x`}
+                    alt=""
+                    width="20"
+                    height="20"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <span class="cdr-row-name">{c.name}</span>
+                  <span class="cdr-row-cur">{c.currency}</span>
+                </button>
+              ))}
+            </div>
+          ))
+        }
+      </div>
+      <p class="cdr-empty" data-region-empty hidden>{t("region.noResult")}</p>
+    </section>
+
+    <footer class="cdr-foot">
+      <ShippingPromise lang={lang} />
+      <p class="cdr-note" data-region-note>{currencyNote}</p>
+    </footer>
+  </aside>
+</div>
+
+{/* Suggestion de première visite — jamais un basculement automatique. */}
+<div class="cdr-suggest" data-region-suggest hidden>
+  <p class="cdr-suggest-text" data-region-suggest-text></p>
+  <div class="cdr-suggest-actions">
+    <button type="button" class="cdr-suggest-yes" data-region-suggest-accept></button>
+    <button type="button" class="cdr-suggest-no" data-region-suggest-dismiss></button>
+  </div>
+</div>
+
+<script>
+  import {
+    getActiveCurrency,
+    initCountry,
+    selectedCountry,
+    setCountry,
+    suggestCountry,
+    pageLocale,
+  } from "../lib/country";
+  import { countryName, countryPill } from "../lib/markets";
+  import { initShippingPromises, type RegionI18n } from "../lib/shipping-promise";
+
+  const i18n: RegionI18n = JSON.parse(
+    document.getElementById("region-i18n")?.textContent || "{}"
+  );
+
+  const fill = (template: string, tokens: Record<string, string>) =>
+    Object.entries(tokens).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, v), template);
+
+  // Le contexte Shopify doit être posé AVANT tout appel panier : `initCountry`
+  // en premier, et le reste de l'interface ensuite.
+  initCountry();
+  initShippingPromises(i18n);
+
+  const drawer = document.querySelector<HTMLElement>("[data-region-drawer]");
+  const search = document.querySelector<HTMLInputElement>("[data-region-search]");
+  const list = document.querySelector<HTMLElement>("[data-region-list]");
+  const empty = document.querySelector<HTMLElement>("[data-region-empty]");
+  const note = document.querySelector<HTMLElement>("[data-region-note]");
+
+  /** Reflète le pays courant partout : pastille, lignes du tiroir, mention. */
+  function syncSelection() {
+    const country = selectedCountry();
+    const code = country.code.toLowerCase();
+
+    for (const el of document.querySelectorAll<HTMLElement>("[data-region-label]")) {
+      el.textContent = countryPill(country, pageLocale(), getActiveCurrency());
+    }
+    for (const el of document.querySelectorAll<HTMLImageElement>("[data-region-flag]")) {
+      el.src = `/flags/${code}.png`;
+      el.srcset = `/flags/${code}.png 1x, /flags/${code}@2x.png 2x`;
+    }
+    for (const row of document.querySelectorAll<HTMLElement>("[data-region-country]")) {
+      row.setAttribute(
+        "aria-pressed",
+        row.dataset.regionCountry === country.code ? "true" : "false"
+      );
+    }
+    if (note) {
+      note.textContent = fill(i18n["region.currencyNote"] ?? "", {
+        currency: getActiveCurrency(),
+      });
+    }
+  }
+
+  syncSelection();
+  // `initCountry` interroge Shopify en tâche de fond : la pastille et la
+  // mention de devise se recalent quand la réponse arrive.
+  document.addEventListener("country:changed", syncSelection);
+
+  /* ---------------- Ouverture / fermeture ---------------- */
+
+  let lastFocused: HTMLElement | null = null;
+
+  function open() {
+    if (!drawer) return;
+    lastFocused = document.activeElement as HTMLElement | null;
+    drawer.classList.add("is-open");
+    drawer.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+    search?.focus();
+    // La ligne du pays courant doit être visible sans chercher.
+    document
+      .querySelector<HTMLElement>('[data-region-country][aria-pressed="true"]')
+      ?.scrollIntoView({ block: "center" });
+  }
+
+  function close() {
+    if (!drawer) return;
+    drawer.classList.remove("is-open");
+    drawer.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+    lastFocused?.focus();
+  }
+
+  for (const trigger of document.querySelectorAll<HTMLElement>("[data-region-open]")) {
+    trigger.addEventListener("click", (e) => {
+      e.preventDefault();
+      open();
+    });
+  }
+  for (const el of drawer?.querySelectorAll<HTMLElement>("[data-region-close]") ?? []) {
+    el.addEventListener("click", close);
+  }
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && drawer?.classList.contains("is-open")) close();
+  });
+
+  /* ---------------- Recherche ---------------- */
+
+  const fold = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+  search?.addEventListener("input", () => {
+    const q = fold(search.value.trim());
+    let visible = 0;
+
+    for (const row of list?.querySelectorAll<HTMLElement>("[data-region-country]") ?? []) {
+      const match = !q || (row.dataset.regionSearchKey ?? "").includes(q);
+      row.hidden = !match;
+      if (match) visible++;
+    }
+    // Un titre de groupe sans pays visible n'a plus de raison d'être.
+    for (const group of list?.querySelectorAll<HTMLElement>("[data-region-group]") ?? []) {
+      const any = Array.from(group.querySelectorAll<HTMLElement>("[data-region-country]")).some(
+        (row) => !row.hidden
+      );
+      group.hidden = !any;
+    }
+    if (empty) empty.hidden = visible > 0;
+  });
+
+  /* ---------------- Choix du pays ---------------- */
+
+  for (const row of document.querySelectorAll<HTMLElement>("[data-region-country]")) {
+    row.addEventListener("click", async () => {
+      const code = row.dataset.regionCountry;
+      if (!code || code === selectedCountry().code) {
+        close();
+        return;
+      }
+      row.classList.add("is-pending");
+      await setCountry(code);
+      row.classList.remove("is-pending");
+      syncSelection();
+      close();
+    });
+  }
+
+  /* ---------------- Suggestion de première visite ---------------- */
+
+  const suggest = document.querySelector<HTMLElement>("[data-region-suggest]");
+
+  void (async () => {
+    const code = await suggestCountry();
+    if (!code || !suggest) return;
+
+    const locale = pageLocale();
+    const guessed = countryName(code, locale);
+    const current = countryName(selectedCountry().code, locale);
+
+    const text = suggest.querySelector<HTMLElement>("[data-region-suggest-text]");
+    const yes = suggest.querySelector<HTMLButtonElement>("[data-region-suggest-accept]");
+    const no = suggest.querySelector<HTMLButtonElement>("[data-region-suggest-dismiss]");
+    if (text) text.textContent = fill(i18n["region.suggestion"] ?? "", { country: guessed });
+    if (yes) yes.textContent = fill(i18n["region.suggestionAccept"] ?? "", { country: guessed });
+    if (no) no.textContent = fill(i18n["region.suggestionDismiss"] ?? "", { country: current });
+
+    suggest.hidden = false;
+    yes?.addEventListener("click", async () => {
+      suggest.hidden = true;
+      await setCountry(code);
+      syncSelection();
+    });
+    no?.addEventListener("click", async () => {
+      suggest.hidden = true;
+      // Confirmer le pays courant pose le cookie : la suggestion ne revient pas.
+      await setCountry(selectedCountry().code);
+    });
+  })();
+</script>
+
+<style>
+  .cdr { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+  .cdr-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(31, 31, 31, 0.56);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .cdr.is-open { pointer-events: auto; }
+  .cdr.is-open .cdr-backdrop { opacity: 1; }
+
+  .cdr-panel {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: 480px;
+    max-width: 92vw;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 32px 32px 24px;
+    background: var(--bg);
+    border-radius: 8px;
+    box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.08);
+    transform: translateX(calc(100% + 8px));
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .cdr.is-open .cdr-panel { transform: translateX(0); }
+
+  /* En RTL, le tiroir vient de la gauche : le geste suit le sens de lecture. */
+  :global([dir="rtl"]) .cdr-panel {
+    right: auto;
+    left: 8px;
+    transform: translateX(calc(-100% - 8px));
+  }
+
+  .cdr-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    border: 0;
+    background: transparent;
+    padding: 4px;
+    line-height: 0;
+    cursor: pointer;
+  }
+  :global([dir="rtl"]) .cdr-close { right: auto; left: 16px; }
+
+  .cdr-head { display: flex; flex-direction: column; gap: 4px; }
+  .cdr-title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 500;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .cdr-count { margin: 0; font-size: 14px; opacity: 0.7; }
+
+  .cdr-section { display: flex; flex-direction: column; gap: 12px; }
+  .cdr-label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.72px;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+
+  .cdr-langs { display: flex; gap: 8px; }
+  .cdr-langs a {
+    padding: 8px 14px;
+    border: 1px solid rgba(21, 14, 10, 0.16);
+    border-radius: 999px;
+    font-size: 14px;
+    text-decoration: none;
+    color: inherit;
+  }
+  .cdr-langs a[aria-current="true"] {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--bg);
+  }
+
+  .cdr-search {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid rgba(21, 14, 10, 0.16);
+    border-radius: 4px;
+    background: var(--paper);
+    font: inherit;
+    font-size: 14px;
+    color: inherit;
+  }
+  .cdr-search::placeholder { opacity: 0.5; }
+
+  /*
+   * La liste est la seule zone qui défile : le titre, la recherche et le pied
+   * restent en place, pour qu'on ne perde jamais le champ de recherche ni la
+   * promesse de livraison en parcourant vingt-huit pays.
+   */
+  .cdr-countries { flex: 1; min-height: 0; }
+  .cdr-list { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 0 8px; }
+  .cdr-group + .cdr-group { margin-top: 16px; }
+  .cdr-group-title {
+    margin: 0 0 4px;
+    font-size: 12px;
+    letter-spacing: 0.72px;
+    text-transform: uppercase;
+    opacity: 0.45;
+  }
+
+  .cdr-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 8px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    font: inherit;
+    font-size: 15px;
+    color: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .cdr-row:hover { background: var(--paper); }
+  .cdr-row[aria-pressed="true"] { background: var(--sand); font-weight: 500; }
+  .cdr-row.is-pending { opacity: 0.5; pointer-events: none; }
+  .cdr-flag { flex: none; width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+  .cdr-row-name { flex: 1; min-width: 0; }
+  .cdr-row-cur { flex: none; font-size: 13px; opacity: 0.55; font-variant-numeric: tabular-nums; }
+
+  .cdr-empty { margin: 0; padding: 12px 8px; font-size: 14px; opacity: 0.7; }
+
+  .cdr-foot {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(21, 14, 10, 0.12);
+  }
+  .cdr-note { margin: 0; font-size: 12px; opacity: 0.6; }
+
+  /* Suggestion : discrète, en bas, jamais modale. */
+  .cdr-suggest {
+    position: fixed;
+    bottom: 16px;
+    inset-inline-start: 16px;
+    z-index: 55;
+    max-width: min(360px, calc(100vw - 32px));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    background: var(--paper);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(31, 31, 31, 0.14);
+    font-size: 14px;
+  }
+  .cdr-suggest-text { margin: 0; line-height: 1.36; }
+  .cdr-suggest-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cdr-suggest button {
+    padding: 8px 14px;
+    border: 1px solid var(--ink);
+    border-radius: 999px;
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    color: inherit;
+    cursor: pointer;
+  }
+  .cdr-suggest-yes { background: var(--ink) !important; color: var(--bg) !important; }
+
+  @media (max-width: 560px) {
+    .cdr-panel {
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      max-width: 100vw;
+      border-radius: 0;
+      transform: translateX(100%);
+      padding: 24px 20px;
+    }
+    :global([dir="rtl"]) .cdr-panel { left: 0; transform: translateX(-100%); }
+    .cdr.is-open .cdr-panel { transform: translateX(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cdr-backdrop,
+    .cdr-panel { transition: none; }
+  }
+</style>

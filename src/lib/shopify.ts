@@ -24,13 +24,75 @@ type ShopifyResponse<T> = {
   errors?: { message: string }[];
 };
 
+/**
+ * Contexte de marché d'une requête : pays (→ devise et disponibilité) et
+ * langue (→ titres et descriptions traduits, une fois les locales publiées
+ * côté Shopify). Les deux champs sont facultatifs ; sans eux, Shopify répond
+ * dans le marché primaire, c'est-à-dire en AED et en anglais.
+ */
+export type ShopifyContext = {
+  /** ISO 3166-1 alpha-2 en MAJUSCULES : "FR", "AE". */
+  country?: string | null;
+  /** ISO 639-1 en MAJUSCULES : "FR", "AR", "EN". */
+  language?: string | null;
+};
+
+/**
+ * Contexte appliqué quand l'appelant n'en passe pas.
+ *
+ * ⚠️ NAVIGATEUR UNIQUEMENT. Le sélecteur de pays le pose une fois au
+ * chargement, ce qui évite de faire passer le pays à travers les quinze appels
+ * de `cart.ts`. À NE JAMAIS appeler pendant le build : Astro rend les pages en
+ * parallèle et un état de module fuirait d'une langue à l'autre — au build, le
+ * contexte se passe explicitement en argument.
+ */
+let defaultContext: ShopifyContext | undefined;
+
+export function setDefaultShopifyContext(context: ShopifyContext | undefined) {
+  defaultContext = context;
+}
+
+function resolveContext(context?: ShopifyContext): ShopifyContext | undefined {
+  return context ?? defaultContext;
+}
+
+/**
+ * Injecte `@inContext` dans l'opération.
+ *
+ * La directive se pose sur l'opération, pas sur la requête HTTP : impossible
+ * de la passer en en-tête, il faut réécrire la signature. On cible le premier
+ * `query`/`mutation` nommé — les fragments qui précèdent (PRODUCT_FRAGMENT,
+ * CART_FRAGMENT) ne contiennent aucun de ces deux mots-clés, la première
+ * correspondance est donc bien l'opération elle-même.
+ *
+ * `$country` et `$language` sont déclarés nullables : passer `null` équivaut à
+ * ne pas contextualiser, ce qui permet d'appeler toujours la même requête.
+ */
+function withContext(query: string, context?: ShopifyContext): string {
+  if (!context || (!context.country && !context.language)) return query;
+
+  const CONTEXT_VARS = "$country: CountryCode, $language: LanguageCode";
+  const DIRECTIVE = " @inContext(country: $country, language: $language)";
+
+  return query.replace(
+    /\b(query|mutation)\s+(\w+)\s*(\(([\s\S]*?)\))?/,
+    (match, keyword: string, name: string, _parens: string | undefined, vars: string | undefined) => {
+      if (match.includes("@inContext")) return match;
+      const declared = vars?.trim() ? `${vars.trim()}, ${CONTEXT_VARS}` : CONTEXT_VARS;
+      return `${keyword} ${name}(${declared})${DIRECTIVE}`;
+    }
+  );
+}
+
 export async function shopifyFetch<T>(
   query: string,
   variables: Record<string, unknown> = {},
   // keepalive : la requête survit à une navigation (utile pour les mutations
   // fire-and-forget juste avant le départ vers le checkout, voir cart.ts).
-  init: { keepalive?: boolean } = {}
+  init: { keepalive?: boolean; context?: ShopifyContext } = {}
 ): Promise<T> {
+  const context = resolveContext(init.context);
+
   if (!domain || !token) {
     throw new Error(
       "[shopify] PUBLIC_SHOPIFY_STORE_DOMAIN ou PUBLIC_SHOPIFY_STOREFRONT_TOKEN manquant. " +
@@ -44,7 +106,16 @@ export async function shopifyFetch<T>(
       "Content-Type": "application/json",
       "X-Shopify-Storefront-Access-Token": token,
     },
-    body: JSON.stringify({ query, variables }),
+    body: JSON.stringify({
+      query: withContext(query, context),
+      variables: context
+        ? {
+            ...variables,
+            country: context.country ?? null,
+            language: context.language ?? null,
+          }
+        : variables,
+    }),
     ...(init.keepalive && { keepalive: true }),
   });
 
@@ -74,11 +145,25 @@ export type ShopifyMoney = {
   currencyCode: string;
 };
 
-/** Formate un montant Shopify ("39.0" + "EUR") pour l'affichage — utilisable au build comme dans le navigateur */
-export function formatPrice(amount: string, currencyCode: string): string {
-  return Number(amount).toLocaleString("fr-FR", {
+/**
+ * Formate un montant Shopify ("39.0" + "EUR") — utilisable au build comme dans
+ * le navigateur.
+ *
+ * La langue gouverne la mise en forme (séparateurs, position du symbole,
+ * chiffres arabes) : sans elle, un prix en yens ou en dirhams s'affichait avec
+ * les conventions françaises quelle que soit la langue de la page.
+ */
+export function formatPrice(amount: string, currencyCode: string, locale = "fr-FR"): string {
+  const value = Number(amount);
+  // Prix ronds : la marque affiche « 320 AED », pas « 320,00 AED ». Les
+  // centimes n'apparaissent que s'il y en a — un reste de conversion, ou une
+  // remise au prorata. Même règle que `formatMoney` dans markets.ts.
+  const fractionDigits = Number.isInteger(value) ? 0 : 2;
+  return value.toLocaleString(locale, {
     style: "currency",
     currency: currencyCode,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   });
 }
 
@@ -139,6 +224,8 @@ export type ShopifyCart = {
   id: string;
   checkoutUrl: string;
   totalQuantity: number;
+  /** Pays du panier : c'est lui qui fixe la devise du panier et du checkout. */
+  buyerIdentity: { countryCode: string | null };
   cost: {
     subtotalAmount: ShopifyMoney;
   };
@@ -209,7 +296,7 @@ const PRODUCT_FRAGMENT = /* GraphQL */ `
 `;
 
 /** Récupère tous les produits de la collection "Les 6 Reflets" (ou toute la boutique si pas de collection dédiée) */
-export async function getAllProducts(first = 20) {
+export async function getAllProducts(first = 20, context?: ShopifyContext) {
   const query = /* GraphQL */ `
     ${PRODUCT_FRAGMENT}
     query AllProducts($first: Int!) {
@@ -221,7 +308,11 @@ export async function getAllProducts(first = 20) {
     }
   `;
 
-  const data = await shopifyFetch<{ products: { nodes: ShopifyProduct[] } }>(query, { first });
+  const data = await shopifyFetch<{ products: { nodes: ShopifyProduct[] } }>(
+    query,
+    { first },
+    { context }
+  );
   return data.products.nodes;
 }
 
@@ -302,7 +393,7 @@ export function getDisplayPrice(product: Pick<ShopifyProduct, "variants">): Shop
 }
 
 /** Récupère un produit par son handle (slug Shopify) */
-export async function getProductByHandle(handle: string) {
+export async function getProductByHandle(handle: string, context?: ShopifyContext) {
   const query = /* GraphQL */ `
     ${PRODUCT_FRAGMENT}
     query ProductByHandle($handle: String!) {
@@ -312,7 +403,11 @@ export async function getProductByHandle(handle: string) {
     }
   `;
 
-  const data = await shopifyFetch<{ product: ShopifyProduct | null }>(query, { handle });
+  const data = await shopifyFetch<{ product: ShopifyProduct | null }>(
+    query,
+    { handle },
+    { context }
+  );
   return data.product;
 }
 
@@ -321,6 +416,9 @@ const CART_FRAGMENT = /* GraphQL */ `
     id
     checkoutUrl
     totalQuantity
+    buyerIdentity {
+      countryCode
+    }
     cost {
       subtotalAmount {
         amount
@@ -399,11 +497,21 @@ export type CartAttributeInput = { key: string; value: string };
  * cart.ts et api/webhooks/shopify-orders.ts). Préfixe "_" = masqué au client
  * dans le récapitulatif de commande.
  */
-export async function createCart(lines: CartLineInput[], attributes: CartAttributeInput[] = []) {
+export async function createCart(
+  lines: CartLineInput[],
+  attributes: CartAttributeInput[] = [],
+  context?: ShopifyContext
+) {
   const query = /* GraphQL */ `
     ${CART_FRAGMENT}
-    mutation CartCreate($lines: [CartLineInput!]!, $attributes: [AttributeInput!]) {
-      cartCreate(input: { lines: $lines, attributes: $attributes }) {
+    mutation CartCreate(
+      $lines: [CartLineInput!]!
+      $attributes: [AttributeInput!]
+      $buyerIdentity: CartBuyerIdentityInput
+    ) {
+      cartCreate(
+        input: { lines: $lines, attributes: $attributes, buyerIdentity: $buyerIdentity }
+      ) {
         cart {
           ...CartFragment
         }
@@ -426,7 +534,20 @@ export async function createCart(lines: CartLineInput[], attributes: CartAttribu
       userErrors: CartUserError[];
       warnings?: CartWarning[];
     };
-  }>(query, { lines, attributes });
+  }>(
+    query,
+    {
+      lines,
+      attributes,
+      // Fixe le pays du panier dès sa création : c'est lui qui détermine la
+      // devise du panier ET du checkout. `@inContext` seul ne suffit pas —
+      // Shopify mémorise le pays sur le panier, pas sur la requête.
+      buyerIdentity: resolveContext(context)?.country
+        ? { countryCode: resolveContext(context)!.country }
+        : null,
+    },
+    { context }
+  );
 
   assertNoUserErrors(data.cartCreate.userErrors);
   assertNoStockWarnings(data.cartCreate.warnings);
@@ -467,7 +588,7 @@ export async function updateCartAttributes(
 }
 
 /** Récupère un panier existant par son id — null si expiré ou introuvable */
-export async function getCart(cartId: string) {
+export async function getCart(cartId: string, context?: ShopifyContext) {
   const query = /* GraphQL */ `
     ${CART_FRAGMENT}
     query GetCart($cartId: ID!) {
@@ -477,12 +598,51 @@ export async function getCart(cartId: string) {
     }
   `;
 
-  const data = await shopifyFetch<{ cart: ShopifyCart | null }>(query, { cartId });
+  const data = await shopifyFetch<{ cart: ShopifyCart | null }>(query, { cartId }, { context });
   return data.cart;
 }
 
+/**
+ * Change le pays d'un panier existant.
+ *
+ * Indispensable au changement de marché en cours de session : le pays est
+ * mémorisé SUR le panier, `@inContext` ne le rétroagit pas. Shopify reconvertit
+ * alors les lignes et le checkout dans la devise du nouveau pays.
+ */
+export async function updateCartBuyerIdentity(
+  cartId: string,
+  countryCode: string,
+  context?: ShopifyContext
+) {
+  const query = /* GraphQL */ `
+    ${CART_FRAGMENT}
+    mutation CartBuyerIdentityUpdate($cartId: ID!, $countryCode: CountryCode!) {
+      cartBuyerIdentityUpdate(cartId: $cartId, buyerIdentity: { countryCode: $countryCode }) {
+        cart {
+          ...CartFragment
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyFetch<{
+    cartBuyerIdentityUpdate: { cart: ShopifyCart | null; userErrors: CartUserError[] };
+  }>(query, { cartId, countryCode }, { context });
+
+  assertNoUserErrors(data.cartBuyerIdentityUpdate.userErrors);
+  return data.cartBuyerIdentityUpdate.cart;
+}
+
 /** Ajoute une ou plusieurs lignes à un panier existant (fusionne les quantités si déjà présentes) */
-export async function addCartLine(cartId: string, lines: CartLineInput[]) {
+export async function addCartLine(
+  cartId: string,
+  lines: CartLineInput[],
+  context?: ShopifyContext
+) {
   const query = /* GraphQL */ `
     ${CART_FRAGMENT}
     mutation CartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
@@ -509,7 +669,7 @@ export async function addCartLine(cartId: string, lines: CartLineInput[]) {
       userErrors: CartUserError[];
       warnings?: CartWarning[];
     };
-  }>(query, { cartId, lines });
+  }>(query, { cartId, lines }, { context });
 
   assertNoUserErrors(data.cartLinesAdd.userErrors);
   assertNoStockWarnings(data.cartLinesAdd.warnings);
@@ -524,7 +684,11 @@ export async function addCartLine(cartId: string, lines: CartLineInput[]) {
 export type CartLineUpdateInput = { id: string; quantity: number; merchandiseId?: string };
 
 /** Modifie la quantité d'une ou plusieurs lignes d'un panier existant */
-export async function updateCartLines(cartId: string, lines: CartLineUpdateInput[]) {
+export async function updateCartLines(
+  cartId: string,
+  lines: CartLineUpdateInput[],
+  context?: ShopifyContext
+) {
   const query = /* GraphQL */ `
     ${CART_FRAGMENT}
     mutation CartLinesUpdate($cartId: ID!, $lines: [CartLineUpdateInput!]!) {
@@ -551,7 +715,7 @@ export async function updateCartLines(cartId: string, lines: CartLineUpdateInput
       userErrors: CartUserError[];
       warnings?: CartWarning[];
     };
-  }>(query, { cartId, lines });
+  }>(query, { cartId, lines }, { context });
 
   assertNoUserErrors(data.cartLinesUpdate.userErrors);
   assertNoStockWarnings(data.cartLinesUpdate.warnings);
@@ -559,7 +723,7 @@ export async function updateCartLines(cartId: string, lines: CartLineUpdateInput
 }
 
 /** Retire une ligne d'un panier existant */
-export async function removeCartLine(cartId: string, lineId: string) {
+export async function removeCartLine(cartId: string, lineId: string, context?: ShopifyContext) {
   const query = /* GraphQL */ `
     ${CART_FRAGMENT}
     mutation CartLinesRemove($cartId: ID!, $lineIds: [ID!]!) {
@@ -577,7 +741,7 @@ export async function removeCartLine(cartId: string, lineId: string) {
 
   const data = await shopifyFetch<{
     cartLinesRemove: { cart: ShopifyCart | null; userErrors: CartUserError[] };
-  }>(query, { cartId, lineIds: [lineId] });
+  }>(query, { cartId, lineIds: [lineId] }, { context });
 
   assertNoUserErrors(data.cartLinesRemove.userErrors);
   return data.cartLinesRemove.cart;

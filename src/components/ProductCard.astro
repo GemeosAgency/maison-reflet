@@ -63,7 +63,7 @@ const {
     <h3>{name}</h3>
     <div class="product-card-row">
       {inspired ? <p class="product-card-inspired">{inspiredByLabel} {inspired}</p> : <span></span>}
-      <p class="product-card-price">{price}</p>
+      <p class="product-card-price" data-money={variantId}>{price}</p>
     </div>
     <div class="product-card-add-wrap">
       <button
@@ -75,7 +75,7 @@ const {
         data-error-label={errorLabel}
       >
         <span data-reco-add-label>{addLabel}</span>
-        <span>{price}</span>
+        <span data-money={variantId}>{price}</span>
       </button>
     </div>
   </div>

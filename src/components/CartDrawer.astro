@@ -9,13 +9,17 @@
  * automatique Shopify "Échantillon offert dès 1 flacon 75 ml" — la variante
  * 2 ml est vendable seule à 15 AED.
  *
- * Seuil de livraison offerte : 400 AED — doit rester ALIGNÉ sur la remise
- * automatique "Free shipping" de Shopify (minimum 400 AED), sinon le panier
- * annonce un seuil que le checkout ne pratique pas.
+ * Seuil de livraison offerte : il dépend de la DEVISE du panier, pas d'une
+ * constante. Shopify n'a qu'une remise automatique "Free shipping" (minimum
+ * 400 AED) qu'il convertit à la volée dans la devise du client ; la table de
+ * `src/lib/markets.ts` annonce l'équivalent local, arrondi au-dessus. Sans
+ * cela, un panier en euros affichait une barre calée sur 400 — c'est-à-dire
+ * une jauge quatre fois trop longue.
  */
 import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle, shopifyImage } from "../lib/shopify";
 import { getInspiredByMap } from "../lib/sanity";
 import { type Locale, localePath, useTranslations } from "../i18n";
+import { DEFAULT_COUNTRY, freeShippingThreshold, getCountry, intlLocale } from "../lib/markets";
 
 interface Props {
   lang: Locale;
@@ -83,7 +87,7 @@ const productPaths = Object.fromEntries(
   ])
 );
 
-const FREE_SHIPPING_THRESHOLD = 400;
+const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY).currency);
 ---
 
 <div class="cart-drawer" data-cart-drawer aria-hidden="true">
@@ -190,6 +194,8 @@ const FREE_SHIPPING_THRESHOLD = 400;
     trackCheckoutDeparture,
   } from "../lib/cart";
   import { formatPrice, type ShopifyCart } from "../lib/shopify";
+  import { freeShippingThreshold, intlLocale } from "../lib/markets";
+  import { getActiveCurrency, hydratePrices, pageLocale } from "../lib/country";
   import type { CartUpdatedEvent } from "../lib/cart";
 
   type UpsellItem = {
@@ -221,7 +227,13 @@ const FREE_SHIPPING_THRESHOLD = 400;
     document.getElementById("cart-sample-options")?.textContent ?? "[]"
   );
   const I18N = JSON.parse(document.getElementById("cart-drawer-i18n")?.textContent ?? "{}");
-  const THRESHOLD: number = I18N.threshold ?? 400;
+  /**
+   * Seuil applicable à la devise du panier. Le panier peut basculer de devise
+   * en cours de session (changement de pays), d'où une lecture à chaque rendu
+   * plutôt qu'une constante figée au chargement.
+   */
+  const thresholdFor = (currency: string): number =>
+    freeShippingThreshold(currency) || I18N.threshold || 400;
   const THUMB_WIDTH: number = I18N.thumbWidth ?? 240;
 
   const drawer = document.querySelector<HTMLElement>("[data-cart-drawer]");
@@ -338,7 +350,7 @@ const FREE_SHIPPING_THRESHOLD = 400;
     const priceHtml =
       line.amount === 0
         ? `<span class="cart-badge">${I18N.free}</span>`
-        : `<span class="cart-line-price">${formatPrice(String(line.amount), line.currency)}</span>`;
+        : `<span class="cart-line-price">${formatPrice(String(line.amount), line.currency, intlLocale(pageLocale()))}</span>`;
     // Vignette et nom cliquables vers la fiche. Pas la ligne entière : elle
     // contient les boutons de quantité et « Retirer ».
     const href = productHref(line.handle);
@@ -374,7 +386,10 @@ const FREE_SHIPPING_THRESHOLD = 400;
   }
 
   function upsellCardHtml(p: UpsellItem): string {
-    const price = `<span class="cart-upsell-price">${formatPrice(String(p.price), p.currency)}</span>`;
+    // Les prix des suggestions viennent du catalogue cuit au build (AED) :
+    // `data-money` les fait relire dans la devise du pays choisi, comme
+    // partout ailleurs dans la page.
+    const price = `<span class="cart-upsell-price" data-money="${p.variantId}">${formatPrice(String(p.price), p.currency, intlLocale(pageLocale()))}</span>`;
     const href = productHref(p.handle);
     const vignette = p.img ? `<img src="${p.img}" alt="${p.title}" width="120" height="120" />` : "";
     return `
@@ -450,16 +465,19 @@ const FREE_SHIPPING_THRESHOLD = 400;
     }
 
     // Livraison offerte
-    const currency = cart?.cost.subtotalAmount.currencyCode ?? "AED";
+    const currency = cart?.cost.subtotalAmount.currencyCode ?? getActiveCurrency();
+    const money = (amount: string | number) =>
+      formatPrice(String(amount), currency, intlLocale(pageLocale()));
+    const threshold = thresholdFor(currency);
     const subtotal = Number(cart?.cost.subtotalAmount.amount ?? 0);
-    const pct = Math.max(0, Math.min(100, (subtotal / THRESHOLD) * 100));
+    const pct = Math.max(0, Math.min(100, (subtotal / threshold) * 100));
     if (shippingFill) shippingFill.style.width = `${pct}%`;
     if (shippingThumb) shippingThumb.style.left = `${pct}%`;
     if (shippingMsg) {
-      const remaining = THRESHOLD - subtotal;
+      const remaining = threshold - subtotal;
       shippingMsg.textContent =
         remaining > 0
-          ? I18N.freeShippingRemaining.replace("{amount}", formatPrice(String(remaining), currency))
+          ? I18N.freeShippingRemaining.replace("{amount}", money(remaining))
           : I18N.freeShippingUnlocked;
     }
 
@@ -508,11 +526,12 @@ const FREE_SHIPPING_THRESHOLD = 400;
     upsellSection?.toggleAttribute("hidden", !showUpsell);
     if (showUpsell && upsellList) {
       upsellList.innerHTML = suggestions.map(upsellCardHtml).join("");
+      void hydratePrices(upsellList);
     }
 
     // Sous-total + checkout
     if (subtotalEl) {
-      subtotalEl.textContent = cart ? formatPrice(cart.cost.subtotalAmount.amount, currency) : formatPrice("0", "AED");
+      subtotalEl.textContent = money(cart?.cost.subtotalAmount.amount ?? 0);
     }
     if (checkoutLink) checkoutLink.href = cart?.checkoutUrl ?? "#";
 
