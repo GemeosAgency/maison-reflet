@@ -196,18 +196,17 @@ function productLines(p: KnowledgeProduct): string {
   return [head, ...details.map((d) => `  ${d}`)].join("\n");
 }
 
-export function buildDynamicPrompt(
-  knowledge: Knowledge,
-  context: VisitContext = {},
-  now: Date = new Date(),
-  reminder?: string
-): string {
+/**
+ * Bloc catalogue + logistique, propre à un couple pays/langue. Il ne change
+ * qu'avec le catalogue (ou au passage de l'heure limite du jour même) : mis en
+ * cache lui aussi. Rien de ce qui varie à chaque visite ne doit y entrer — pas
+ * la date, pas le contexte — sinon le cache tombe à chaque tour.
+ */
+export function buildCatalogueBlock(knowledge: Knowledge): string {
   const L = knowledge.logistics;
   const sections: string[] = [];
 
-  sections.push(
-    `# Aujourd'hui\n${LOCALE_LINE[knowledge.locale]}\nDate : ${now.toISOString().slice(0, 10)}. Pays du visiteur : ${knowledge.country.code}. Devise pratiquée : ${L.currency}.`
-  );
+  sections.push(`# Langue et marché\n${LOCALE_LINE[knowledge.locale]}\nPays du visiteur : ${knowledge.country.code}. Devise pratiquée : ${L.currency}.`);
 
   sections.push(
     `# Catalogue — ce que Shopify et Sanity disent à l'instant (seule vérité)\n${knowledge.products.map(productLines).join("\n")}`
@@ -231,6 +230,13 @@ export function buildDynamicPrompt(
   );
   sections.push(`# Livraison et paiement — ce que le site affiche pour ce marché ; tu peux le répéter, rien d'autre\n${logistics.join("\n")}`);
 
+  return sections.join("\n\n");
+}
+
+/** Ce qui change à chaque tour : la date, la visite, le rappel. Jamais en cache. */
+export function buildVisitBlock(context: VisitContext = {}, now: Date = new Date(), reminder?: string): string {
+  const sections: string[] = [`# Aujourd'hui\nDate : ${now.toISOString().slice(0, 10)}.`];
+
   const visit: string[] = [];
   if (context.page) visit.push(`Page : ${context.page.type}${context.page.handle ? ` (${context.page.handle})` : ""}.`);
   if (context.cart?.lines.length) {
@@ -250,15 +256,17 @@ export function buildDynamicPrompt(
   if (visit.length) sections.push(`# Contexte de la visite\n${visit.join("\n")}`);
 
   sections.push(
-    `# Rappel\nDeux à quatre phrases. Une recommandation, une alternative, une raison. Jamais copie, dupe, équivalent, moins cher, promotion, remise, code, offre, meilleur que. Aucune tenue en heures, aucun pourcentage, aucun délai ni prix qui ne soit écrit ci-dessus. Pas d'emoji, pas de point d'exclamation. Tu réponds dans la langue imposée.`
+    `# Rappel\nTu écris d'abord ta phrase au visiteur, en texte — toujours — puis seulement les outils : une réponse faite d'outils sans texte est une faute. Deux à quatre phrases. Une recommandation, une alternative, une raison. Jamais copie, dupe, équivalent, moins cher, promotion, remise, code, offre, meilleur que. Aucune tenue en heures, aucun pourcentage, aucun délai ni prix qui ne soit écrit dans le catalogue. Pas d'emoji, pas de point d'exclamation. Tu réponds dans la langue imposée.`
   );
 
   if (reminder) sections.push(`# Correction demandée par la Maison\n${reminder}`);
-
   return sections.join("\n\n");
 }
 
-/** Les deux blocs `system`, le statique en cache. */
+/**
+ * Les trois blocs `system` : persona (cache), catalogue du marché (cache),
+ * visite (jamais). L'ordre est celui du préfixe de cache — le stable d'abord.
+ */
 export function buildSystemBlocks(
   knowledge: Knowledge,
   context: VisitContext = {},
@@ -267,7 +275,8 @@ export function buildSystemBlocks(
 ): Anthropic.TextBlockParam[] {
   return [
     { type: "text", text: SYSTEM_STATIC, cache_control: { type: "ephemeral" } },
-    { type: "text", text: buildDynamicPrompt(knowledge, context, now, reminder) },
+    { type: "text", text: buildCatalogueBlock(knowledge), cache_control: { type: "ephemeral" } },
+    { type: "text", text: buildVisitBlock(context, now, reminder) },
   ];
 }
 
