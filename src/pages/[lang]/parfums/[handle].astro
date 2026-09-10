@@ -14,6 +14,7 @@ import RelatedProducts from "../../../components/RelatedProducts.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import ProductGallery from "../../../components/product/ProductGallery.astro";
 import ProductInfoPanel from "../../../components/product/ProductInfoPanel.astro";
+import PyramidDrawer from "../../../components/product/PyramidDrawer.astro";
 import ScentNotes from "../../../components/product/ScentNotes.astro";
 import TwistSection from "../../../components/product/TwistSection.astro";
 import PerfumerWord from "../../../components/product/PerfumerWord.astro";
@@ -377,9 +378,6 @@ const productJsonLd = {
         familles={familles}
         pyramidLabel={t("product.pyramid")}
         pyramidImg={pyramidImg}
-        ingredients={parfum?.ingredients ?? []}
-        ingredientsLabel={t("product.ingredientsLabel")}
-        closeLabel={t("product.close")}
         noteLevels={scentLevels.map((l) => ({ label: l.label, notes: l.notes }))}
         intensityLabel={t("product.intensity")}
         intensity={intensite}
@@ -473,6 +471,16 @@ const productJsonLd = {
       />
     )
   }
+
+  {/* Hors du panneau d'achat, qui est `sticky` — voir PyramidDrawer. */}
+  <PyramidDrawer
+    title={t("product.pyramid")}
+    img={pyramidImg}
+    levels={scentLevels.map((l) => ({ label: l.label, notes: l.notes }))}
+    ingredients={parfum?.ingredients ?? []}
+    ingredientsLabel={t("product.ingredientsLabel")}
+    closeLabel={t("product.close")}
+  />
 
   <Faq items={parfum?.faqs ?? []} title={t("product.faqTitle")} />
 </Layout>

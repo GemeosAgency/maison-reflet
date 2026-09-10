@@ -24,11 +24,6 @@ interface Props {
   familles: string | null;
   pyramidLabel: string;
   pyramidImg: string | null;
-  /** Liste INCI, affichée au bas du tiroir de la pyramide. */
-  ingredients?: (string | null)[];
-  ingredientsLabel?: string;
-  /** Libellé accessible de la croix du tiroir. */
-  closeLabel?: string;
   noteLevels: NoteLevel[];
   intensityLabel: string;
   intensity: number | null;
@@ -62,9 +57,6 @@ const {
   familles,
   pyramidLabel,
   pyramidImg,
-  ingredients = [],
-  ingredientsLabel = "",
-  closeLabel = "",
   noteLevels,
   intensityLabel,
   intensity,
@@ -89,8 +81,6 @@ const gauges = [
 ].filter((g) => g.value != null);
 
 const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length > 0);
-const pyramidLevels = noteLevels.filter((l) => l.notes.length > 0);
-const inciList = ingredients.filter((i): i is string => Boolean(i));
 ---
 
 <div class="ppanel">
@@ -189,77 +179,17 @@ const inciList = ingredients.filter((i): i is string => Boolean(i));
   </div>
 </div>
 
-{/*
-  Tiroir de la pyramide olfactive (maquette node 11421:461). Même mécanique
-  et même géométrie que le panier : 480px collés à droite avec 8px de marge,
-  coins arrondis, voile à 56 %, glissement latéral. Rendu HORS de `.ppanel`
-  parce que celui-ci est `position: sticky` — et surtout parce que le panneau
-  du tiroir porte une ombre : un filtre sur un ancêtre créerait un bloc
-  conteneur et le `position: fixed` ne serait plus relatif à la fenêtre.
-*/}
-{
-  hasPyramid && (
-    <div class="pyr" data-pyramid-drawer aria-hidden="true">
-      <div class="pyr-backdrop" data-pyramid-close />
-      <aside class="pyr-panel" role="dialog" aria-modal="true" aria-label={pyramidLabel}>
-        <button type="button" class="pyr-close" data-pyramid-close aria-label={closeLabel}>
-          <img src="/brand/close.svg" alt="" width="16" height="16" />
-        </button>
-
-        {pyramidImg && <img class="pyr-illu" src={pyramidImg} alt="" loading="lazy" decoding="async" />}
-
-        <div class="pyr-body">
-          <h2 class="pyr-title">{pyramidLabel}</h2>
-          {pyramidLevels.length > 0 && (
-            <dl class="pyr-rows">
-              {pyramidLevels.map((l) => (
-                <div class="pyr-row">
-                  <dt>{l.label}</dt>
-                  <dd>{l.notes.join(", ")}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-          {inciList.length > 0 && (
-            <p class="pyr-inci">
-              <strong>{ingredientsLabel}</strong> {inciList.join(", ")}
-            </p>
-          )}
-        </div>
-      </aside>
-    </div>
-  )
-}
-
 <script>
   import { addToCart } from "../../lib/cart";
 
   /*
-   * Tiroir de la pyramide olfactive. Mêmes gestes que le panier : voile
-   * cliquable, croix, Échap, et scroll de la page bloqué pendant l'ouverture.
+   * La rangée n'ouvre pas le tiroir elle-même : elle émet `pyramid:open`, et
+   * c'est PyramidDrawer qui écoute. Le tiroir est monté par la page, hors du
+   * panneau — voir le commentaire du composant.
    */
-  const pyrDrawer = document.querySelector<HTMLElement>("[data-pyramid-drawer]");
-  if (pyrDrawer) {
-    const openPyramid = () => {
-      pyrDrawer.classList.add("is-open");
-      pyrDrawer.setAttribute("aria-hidden", "false");
-      document.body.style.overflow = "hidden";
-      pyrDrawer.querySelector<HTMLButtonElement>("[data-pyramid-close]")?.focus();
-    };
-    const closePyramid = () => {
-      pyrDrawer.classList.remove("is-open");
-      pyrDrawer.setAttribute("aria-hidden", "true");
-      document.body.style.overflow = "";
-      document.querySelector<HTMLButtonElement>("[data-pyramid-open]")?.focus();
-    };
-    document.querySelector<HTMLButtonElement>("[data-pyramid-open]")?.addEventListener("click", openPyramid);
-    for (const el of pyrDrawer.querySelectorAll<HTMLElement>("[data-pyramid-close]")) {
-      el.addEventListener("click", closePyramid);
-    }
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && pyrDrawer.classList.contains("is-open")) closePyramid();
-    });
-  }
+  document
+    .querySelector<HTMLButtonElement>("[data-pyramid-open]")
+    ?.addEventListener("click", () => document.dispatchEvent(new CustomEvent("pyramid:open")));
 
   // Quantité + ajout au panier (quantité choisie, d'où un câblage dédié)
   const addBtn = document.querySelector<HTMLButtonElement>("[data-panel-add]");
@@ -361,95 +291,6 @@ const inciList = ingredients.filter((i): i is string => Boolean(i));
     text-align: start;
   }
   .ppanel-open-pyramid svg { width: 20px; height: 20px; flex-shrink: 0; }
-
-  /* ---------- Tiroir de la pyramide olfactive ---------- */
-  .pyr { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
-  .pyr-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(31, 31, 31, 0.56);
-    opacity: 0;
-    transition: opacity 0.4s ease;
-  }
-  .pyr.is-open { pointer-events: auto; }
-  .pyr.is-open .pyr-backdrop { opacity: 1; }
-  .pyr-panel {
-    position: fixed;
-    top: 8px;
-    right: 8px;
-    bottom: 8px;
-    width: 480px;
-    max-width: 92vw;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 24px;
-    overflow-y: auto;
-    padding: 32px 32px 40px;
-    background: var(--bg);
-    border-radius: 8px;
-    box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.08);
-    transform: translateX(calc(100% + 8px));
-    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .pyr.is-open .pyr-panel { transform: translateX(0); }
-  .pyr-close {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    border: 0;
-    background: transparent;
-    padding: 4px;
-    line-height: 0;
-    cursor: pointer;
-  }
-  /* Le schéma est un visuel à part entière : on le laisse respirer en haut,
-     le texte se cale en bas (justify-content: space-between du panneau). */
-  .pyr-illu { align-self: center; width: 100%; max-width: 258px; height: auto; }
-  .pyr-body { display: flex; flex-direction: column; gap: 40px; }
-  .pyr-title {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 500;
-    text-transform: uppercase;
-    line-height: 1.2;
-  }
-  .pyr-rows { margin: 0; display: flex; flex-direction: column; gap: 12px; }
-  .pyr-row {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    font-size: 16px;
-    line-height: 1.36;
-  }
-  .pyr-row + .pyr-row { padding-top: 12px; border-top: 1px solid rgba(21, 14, 10, 0.12); }
-  .pyr-row dt { font-weight: 500; white-space: nowrap; }
-  .pyr-row dd { margin: 0; max-width: 272px; letter-spacing: 0.96px; text-align: end; }
-  .pyr-inci { margin: 0; font-size: 14px; line-height: 1.32; letter-spacing: 0.84px; }
-  .pyr-inci strong { font-weight: 500; letter-spacing: normal; }
-
-  @media (max-width: 560px) {
-    /* Plein écran, comme le panier sur petit écran. */
-    .pyr-panel {
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: 100vw;
-      max-width: 100vw;
-      border-radius: 0;
-      transform: translateX(100%);
-      padding: 24px 20px 32px;
-    }
-    .pyr.is-open .pyr-panel { transform: translateX(0); }
-    .pyr-body { gap: 24px; }
-    .pyr-row { flex-direction: column; gap: 2px; }
-    .pyr-row dd { max-width: none; text-align: start; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .pyr-backdrop, .pyr-panel { transition: none; }
-  }
 
   /* Jauge 5 segments */
   .ppanel-gauge { display: inline-flex; align-items: center; gap: 12px; }

@@ -1,0 +1,191 @@
+---
+/**
+ * Tiroir « Pyramide olfactive » (maquette node 11421:461).
+ *
+ * Même mécanique et même géométrie que le panier : 480 px collés à droite
+ * avec 8 px de marge sur trois côtés, coins à 8 px, voile à 56 %, glissement
+ * latéral, fermeture au voile / à la croix / par Échap.
+ *
+ * Monté par la PAGE, hors du panneau d'achat, et non dans
+ * ProductInfoPanel — celui-ci vit dans un `<aside position: sticky>`, et un
+ * élément sticky établit TOUJOURS un contexte d'empilement. Le tiroir y était
+ * prisonnier : son `z-index: 60` ne valait qu'à l'intérieur du panneau, dont
+ * le propre z-index vaut `auto`, si bien qu'il passait derrière la barre de
+ * navigation (z-index 20). Ouvert par l'événement `pyramid:open`, émis par la
+ * rangée du panneau — même découplage que `cart:open`.
+ */
+export interface NoteLevel {
+  label: string;
+  notes: string[];
+}
+
+interface Props {
+  /** Titre du tiroir, et libellé de la rangée qui l'ouvre. */
+  title: string;
+  /** Schéma de la pyramide. Le tiroir fonctionne sans. */
+  img?: string | null;
+  levels: NoteLevel[];
+  /** Liste INCI, affichée en bas. */
+  ingredients?: (string | null)[];
+  ingredientsLabel?: string;
+  closeLabel: string;
+}
+
+const { title, img = null, levels, ingredients = [], ingredientsLabel = "", closeLabel } = Astro.props;
+
+const filledLevels = levels.filter((l) => l.notes.length > 0);
+const inciList = ingredients.filter((i): i is string => Boolean(i));
+const hasContent = img !== null || filledLevels.length > 0 || inciList.length > 0;
+---
+
+{
+  hasContent && (
+    <div class="pyr" data-pyramid-drawer aria-hidden="true">
+      <div class="pyr-backdrop" data-pyramid-close />
+      <aside class="pyr-panel" role="dialog" aria-modal="true" aria-label={title}>
+        <button type="button" class="pyr-close" data-pyramid-close aria-label={closeLabel}>
+          <img src="/brand/close.svg" alt="" width="16" height="16" />
+        </button>
+
+        {img && <img class="pyr-illu" src={img} alt="" loading="lazy" decoding="async" />}
+
+        <div class="pyr-body">
+          <h2 class="pyr-title">{title}</h2>
+          {filledLevels.length > 0 && (
+            <dl class="pyr-rows">
+              {filledLevels.map((l) => (
+                <div class="pyr-row">
+                  <dt>{l.label}</dt>
+                  <dd>{l.notes.join(", ")}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {inciList.length > 0 && (
+            <p class="pyr-inci">
+              <strong>{ingredientsLabel}</strong> {inciList.join(", ")}
+            </p>
+          )}
+        </div>
+      </aside>
+    </div>
+  )
+}
+
+<script>
+  const drawer = document.querySelector<HTMLElement>("[data-pyramid-drawer]");
+  if (drawer) {
+    const open = () => {
+      drawer.classList.add("is-open");
+      drawer.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+      drawer.querySelector<HTMLButtonElement>("[data-pyramid-close]")?.focus();
+    };
+    const close = () => {
+      drawer.classList.remove("is-open");
+      drawer.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+      // Le focus retourne à la rangée qui a ouvert le tiroir.
+      document.querySelector<HTMLButtonElement>("[data-pyramid-open]")?.focus();
+    };
+
+    document.addEventListener("pyramid:open", open);
+    for (const el of drawer.querySelectorAll<HTMLElement>("[data-pyramid-close]")) {
+      el.addEventListener("click", close);
+    }
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && drawer.classList.contains("is-open")) close();
+    });
+  }
+</script>
+
+<style>
+  .pyr { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+  .pyr-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(31, 31, 31, 0.56);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .pyr.is-open { pointer-events: auto; }
+  .pyr.is-open .pyr-backdrop { opacity: 1; }
+  .pyr-panel {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: 480px;
+    max-width: 92vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 24px;
+    overflow-y: auto;
+    padding: 32px 32px 40px;
+    background: var(--bg);
+    border-radius: 8px;
+    box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.08);
+    transform: translateX(calc(100% + 8px));
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .pyr.is-open .pyr-panel { transform: translateX(0); }
+  .pyr-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    border: 0;
+    background: transparent;
+    padding: 4px;
+    line-height: 0;
+    cursor: pointer;
+  }
+  /* Le schéma est un visuel à part entière : il respire en haut, le texte se
+     cale en bas (justify-content: space-between du panneau). */
+  .pyr-illu { align-self: center; width: 100%; max-width: 258px; height: auto; }
+  .pyr-body { display: flex; flex-direction: column; gap: 40px; }
+  .pyr-title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 500;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .pyr-rows { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+  .pyr-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 16px;
+    line-height: 1.36;
+  }
+  .pyr-row + .pyr-row { padding-top: 12px; border-top: 1px solid rgba(21, 14, 10, 0.12); }
+  .pyr-row dt { font-weight: 500; white-space: nowrap; }
+  .pyr-row dd { margin: 0; max-width: 272px; letter-spacing: 0.96px; text-align: end; }
+  .pyr-inci { margin: 0; font-size: 14px; line-height: 1.32; letter-spacing: 0.84px; }
+  .pyr-inci strong { font-weight: 500; letter-spacing: normal; }
+
+  @media (max-width: 560px) {
+    /* Plein écran, comme le panier sur petit écran. */
+    .pyr-panel {
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      max-width: 100vw;
+      border-radius: 0;
+      transform: translateX(100%);
+      padding: 24px 20px 32px;
+    }
+    .pyr.is-open .pyr-panel { transform: translateX(0); }
+    .pyr-body { gap: 24px; }
+    .pyr-row { flex-direction: column; gap: 2px; }
+    .pyr-row dd { max-width: none; text-align: start; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pyr-backdrop,
+    .pyr-panel { transition: none; }
+  }
+</style>
