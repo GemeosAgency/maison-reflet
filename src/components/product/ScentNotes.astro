@@ -94,7 +94,7 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
 
       {panels.map((p, i) => (
         <div
-          class="snotes-grid media-band"
+          class="snotes-grid full-bleed"
           id={`snotes-panel-${p.id}`}
           role={hasTabs ? "tabpanel" : undefined}
           aria-labelledby={hasTabs ? `snotes-tab-${p.id}` : undefined}
@@ -104,13 +104,15 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
           {p.levels.map((l) => (
             <div class="snotes-col">
               {l.img && (
-                /* Colonne = un tiers du container --page-max (1800px), donc
-                   600px au plus en desktop. */
+                /* Colonne = un tiers de la fenêtre, la bande allant
+                   maintenant bord à bord. Sans ce `sizes` juste, le
+                   navigateur choisirait un palier trop petit et la matière
+                   serait floue sur grand écran. */
                 <img
                   class="snotes-img"
                   src={l.img.src}
                   srcset={l.img.srcset}
-                  sizes="(max-width: 720px) 100vw, (max-width: 1100px) 50vw, min(33vw, 600px)"
+                  sizes="(max-width: 720px) 100vw, (max-width: 1100px) 50vw, 33vw"
                   alt=""
                   loading="lazy"
                   decoding="async"
@@ -372,7 +374,9 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
   .snotes-tab:hover { opacity: 1; }
   .snotes-tab:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 
-  /* Pas de `width` ici : c'est .media-band (globale) qui la fixe. */
+  /* Pas de `width` ici : c'est .full-bleed (globale) qui l'étire bord à
+     bord. Le plafond demandé en août a été levé à la demande de Sandro : les
+     bandes d'images vont désormais toutes jusqu'aux bords. */
   .snotes-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

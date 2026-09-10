@@ -36,7 +36,7 @@ const { title, items, addLabel, addedLabel, errorLabel } = Astro.props;
   items.length > 0 && (
     <section class="related">
       <h2>{title}</h2>
-      <div class="related-grid media-band">
+      <div class="related-grid full-bleed">
         {items.map((p) => (
           <ProductTile
             name={p.name}
