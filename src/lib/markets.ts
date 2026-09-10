@@ -4,8 +4,12 @@
  * Source de vérité UNIQUE, partagée par le build (Astro) et le navigateur
  * (sélecteur de pays, panier, hydratation des prix). Elle décrit exactement
  * les 32 pays des zones de livraison Shopify — « Domestic » (Émirats),
- * « Golfe (CCG) » (5 pays) et « International » (26 pays) — et les cinq
- * marchés `ae` / `gcc` / `europe` / `americas` / `apac`.
+ * « Golfe (CCG) » (5 pays) et « International » (26 pays).
+ *
+ * Six devises, sept marchés : Émirats (AED), Arabie saoudite (SAR), reste du
+ * Golfe (AED), Europe continentale (EUR), Royaume-Uni (GBP), Suisse (CHF),
+ * Amériques + Asie-Pacifique (USD). Une devise par marché, pour que chaque
+ * prix puisse être fixé rond au lieu d'être converti automatiquement.
  *
  * ⚠️ À garder synchronisé avec Shopify si les zones changent :
  *   Admin > Paramètres > Expédition > General profile.
@@ -25,7 +29,12 @@ export type MarketGroup = "gulf" | "europe" | "americas" | "apac";
 export type Country = {
   /** ISO 3166-1 alpha-2, en majuscules — le format attendu par `@inContext`. */
   code: string;
-  /** Devise que Shopify servira une fois le marché configuré (voir MARKETS ci-dessous). */
+  /**
+   * Devise du MARCHÉ auquel le pays appartient, pas la monnaie nationale : un
+   * Suédois paie en euros, un Japonais en dollars. Shopify ne fixe un prix que
+   * par marché, et un marché n'a qu'une devise — c'est le prix de prix ronds
+   * partout plutôt que de conversions automatiques à 74,90 €.
+   */
   currency: string;
   zone: ShippingZone;
   group: MarketGroup;
@@ -38,19 +47,24 @@ export type Country = {
  * silencieuse et sans casse.
  */
 export const COUNTRIES: Country[] = [
+  // Golfe — l'Arabie saoudite a son propre marché (marché prioritaire de la
+  // marque) ; ses voisins restent en AED, toutes leurs devises étant arrimées
+  // au dollar comme le dirham, et l'AED se lisant dans tout le Golfe.
   { code: "AE", currency: "AED", zone: "domestic", group: "gulf" },
-  { code: "BH", currency: "BHD", zone: "international", group: "gulf" },
-  { code: "KW", currency: "KWD", zone: "international", group: "gulf" },
-  { code: "OM", currency: "OMR", zone: "international", group: "gulf" },
-  { code: "QA", currency: "QAR", zone: "international", group: "gulf" },
   { code: "SA", currency: "SAR", zone: "international", group: "gulf" },
+  { code: "BH", currency: "AED", zone: "international", group: "gulf" },
+  { code: "KW", currency: "AED", zone: "international", group: "gulf" },
+  { code: "OM", currency: "AED", zone: "international", group: "gulf" },
+  { code: "QA", currency: "AED", zone: "international", group: "gulf" },
 
+  // Europe continentale en euros ; le Royaume-Uni et la Suisse ont leur propre
+  // marché, leur devise pesant assez pour justifier une liste de prix.
   { code: "AT", currency: "EUR", zone: "international", group: "europe" },
   { code: "BE", currency: "EUR", zone: "international", group: "europe" },
   { code: "CH", currency: "CHF", zone: "international", group: "europe" },
-  { code: "CZ", currency: "CZK", zone: "international", group: "europe" },
+  { code: "CZ", currency: "EUR", zone: "international", group: "europe" },
   { code: "DE", currency: "EUR", zone: "international", group: "europe" },
-  { code: "DK", currency: "DKK", zone: "international", group: "europe" },
+  { code: "DK", currency: "EUR", zone: "international", group: "europe" },
   { code: "ES", currency: "EUR", zone: "international", group: "europe" },
   { code: "FI", currency: "EUR", zone: "international", group: "europe" },
   { code: "FR", currency: "EUR", zone: "international", group: "europe" },
@@ -58,26 +72,36 @@ export const COUNTRIES: Country[] = [
   { code: "IE", currency: "EUR", zone: "international", group: "europe" },
   { code: "IT", currency: "EUR", zone: "international", group: "europe" },
   { code: "NL", currency: "EUR", zone: "international", group: "europe" },
-  { code: "NO", currency: "NOK", zone: "international", group: "europe" },
-  { code: "PL", currency: "PLN", zone: "international", group: "europe" },
+  { code: "NO", currency: "EUR", zone: "international", group: "europe" },
+  { code: "PL", currency: "EUR", zone: "international", group: "europe" },
   { code: "PT", currency: "EUR", zone: "international", group: "europe" },
-  { code: "SE", currency: "SEK", zone: "international", group: "europe" },
+  { code: "SE", currency: "EUR", zone: "international", group: "europe" },
 
-  { code: "CA", currency: "CAD", zone: "international", group: "americas" },
+  // Amériques et Asie-Pacifique partagent le dollar : sept devises locales de
+  // plus voudraient dire sept marchés et sept listes de prix, pour un gain de
+  // lisibilité faible au lancement. Le JPY s'ouvrira si le Japon décolle.
+  { code: "CA", currency: "USD", zone: "international", group: "americas" },
   { code: "US", currency: "USD", zone: "international", group: "americas" },
 
-  { code: "AU", currency: "AUD", zone: "international", group: "apac" },
-  { code: "HK", currency: "HKD", zone: "international", group: "apac" },
-  { code: "JP", currency: "JPY", zone: "international", group: "apac" },
-  { code: "KR", currency: "KRW", zone: "international", group: "apac" },
-  { code: "MY", currency: "MYR", zone: "international", group: "apac" },
-  { code: "NZ", currency: "NZD", zone: "international", group: "apac" },
-  { code: "SG", currency: "SGD", zone: "international", group: "apac" },
-
+  { code: "AU", currency: "USD", zone: "international", group: "apac" },
+  { code: "HK", currency: "USD", zone: "international", group: "apac" },
+  { code: "JP", currency: "USD", zone: "international", group: "apac" },
+  { code: "KR", currency: "USD", zone: "international", group: "apac" },
+  { code: "MY", currency: "USD", zone: "international", group: "apac" },
+  { code: "NZ", currency: "USD", zone: "international", group: "apac" },
+  { code: "SG", currency: "USD", zone: "international", group: "apac" },
 ];
 
 /** Pays servi par défaut : le marché primaire Shopify. */
 export const DEFAULT_COUNTRY = "AE";
+
+/**
+ * Cookie du pays choisi. Déclaré ici et non dans country.ts, parce qu'il est
+ * posé côté serveur par la racine (`src/pages/index.astro`, la seule page qui
+ * voit l'IP du visiteur) et relu côté navigateur.
+ */
+export const COUNTRY_COOKIE = "mr_country";
+export const COUNTRY_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 export const GROUP_ORDER: MarketGroup[] = ["gulf", "europe", "americas", "apac"];
 
@@ -98,36 +122,18 @@ export function isShippedCountry(code: string | null | undefined): boolean {
  * minimum est fixé à 400 AED et converti à la volée dans la devise du client.
  * Le site, lui, doit annoncer un seuil AVANT le paiement : d'où cette table.
  *
- * Règle de sûreté : chaque valeur est arrondie AU-DESSUS de l'équivalent de
- * 400 AED, avec ~10 % de marge pour absorber la dérive des taux de change.
- * Sur-annoncer est sans danger (le client obtient la gratuité plus tôt que
- * promis) ; sous-annoncer promettrait une gratuité que le paiement refuserait.
- * À revoir si l'AED décroche de son ancrage au dollar.
+ * Chaque valeur vaut 1,25 fois le prix du 75 ml sur son marché — le même
+ * rapport que les 400 AED d'origine — et non une conversion des 400 AED :
+ * comme les prix sont fixés par marché, le seuil doit suivre le prix local,
+ * pas le taux de change.
  */
 export const FREE_SHIPPING_THRESHOLDS: Record<string, number> = {
   AED: 400,
   SAR: 450,
-  QAR: 440,
-  KWD: 37,
-  BHD: 45,
-  OMR: 46,
-  EUR: 100,
-  USD: 110,
-  GBP: 85,
-  CHF: 95,
-  CAD: 160,
-  AUD: 175,
-  NZD: 195,
-  JPY: 17000,
-  KRW: 160000,
-  HKD: 900,
-  SGD: 150,
-  MYR: 490,
-  SEK: 1100,
-  NOK: 1200,
-  DKK: 750,
-  PLN: 430,
-  CZK: 2450,
+  EUR: 125,
+  GBP: 110,
+  CHF: 125,
+  USD: 125,
 };
 
 /**
@@ -139,27 +145,10 @@ export const FREE_SHIPPING_THRESHOLDS: Record<string, number> = {
 export const SHIPPING_RATES: Record<string, { domestic?: number; international: number }> = {
   AED: { domestic: 25, international: 70 },
   SAR: { international: 80 },
-  QAR: { international: 78 },
-  KWD: { international: 7 },
-  BHD: { international: 8 },
-  OMR: { international: 8 },
-  EUR: { international: 20 },
-  USD: { international: 22 },
-  GBP: { international: 17 },
-  CHF: { international: 19 },
-  CAD: { international: 30 },
-  AUD: { international: 32 },
-  NZD: { international: 35 },
-  JPY: { international: 3000 },
-  KRW: { international: 28000 },
-  HKD: { international: 160 },
-  SGD: { international: 27 },
-  MYR: { international: 88 },
-  SEK: { international: 200 },
-  NOK: { international: 210 },
-  DKK: { international: 135 },
-  PLN: { international: 78 },
-  CZK: { international: 430 },
+  EUR: { international: 18 },
+  GBP: { international: 15 },
+  CHF: { international: 18 },
+  USD: { international: 20 },
 };
 
 export function freeShippingThreshold(currency: string): number {

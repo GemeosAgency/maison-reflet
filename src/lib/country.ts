@@ -21,6 +21,8 @@ import {
   type ShopifyContext,
 } from "./shopify";
 import {
+  COUNTRY_COOKIE,
+  COUNTRY_COOKIE_MAX_AGE,
   DEFAULT_COUNTRY,
   getCountry,
   isShippedCountry,
@@ -30,8 +32,9 @@ import {
 } from "./markets";
 import type { Locale } from "../i18n";
 
-export const COUNTRY_COOKIE = "mr_country";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+// Réexporté pour les appelants navigateur ; la déclaration vit dans markets.ts,
+// que la racine peut importer côté serveur.
+export { COUNTRY_COOKIE } from "./markets";
 
 export type CountryChangedEvent = CustomEvent<{ country: Country }>;
 
@@ -216,7 +219,7 @@ const CART_ID_KEY = "maison-reflet:cartId";
  */
 export async function setCountry(code: string): Promise<void> {
   const country = getCountry(code);
-  document.cookie = `${COUNTRY_COOKIE}=${country.code}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
+  document.cookie = `${COUNTRY_COOKIE}=${country.code}; path=/; max-age=${COUNTRY_COOKIE_MAX_AGE}; SameSite=Lax`;
   setDefaultShopifyContext(shopifyContext());
 
   const cartId = localStorage.getItem(CART_ID_KEY);
@@ -246,21 +249,35 @@ export async function setCountry(code: string): Promise<void> {
  * ------------------------------------------------------------------ */
 
 /**
- * Pays deviné par l'infrastructure, une seule fois par visiteur.
+ * Applique le pays du visiteur à la première visite.
  *
- * Le middleware Astro s'exécute au BUILD sur ce projet (sortie statique), il ne
- * voit donc jamais l'en-tête `x-vercel-ip-country` : la détection passe par une
- * petite route à la demande, `/api/geo`. Le résultat n'est qu'une suggestion —
- * on ne bascule jamais le pays dans le dos du visiteur, on ouvre le tiroir.
+ * La racine (`src/pages/index.astro`) pose déjà le cookie côté serveur : ce
+ * repli ne sert qu'aux arrivées en profondeur — lien partagé, résultat Google,
+ * page mise en cache par le CDN — où aucune requête n'a vu l'IP du visiteur.
+ * Le middleware Astro, lui, s'exécute au BUILD (sortie statique) et ne voit
+ * jamais `x-vercel-ip-country` ; d'où la route à la demande `/api/geo`.
+ *
+ * Le pays est APPLIQUÉ, pas proposé : un visiteur français doit voir la
+ * livraison vers la France sans rien cliquer. Il en est informé par une
+ * mention discrète, avec un accès direct au tiroir pour changer — informer
+ * après coup, plutôt que barrer la première visite d'une question.
+ *
+ * Renvoie le pays retenu quand il diffère du marché primaire, sinon `null` —
+ * c'est ce qui déclenche la mention.
  */
-export async function suggestCountry(): Promise<string | null> {
+export async function applyDetectedCountry(): Promise<Country | null> {
   if (readCookie(COUNTRY_COOKIE)) return null;
   try {
     const res = await fetch("/api/geo", { headers: { Accept: "application/json" } });
     if (!res.ok) return null;
     const { country } = (await res.json()) as { country?: string };
     if (!country || !isShippedCountry(country)) return null;
-    return country.toUpperCase() === DEFAULT_COUNTRY ? null : country.toUpperCase();
+
+    const code = country.toUpperCase();
+    // Mémorise le choix même quand c'est le pays par défaut : sans cookie, on
+    // rappellerait /api/geo à chaque page pour rien.
+    await setCountry(code);
+    return code === DEFAULT_COUNTRY ? null : getCountry(code);
   } catch {
     return null;
   }

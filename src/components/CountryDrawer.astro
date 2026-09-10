@@ -77,9 +77,7 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
   set:html={JSON.stringify({
     "region.currencyNote": t("region.currencyNote"),
     "region.noResult": t("region.noResult"),
-    "region.suggestion": t("region.suggestion"),
-    "region.suggestionAccept": t("region.suggestionAccept"),
-    "region.suggestionDismiss": t("region.suggestionDismiss"),
+    "region.detected": t("region.detected"),
     "shipping.toCountry": t("shipping.toCountry"),
     "shipping.days": t("shipping.days"),
     "shipping.freeFrom": t("shipping.freeFrom"),
@@ -172,22 +170,31 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
   </aside>
 </div>
 
-{/* Suggestion de première visite — jamais un basculement automatique. */}
-<div class="cdr-suggest" data-region-suggest hidden>
-  <p class="cdr-suggest-text" data-region-suggest-text></p>
-  <div class="cdr-suggest-actions">
-    <button type="button" class="cdr-suggest-yes" data-region-suggest-accept></button>
-    <button type="button" class="cdr-suggest-no" data-region-suggest-dismiss></button>
-  </div>
+{/*
+  Mention de première visite : le pays a DÉJÀ été appliqué (par la racine côté
+  serveur, ou par le repli /api/geo). On informe, on n'interroge pas — d'où un
+  simple « Changer » qui ouvre le tiroir, et une croix.
+*/}
+<div class="cdr-notice" data-region-notice hidden>
+  <p class="cdr-notice-text" data-region-notice-text></p>
+  <button type="button" class="cdr-notice-change" data-region-open>{t("region.detectedChange")}</button>
+  <button
+    type="button"
+    class="cdr-notice-close"
+    data-region-notice-dismiss
+    aria-label={t("region.detectedDismiss")}
+  >
+    <img src="/brand/close.svg" alt="" width="12" height="12" />
+  </button>
 </div>
 
 <script>
   import {
     getActiveCurrency,
+    applyDetectedCountry,
     initCountry,
     selectedCountry,
     setCountry,
-    suggestCountry,
     pageLocale,
   } from "../lib/country";
   import { countryName, countryPill } from "../lib/markets";
@@ -323,36 +330,32 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
     });
   }
 
-  /* ---------------- Suggestion de première visite ---------------- */
+  /* ---------------- Première visite ---------------- */
 
-  const suggest = document.querySelector<HTMLElement>("[data-region-suggest]");
+  const notice = document.querySelector<HTMLElement>("[data-region-notice]");
+  notice
+    ?.querySelector<HTMLButtonElement>("[data-region-notice-dismiss]")
+    ?.addEventListener("click", () => {
+      notice.hidden = true;
+    });
 
   void (async () => {
-    const code = await suggestCountry();
-    if (!code || !suggest) return;
+    // La racine a normalement déjà posé le cookie ; ce repli ne se déclenche
+    // que sur une arrivée en profondeur.
+    const detected = await applyDetectedCountry();
+    if (!detected) return;
 
-    const locale = pageLocale();
-    const guessed = countryName(code, locale);
-    const current = countryName(selectedCountry().code, locale);
+    syncSelection();
+    if (!notice) return;
 
-    const text = suggest.querySelector<HTMLElement>("[data-region-suggest-text]");
-    const yes = suggest.querySelector<HTMLButtonElement>("[data-region-suggest-accept]");
-    const no = suggest.querySelector<HTMLButtonElement>("[data-region-suggest-dismiss]");
-    if (text) text.textContent = fill(i18n["region.suggestion"] ?? "", { country: guessed });
-    if (yes) yes.textContent = fill(i18n["region.suggestionAccept"] ?? "", { country: guessed });
-    if (no) no.textContent = fill(i18n["region.suggestionDismiss"] ?? "", { country: current });
-
-    suggest.hidden = false;
-    yes?.addEventListener("click", async () => {
-      suggest.hidden = true;
-      await setCountry(code);
-      syncSelection();
-    });
-    no?.addEventListener("click", async () => {
-      suggest.hidden = true;
-      // Confirmer le pays courant pose le cookie : la suggestion ne revient pas.
-      await setCountry(selectedCountry().code);
-    });
+    const text = notice.querySelector<HTMLElement>("[data-region-notice-text]");
+    if (text) {
+      text.textContent = fill(i18n["region.detected"] ?? "", {
+        country: countryName(detected.code, pageLocale()),
+        currency: getActiveCurrency(),
+      });
+    }
+    notice.hidden = false;
   })();
 </script>
 
@@ -502,35 +505,58 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
   }
   .cdr-note { margin: 0; font-size: 12px; opacity: 0.6; }
 
-  /* Suggestion : discrète, en bas, jamais modale. */
-  .cdr-suggest {
+  /*
+   * Mention de première visite : une seule ligne, en bas, jamais modale — le
+   * pays est déjà appliqué, elle ne fait que le dire.
+   */
+  .cdr-notice {
     position: fixed;
     bottom: 16px;
     inset-inline-start: 16px;
     z-index: 55;
-    max-width: min(360px, calc(100vw - 32px));
+    max-width: min(420px, calc(100vw - 32px));
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 12px;
-    padding: 16px;
+    padding: 12px 12px 12px 16px;
     background: var(--paper);
-    border-radius: 8px;
+    border-radius: 999px;
     box-shadow: 0 8px 32px rgba(31, 31, 31, 0.14);
     font-size: 14px;
   }
-  .cdr-suggest-text { margin: 0; line-height: 1.36; }
-  .cdr-suggest-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .cdr-suggest button {
-    padding: 8px 14px;
-    border: 1px solid var(--ink);
-    border-radius: 999px;
+  .cdr-notice-text { margin: 0; line-height: 1.3; }
+  .cdr-notice-change {
+    flex: none;
+    border: 0;
     background: transparent;
+    padding: 0;
     font: inherit;
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 500;
     color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
     cursor: pointer;
   }
-  .cdr-suggest-yes { background: var(--ink) !important; color: var(--bg) !important; }
+  .cdr-notice-close {
+    flex: none;
+    border: 0;
+    background: transparent;
+    padding: 4px;
+    line-height: 0;
+    cursor: pointer;
+    opacity: 0.5;
+  }
+  .cdr-notice-close:hover { opacity: 1; }
+
+  @media (max-width: 560px) {
+    .cdr-notice {
+      inset-inline: 12px;
+      bottom: 12px;
+      max-width: none;
+      border-radius: 8px;
+    }
+  }
 
   @media (max-width: 560px) {
     .cdr-panel {

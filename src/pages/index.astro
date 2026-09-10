@@ -1,13 +1,44 @@
 ---
-// Racine : rendu à la demande pour lire la langue du visiteur.
-// Priorité : choix manuel mémorisé (cookie) > préférence navigateur > FR.
+// Racine : rendu à la demande pour lire la langue ET le pays du visiteur.
+//
+// Langue — priorité : choix manuel mémorisé (cookie) > préférence navigateur > FR.
+// Pays   — priorité : choix manuel mémorisé (cookie) > géolocalisation IP > Émirats.
+//
+// C'est la seule page HTML du site qui voit les en-têtes de la requête réelle :
+// la sortie est statique, le middleware s'exécute au build. D'où le double
+// travail ici — poser le cookie de pays sur la redirection évite au navigateur
+// l'aller-retour vers /api/geo, et le premier rendu est déjà dans la bonne
+// devise. Les visiteurs qui arrivent en profondeur (lien partagé, résultat
+// Google) passent, eux, par le repli côté client dans src/lib/country.ts.
 export const prerender = false;
 
 import { detectLocale, localePath } from "../i18n";
+import { COUNTRY_COOKIE, COUNTRY_COOKIE_MAX_AGE, isShippedCountry } from "../lib/markets";
 
 const cookieLang = Astro.cookies.get("lang")?.value ?? null;
 const acceptLanguage = Astro.request.headers.get("accept-language");
 const locale = detectLocale(acceptLanguage, cookieLang);
+
+// Pays : on ne pose le cookie que si le visiteur n'a rien choisi lui-même, et
+// seulement pour un pays qu'on livre — sinon on laisse le marché primaire.
+if (!Astro.cookies.has(COUNTRY_COOKIE)) {
+  const headers = Astro.request.headers;
+  const detected =
+    headers.get("x-vercel-ip-country") ||
+    headers.get("cf-ipcountry") ||
+    headers.get("x-country-code") ||
+    null;
+
+  if (detected && isShippedCountry(detected)) {
+    Astro.cookies.set(COUNTRY_COOKIE, detected.toUpperCase(), {
+      path: "/",
+      maxAge: COUNTRY_COOKIE_MAX_AGE,
+      sameSite: "lax",
+      // Lisible par le navigateur : c'est src/lib/country.ts qui s'en sert.
+      httpOnly: false,
+    });
+  }
+}
 
 return Astro.redirect(localePath(locale, "/"), 302);
 ---
