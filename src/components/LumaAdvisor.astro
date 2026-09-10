@@ -362,7 +362,6 @@ const t = useTranslations(lang);
     function cardNode(card: Card, line?: string): HTMLElement {
       const node = el("article", "luma-card");
       node.dataset.handle = card.handle;
-      if (!card.image) node.classList.add("no-media");
       if (card.image) {
         // Le visuel mène au produit, comme partout sur le site.
         const media = el("a", "luma-card-media") as HTMLAnchorElement;
@@ -406,9 +405,10 @@ const t = useTranslations(lang);
       link.href = card.url;
       link.setAttribute("aria-label", `${i18n.viewProduct} ${card.name}`);
       actions.append(link);
-      // Les gestes prennent toute la largeur de la fiche, sous le visuel et le
-      // texte : un nom long ou une langue verbeuse ne les font plus se casser.
-      node.append(body, actions);
+      // Les gestes restent à côté du visuel (choix de Sandro) ; la fiche prend
+      // toute la largeur du panneau pour que le rang tienne sur une ligne.
+      body.append(actions);
+      node.append(body);
       return node;
     }
 
@@ -771,27 +771,28 @@ const t = useTranslations(lang);
   .luma-chip:hover { background: var(--paper); }
 
   /* La fiche d'un Reflet : visuel sur fond neutre, nom et prix, la phrase, les deux gestes du site. */
+  /* Un message qui porte une fiche s'affranchit du retrait des messages texte : la fiche a toute la largeur. */
+  .luma-msg-luma:has(.luma-card) { max-width: 100%; }
   .luma-card {
-    display: grid;
-    grid-template-columns: 96px minmax(0, 1fr);
-    gap: 12px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
     padding: 12px;
     background: var(--paper);
     border-radius: 8px;
     font-style: normal;
   }
-  .luma-card.no-media { grid-template-columns: minmax(0, 1fr); }
-  .luma-card-media { line-height: 0; }
+  .luma-card-media { flex: none; line-height: 0; }
   .luma-card-img { width: 96px; height: 96px; object-fit: cover; background: var(--sand); border-radius: 4px; }
-  .luma-card-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; justify-content: center; }
+  .luma-card-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
   .luma-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .luma-card-name { font-size: 15px; font-weight: 500; text-transform: uppercase; }
   .luma-card-price { font-size: 14px; opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .luma-card-line { font-size: 14px; line-height: 1.45; opacity: 0.85; }
-  .luma-card-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .luma-card-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
   /* Le CTA panier du site : pilule rose, blanc, capitales (BoxCard, tiroir panier). */
   .luma-card-add {
-    padding: 0 16px;
+    padding: 0 14px;
     height: 36px;
     border: 0;
     border-radius: 999px;
@@ -869,7 +870,6 @@ const t = useTranslations(lang);
     }
     [dir="rtl"] .luma-panel { left: 0; transform: translateX(-100%); }
     .luma.is-open .luma-panel { transform: translateX(0); }
-    .luma-card { grid-template-columns: 72px minmax(0, 1fr); }
     .luma-card-img { width: 72px; height: 72px; }
   }
 
