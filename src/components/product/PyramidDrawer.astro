@@ -140,9 +140,32 @@ const hasContent = img !== null || filledLevels.length > 0 || inciList.length > 
     line-height: 0;
     cursor: pointer;
   }
-  /* Le schéma est un visuel à part entière : il respire en haut, le texte se
-     cale en bas (justify-content: space-between du panneau). */
-  .pyr-illu { align-self: center; width: 100%; max-width: 258px; height: auto; }
+  /*
+   * Le schéma est un visuel à part entière : il respire en haut, le texte se
+   * cale en bas (justify-content: space-between du panneau).
+   *
+   * Largeur de la maquette (258 px) et hauteur libre : le schéma garde ses
+   * proportions, quelles qu'elles soient. Pas de cadre au ratio 258 x 448
+   * de la maquette — les schémas actuels sont en 0,75 et non 0,576, ils y
+   * seraient centrés en boîte aux lettres et l'ombre ci-dessous, qui suit la
+   * BOÎTE de l'élément, se détacherait des bords visibles de l'image. Avec la
+   * hauteur libre, boîte et image coïncident, et le jour où les schémas
+   * passeront en 0,576 le cadre de la maquette sera atteint tout seul.
+   *
+   * Ombre portée reprise de la maquette : quatre couches, très douce et
+   * décalée vers le bas-droite, qui fait décoller la planche du fond.
+   */
+  .pyr-illu {
+    align-self: center;
+    width: 100%;
+    max-width: 258px;
+    height: auto;
+    box-shadow:
+      45px 77px 36px rgba(31, 31, 31, 0.01),
+      25px 43px 30px rgba(31, 31, 31, 0.05),
+      11px 19px 22px rgba(31, 31, 31, 0.09),
+      3px 5px 12px rgba(31, 31, 31, 0.1);
+  }
   .pyr-body { display: flex; flex-direction: column; gap: 40px; }
   .pyr-title {
     margin: 0;
