@@ -377,6 +377,9 @@ const productJsonLd = {
         familles={familles}
         pyramidLabel={t("product.pyramid")}
         pyramidImg={pyramidImg}
+        ingredients={parfum?.ingredients ?? []}
+        ingredientsLabel={t("product.ingredientsLabel")}
+        closeLabel={t("product.close")}
         noteLevels={scentLevels.map((l) => ({ label: l.label, notes: l.notes }))}
         intensityLabel={t("product.intensity")}
         intensity={intensite}
