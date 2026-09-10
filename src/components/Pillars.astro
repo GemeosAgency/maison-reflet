@@ -31,7 +31,7 @@ const { title1, title2, subtitle, pillars } = Astro.props;
     </h2>
     <p>{subtitle}</p>
   </div>
-  <div class="pillars-grid media-band">
+  <div class="pillars-grid full-bleed">
     {
       pillars.map((p) => (
         <div class="pillar" style={`background-image: url(${p.image})`}>
@@ -55,9 +55,10 @@ const { title1, title2, subtitle, pillars } = Astro.props;
   }
   .pillars-head h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
   .pillars-head p { margin: 0; font-size: 18px; }
-  /* Pas de `width` ici : c'est .media-band (globale) qui la fixe. La colonne
-     porte le ratio de la maquette plutôt qu'une hauteur figée — sinon au-delà
-     de 1440px elle s'élargissait sans grandir et le visuel était rogné. */
+  /* Pas de `width` ici : c'est .full-bleed (globale) qui l'étire bord à bord.
+     La colonne porte le ratio de la maquette plutôt qu'une hauteur figée —
+     sinon au-delà de 1440px elle s'élargissait sans grandir et le visuel
+     était rogné. */
   .pillars-grid { display: flex; gap: 2px; }
   .pillar {
     flex: 1 0 0;

@@ -181,7 +181,7 @@ const heroPanels = [
   lang={lang}
   ogImage="/home/hero.jpg"
 >
-  <section class="hero media-band">
+  <section class="hero full-bleed">
     {
       heroPanels.map((panel, i) => (
         <a class="hero-panel" href={panel.href}>
@@ -236,7 +236,7 @@ const heroPanels = [
             <img src="/brand/arrow-right.svg" alt="" width="12" height="12" />
           </a>
         </div>
-        <div class="bestsellers-grid media-band">
+        <div class="bestsellers-grid full-bleed">
           {bestsellers.map((p) => (
             <ProductCard
               name={p.name}
@@ -346,11 +346,15 @@ const heroPanels = [
    * 1440 x 760 et 2 px de filet entre les deux, comme les autres triptyques
    * du site.
    *
-   * `media-band` et non `full-bleed` : la couture centrale du héros est une
-   * verticale très visible. Étirée à 100vw, elle ne tomberait plus au même
-   * endroit que les limites de tuiles de la rangée bestsellers juste en
-   * dessous, plafonnée à --page-max. Le héros s'arrête donc au container,
-   * comme la bande des piliers.
+   * `full-bleed` : sur grand écran les bandes d'images vont bord à bord,
+   * seul le texte reste dans le container. La couture centrale du héros
+   * continue de tomber sur les limites de tuiles des bestsellers, puisque
+   * les deux bandes s'étirent de la même façon.
+   *
+   * La hauteur suit le ratio de la maquette : sur un écran de 2560 px le
+   * héros fait donc ~1350 px de haut. C'est voulu — « full screen ». Les
+   * photos étant en `object-fit: cover`, un `max-height` les recadrerait
+   * sans les déformer si on veut plafonner un jour.
    */
   .hero {
     display: flex;
