@@ -208,6 +208,7 @@ const t = useTranslations(lang);
       document.body.style.overflow = "hidden";
       input!.focus();
       void hydrate();
+      scrollToEnd(true);
       if (!cartRequested) {
         cartRequested = true;
         loadCart()
@@ -271,8 +272,16 @@ const t = useTranslations(lang);
       if (text !== undefined) node.textContent = text;
       return node;
     };
-    const scrollToEnd = () => {
-      log!.scrollTop = log!.scrollHeight;
+    /**
+     * Défilement collant : on suit la frappe seulement si le visiteur est déjà
+     * en bas. S'il remonte pour relire pendant que Luma écrit, on le laisse —
+     * forcer le bas à chaque mot donnait un effet de bug (Sandro, 11 septembre
+     * 2026). `force` pour les gestes du visiteur lui-même (son message, l'ouverture).
+     */
+    const STICKY_PX = 80;
+    const scrollToEnd = (force = false) => {
+      const distance = log!.scrollHeight - log!.scrollTop - log!.clientHeight;
+      if (force || distance < STICKY_PX) log!.scrollTop = log!.scrollHeight;
     };
 
     function addVisitor(text: string) {
@@ -280,7 +289,7 @@ const t = useTranslations(lang);
       const label = el("span", "luma-sr", i18n.you);
       msg.append(label, el("p", undefined, text));
       log!.append(msg);
-      scrollToEnd();
+      scrollToEnd(true);
     }
 
     /**
@@ -353,6 +362,7 @@ const t = useTranslations(lang);
     function cardNode(card: Card, line?: string): HTMLElement {
       const node = el("article", "luma-card");
       node.dataset.handle = card.handle;
+      if (!card.image) node.classList.add("no-media");
       if (card.image) {
         // Le visuel mène au produit, comme partout sur le site.
         const media = el("a", "luma-card-media") as HTMLAnchorElement;
@@ -394,9 +404,11 @@ const t = useTranslations(lang);
       }
       const link = el("a", "luma-card-link", i18n.viewProduct) as HTMLAnchorElement;
       link.href = card.url;
+      link.setAttribute("aria-label", `${i18n.viewProduct} ${card.name}`);
       actions.append(link);
-      body.append(actions);
-      node.append(body);
+      // Les gestes prennent toute la largeur de la fiche, sous le visuel et le
+      // texte : un nom long ou une langue verbeuse ne les font plus se casser.
+      node.append(body, actions);
       return node;
     }
 
@@ -760,34 +772,36 @@ const t = useTranslations(lang);
 
   /* La fiche d'un Reflet : visuel sur fond neutre, nom et prix, la phrase, les deux gestes du site. */
   .luma-card {
-    display: flex;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 12px 16px;
     padding: 12px;
     background: var(--paper);
     border-radius: 8px;
     font-style: normal;
   }
-  .luma-card-media { flex: none; line-height: 0; }
+  .luma-card.no-media { grid-template-columns: minmax(0, 1fr); }
+  .luma-card-media { line-height: 0; }
   .luma-card-img { width: 96px; height: 96px; object-fit: cover; background: var(--sand); border-radius: 4px; }
-  .luma-card-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+  .luma-card-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; justify-content: center; }
   .luma-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .luma-card-name { font-size: 15px; font-weight: 500; text-transform: uppercase; }
   .luma-card-price { font-size: 14px; opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .luma-card-line { font-size: 14px; line-height: 1.45; opacity: 0.85; }
-  .luma-card-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
+  .luma-card-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
   /* Le CTA panier du site : pilule rose, blanc, capitales (BoxCard, tiroir panier). */
   .luma-card-add {
-    padding: 0 18px;
-    height: 40px;
+    padding: 0 16px;
+    height: 36px;
     border: 0;
     border-radius: 999px;
     background: var(--rose);
     color: #fff;
     font: inherit;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.4px;
     cursor: pointer;
     transition: opacity 0.2s;
   }
@@ -855,6 +869,7 @@ const t = useTranslations(lang);
     }
     [dir="rtl"] .luma-panel { left: 0; transform: translateX(-100%); }
     .luma.is-open .luma-panel { transform: translateX(0); }
+    .luma-card { grid-template-columns: 72px minmax(0, 1fr); }
     .luma-card-img { width: 72px; height: 72px; }
   }
 

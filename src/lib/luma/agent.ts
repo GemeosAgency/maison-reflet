@@ -21,7 +21,7 @@ import type { Locale } from "../../i18n";
 import { checkNumbers, checkOutput, reminderFor, type Violation } from "./guardrails";
 import type { Knowledge } from "./knowledge";
 import { FALLBACK_REPLY, UNAVAILABLE_REPLY, buildSystemBlocks, type VisitContext } from "./persona";
-import { LUMA_TOOLS, extractActions, fallbackReplies, productsNamedIn, type LumaAction } from "./tools";
+import { LUMA_TOOLS, extractActions, fallbackReplies, normalizeReplies, productsNamedIn, type LumaAction } from "./tools";
 
 export const LUMA_MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 1024;
@@ -110,7 +110,9 @@ async function generate(input: AnswerInput, reminder?: string): Promise<Attempt>
   });
 
   const text = textOf(message);
-  const { actions, violations } = extractActions(message, input.knowledge);
+  const extracted = extractActions(message, input.knowledge, input.userMessage);
+  const actions = normalizeReplies(extracted.actions, input.knowledge);
+  const violations = extracted.violations;
   // La fiche accompagne toujours un Reflet nommé (Sandro, 11 septembre 2026) :
   // si le modèle a parlé d'un produit sans appeler l'outil, la carte du premier
   // produit nommé s'ajoute ici — ce n'est pas une infraction, c'est un oubli.
@@ -145,7 +147,7 @@ function recommends(actions: LumaAction[]): boolean {
 const COMPLETE_INSTRUCTION =
   "[Consigne de la Maison — le visiteur ne voit pas ce message] Complète ta dernière réponse sans la réécrire. Réponds uniquement par un objet JSON, sans autre texte : " +
   '{"question": "la question courte, dans la langue de la conversation, qui vérifie le choix et continue l\'échange (jour ou soir, présence ou discrétion, déjà senti, pour qui) — ou une chaîne vide si ta réponse se termine déjà par une question", ' +
-  '"replies": ["deux à quatre réponses courtes que le visiteur pourrait cliquer, formulées comme il les dirait, dans la langue de la conversation ; les parfums d\'origine de la collection si tu lui demandes ce qu\'il porte"]}';
+  '"replies": ["deux à quatre réponses courtes, formulées comme le visiteur les dirait, dans la langue de la conversation : les réponses possibles à la question posée à la fin de ta réponse (occasion → des occasions ; jour ou soir → jour ou soir ; ce qu\'il porte → les parfums d\'origine de la collection), ou les suites de ta proposition s\'il n\'y a pas de question ; jamais ce que le visiteur vient de dire"]}';
 
 /**
  * Complète une réponse propre mais incomplète — sans question de suite, ou
@@ -191,9 +193,9 @@ async function complete(a: Attempt, input: AnswerInput): Promise<{ attempt: Atte
       const replies = (Array.isArray(parsed.replies) ? parsed.replies : [])
         .filter((r): r is string => typeof r === "string")
         .map((r) => r.trim())
-        .filter((r) => r.length > 0 && r.length <= 60 && clean(r))
+        .filter((r) => r.length > 0 && r.length <= 60 && r.toLowerCase() !== input.userMessage.trim().toLowerCase() && clean(r))
         .slice(0, 6);
-      if (replies.length >= 2) actions = [...actions, { type: "suggest_replies", replies }];
+      if (replies.length >= 2) actions = normalizeReplies([...actions, { type: "suggest_replies", replies }], input.knowledge);
     }
     return { attempt: withFallbackChips({ ...a, text, actions }, input), usage: res.usage };
   } catch (error) {

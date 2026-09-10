@@ -77,7 +77,7 @@ export const LUMA_TOOLS: Anthropic.Tool[] = [
   {
     name: "suggest_replies",
     description:
-      "Propose au visiteur des réponses toutes faites, cliquables, sous ta phrase : deux à quatre (six quand ce sont les parfums d'origine de la collection), courtes, dans la langue de la conversation, formulées comme le visiteur les dirait (« Plutôt le soir », « Je porte Baccarat Rouge 540 »). À appeler à chaque message qui pose une question ou ouvre une suite.",
+      "Propose au visiteur des réponses toutes faites, cliquables, sous ta phrase : deux à quatre (six quand ce sont les parfums d'origine de la collection), courtes, dans la langue de la conversation, formulées comme le visiteur les dirait. Ce sont les réponses possibles à la question que tu poses dans ce message (occasion → des occasions ; jour ou soir → jour ou soir ; ce qu'il porte → les parfums d'origine), ou les suites de ta proposition s'il n'y a pas de question. Jamais une réponse hors sujet, jamais ce que le visiteur vient de dire. À appeler à chaque message.",
     strict: true,
     input_schema: {
       type: "object",
@@ -133,8 +133,11 @@ export type LumaAction =
  */
 export function extractActions(
   message: Anthropic.Message,
-  knowledge: Knowledge
+  knowledge: Knowledge,
+  /** Le dernier message du visiteur : une réponse toute faite qui le répète est écartée. */
+  userMessage = ""
 ): { actions: LumaAction[]; violations: Violation[] } {
+  const said = userMessage.trim().toLowerCase();
   const actions: LumaAction[] = [];
   const violations: Violation[] = [];
   const allowed = new Set(knowledge.allowedHandles);
@@ -175,7 +178,7 @@ export function extractActions(
         const replies = (Array.isArray(input.replies) ? input.replies : [])
           .filter((r): r is string => typeof r === "string")
           .map((r) => r.trim())
-          .filter((r) => r.length > 0 && r.length <= MAX_REPLY_CHARS)
+          .filter((r) => r.length > 0 && r.length <= MAX_REPLY_CHARS && r.toLowerCase() !== said)
           .slice(0, MAX_REPLIES);
         for (const r of replies) shown(r);
         if (replies.length) actions.push({ type: "suggest_replies", replies });
@@ -225,15 +228,15 @@ const ORIGINS = ["Baccarat Rouge 540", "Bois Impérial", "Tuscan Leather", "Alth
  */
 const FALLBACK_REPLIES: Record<Locale, { afterReco: string[]; universes: string[] }> = {
   fr: {
-    afterReco: ["Parlez-moi de ses notes", "Je préfère le sentir d'abord", "C'est pour offrir"],
+    afterReco: ["Parlez-moi de ses notes", "Je préfère le sentir d'abord"],
     universes: ["Chaud et gourmand", "Boisé et net", "Cuir et soir", "Frais et fruité", "Plutôt oud"],
   },
   en: {
-    afterReco: ["Tell me about its notes", "I'd rather smell it first", "It's a gift"],
+    afterReco: ["Tell me about its notes", "I'd rather smell it first"],
     universes: ["Warm and gourmand", "Woody and clean", "Leather and evening", "Fresh and fruity", "Oud"],
   },
   ar: {
-    afterReco: ["حدّثوني عن نفحاته", "أفضّل أن أشمّه أولاً", "إنه هدية"],
+    afterReco: ["حدّثوني عن نفحاته", "أفضّل أن أشمّه أولاً"],
     universes: ["دافئ وحلو", "خشبي ونقي", "جلد ومساء", "منعش وفاكهي", "عود"],
   },
 };
@@ -243,4 +246,18 @@ export function fallbackReplies(locale: Locale, text: string, hasRecommendation:
   if (hasRecommendation) return set.afterReco;
   if (/\b(porte|portez|wear|aimez|like|love)\b|ترتد|تحب|تضع/i.test(text)) return ORIGINS;
   return set.universes;
+}
+
+/**
+ * Quand les réponses proposées sont des noms de Reflets — Luma demande de
+ * choisir —, ce sont les six, tous, dans l'ordre du catalogue (Sandro,
+ * 11 septembre 2026 : « quand c'est comme ça, mets les 6 parfums »). Le
+ * modèle, tenu par « deux à quatre », s'arrêtait à quatre.
+ */
+export function normalizeReplies(actions: LumaAction[], knowledge: Knowledge): LumaAction[] {
+  const names = knowledge.products.filter((p) => p.kind === "parfum").map((p) => p.name);
+  const isName = (r: string) => names.some((n) => n.toLowerCase() === r.trim().toLowerCase());
+  return actions.map((a) =>
+    a.type === "suggest_replies" && a.replies.filter(isName).length >= 2 ? { ...a, replies: names } : a
+  );
 }
