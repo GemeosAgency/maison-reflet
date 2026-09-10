@@ -1,9 +1,11 @@
 import type { APIRoute } from "astro";
-import { locales, type Locale } from "../../../i18n";
+import { localePath, locales, type Locale } from "../../../i18n";
 import { COUNTRY_COOKIE, getCountry, isShippedCountry } from "../../../lib/markets";
 import { answer } from "../../../lib/luma/agent";
 import { CONTACT_EMAIL } from "../../../lib/luma/collection";
+import { findProduct, type Knowledge, type KnowledgeProduct } from "../../../lib/luma/knowledge";
 import { getKnowledge } from "../../../lib/luma/knowledge-live";
+import type { LumaAction } from "../../../lib/luma/tools";
 import { UNAVAILABLE_REPLY, type VisitContext } from "../../../lib/luma/persona";
 import {
   latestProfile,
@@ -50,6 +52,54 @@ const RATE_PER_MINUTE = 8;
 const RATE_PER_DAY = 150;
 // Tous visiteurs, entrée + sortie, cache compris (brief §7 « plafond quotidien »).
 const DAILY_TOKEN_CAP = Number(import.meta.env.LUMA_DAILY_TOKEN_CAP) || 1_500_000;
+
+/**
+ * Ce que le widget affiche d'un produit — nom, visuel, lien localisé, prix. Le
+ * prix voyage mais ne s'affiche qu'au survol (brief §5) ; la disponibilité se
+ * dit, ne se compte pas.
+ */
+function card(p: KnowledgeProduct, lang: Locale) {
+  const main = p.variants.find((v) => !v.sample) ?? p.variants[0];
+  return {
+    handle: p.handle,
+    name: p.name,
+    kind: p.kind,
+    url: localePath(lang, `${p.kind === "coffret" ? "/coffrets/" : "/parfums/"}${p.handle}`),
+    image: p.image,
+    price: main ? `${main.price} ${main.currency}` : null,
+    available: p.available,
+  };
+}
+
+/**
+ * Les actions telles que le client les reçoit. Les signaux de profil restent
+ * côté serveur : ils nourrissent la base et Klaviyo, pas l'écran.
+ */
+function forClient(action: LumaAction, knowledge: Knowledge, lang: Locale): Record<string, unknown> | null {
+  switch (action.type) {
+    case "recommend_reflet": {
+      const reflet = findProduct(knowledge, action.reflet);
+      const alternative = findProduct(knowledge, action.alternative);
+      if (!reflet) return null;
+      return {
+        type: action.type,
+        reflet: card(reflet, lang),
+        alternative: alternative ? card(alternative, lang) : null,
+        reason: action.reason,
+      };
+    }
+    case "show_product": {
+      const product = findProduct(knowledge, action.handle);
+      return product ? { type: action.type, product: card(product, lang) } : null;
+    }
+    case "propose_email_capture":
+      return { type: action.type, pretext: action.pretext };
+    case "handoff_to_human":
+      return { type: action.type, email: CONTACT_EMAIL, reason: action.reason };
+    case "log_profile_signal":
+      return null;
+  }
+}
 
 function json(data: unknown, status: number) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -198,7 +248,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
         // Le visiteur d'abord, la base ensuite.
         send({ type: "text", text: reply.text });
-        for (const action of reply.actions) send({ type: "action", action });
+        for (const action of reply.actions) {
+          const visible = forClient(action, knowledge, lang);
+          if (visible) send({ type: "action", action: visible });
+        }
 
         if (reply.fallback) console.error("[luma/chat] réponse de secours servie :", reply.error ?? reply.violations);
         const events: Promise<void>[] = [];

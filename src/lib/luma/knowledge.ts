@@ -59,6 +59,8 @@ export type KnowledgeProduct = {
   /** Nom à prononcer : titre Shopify pour les parfums (identique dans les trois langues), nom localisé pour les coffrets. */
   name: string;
   kind: "parfum" | "coffret";
+  /** Visuel Shopify du produit, pour la carte affichée par le widget. */
+  image: string | null;
   /** Au moins une variante vendable. La disponibilité se dit, elle ne se compte pas. */
   available: boolean;
   variants: KnowledgeVariant[];
@@ -188,6 +190,7 @@ function toKnowledgeProduct(
     handle: product.handle,
     name: displayName(product, known, kind, locale),
     kind,
+    image: product.featuredImage?.url ?? null,
     available: variants.some((v) => v.available),
     variants,
     twistOf: known && "twistOf" in known ? known.twistOf : null,

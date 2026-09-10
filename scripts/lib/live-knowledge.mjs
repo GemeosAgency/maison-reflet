@@ -53,7 +53,7 @@ async function products(country, language) {
     body: JSON.stringify({
       query: `query LumaProducts($first: Int!, $country: CountryCode, $language: LanguageCode)
         @inContext(country: $country, language: $language) {
-        products(first: $first) { nodes { id handle title productType category { id name }
+        products(first: $first) { nodes { id handle title productType category { id name } featuredImage { url }
           variants(first: 20) { nodes { id title availableForSale price { amount currencyCode } } } } } }`,
       variables: { first: 50, country, language },
     }),

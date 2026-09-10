@@ -167,7 +167,7 @@ export async function latestProfile(visitor: Visitor): Promise<NonNullable<Visit
   if (!visitor.sessionIds.length) return { email: visitor.email };
   const { data, error } = await db()
     .from("luma_profile_signals")
-    .select("recommended_handle, alternative_handle, cited_origin, for_whom, occasion, wears_today")
+    .select("session_id, recommended_handle, alternative_handle, cited_origin, for_whom, occasion, wears_today")
     .in("session_id", visitor.sessionIds)
     .order("updated_at", { ascending: false })
     .limit(1);
@@ -181,7 +181,14 @@ export async function latestProfile(visitor: Visitor): Promise<NonNullable<Visit
     occasion: s?.occasion ?? null,
     wearsToday: s?.wears_today ?? null,
     email: visitor.email,
+    fromPreviousVisit: Boolean(s) && s.session_id !== visitor.live?.id,
   };
+}
+
+/** L'email donné par le visiteur, sur sa session vivante — la rétention l'effacera seul. */
+export async function setSessionEmail(sessionId: string, email: string): Promise<void> {
+  const { error } = await db().from("luma_sessions").update({ email }).eq("id", sessionId);
+  if (error) fail("écriture email", error);
 }
 
 export async function logEvent(sessionId: string | null, name: string, props: Record<string, unknown> = {}): Promise<void> {

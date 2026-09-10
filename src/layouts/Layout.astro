@@ -10,6 +10,7 @@ import {
 } from "../i18n";
 import CartDrawer from "../components/CartDrawer.astro";
 import CountryDrawer from "../components/CountryDrawer.astro";
+import LumaAdvisor from "../components/LumaAdvisor.astro";
 import {
   COUNTRIES,
   DEFAULT_COUNTRY,
@@ -398,6 +399,11 @@ const navLinks = [
         <img src="/brand/logo.svg" alt="Maison Reflet" height="28" />
       </a>
       <div class="site-actions">
+        {/* Luma : un nom et une ligne, pas un badge (brief §5). Sur mobile, le nom seul. */}
+        <button type="button" class="luma-trigger" data-luma-open aria-label={t("luma.open")}>
+          <span class="luma-trigger-name">{t("luma.name")}</span>
+          <span class="luma-trigger-line">{t("luma.tagline")}</span>
+        </button>
         <button
           type="button"
           class="currency"
@@ -527,6 +533,7 @@ const navLinks = [
 
     <CartDrawer lang={lang} />
     <CountryDrawer lang={lang} rest={rest} />
+    <LumaAdvisor lang={lang} />
 
     <style>
       .promo-banner { background: #efc5a9; }
@@ -563,6 +570,22 @@ const navLinks = [
       }
       .site-logo img { height: 28px; width: auto; }
       .site-actions { display: flex; gap: 24px; align-items: center; }
+      .luma-trigger {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 8px 0;
+        border: 0;
+        background: none;
+        font: inherit;
+        font-size: 14px;
+        color: inherit;
+        cursor: pointer;
+      }
+      .luma-trigger:hover { opacity: 0.6; }
+      .luma-trigger-name { font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+      .luma-trigger-line { opacity: 0.7; }
+      .luma-trigger-line::before { content: "·"; margin-inline-end: 8px; }
       .currency {
         display: inline-flex;
         align-items: center;
@@ -672,6 +695,7 @@ const navLinks = [
         .currency-label,
         .currency .chev { display: none; }
         .icon-desktop { display: none; }
+        .luma-trigger-line { display: none; }
         .site-logo img { height: 22px; }
         .promo-banner p { padding: 10.5px 20px; font-size: 12px; }
       }

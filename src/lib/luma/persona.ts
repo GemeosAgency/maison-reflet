@@ -153,6 +153,8 @@ export type VisitContext = {
     occasion?: string | null;
     wearsToday?: string | null;
     email?: string | null;
+    /** Vrai si ces signaux viennent d'une visite antérieure, pas de cette conversation. */
+    fromPreviousVisit?: boolean;
   };
 };
 
@@ -251,7 +253,15 @@ export function buildVisitBlock(context: VisitContext = {}, now: Date = new Date
     if (pr.forWhom) known.push(`pour : ${pr.forWhom}`);
     if (pr.occasion) known.push(`occasion : ${pr.occasion}`);
     if (pr.email) known.push("email déjà donné : ne pas le redemander");
-    if (known.length) visit.push(`Ce que la conversation a établi — ${known.join(" ; ")}.`);
+    if (known.length) {
+      // Une visite précédente informe, elle ne dicte pas : Luma s'en souvient
+      // sans présumer que c'est encore le sujet.
+      visit.push(
+        pr.fromPreviousVisit
+          ? `Connu d'une visite précédente — à garder en mémoire sans présumer que c'est encore le sujet, ni le mentionner spontanément : ${known.join(" ; ")}.`
+          : `Ce que cette conversation a établi — ${known.join(" ; ")}.`
+      );
+    }
   }
   if (visit.length) sections.push(`# Contexte de la visite\n${visit.join("\n")}`);
 

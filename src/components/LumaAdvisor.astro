@@ -1,0 +1,596 @@
+---
+/**
+ * Luma, la conseillère de la Maison — le panneau de conversation.
+ *
+ * Même géométrie et même mécanique que le tiroir pays et le panier : 480 px
+ * collés au bord de lecture, 8 px de marge, coins à 8 px, voile à 56 %,
+ * glissement latéral, fermeture au voile / à la croix / par Échap, plein écran
+ * sur mobile. Monté UNE FOIS par le layout ; le déclencheur vit dans le header.
+ *
+ * Ce que le brief (§5) interdit, et qu'on ne fait donc pas : la bulle ronde en
+ * bas à droite, les bulles de chat colorées, les cartes produit à prix gras et
+ * bouton panier. Ici : du texte, sans bulles — Luma en italique du côté de la
+ * lecture, le visiteur de l'autre côté ; un Reflet se montre par une image sur
+ * fond neutre, son nom, une phrase, un seul lien « Découvrir » ; le prix ne
+ * s'affiche qu'au survol. Luma ne s'ouvre jamais seule.
+ *
+ * Le serveur vérifie la réponse avant de l'envoyer ; c'est ici que se fait
+ * l'effet de frappe (mot à mot, curseur discret, instantané si le visiteur
+ * préfère moins d'animation).
+ */
+import { useTranslations, type Locale } from "../i18n";
+import { CONTACT_EMAIL } from "../lib/luma/collection";
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+---
+
+<script
+  type="application/json"
+  id="luma-i18n"
+  is:inline
+  set:html={JSON.stringify({
+    thinking: t("luma.thinking"),
+    discover: t("luma.discover"),
+    otherwise: t("luma.otherwise"),
+    unavailable: t("luma.unavailable").replace("{email}", CONTACT_EMAIL),
+    writeTo: t("luma.writeTo"),
+    emailLabel: t("luma.emailLabel"),
+    emailConsent: t("luma.emailConsent"),
+    emailSend: t("luma.send"),
+    emailDone: t("luma.emailDone"),
+    you: t("luma.you"),
+    name: t("luma.name"),
+    contact: CONTACT_EMAIL,
+  })}
+/>
+
+<div class="luma" data-luma aria-hidden="true">
+  <div class="luma-backdrop" data-luma-close></div>
+  <aside class="luma-panel" role="dialog" aria-modal="true" aria-label={t("luma.open")}>
+    <button type="button" class="luma-close" data-luma-close aria-label={t("luma.close")}>
+      <img src="/brand/close.svg" alt="" width="16" height="16" />
+    </button>
+
+    <header class="luma-head">
+      <h2 class="luma-title">{t("luma.name")}</h2>
+      <p class="luma-subtitle">{t("luma.subtitle")}</p>
+    </header>
+
+    <div class="luma-log" data-luma-log role="log" aria-live="polite" aria-relevant="additions">
+      <div class="luma-msg luma-msg-luma" data-luma-opening>
+        <p>{t("luma.opening")}</p>
+        <div class="luma-chips">
+          <button type="button" class="luma-chip" data-luma-say={t("luma.forMe")}>{t("luma.forMe")}</button>
+          <button type="button" class="luma-chip" data-luma-say={t("luma.forGift")}>{t("luma.forGift")}</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="luma-status" data-luma-status role="status" aria-live="polite"></p>
+
+    <form class="luma-form" data-luma-form>
+      <input
+        type="text"
+        class="luma-input"
+        data-luma-input
+        placeholder={t("luma.placeholder")}
+        aria-label={t("luma.placeholder")}
+        autocomplete="off"
+        maxlength="1000"
+        enterkeyhint="send"
+      />
+      <button type="submit" class="luma-send">{t("luma.send")}</button>
+    </form>
+
+    <p class="luma-privacy">{t("luma.privacy")}</p>
+  </aside>
+</div>
+
+<script>
+  type Card = {
+    handle: string;
+    name: string;
+    kind: "parfum" | "coffret";
+    url: string;
+    image: string | null;
+    price: string | null;
+    available: boolean;
+  };
+  type Action =
+    | { type: "recommend_reflet"; reflet: Card; alternative: Card | null; reason: string }
+    | { type: "show_product"; product: Card }
+    | { type: "propose_email_capture"; pretext: string }
+    | { type: "handoff_to_human"; email: string; reason: string };
+  type Event =
+    | { type: "status"; state: string }
+    | { type: "text"; text: string }
+    | { type: "action"; action: Action }
+    | { type: "done"; sessionId: string | null; fallback: boolean; reason?: string };
+
+  const i18n: Record<string, string> = JSON.parse(document.getElementById("luma-i18n")?.textContent || "{}");
+  const fill = (template: string, tokens: Record<string, string>) =>
+    Object.entries(tokens).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, v), template);
+
+  const root = document.querySelector<HTMLElement>("[data-luma]");
+  const panel = root?.querySelector<HTMLElement>(".luma-panel");
+  const log = root?.querySelector<HTMLElement>("[data-luma-log]");
+  const status = root?.querySelector<HTMLElement>("[data-luma-status]");
+  const form = root?.querySelector<HTMLFormElement>("[data-luma-form]");
+  const input = root?.querySelector<HTMLInputElement>("[data-luma-input]");
+  const locale = document.documentElement.lang || "fr";
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (root && panel && log && status && form && input) {
+    /* ---------------- Ouverture / fermeture ---------------- */
+
+    let lastFocused: HTMLElement | null = null;
+
+    function open() {
+      lastFocused = document.activeElement as HTMLElement | null;
+      root!.classList.add("is-open");
+      root!.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+      input!.focus();
+    }
+    function close() {
+      root!.classList.remove("is-open");
+      root!.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+      lastFocused?.focus();
+    }
+    for (const trigger of document.querySelectorAll<HTMLElement>("[data-luma-open]")) {
+      trigger.addEventListener("click", (e) => {
+        e.preventDefault();
+        open();
+      });
+    }
+    for (const el of root.querySelectorAll<HTMLElement>("[data-luma-close]")) el.addEventListener("click", close);
+
+    // Échap ferme ; Tab reste dans le panneau tant qu'il est ouvert.
+    document.addEventListener("keydown", (e) => {
+      if (!root!.classList.contains("is-open")) return;
+      if (e.key === "Escape") return close();
+      if (e.key !== "Tab") return;
+      const focusable = Array.from(
+        panel!.querySelectorAll<HTMLElement>('button, a[href], input, [tabindex]:not([tabindex="-1"])')
+      ).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
+
+    /* ---------------- Contexte de la page ---------------- */
+
+    function pageContext() {
+      const path = location.pathname.replace(/^\/(fr|en|ar)(?=\/|$)/, "");
+      const product = path.match(/^\/(parfums|coffrets)\/([^/]+)/);
+      if (product) return { page: { type: product[1] === "coffrets" ? "coffret" : "product", handle: product[2] } };
+      if (path.startsWith("/parfums")) return { page: { type: "collection" } };
+      if (path.startsWith("/panier")) return { page: { type: "cart" } };
+      if (path.startsWith("/maison")) return { page: { type: "maison" } };
+      return { page: { type: "home" } };
+    }
+
+    /* ---------------- Rendu ---------------- */
+
+    const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) => {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    const scrollToEnd = () => {
+      log!.scrollTop = log!.scrollHeight;
+    };
+
+    function addVisitor(text: string) {
+      const msg = el("div", "luma-msg luma-msg-visitor");
+      const label = el("span", "luma-sr", i18n.you);
+      msg.append(label, el("p", undefined, text));
+      log!.append(msg);
+      scrollToEnd();
+    }
+
+    /** Luma parle : mot à mot, avec un curseur, puis le curseur s'efface. */
+    async function addLuma(text: string): Promise<HTMLElement> {
+      const msg = el("div", "luma-msg luma-msg-luma");
+      log!.append(msg);
+      const paragraphs = text.split(/\n+/).filter(Boolean);
+      for (const paragraph of paragraphs) {
+        const p = el("p");
+        msg.append(p);
+        if (reduceMotion) {
+          p.textContent = paragraph;
+          continue;
+        }
+        const cursor = el("span", "luma-cursor");
+        p.append(cursor);
+        const words = paragraph.split(" ");
+        for (let i = 0; i < words.length; i++) {
+          cursor.before(document.createTextNode((i ? " " : "") + words[i]));
+          scrollToEnd();
+          await new Promise((r) => setTimeout(r, 34));
+        }
+        cursor.remove();
+      }
+      scrollToEnd();
+      return msg;
+    }
+
+    function cardNode(card: Card, line?: string): HTMLElement {
+      const node = el("article", "luma-card");
+      if (card.image) {
+        const img = el("img", "luma-card-img") as HTMLImageElement;
+        img.src = card.image;
+        img.alt = "";
+        img.loading = "lazy";
+        node.append(img);
+      }
+      const body = el("div", "luma-card-body");
+      body.append(el("p", "luma-card-name", card.name));
+      if (line) body.append(el("p", "luma-card-line", line));
+      const foot = el("div", "luma-card-foot");
+      const link = el("a", "luma-card-link", fill(i18n.discover, { name: card.name })) as HTMLAnchorElement;
+      link.href = card.url;
+      foot.append(link);
+      if (card.price) foot.append(el("span", "luma-card-price", card.price));
+      body.append(foot);
+      node.append(body);
+      // Sur tactile, pas de survol : un tap sur la carte (hors lien) révèle le prix.
+      node.addEventListener("click", (e) => {
+        if ((e.target as HTMLElement).closest("a")) return;
+        node.classList.toggle("is-revealed");
+      });
+      return node;
+    }
+
+    function render(action: Action, into: HTMLElement) {
+      switch (action.type) {
+        case "recommend_reflet": {
+          into.append(cardNode(action.reflet, action.reason));
+          if (action.alternative) {
+            const alt = el("p", "luma-alt");
+            const link = el("a", undefined, fill(i18n.otherwise, { name: action.alternative.name })) as HTMLAnchorElement;
+            link.href = action.alternative.url;
+            alt.append(link);
+            into.append(alt);
+          }
+          break;
+        }
+        case "show_product":
+          // Déjà montré par la recommandation : ne pas doubler la carte.
+          if (!into.querySelector(`.luma-card`)) into.append(cardNode(action.product));
+          break;
+        case "handoff_to_human": {
+          const p = el("p", "luma-handoff");
+          const link = el("a", undefined, i18n.writeTo) as HTMLAnchorElement;
+          link.href = `mailto:${action.email}?subject=${encodeURIComponent("Maison Reflet — " + action.reason)}`;
+          p.append(link);
+          into.append(p);
+          break;
+        }
+        case "propose_email_capture":
+          into.append(emailForm());
+          break;
+      }
+      scrollToEnd();
+    }
+
+    /** Le champ email n'apparaît que quand Luma le propose ; consentement à part, décoché. */
+    function emailForm(): HTMLElement {
+      const f = el("form", "luma-email") as HTMLFormElement;
+      const mail = el("input", "luma-input") as HTMLInputElement;
+      mail.type = "email";
+      mail.required = true;
+      mail.placeholder = i18n.emailLabel;
+      mail.setAttribute("aria-label", i18n.emailLabel);
+      mail.autocomplete = "email";
+      const consentLabel = el("label", "luma-consent");
+      const consent = el("input") as HTMLInputElement;
+      consent.type = "checkbox";
+      consentLabel.append(consent, el("span", undefined, i18n.emailConsent));
+      const send = el("button", "luma-send", i18n.emailSend) as HTMLButtonElement;
+      send.type = "submit";
+      const row = el("div", "luma-email-row");
+      row.append(mail, send);
+      f.append(row, consentLabel);
+      f.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        send.disabled = true;
+        try {
+          const res = await fetch("/api/luma/profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ email: mail.value, consent: consent.checked, locale }),
+          });
+          if (!res.ok) throw new Error(String(res.status));
+          f.replaceWith(el("p", "luma-email-done", i18n.emailDone));
+        } catch {
+          send.disabled = false;
+        }
+      });
+      return f;
+    }
+
+    /* ---------------- Un tour ---------------- */
+
+    let busy = false;
+
+    async function say(text: string) {
+      const message = text.trim();
+      if (!message || busy) return;
+      busy = true;
+      input!.value = "";
+      input!.disabled = true;
+      root!.querySelector("[data-luma-opening] .luma-chips")?.remove();
+      addVisitor(message);
+      status!.textContent = i18n.thinking;
+
+      let lumaMsg: HTMLElement | null = null;
+      try {
+        const res = await fetch("/api/luma/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ message, locale, context: pageContext() }),
+        });
+        if (!res.ok || !res.body) throw new Error(String(res.status));
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        const pending: Action[] = [];
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let cut: number;
+          while ((cut = buffer.indexOf("\n\n")) >= 0) {
+            const frame = buffer.slice(0, cut).trim();
+            buffer = buffer.slice(cut + 2);
+            if (!frame.startsWith("data:")) continue;
+            const event = JSON.parse(frame.slice(5)) as Event;
+            if (event.type === "text") {
+              status!.textContent = "";
+              lumaMsg = await addLuma(event.text);
+            } else if (event.type === "action") {
+              pending.push(event.action);
+            }
+          }
+        }
+        if (!lumaMsg) lumaMsg = await addLuma(i18n.unavailable);
+        for (const action of pending) render(action, lumaMsg);
+      } catch {
+        status!.textContent = "";
+        await addLuma(i18n.unavailable);
+      } finally {
+        status!.textContent = "";
+        busy = false;
+        input!.disabled = false;
+        input!.focus();
+      }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      void say(input!.value);
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        void say(input!.value);
+      }
+    });
+    for (const chip of root.querySelectorAll<HTMLElement>("[data-luma-say]")) {
+      chip.addEventListener("click", () => void say(chip.dataset.lumaSay ?? ""));
+    }
+  }
+</script>
+
+{/*
+  `is:global` et non scopé : la conversation est construite par le script
+  (document.createElement), et ces nœuds ne portent pas l'attribut de scope
+  d'Astro — une feuille scopée ne les atteindrait pas. Toutes les classes sont
+  préfixées `luma-`, il n'y a rien à protéger.
+*/}
+<style is:global>
+  .luma { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+  .luma-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(31, 31, 31, 0.56);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .luma.is-open { pointer-events: auto; }
+  .luma.is-open .luma-backdrop { opacity: 1; }
+
+  .luma-panel {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: 480px;
+    max-width: 92vw;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 32px 32px 20px;
+    background: var(--bg);
+    border-radius: 8px;
+    box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.08);
+    transform: translateX(calc(100% + 8px));
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .luma.is-open .luma-panel { transform: translateX(0); }
+  /* En RTL, le panneau vient de la gauche : le geste suit le sens de lecture. */
+  [dir="rtl"] .luma-panel {
+    right: auto;
+    left: 8px;
+    transform: translateX(calc(-100% - 8px));
+  }
+
+  .luma-close {
+    position: absolute;
+    top: 16px;
+    inset-inline-end: 16px;
+    border: 0;
+    background: transparent;
+    padding: 4px;
+    line-height: 0;
+    cursor: pointer;
+  }
+
+  .luma-head { display: flex; flex-direction: column; gap: 4px; }
+  .luma-title { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  .luma-subtitle { margin: 0; font-size: 14px; opacity: 0.7; }
+
+  /* La conversation est la seule zone qui défile ; l'entête et le champ restent en place. */
+  .luma-log {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding: 4px 0;
+    margin: 0 -8px;
+    padding-inline: 8px;
+  }
+
+  /* Du texte, pas de bulles : Luma du côté de la lecture, en italique ; le visiteur de l'autre côté. */
+  .luma-msg { display: flex; flex-direction: column; gap: 12px; max-width: 92%; }
+  .luma-msg p { margin: 0; font-size: 16px; line-height: 1.5; }
+  .luma-msg-luma { align-self: flex-start; font-style: italic; }
+  .luma-msg-visitor { align-self: flex-end; text-align: end; opacity: 0.85; }
+  .luma-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  .luma-cursor {
+    display: inline-block;
+    width: 1px;
+    height: 1em;
+    margin-inline-start: 2px;
+    background: currentColor;
+    vertical-align: -0.15em;
+    animation: luma-blink 1s steps(2) infinite;
+  }
+  @keyframes luma-blink { to { opacity: 0; } }
+
+  .luma-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .luma-chip {
+    padding: 8px 14px;
+    border: 1px solid rgba(21, 14, 10, 0.16);
+    border-radius: 999px;
+    background: transparent;
+    font: inherit;
+    font-style: normal;
+    font-size: 14px;
+    color: inherit;
+    cursor: pointer;
+  }
+  .luma-chip:hover { background: var(--paper); }
+
+  /* Un Reflet : image sur fond neutre, nom, une phrase, un seul lien. Le prix attend le survol. */
+  .luma-card {
+    display: flex;
+    gap: 16px;
+    padding: 12px;
+    background: var(--paper);
+    border-radius: 8px;
+    font-style: normal;
+  }
+  .luma-card-img { width: 88px; height: 88px; object-fit: cover; background: var(--sand); border-radius: 4px; flex: none; }
+  .luma-card-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; justify-content: center; }
+  .luma-card-name { font-size: 15px; font-weight: 500; text-transform: uppercase; }
+  .luma-card-line { font-size: 14px; line-height: 1.45; opacity: 0.85; }
+  .luma-card-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 2px; }
+  .luma-card-link {
+    font-size: 14px;
+    font-weight: 500;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .luma-card-price {
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-variant-numeric: tabular-nums;
+  }
+  .luma-card:hover .luma-card-price,
+  .luma-card:focus-within .luma-card-price,
+  .luma-card.is-revealed .luma-card-price { opacity: 0.7; }
+
+  .luma-alt { font-size: 14px; font-style: normal; }
+  .luma-alt a, .luma-handoff a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+  .luma-handoff { font-style: normal; }
+
+  .luma-status { margin: 0; min-height: 1.3em; font-size: 14px; opacity: 0.6; }
+
+  .luma-form, .luma-email-row { display: flex; gap: 8px; }
+  .luma-email { display: flex; flex-direction: column; gap: 10px; font-style: normal; }
+  .luma-input {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid rgba(21, 14, 10, 0.16);
+    border-radius: 4px;
+    background: var(--paper);
+    font: inherit;
+    font-size: 15px;
+    color: inherit;
+  }
+  .luma-input::placeholder { opacity: 0.5; }
+  .luma-input:disabled { opacity: 0.6; }
+  .luma-send {
+    padding: 12px 18px;
+    border: 0;
+    border-radius: 4px;
+    background: var(--ink);
+    color: var(--bg);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .luma-send:disabled { opacity: 0.5; cursor: default; }
+  .luma-consent { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.4; opacity: 0.8; }
+  .luma-consent input { margin-top: 3px; }
+  .luma-email-done { font-size: 14px; opacity: 0.8; }
+
+  .luma-privacy { margin: 0; font-size: 12px; opacity: 0.55; }
+
+  @media (max-width: 560px) {
+    .luma-panel {
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      max-width: 100vw;
+      border-radius: 0;
+      transform: translateX(100%);
+      padding: 24px 20px 16px;
+    }
+    [dir="rtl"] .luma-panel { left: 0; transform: translateX(-100%); }
+    .luma.is-open .luma-panel { transform: translateX(0); }
+    .luma-card-img { width: 72px; height: 72px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .luma-backdrop, .luma-panel, .luma-card-price { transition: none; }
+    .luma-cursor { animation: none; }
+  }
+</style>
