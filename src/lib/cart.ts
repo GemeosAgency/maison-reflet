@@ -185,8 +185,23 @@ export async function loadCart(): Promise<ShopifyCart | null> {
 
 export type CartLine = { variantId: string; quantity: number };
 
+export type AddToCartOptions = {
+  /**
+   * Ouvrir le tiroir après l'ajout. Vrai par défaut : un ajout est presque
+   * toujours un geste du visiteur. À passer à `false` pour un ajout
+   * TECHNIQUE — la réconciliation de l'échantillon offert (voir
+   * ensureSampleLine dans CartDrawer) passe elle aussi par addToCart et peut
+   * se déclencher au chargement de la page : le panier n'a alors aucune
+   * raison de surgir tout seul.
+   */
+  openDrawer?: boolean;
+};
+
 /** Ajoute une ou plusieurs lignes au panier (ex : lot Buy 2 Get 1 Free), en créant le panier au premier ajout */
-export async function addManyToCart(lines: CartLine[]): Promise<ShopifyCart> {
+export async function addManyToCart(
+  lines: CartLine[],
+  options: AddToCartOptions = {}
+): Promise<ShopifyCart> {
   const cartId = getStoredCartId();
   const shopifyLines = lines.map((l) => ({ merchandiseId: l.variantId, quantity: l.quantity }));
   let cart: ShopifyCart | null = null;
@@ -233,14 +248,18 @@ export async function addManyToCart(lines: CartLine[]): Promise<ShopifyCart> {
   }
 
   notifyCartUpdated(cart);
-  openCartDrawer();
+  if (options.openDrawer !== false) openCartDrawer();
   trackAddedToCart(cart, lines);
   return cart;
 }
 
 /** Ajoute une variante au panier, en créant le panier au premier ajout */
-export async function addToCart(variantId: string, quantity = 1): Promise<ShopifyCart> {
-  return addManyToCart([{ variantId, quantity }]);
+export async function addToCart(
+  variantId: string,
+  quantity = 1,
+  options: AddToCartOptions = {}
+): Promise<ShopifyCart> {
+  return addManyToCart([{ variantId, quantity }], options);
 }
 
 /** Retire une ligne du panier courant */
@@ -274,27 +293,43 @@ export async function updateCartLineQuantity(
  *
  * Une remise automatique Shopify (ex "2 achetés, le 3e offert") peut scinder
  * une même variante en plusieurs lignes de panier (unités payantes + unité à
- * 0 remisée) — cibler une seule ligne avec cartLinesUpdate laisserait les
- * autres lignes de cette variante inchangées et fausserait le total. On
- * retire donc TOUTES les lignes de cette variante puis on la rajoute au
- * total souhaité, ce qui laisse Shopify recalculer/rescinder la remise
- * proprement à partir d'un état propre.
+ * 0 remisée) — ne toucher qu'une seule de ces lignes laisserait les autres
+ * inchangées et fausserait le total. On envoie donc, dans UNE SEULE mutation,
+ * la quantité voulue sur la première ligne et 0 sur les suivantes : Shopify
+ * repart d'un état propre et rescinde la remise lui-même.
+ *
+ * Cette version tient en un aller-retour. La précédente en faisait trois
+ * (getCart, puis un retrait PAR ligne, puis un ajout) et l'écran ne bougeait
+ * qu'à la fin : c'est ce qui rendait les boutons +/- du tiroir si lents.
+ *
+ * `knownCart` supprime le getCart quand l'appelant connaît déjà le panier
+ * affiché — c'est le cas du tiroir.
  */
 export async function setVariantQuantity(
   variantId: string,
-  quantity: number
+  quantity: number,
+  knownCart?: ShopifyCart | null
 ): Promise<ShopifyCart | null> {
   const cartId = getStoredCartId();
   if (!cartId) return null;
 
-  let cart = await getCart(cartId);
-  const matching = (cart?.lines.nodes ?? []).filter((l) => l.merchandise.id === variantId);
-  for (const line of matching) {
-    cart = await removeCartLine(cartId, line.id);
+  const base = knownCart ?? (await getCart(cartId));
+  const matching = (base?.lines.nodes ?? []).filter((l) => l.merchandise.id === variantId);
+
+  let cart: ShopifyCart | null = base;
+  if (matching.length === 0) {
+    if (quantity > 0) {
+      cart = (await addCartLine(cartId, [{ merchandiseId: variantId, quantity }])) ?? cart;
+    }
+  } else {
+    // Quantité 0 sur une ligne = suppression de la ligne côté Shopify, d'où
+    // le même chemin pour le retrait complet que pour un simple ajustement.
+    cart = await updateCartLines(
+      cartId,
+      matching.map((line, i) => ({ id: line.id, quantity: i === 0 ? Math.max(0, quantity) : 0 }))
+    );
   }
-  if (quantity > 0) {
-    cart = (await addCartLine(cartId, [{ merchandiseId: variantId, quantity }])) ?? cart;
-  }
+
   notifyCartUpdated(cart);
   return cart;
 }

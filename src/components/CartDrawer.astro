@@ -403,7 +403,9 @@ const FREE_SHIPPING_THRESHOLD = 400;
     reconciling = true;
     try {
       if (existingSampleLine) await removeFromCart(existingSampleLine.id);
-      await addToCart(target, 1);
+      // Ajout technique : il peut survenir au chargement de la page (panier
+      // éligible sans ligne échantillon), le tiroir n'a pas à surgir.
+      await addToCart(target, 1, { openDrawer: false });
     } finally {
       reconciling = false;
     }
@@ -512,21 +514,74 @@ const FREE_SHIPPING_THRESHOLD = 400;
     if (cart) ensureSampleLine(cart);
   }
 
-  // Quantité / retrait (délégation sur le conteneur des lignes, reconstruit à chaque rendu)
-  linesEl?.addEventListener("click", async (e) => {
+  /*
+   * Quantité : affichage immédiat, envoi regroupé.
+   *
+   * Avant, un clic sur + ou − attendait la réponse de Shopify avant de bouger
+   * d'un pixel, et chaque clic lançait sa propre série de mutations : quatre
+   * clics rapprochés faisaient quatre allers-retours en file, à la queue les
+   * uns des autres. Désormais le nombre change tout de suite et seule la
+   * DERNIÈRE valeur part au serveur.
+   *
+   * Les montants, eux, attendent la réponse : une remise automatique ne se
+   * recalcule pas au prorata (le 3e exemplaire est offert), donc un total
+   * deviné à l'écran sauterait ensuite à la correction. Mieux vaut le laisser
+   * pâlir un instant — voir `.is-pending` dans les styles.
+   */
+  const pendingQty = new Map<string, number>();
+  let flushTimer: number | undefined;
+
+  function displayedQuantity(variantId: string): number {
+    const queued = pendingQty.get(variantId);
+    if (queued !== undefined) return queued;
+    return groupLines(currentCart).find((g) => g.variantId === variantId)?.quantity ?? 0;
+  }
+
+  function queueQuantity(variantId: string, quantity: number) {
+    const next = Math.max(0, quantity);
+    pendingQty.set(variantId, next);
+
+    const lineEl = linesEl?.querySelector<HTMLElement>(`.cart-line[data-variant-id="${variantId}"]`);
+    if (lineEl) {
+      const value = lineEl.querySelector<HTMLElement>(".cart-qty-value");
+      if (value) value.textContent = String(next);
+      lineEl.classList.add("is-pending");
+      if (next === 0) lineEl.hidden = true;
+    }
+    // Le compteur du sac suit tout de suite : c'est une somme d'unités, pas
+    // un prix, on peut la deviner sans risque.
+    if (countEl && currentCart) {
+      const avant = groupLines(currentCart).find((g) => g.variantId === variantId)?.quantity ?? 0;
+      countEl.textContent = String(Math.max(0, currentCart.totalQuantity + next - avant));
+    }
+
+    window.clearTimeout(flushTimer);
+    flushTimer = window.setTimeout(flushQuantities, 260);
+  }
+
+  async function flushQuantities() {
+    const jobs = [...pendingQty.entries()];
+    pendingQty.clear();
+    let cart = currentCart;
+    for (const [variantId, quantity] of jobs) {
+      cart = await setVariantQuantity(variantId, quantity, cart);
+    }
+    render(cart);
+  }
+
+  // Délégation sur le conteneur des lignes, reconstruit à chaque rendu
+  linesEl?.addEventListener("click", (e) => {
     const target = e.target as HTMLElement;
     const lineEl = target.closest<HTMLElement>("[data-variant-id]");
     const variantId = lineEl?.dataset.variantId;
     if (!variantId || !currentCart) return;
-    const group = groupLines(currentCart).find((g) => g.variantId === variantId);
-    if (!group) return;
 
     if (target.closest("[data-line-remove]")) {
-      render(await setVariantQuantity(variantId, 0));
+      queueQuantity(variantId, 0);
     } else if (target.closest("[data-line-increase]")) {
-      render(await setVariantQuantity(variantId, group.quantity + 1));
+      queueQuantity(variantId, displayedQuantity(variantId) + 1);
     } else if (target.closest("[data-line-decrease]")) {
-      render(await setVariantQuantity(variantId, group.quantity - 1));
+      queueQuantity(variantId, displayedQuantity(variantId) - 1);
     }
   });
 
@@ -545,7 +600,17 @@ const FREE_SHIPPING_THRESHOLD = 400;
 
   // Les cartes upsell utilisent [data-add-to-cart] : gérées par le câblage
   // global (initAddToCartButtons, voir Layout.astro) — pas de code ici.
-  document.addEventListener("cart:updated", (e) => render((e as CartUpdatedEvent).detail.cart));
+  document.addEventListener("cart:updated", (e) => {
+    const cart = (e as CartUpdatedEvent).detail.cart;
+    // Un rendu reconstruit les lignes : le faire alors qu'un clic sur +/- est
+    // encore en attente d'envoi effacerait le nombre que le visiteur vient de
+    // voir changer. On garde le panier de côté, le prochain flush rendra.
+    if (pendingQty.size > 0) {
+      currentCart = cart;
+      return;
+    }
+    render(cart);
+  });
 
   loadCart()
     .then(render)
@@ -606,6 +671,10 @@ const FREE_SHIPPING_THRESHOLD = 400;
   .cart-line-name { font-size: 14px; font-weight: 400; color: var(--ink); }
   .cart-line-title { font-size: 16px; font-weight: 500; text-transform: uppercase; }
   .cart-line-price { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+  /* Quantité déjà changée à l'écran, montant pas encore confirmé par Shopify
+     (voir queueQuantity) : le prix pâlit le temps de l'aller-retour. */
+  .cart-line.is-pending .cart-line-price,
+  .cart-line.is-pending .cart-badge { opacity: 0.4; transition: opacity 0.15s ease; }
   .cart-line-inspired { margin: 0; font-size: 14px; color: var(--ink); }
   .cart-line-bottom { display: flex; align-items: center; justify-content: space-between; }
   .cart-line-qty { display: flex; }
