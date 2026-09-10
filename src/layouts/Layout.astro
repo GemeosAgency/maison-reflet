@@ -188,6 +188,25 @@ const navLinks = [
     }
     <title>{title} | Maison Reflet</title>
     <style is:global>
+      /*
+       * L'attribut `hidden` doit toujours l'emporter.
+       *
+       * Le navigateur le rend avec `[hidden] { display: none }` dans SA feuille
+       * de style — et une règle d'auteur bat toujours celle du navigateur,
+       * quelle que soit la spécificité. Le moindre `display: flex` sur un
+       * composant annule donc son propre `hidden` : la pastille « Livraison
+       * vers … » s'est affichée vide en permanence sur le staging pour cette
+       * seule raison. `!important` est ici le seul moyen de rétablir la
+       * priorité, et il vaut pour tous les composants à venir.
+       *
+       * Piège de vérification associé : lire `el.hidden` en JavaScript ne dit
+       * rien de ce qui est à l'écran, seulement de l'attribut. C'est
+       * `getComputedStyle(el).display` qu'il faut regarder.
+       */
+      [hidden] {
+        display: none !important;
+      }
+
       @font-face {
         font-family: "PP Neue Montreal";
         src: url("/fonts/ppneuemontreal-thin.woff2") format("woff2");
