@@ -51,16 +51,16 @@ const perfumes = allProducts
       inspired: inspiredMap[p.handle] ?? null,
       price: formatPrice(price.amount, price.currencyCode),
       img: recoImg?.main
-        ? urlForImage(recoImg.main as any).width(800).height(1000).url()
+        ? urlForImage(recoImg.main as any).width(1200).height(1605).url()
         : p.featuredImage
-          ? shopifyImage(p.featuredImage, [400, 800]).src
+          ? shopifyImage(p.featuredImage, [480, 720, 1200]).src
           : null,
       // Seconde photo du survol : la version curée dans Sanity si elle existe,
       // sinon la deuxième photo produit de Shopify. Les visuels de variante
       // échantillon sont écartés — ce sont des vignettes de 192px destinées au
       // panier, pas des angles de flacon.
       hoverImg: recoImg?.hover
-        ? urlForImage(recoImg.hover as any).width(800).height(1000).url()
+        ? urlForImage(recoImg.hover as any).width(1200).height(1605).url()
         : (() => {
             const sampleUrls = new Set(
               p.variants.nodes
@@ -71,7 +71,7 @@ const perfumes = allProducts
             const autres = [p.featuredImage, ...p.images.nodes]
               .filter((im) => im && !sampleUrls.has(im.url))
               .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i);
-            return autres[1] ? shopifyImage(autres[1]!, [400, 800]).src : null;
+            return autres[1] ? shopifyImage(autres[1]!, [480, 720, 1200]).src : null;
           })(),
       variantId: variant.id,
       href: localePath(lang, `/parfums/${p.handle}`),
