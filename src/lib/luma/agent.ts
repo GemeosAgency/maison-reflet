@@ -113,14 +113,19 @@ async function generate(input: AnswerInput, reminder?: string): Promise<Attempt>
   const extracted = extractActions(message, input.knowledge, input.userMessage);
   const actions = normalizeReplies(extracted.actions, input.knowledge);
   const violations = extracted.violations;
-  // La fiche accompagne toujours un Reflet nommé (Sandro, 11 septembre 2026) :
-  // si le modèle a parlé d'un produit sans appeler l'outil, la carte du premier
-  // produit nommé s'ajoute ici — ce n'est pas une infraction, c'est un oubli.
-  if (!actions.some((a) => a.type === "recommend_reflet" || a.type === "show_product")) {
-    const named = productsNamedIn(text, input.knowledge);
-    // Un ou deux produits nommés : c'est une recommandation, la fiche suit.
-    // Trois ou plus : c'est un panorama de la collection, pas de fiche isolée.
-    if (named.length > 0 && named.length <= 2) actions.push({ type: "show_product", handle: named[0].handle });
+  // La fiche accompagne toujours un Reflet nommé (Sandro, 11 septembre 2026),
+  // et dans une comparaison CHAQUE Reflet comparé a la sienne : tout produit
+  // nommé dans le texte et absent des outils reçoit sa fiche ici. Un ou deux
+  // produits nommés : recommandation ou comparaison. Trois ou plus : panorama
+  // de la collection, pas de fiche isolée.
+  const named = productsNamedIn(text, input.knowledge);
+  if (named.length > 0 && named.length <= 2) {
+    const covered = new Set(
+      actions.flatMap((a) =>
+        a.type === "recommend_reflet" ? [a.reflet, a.alternative] : a.type === "show_product" ? [a.handle] : []
+      )
+    );
+    for (const p of named) if (!covered.has(p.handle)) actions.push({ type: "show_product", handle: p.handle });
   }
   violations.push(
     ...checkOutput(text),

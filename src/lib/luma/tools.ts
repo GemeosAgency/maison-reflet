@@ -41,7 +41,7 @@ export const LUMA_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "show_product",
-    description: "Affiche un produit du catalogue dans la conversation, quand Luma le nomme précisément.",
+    description: "Affiche un produit du catalogue dans la conversation, quand Luma le nomme précisément. Dans une comparaison, un appel par produit comparé.",
     strict: true,
     input_schema: {
       type: "object",
