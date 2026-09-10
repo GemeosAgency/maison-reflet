@@ -1,7 +1,7 @@
 /**
  * Habillage provisoire des fiches produit, en attendant le shooting.
  *
- * État constaté (septembre 2026) : seul Bois Brouge dispose de photos du
+ * État constaté (septembre 2026) : seul Bois Alert (ex-Bois Brouge) dispose de photos du
  * NOUVEAU packaging. Les 5 autres parfums portent encore, dans Sanity, des
  * visuels de l'ancienne génération de flacon (autre forme, étiquette dorée
  * ornementée, jus colorés) — deux designs de flacon coexistaient donc sur le
@@ -31,7 +31,7 @@
 import fs from "node:fs";
 import { createClient } from "@sanity/client";
 
-const SOURCE = "bois-brouge";
+const SOURCE = "bois-alert";
 const dry = process.argv.includes("--dry");
 
 const env = { ...process.env };
