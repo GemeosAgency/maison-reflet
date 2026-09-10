@@ -205,7 +205,24 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
       section
         .querySelectorAll<HTMLElement>("[data-snotes-panel]")
         .forEach((panel) => {
-          panel.hidden = panel.dataset.snotesPanel !== id;
+          const on = panel.dataset.snotesPanel === id;
+          panel.hidden = !on;
+          if (!on) {
+            panel.classList.remove("is-entering");
+            return;
+          }
+          /*
+           * Le panneau qui apparaît rejoue son animation d'entrée. On retire
+           * la classe puis on force un recalcul avant de la remettre, sinon
+           * un second clic sur le même onglet — ou deux clics rapprochés — ne
+           * relancerait rien : la classe serait déjà là.
+           *
+           * On la laisse ensuite en place : l'animation se termine sur l'état
+           * de repos, donc rien à nettoyer.
+           */
+          panel.classList.remove("is-entering");
+          void panel.offsetWidth;
+          panel.classList.add("is-entering");
         });
     };
 
@@ -414,6 +431,41 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
   }
   .snotes-img.is-loaded { opacity: 1; transform: none; }
 
+  /*
+   * Entrée du panneau au changement d'onglet.
+   *
+   * Le fondu de `.snotes-img` ne joue qu'une fois, au premier chargement :
+   * une fois l'image en cache elle est déjà opaque, donc changer d'onglet
+   * l'affichait d'un coup. Ces keyframes rejouent une apparition à chaque
+   * bascule, décalée d'une colonne à l'autre pour que le triptyque se pose
+   * au lieu d'arriver d'un bloc.
+   *
+   * `both` fait tenir l'état final, qui est l'état de repos — la classe peut
+   * donc rester sur le panneau visible sans rien figer.
+   */
+  @keyframes snotes-col-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes snotes-img-in {
+    from { transform: scale(1.035); }
+    to { transform: none; }
+  }
+  .snotes-grid.is-entering .snotes-col {
+    animation: snotes-col-in 0.42s ease both;
+  }
+  .snotes-grid.is-entering .snotes-img {
+    animation: snotes-img-in 0.85s cubic-bezier(0.2, 0, 0.2, 1) both;
+  }
+  .snotes-grid.is-entering .snotes-col:nth-child(2),
+  .snotes-grid.is-entering .snotes-col:nth-child(2) .snotes-img {
+    animation-delay: 0.07s;
+  }
+  .snotes-grid.is-entering .snotes-col:nth-child(3),
+  .snotes-grid.is-entering .snotes-col:nth-child(3) .snotes-img {
+    animation-delay: 0.14s;
+  }
+
   .snotes-note.is-key { font-weight: 700; }
 
   /* Glissement et fondu sont du décor : on les retire si l'utilisateur a
@@ -421,6 +473,8 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
   @media (prefers-reduced-motion: reduce) {
     .snotes-tabs-pill.is-ready { transition: none; }
     .snotes-img { transition: none; transform: none; }
+    .snotes-grid.is-entering .snotes-col,
+    .snotes-grid.is-entering .snotes-img { animation: none; }
   }
 
   /* Sous 1100px les colonnes deviendraient trop étroites pour que la matière
