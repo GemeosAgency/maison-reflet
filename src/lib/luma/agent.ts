@@ -21,7 +21,7 @@ import type { Locale } from "../../i18n";
 import { checkNumbers, checkOutput, reminderFor, type Violation } from "./guardrails";
 import type { Knowledge } from "./knowledge";
 import { FALLBACK_REPLY, UNAVAILABLE_REPLY, buildSystemBlocks, type VisitContext } from "./persona";
-import { LUMA_TOOLS, extractActions, productsNamedIn, type LumaAction } from "./tools";
+import { LUMA_TOOLS, extractActions, fallbackReplies, productsNamedIn, type LumaAction } from "./tools";
 
 export const LUMA_MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 1024;
@@ -63,6 +63,12 @@ export type AgentReply = {
   usage: Usage;
   /** Infractions relevées, y compris celles corrigées par la régénération. */
   violations: Violation[];
+  /**
+   * Manques « doux » de la première tentative — pas des infractions : une
+   * recommandation sans question de suite, des réponses toutes faites
+   * oubliées. Ils valent une seconde chance, jamais une réponse de secours.
+   */
+  soft: Violation[];
   regenerated: boolean;
   /** Réponse de secours servie (deux régénérations fautives, refus, panne). */
   fallback: boolean;
@@ -89,7 +95,7 @@ function textOf(message: Anthropic.Message): string {
     .trim();
 }
 
-type Attempt = { text: string; actions: LumaAction[]; violations: Violation[]; message: Anthropic.Message };
+type Attempt = { text: string; actions: LumaAction[]; violations: Violation[]; soft: Violation[]; message: Anthropic.Message };
 
 async function generate(input: AnswerInput, reminder?: string): Promise<Attempt> {
   const message = await getClient().messages.create({
@@ -110,7 +116,9 @@ async function generate(input: AnswerInput, reminder?: string): Promise<Attempt>
   // produit nommé s'ajoute ici — ce n'est pas une infraction, c'est un oubli.
   if (!actions.some((a) => a.type === "recommend_reflet" || a.type === "show_product")) {
     const named = productsNamedIn(text, input.knowledge);
-    if (named[0]) actions.push({ type: "show_product", handle: named[0].handle });
+    // Un ou deux produits nommés : c'est une recommandation, la fiche suit.
+    // Trois ou plus : c'est un panorama de la collection, pas de fiche isolée.
+    if (named.length > 0 && named.length <= 2) actions.push({ type: "show_product", handle: named[0].handle });
   }
   violations.push(
     ...checkOutput(text),
@@ -118,7 +126,86 @@ async function generate(input: AnswerInput, reminder?: string): Promise<Attempt>
   );
   if (!text) violations.push({ rule: "réponse sans texte", match: "∅" });
   if (message.stop_reason === "max_tokens") violations.push({ rule: "réponse coupée", match: "max_tokens" });
-  return { text, actions, violations, message };
+
+  // Les deux règles de Sandro (11 septembre 2026) que le modèle oublie parfois :
+  // la conversation continue, et le visiteur a toujours de quoi cliquer.
+  const soft: Violation[] = [];
+  if (!actions.some((a) => a.type === "suggest_replies")) soft.push({ rule: "réponses toutes faites manquantes", match: "suggest_replies" });
+  const lastParagraph = text.split(/\n+/).filter(Boolean).pop() ?? "";
+  if (recommends(actions) && text && !/[?؟]/.test(lastParagraph)) {
+    soft.push({ rule: "recommandation sans question de suite", match: lastParagraph.slice(-60) });
+  }
+  return { text, actions, violations, soft, message };
+}
+
+function recommends(actions: LumaAction[]): boolean {
+  return actions.some((a) => a.type === "recommend_reflet" || a.type === "show_product");
+}
+
+const COMPLETE_INSTRUCTION =
+  "[Consigne de la Maison — le visiteur ne voit pas ce message] Complète ta dernière réponse sans la réécrire. Réponds uniquement par un objet JSON, sans autre texte : " +
+  '{"question": "la question courte, dans la langue de la conversation, qui vérifie le choix et continue l\'échange (jour ou soir, présence ou discrétion, déjà senti, pour qui) — ou une chaîne vide si ta réponse se termine déjà par une question", ' +
+  '"replies": ["deux à quatre réponses courtes que le visiteur pourrait cliquer, formulées comme il les dirait, dans la langue de la conversation ; les parfums d\'origine de la collection si tu lui demandes ce qu\'il porte"]}';
+
+/**
+ * Complète une réponse propre mais incomplète — sans question de suite, ou
+ * sans réponses toutes faites — par un petit appel sans réflexion (~2 s) qui
+ * ne renvoie que ce qui manque. Régénérer toute la réponse coûtait 6 à 8 s et
+ * le modèle ratait parfois la seconde. Tout ce qui revient passe les garde-fous
+ * avant d'être ajouté ; si rien d'utilisable ne revient, le code fournit des
+ * réponses toutes faites de secours et la réponse reste telle quelle.
+ */
+async function complete(a: Attempt, input: AnswerInput): Promise<{ attempt: Attempt; usage: Anthropic.Usage | null }> {
+  const needsQuestion = a.soft.some((v) => v.rule === "recommandation sans question de suite");
+  const needsChips = a.soft.some((v) => v.rule === "réponses toutes faites manquantes");
+  const clean = (s: string) =>
+    checkOutput(s).length === 0 && checkNumbers(s, input.knowledge.allowedNumbers, input.knowledge.allowedDelays).length === 0;
+  try {
+    // Mêmes outils, même réflexion que le tour : le préfixe de cache (outils +
+    // persona + catalogue) est relu, pas réécrit. tool_choice none : du texte.
+    const res = await getClient().messages.create({
+      model: LUMA_MODEL,
+      max_tokens: 300,
+      thinking: { type: "adaptive" },
+      output_config: { effort: "low" },
+      system: buildSystemBlocks(input.knowledge, input.context, input.now),
+      tools: LUMA_TOOLS,
+      tool_choice: { type: "none" },
+      messages: [
+        ...input.history,
+        { role: "user", content: input.userMessage },
+        { role: "assistant", content: a.text },
+        { role: "user", content: COMPLETE_INSTRUCTION },
+      ],
+    });
+    const raw = textOf(res).replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
+    const parsed = JSON.parse(raw) as { question?: unknown; replies?: unknown };
+
+    let text = a.text;
+    let actions = a.actions;
+    const question = typeof parsed.question === "string" ? parsed.question.trim() : "";
+    if (needsQuestion && question && question.length <= 160 && /[?؟]$/.test(question) && clean(question)) {
+      text = `${text}\n\n${question}`;
+    }
+    if (needsChips) {
+      const replies = (Array.isArray(parsed.replies) ? parsed.replies : [])
+        .filter((r): r is string => typeof r === "string")
+        .map((r) => r.trim())
+        .filter((r) => r.length > 0 && r.length <= 60 && clean(r))
+        .slice(0, 6);
+      if (replies.length >= 2) actions = [...actions, { type: "suggest_replies", replies }];
+    }
+    return { attempt: withFallbackChips({ ...a, text, actions }, input), usage: res.usage };
+  } catch (error) {
+    console.error("[luma/agent] complément non obtenu :", error instanceof Error ? error.message : String(error));
+    return { attempt: withFallbackChips(a, input), usage: null };
+  }
+}
+
+/** Si les réponses toutes faites manquent encore, le code les fournit. */
+function withFallbackChips(a: Attempt, input: AnswerInput): Attempt {
+  if (a.actions.some((x) => x.type === "suggest_replies")) return a;
+  return { ...a, actions: [...a.actions, { type: "suggest_replies", replies: fallbackReplies(input.locale, a.text, recommends(a.actions)) }] };
 }
 
 export async function answer(input: AnswerInput): Promise<AgentReply> {
@@ -136,19 +223,28 @@ export async function answer(input: AnswerInput): Promise<AgentReply> {
         model: first.message.model,
         usage,
         violations: [{ rule: "refus du modèle", match: first.message.stop_details?.category ?? "" }],
+        soft: [],
         regenerated: false,
         fallback: true,
       };
     }
     if (first.violations.length === 0) {
-      return { ...pick(first), model: first.message.model, usage, violations: [], regenerated: false, fallback: false };
+      if (first.soft.length === 0) {
+        return { ...pick(first), model: first.message.model, usage, violations: [], soft: [], regenerated: false, fallback: false };
+      }
+      // Rien d'interdit, mais la conversation s'arrête ou n'offre rien à
+      // cliquer : un complément, jamais une réécriture ni un secours.
+      const { attempt, usage: extra } = await complete(first, input);
+      if (extra) usage = addUsage(usage, extra);
+      return { ...pick(attempt), model: first.message.model, usage, violations: [], soft: first.soft, regenerated: false, fallback: false };
     }
     allViolations.push(...first.violations);
 
     const second = await generate(input, reminderFor(first.violations));
     usage = addUsage(usage, second.message.usage);
     if (second.message.stop_reason !== "refusal" && second.violations.length === 0) {
-      return { ...pick(second), model: second.message.model, usage, violations: allViolations, regenerated: true, fallback: false };
+      const chosen = withFallbackChips(second, input);
+      return { ...pick(chosen), model: chosen.message.model, usage, violations: allViolations, soft: second.soft, regenerated: true, fallback: false };
     }
     allViolations.push(...second.violations);
     return {
@@ -157,6 +253,7 @@ export async function answer(input: AnswerInput): Promise<AgentReply> {
       model: second.message.model,
       usage,
       violations: allViolations,
+      soft: [],
       regenerated: true,
       fallback: true,
     };
@@ -176,6 +273,7 @@ export async function answer(input: AnswerInput): Promise<AgentReply> {
       model: LUMA_MODEL,
       usage,
       violations: allViolations,
+      soft: [],
       regenerated: false,
       fallback: true,
       error: detail,

@@ -272,6 +272,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           ...phases,
           regenerated: reply.regenerated,
           violations: reply.violations.length,
+          soft: reply.soft.map((v) => v.rule),
+          actions: reply.actions.map((a) => a.type),
           tokens_out: reply.usage.outputTokens,
           cache_read: reply.usage.cacheReadTokens,
         });

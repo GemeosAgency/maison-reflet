@@ -215,6 +215,7 @@ const ui = {
     "luma.added": "Ajouté au panier",
     "luma.soldOut": "Indisponible pour le moment",
     "luma.resume": "Reprendre la conversation",
+    "luma.alternative": "L'alternative",
   },
   ar: {
     "banner.promo": "شحن مجاني للطلبات من {amount}",
@@ -402,6 +403,7 @@ const ui = {
     "luma.added": "أُضيف إلى السلة",
     "luma.soldOut": "غير متوفر حالياً",
     "luma.resume": "متابعة الحديث",
+    "luma.alternative": "البديل",
   },
   en: {
     "banner.promo": "Free shipping on orders over {amount}",
@@ -590,6 +592,7 @@ const ui = {
     "luma.added": "Added to your bag",
     "luma.soldOut": "Unavailable for now",
     "luma.resume": "Resume the conversation",
+    "luma.alternative": "The alternative",
   },
 } as const;
 

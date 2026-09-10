@@ -14,9 +14,10 @@
  *
  * Décisions de Sandro après le premier test en staging (11 septembre 2026),
  * qui priment sur le brief là où elles le contredisent :
- *  - chaque Reflet recommandé se montre par une fiche complète — visuel, nom,
- *    phrase, prix affiché, « Ajouter au panier » (sans ouvrir le tiroir : on
- *    reste avec Luma) et « Voir le produit » ;
+ *  - chaque Reflet recommandé se montre par une fiche complète — visuel
+ *    cliquable, nom, phrase, prix affiché, « Ajouter au panier » (sans ouvrir
+ *    le tiroir : on reste avec Luma) et « Voir le produit » — et l'alternative
+ *    a sa fiche aussi, pas un simple lien ;
  *  - Luma propose des réponses toutes faites à chaque message, un clic envoie ;
  *  - la conversation suit la session d'un bout à l'autre du site : le fil
  *    complet (fiches comprises) vit dans sessionStorage le temps de l'onglet,
@@ -43,8 +44,6 @@ const t = useTranslations(lang);
   is:inline
   set:html={JSON.stringify({
     thinking: t("luma.thinking"),
-    discover: t("luma.discover"),
-    otherwise: t("luma.otherwise"),
     unavailable: t("luma.unavailable").replace("{email}", CONTACT_EMAIL),
     writeTo: t("luma.writeTo"),
     emailLabel: t("luma.emailLabel"),
@@ -56,6 +55,7 @@ const t = useTranslations(lang);
     added: t("luma.added"),
     soldOut: t("luma.soldOut"),
     resume: t("luma.resume"),
+    alternative: t("luma.alternative"),
     you: t("luma.you"),
     name: t("luma.name"),
     contact: CONTACT_EMAIL,
@@ -140,8 +140,6 @@ const t = useTranslations(lang);
   const TYPING_MS = 34;
 
   const i18n: Record<string, string> = JSON.parse(document.getElementById("luma-i18n")?.textContent || "{}");
-  const fill = (template: string, tokens: Record<string, string>) =>
-    Object.entries(tokens).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, v), template);
 
   const root = document.querySelector<HTMLElement>("[data-luma]");
   const panel = root?.querySelector<HTMLElement>(".luma-panel");
@@ -292,6 +290,24 @@ const t = useTranslations(lang);
      * onglet passé en arrière-plan (jusqu'à un par minute), et le texte doit
      * être là, complet, quand le visiteur revient — pas continuer à s'écrire.
      */
+    /**
+     * Le seul enrichissement que Luma peut employer : le nom d'un Reflet en gras
+     * (« **Ultra Cuir** ») quand elle présente la collection. Rien d'autre n'est
+     * interprété — des nœuds texte et des <strong>, jamais de HTML.
+     */
+    type Segment = { text: string; strong: boolean };
+    function segments(paragraph: string): Segment[] {
+      return paragraph
+        .split(/(\*\*[^*]+\*\*)/)
+        .filter(Boolean)
+        .map((part) =>
+          part.startsWith("**") && part.endsWith("**") ? { text: part.slice(2, -2), strong: true } : { text: part, strong: false }
+        );
+    }
+    function appendSegments(p: HTMLElement, parts: Segment[]) {
+      for (const part of parts) p.append(part.strong ? el("strong", undefined, part.text) : document.createTextNode(part.text));
+    }
+
     async function addLuma(text: string, instant = reduceMotion): Promise<HTMLElement> {
       const msg = el("div", "luma-msg luma-msg-luma");
       log!.append(msg);
@@ -299,13 +315,17 @@ const t = useTranslations(lang);
       for (const paragraph of paragraphs) {
         const p = el("p");
         msg.append(p);
+        const parts = segments(paragraph);
         if (instant || document.hidden) {
-          p.textContent = paragraph;
+          appendSegments(p, parts);
           continue;
         }
         const cursor = el("span", "luma-cursor");
         p.append(cursor);
-        const words = paragraph.split(" ");
+        // Un mot à la fois, gras compris : chaque segment est découpé en mots.
+        const words: Segment[] = parts.flatMap((part) =>
+          part.text.split(" ").map((w, i) => ({ text: (i ? " " : "") + w, strong: part.strong }))
+        );
         const started = performance.now();
         let shown = 0;
         while (shown < words.length) {
@@ -313,7 +333,11 @@ const t = useTranslations(lang);
             ? words.length
             : Math.min(words.length, Math.floor((performance.now() - started) / TYPING_MS) + 1);
           while (shown < due) {
-            cursor.before(document.createTextNode((shown ? " " : "") + words[shown]));
+            const w = words[shown];
+            const previous = cursor.previousSibling;
+            // Les mots d'un même nom en gras rejoignent le même <strong>.
+            if (w.strong && previous instanceof HTMLElement && previous.tagName === "STRONG") previous.append(w.text);
+            else cursor.before(w.strong ? el("strong", undefined, w.text) : document.createTextNode(w.text));
             shown++;
           }
           scrollToEnd();
@@ -328,12 +352,18 @@ const t = useTranslations(lang);
     /** La fiche d'un Reflet : visuel, nom et prix, la phrase de Luma, les deux gestes du site. */
     function cardNode(card: Card, line?: string): HTMLElement {
       const node = el("article", "luma-card");
+      node.dataset.handle = card.handle;
       if (card.image) {
+        // Le visuel mène au produit, comme partout sur le site.
+        const media = el("a", "luma-card-media") as HTMLAnchorElement;
+        media.href = card.url;
+        media.setAttribute("aria-label", i18n.viewProduct);
         const img = el("img", "luma-card-img") as HTMLImageElement;
         img.src = card.image;
         img.alt = "";
         img.decoding = "async";
-        node.append(img);
+        media.append(img);
+        node.append(media);
       }
       const body = el("div", "luma-card-body");
       const head = el("div", "luma-card-head");
@@ -385,18 +415,16 @@ const t = useTranslations(lang);
       switch (action.type) {
         case "recommend_reflet": {
           into.append(cardNode(action.reflet, action.reason));
+          // Deux parfums proposés, deux fiches (Sandro, 11 septembre 2026).
           if (action.alternative) {
-            const alt = el("p", "luma-alt");
-            const link = el("a", undefined, fill(i18n.otherwise, { name: action.alternative.name })) as HTMLAnchorElement;
-            link.href = action.alternative.url;
-            alt.append(link);
-            into.append(alt);
+            into.append(el("p", "luma-alt-label", i18n.alternative));
+            into.append(cardNode(action.alternative));
           }
           break;
         }
         case "show_product":
           // Déjà montré par la recommandation : ne pas doubler la carte.
-          if (!into.querySelector(`.luma-card`)) into.append(cardNode(action.product));
+          if (!into.querySelector(`.luma-card[data-handle="${action.product.handle}"]`)) into.append(cardNode(action.product));
           break;
         case "handoff_to_human": {
           const p = el("p", "luma-handoff");
@@ -698,6 +726,7 @@ const t = useTranslations(lang);
   /* Du texte, pas de bulles : Luma du côté de la lecture, en italique ; le visiteur de l'autre côté. */
   .luma-msg { display: flex; flex-direction: column; gap: 12px; max-width: 92%; }
   .luma-msg p { margin: 0; font-size: 16px; line-height: 1.5; }
+  .luma-msg-luma strong { font-weight: 500; font-style: normal; }
   .luma-msg-luma { align-self: flex-start; font-style: italic; }
   .luma-msg-visitor { align-self: flex-end; text-align: end; opacity: 0.85; }
   .luma-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -738,26 +767,33 @@ const t = useTranslations(lang);
     border-radius: 8px;
     font-style: normal;
   }
-  .luma-card-img { width: 96px; height: 96px; object-fit: cover; background: var(--sand); border-radius: 4px; flex: none; }
+  .luma-card-media { flex: none; line-height: 0; }
+  .luma-card-img { width: 96px; height: 96px; object-fit: cover; background: var(--sand); border-radius: 4px; }
   .luma-card-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
   .luma-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .luma-card-name { font-size: 15px; font-weight: 500; text-transform: uppercase; }
   .luma-card-price { font-size: 14px; opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .luma-card-line { font-size: 14px; line-height: 1.45; opacity: 0.85; }
   .luma-card-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
+  /* Le CTA panier du site : pilule rose, blanc, capitales (BoxCard, tiroir panier). */
   .luma-card-add {
-    padding: 9px 14px;
-    border: 1px solid var(--ink);
-    border-radius: 4px;
-    background: var(--ink);
-    color: var(--bg);
+    padding: 0 18px;
+    height: 40px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--rose);
+    color: #fff;
     font: inherit;
     font-size: 13px;
     font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
     cursor: pointer;
+    transition: opacity 0.2s;
   }
-  .luma-card-add:disabled { cursor: default; opacity: 0.7; }
-  .luma-card-add.is-added { background: transparent; color: inherit; border-color: rgba(21, 14, 10, 0.16); opacity: 0.85; }
+  .luma-card-add:hover { opacity: 0.85; }
+  .luma-card-add:disabled { cursor: default; }
+  .luma-card-add.is-added { opacity: 0.6; }
   .luma-card-soldout { font-size: 13px; opacity: 0.6; }
   .luma-card-link {
     font-size: 14px;
@@ -767,8 +803,8 @@ const t = useTranslations(lang);
     text-underline-offset: 3px;
   }
 
-  .luma-alt { font-size: 14px; font-style: normal; }
-  .luma-alt a, .luma-handoff a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+  .luma-alt-label { font-size: 12px; font-style: normal; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.6; }
+  .luma-handoff a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
   .luma-handoff { font-style: normal; }
 
   .luma-status { margin: 0; min-height: 1.3em; font-size: 14px; opacity: 0.6; }

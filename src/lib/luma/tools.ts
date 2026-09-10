@@ -11,6 +11,7 @@
  */
 
 import type Anthropic from "@anthropic-ai/sdk";
+import type { Locale } from "../../i18n";
 import { checkNumbers, checkOutput, type Violation } from "./guardrails";
 import type { Knowledge, KnowledgeProduct } from "./knowledge";
 
@@ -208,4 +209,38 @@ export function productsNamedIn(text: string, knowledge: Knowledge): KnowledgePr
     .filter((x) => x.at >= 0)
     .sort((a, b) => a.at - b.at)
     .map((x) => x.product);
+}
+
+/* ------------------------------------------ réponses toutes faites de secours */
+
+/** Les parfums d'origine de la collection (persona §2) : la réponse attendue à « que portez-vous ? ». */
+const ORIGINS = ["Baccarat Rouge 540", "Bois Impérial", "Tuscan Leather", "Althaïr", "Erba Pura", "Oud Maracuja"];
+
+/**
+ * Quand le modèle a oublié suggest_replies deux fois, le visiteur a quand même
+ * de quoi cliquer (Sandro, 11 septembre 2026 : « toujours proposer des
+ * réponses toutes faites »). Trois jeux : après une recommandation, les suites
+ * naturelles ; à la question « que portez-vous ? », les parfums d'origine ;
+ * sinon, les univers de la section 6. Phrases EN/AR à faire valider.
+ */
+const FALLBACK_REPLIES: Record<Locale, { afterReco: string[]; universes: string[] }> = {
+  fr: {
+    afterReco: ["Parlez-moi de ses notes", "Je préfère le sentir d'abord", "C'est pour offrir"],
+    universes: ["Chaud et gourmand", "Boisé et net", "Cuir et soir", "Frais et fruité", "Plutôt oud"],
+  },
+  en: {
+    afterReco: ["Tell me about its notes", "I'd rather smell it first", "It's a gift"],
+    universes: ["Warm and gourmand", "Woody and clean", "Leather and evening", "Fresh and fruity", "Oud"],
+  },
+  ar: {
+    afterReco: ["حدّثوني عن نفحاته", "أفضّل أن أشمّه أولاً", "إنه هدية"],
+    universes: ["دافئ وحلو", "خشبي ونقي", "جلد ومساء", "منعش وفاكهي", "عود"],
+  },
+};
+
+export function fallbackReplies(locale: Locale, text: string, hasRecommendation: boolean): string[] {
+  const set = FALLBACK_REPLIES[locale];
+  if (hasRecommendation) return set.afterReco;
+  if (/\b(porte|portez|wear|aimez|like|love)\b|ترتد|تحب|تضع/i.test(text)) return ORIGINS;
+  return set.universes;
 }
