@@ -516,7 +516,12 @@ export async function addCartLine(cartId: string, lines: CartLineInput[]) {
   return data.cartLinesAdd.cart;
 }
 
-export type CartLineUpdateInput = { id: string; quantity: number };
+/*
+ * `merchandiseId` est optionnel : le fournir REMPLACE la variante de la ligne.
+ * C'est ce qui permet de changer l'échantillon offert en une seule mutation,
+ * au lieu d'un retrait suivi d'un ajout.
+ */
+export type CartLineUpdateInput = { id: string; quantity: number; merchandiseId?: string };
 
 /** Modifie la quantité d'une ou plusieurs lignes d'un panier existant */
 export async function updateCartLines(cartId: string, lines: CartLineUpdateInput[]) {

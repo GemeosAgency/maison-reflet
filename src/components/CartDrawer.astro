@@ -186,6 +186,7 @@ const FREE_SHIPPING_THRESHOLD = 400;
     addToCart,
     removeFromCart,
     setVariantQuantity,
+    swapCartLine,
     trackCheckoutDeparture,
   } from "../lib/cart";
   import { formatPrice, type ShopifyCart } from "../lib/shopify";
@@ -421,10 +422,16 @@ const FREE_SHIPPING_THRESHOLD = 400;
 
     reconciling = true;
     try {
-      if (existingSampleLine) await removeFromCart(existingSampleLine.id);
-      // Ajout technique : il peut survenir au chargement de la page (panier
-      // éligible sans ligne échantillon), le tiroir n'a pas à surgir.
-      await addToCart(target, 1, { openDrawer: false });
+      if (existingSampleLine) {
+        // Une seule mutation : la ligne change de variante. Le retrait suivi
+        // d'un ajout coûtait deux allers-retours et faisait disparaître
+        // l'échantillon entre les deux.
+        await swapCartLine(existingSampleLine.id, target);
+      } else {
+        // Ajout technique : il peut survenir au chargement de la page (panier
+        // éligible sans ligne échantillon), le tiroir n'a pas à surgir.
+        await addToCart(target, 1, { openDrawer: false });
+      }
     } finally {
       reconciling = false;
     }
@@ -592,8 +599,32 @@ const FREE_SHIPPING_THRESHOLD = 400;
     const variantId = btn?.dataset.sampleVariant;
     if (!variantId || !currentCart) return;
     sampleOptionsList.setAttribute("hidden", "");
+
+    /*
+     * Le choix s'affiche IMMÉDIATEMENT. Avant, on attendait l'aller-retour
+     * Shopify : la ligne était retirée, un rendu intermédiaire vidait la
+     * section, puis l'ajout la remplissait — d'où l'échantillon qui
+     * disparaissait avant de revenir.
+     */
+    const opt = sampleOptions.find((s) => s.variantId === variantId);
+    if (opt) {
+      if (sampleImg) {
+        sampleImg.src = opt.img ?? "";
+        sampleImg.alt = opt.productTitle;
+      }
+      if (sampleLabel) {
+        sampleLabel.textContent = [
+          opt.productTitle,
+          opt.inspiredBy ? `${I18N.inspiredBy} ${opt.inspiredBy}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+      }
+    }
+
     await ensureSampleLine(currentCart, variantId);
-    render(await loadCart());
+    // Le panier renvoyé par la mutation suffit : pas de loadCart en plus.
+    render(currentCart);
   });
 
   // Les cartes upsell utilisent [data-add-to-cart] : gérées par le câblage
@@ -603,7 +634,9 @@ const FREE_SHIPPING_THRESHOLD = 400;
     // Un rendu reconstruit les lignes : le faire alors qu'un clic sur +/- est
     // encore en attente d'envoi effacerait le nombre que le visiteur vient de
     // voir changer. On garde le panier de côté, le prochain flush rendra.
-    if (pendingQty.size > 0) {
+    // Idem pendant un échange d'échantillon : le rendu intermédiaire est
+    // exactement ce qui faisait clignoter la section (voir ensureSampleLine).
+    if (pendingQty.size > 0 || reconciling) {
       currentCart = cart;
       return;
     }
@@ -666,11 +699,8 @@ const FREE_SHIPPING_THRESHOLD = 400;
   .cart-line-body { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; justify-content: center; }
   .cart-line-text { display: flex; flex-direction: column; gap: 2px; }
   .cart-line-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  /* Liens vers la fiche : rien ne change au repos, soulignement au survol —
-     le tiroir reste calme. */
+  /* Liens vers la fiche : aucune décoration, ni au repos ni au survol. */
   .cart-line-name { font-size: 14px; font-weight: 400; color: var(--ink); }
-  a.cart-line-name:hover .cart-line-title,
-  a.cart-upsell-card-name:hover { text-decoration: underline; }
   .cart-line-img-link,
   .cart-upsell-card-img-link { display: block; flex-shrink: 0; line-height: 0; }
   .cart-upsell-card-img-link img { display: block; }

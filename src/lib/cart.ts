@@ -289,6 +289,22 @@ export async function updateCartLineQuantity(
 }
 
 /**
+ * Remplace la variante d'une ligne existante, en UNE mutation.
+ *
+ * Sert au changement d'échantillon offert : c'était un retrait suivi d'un
+ * ajout, donc deux allers-retours ET un rendu intermédiaire où la ligne avait
+ * disparu — l'échantillon s'effaçait puis réapparaissait.
+ */
+export async function swapCartLine(lineId: string, variantId: string): Promise<ShopifyCart | null> {
+  const cartId = getStoredCartId();
+  if (!cartId) return null;
+
+  const cart = await updateCartLines(cartId, [{ id: lineId, merchandiseId: variantId, quantity: 1 }]);
+  notifyCartUpdated(cart);
+  return cart;
+}
+
+/**
  * Fixe la quantité TOTALE d'une variante donnée, tous azimuts.
  *
  * Une remise automatique Shopify peut scinder une même variante en plusieurs
