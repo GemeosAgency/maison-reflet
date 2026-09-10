@@ -13,6 +13,8 @@
  * passer par une fonction serveur. Ne JAMAIS mettre le token Admin ici.
  */
 
+import { isCoffret, isSampleVariantTitle } from "./product-kind";
+
 const domain = import.meta.env.PUBLIC_SHOPIFY_STORE_DOMAIN;
 const token = import.meta.env.PUBLIC_SHOPIFY_STOREFRONT_TOKEN;
 const apiVersion = import.meta.env.PUBLIC_SHOPIFY_API_VERSION || "2025-10";
@@ -316,32 +318,10 @@ export async function getAllProducts(first = 20, context?: ShopifyContext) {
   return data.products.nodes;
 }
 
-// Mots-clés de la catégorie Shopify (taxonomie standard) qui signalent un coffret/set,
-// par opposition à un parfum vendu à l'unité (ex : "Perfume Sample & Discovery Sets").
-const COFFRET_CATEGORY_KEYWORDS = ["sample", "discovery", "gift set", "coffret", "set"];
-
-/**
- * Un coffret (set multi-parfums) n'est pas un parfum classique : distingué soit par le
- * champ "Type de produit" ("Coffret"), soit par la Category Shopify standard (ex :
- * "Perfume Sample & Discovery Sets") — les deux fonctionnent, selon celui rempli côté fiche produit.
- */
-export function isCoffret(product: Pick<ShopifyProduct, "productType" | "category">) {
-  if (product.productType?.trim().toLowerCase() === "coffret") return true;
-  const categoryName = product.category?.name?.toLowerCase() ?? "";
-  return COFFRET_CATEGORY_KEYWORDS.some((k) => categoryName.includes(k));
-}
-
-// Mots-clés identifiant une variante "échantillon offert" (offerte dans le panier,
-// prix 0). Ces variantes ne doivent JAMAIS servir de prix/variante d'affichage :
-// sinon le "à partir de" (priceRange.minVariantPrice) et les cartes produit
-// tombent à 0,00. Doit rester cohérent avec la détection du panier (CartDrawer).
-const SAMPLE_VARIANT_KEYWORDS = ["sample", "échantillon", "echantillon", "2 ml", "2ml"];
-
-/** Vrai si le titre de variante correspond à un échantillon (ex : "2 ml", "Échantillon") */
-export function isSampleVariantTitle(title: string): boolean {
-  const l = title.toLowerCase();
-  return SAMPLE_VARIANT_KEYWORDS.some((k) => l.includes(k));
-}
+// Les prédicats de catalogue (coffret ? échantillon ?) vivent dans
+// product-kind.ts, sans dépendance à l'environnement, pour que Luma puisse les
+// tester hors Astro. Ré-exportés ici pour les appelants historiques.
+export { isCoffret, isSampleVariantTitle };
 
 /**
  * Deuxième visuel d'un produit — la photo montrée au survol des tuiles,

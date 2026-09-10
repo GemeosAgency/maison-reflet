@@ -372,6 +372,50 @@ export async function getReassurances(locale: Locale): Promise<ReassuranceItem[]
   return sanityClient.fetch(query);
 }
 
+// ---------- Luma (conseillère IA) ----------
+
+/**
+ * Ce que Luma a le droit de lire dans Sanity pour un parfum — et seulement ça.
+ *
+ * Liste blanche volontaire, décidée sur l'état RÉEL du dataset le 10 septembre
+ * 2026 (voir src/lib/luma/knowledge.ts) : les notes sont justes pour les six
+ * Reflets, `inspiredBy` et `bestSeller` aussi, `familles` là où il est rempli,
+ * et `description` a été réécrit pour la nouvelle collection (FR et EN ; l'AR
+ * retombe sur le FR). En revanche `accroche`, `specificTwist`, `blocs` et
+ * `familleOlfactive` portent encore les textes de l'ancienne collection sous
+ * les nouveaux noms (section 12 du document persona) : ils ne sont PAS
+ * projetés ici, à dessein. Un champ rempli n'est pas un champ juste — c'est
+ * toute la raison d'être de cette liste.
+ *
+ * `pt::text` aplatit le Portable Text : Luma parle, elle ne met pas en page.
+ */
+export type LumaParfumDoc = {
+  shopifyHandle: string;
+  inspiredBy: string | null;
+  bestSeller: boolean | null;
+  familles: string | null;
+  description: string | null;
+  notes: { tete: string[]; coeur: string[]; fond: string[] };
+};
+
+export async function getLumaParfums(locale: Locale): Promise<LumaParfumDoc[]> {
+  const l = safeLocale(locale);
+  const names = `[]->{ "nom": coalesce(nom.${l}, nom.fr) }.nom`;
+  const query = `*[_type == "parfum" && defined(shopifyHandle)]{
+    shopifyHandle,
+    inspiredBy,
+    bestSeller,
+    "familles": coalesce(familles.${l}, familles.fr),
+    "description": pt::text(coalesce(description.${l}, description.fr)),
+    "notes": {
+      "tete": coalesce(notesTete${names}, []),
+      "coeur": coalesce(notesCoeur${names}, []),
+      "fond": coalesce(notesFond${names}, [])
+    }
+  }`;
+  return sanityClient.fetch(query);
+}
+
 export type SiteSettings = {
   brandName: string | null;
   baseline: string | null;
