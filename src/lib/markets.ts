@@ -3,9 +3,9 @@
  *
  * Source de vérité UNIQUE, partagée par le build (Astro) et le navigateur
  * (sélecteur de pays, panier, hydratation des prix). Elle décrit exactement
- * les 33 pays des zones de livraison Shopify — « Domestic » (Émirats),
- * « Golfe (CCG) » (5 pays) et « International » (27 pays) — et les six marchés
- * `ae` / `gcc` / `europe` / `americas` / `apac` / `other`.
+ * les 32 pays des zones de livraison Shopify — « Domestic » (Émirats),
+ * « Golfe (CCG) » (5 pays) et « International » (26 pays) — et les cinq
+ * marchés `ae` / `gcc` / `europe` / `americas` / `apac`.
  *
  * ⚠️ À garder synchronisé avec Shopify si les zones changent :
  *   Admin > Paramètres > Expédition > General profile.
@@ -20,7 +20,7 @@ import type { Locale } from "../i18n";
 export type ShippingZone = "domestic" | "international";
 
 /** Regroupements du sélecteur — purement présentationnels. */
-export type MarketGroup = "gulf" | "europe" | "americas" | "apac" | "other";
+export type MarketGroup = "gulf" | "europe" | "americas" | "apac";
 
 export type Country = {
   /** ISO 3166-1 alpha-2, en majuscules — le format attendu par `@inContext`. */
@@ -74,13 +74,12 @@ export const COUNTRIES: Country[] = [
   { code: "NZ", currency: "NZD", zone: "international", group: "apac" },
   { code: "SG", currency: "SGD", zone: "international", group: "apac" },
 
-  { code: "IL", currency: "ILS", zone: "international", group: "other" },
 ];
 
 /** Pays servi par défaut : le marché primaire Shopify. */
 export const DEFAULT_COUNTRY = "AE";
 
-export const GROUP_ORDER: MarketGroup[] = ["gulf", "europe", "americas", "apac", "other"];
+export const GROUP_ORDER: MarketGroup[] = ["gulf", "europe", "americas", "apac"];
 
 const BY_CODE = new Map(COUNTRIES.map((c) => [c.code, c]));
 
@@ -129,7 +128,6 @@ export const FREE_SHIPPING_THRESHOLDS: Record<string, number> = {
   DKK: 750,
   PLN: 430,
   CZK: 2450,
-  ILS: 400,
 };
 
 /**
@@ -162,7 +160,6 @@ export const SHIPPING_RATES: Record<string, { domestic?: number; international: 
   DKK: { international: 135 },
   PLN: { international: 78 },
   CZK: { international: 430 },
-  ILS: { international: 70 },
 };
 
 export function freeShippingThreshold(currency: string): number {
@@ -199,7 +196,6 @@ export const DELIVERY_DAYS: Record<MarketGroup, { min: number; max: number }> = 
   europe: { min: 5, max: 8 },
   americas: { min: 7, max: 12 },
   apac: { min: 7, max: 12 },
-  other: { min: 7, max: 12 },
 };
 
 /* ------------------------------------------------------------------ *
