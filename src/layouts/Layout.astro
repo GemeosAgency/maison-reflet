@@ -252,7 +252,12 @@ const navLinks = [
          * full-bleed comme dans le Figma.
          */
         --gutter-x: clamp(20px, 4.44vw, 64px);
+        /* Hauteur de la barre collante. Partagée : les panneaux `sticky` des
+           fiches produit et coffret s'en servent pour ne pas passer dessous,
+           et html.scroll-padding-top pour que les ancres restent visibles. */
+        --header-h: 80px;
       }
+      html { scroll-padding-top: var(--header-h); }
       * { box-sizing: border-box; }
       /*
        * PAS de overflow-x:hidden ici : ça casse position:sticky pour tout
@@ -320,7 +325,14 @@ const navLinks = [
       <p>{t("banner.promo")}</p>
     </div>
 
-    <header class="site-header">
+    {/*
+      Barre de navigation collante. Le conteneur est pleine largeur pour que
+      le fond couvre l'écran entier au-delà de --page-max, tandis que le
+      <header> garde sa colonne de contenu. Le bandeau promo, lui, défile :
+      c'est une promo, pas un outil de navigation.
+    */}
+    <div class="site-header-sticky">
+      <header class="site-header">
       <nav class="site-nav">
         {navLinks.map((l) => <a href={l.href}>{l.label}</a>)}
       </nav>
@@ -342,7 +354,8 @@ const navLinks = [
           </a>
         </div>
       </div>
-    </header>
+      </header>
+    </div>
 
     <main>
       <slot />
@@ -445,6 +458,13 @@ const navLinks = [
       .promo-banner p {
         margin: 0; padding: 10.5px 48px; text-align: center;
         color: var(--rose); font-size: 14px; font-weight: 500; text-transform: uppercase;
+      }
+      /* z-index 20 : au-dessus du contenu, en dessous du panier (60). */
+      .site-header-sticky {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: var(--bg);
       }
       .site-header {
         position: relative;

@@ -402,7 +402,8 @@ const productJsonLd = {
   }
   .coffret-panel {
     position: sticky;
-    top: 0;
+    /* Sous la barre de navigation collante, pas dessous. */
+    top: var(--header-h);
     padding: 56px var(--gutter-x) 32px;
   }
 
