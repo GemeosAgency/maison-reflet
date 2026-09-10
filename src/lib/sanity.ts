@@ -29,12 +29,27 @@ export const sanityClient = createClient({
 });
 
 // ---------- Écriture (liste d'attente) ----------
+
+/*
+ * Token d'écriture Sanity, sous ses DEUX noms.
+ *
+ * Le token a été renommé `_V2` lors d'une rotation, et c'est le seul nom
+ * présent côté Vercel. Ne chercher que l'ancien faisait échouer
+ * /api/subscribe en 500 sur la page d'attente : l'exception partait avant
+ * l'appel à Klaviyo, donc l'email n'arrivait NI dans Sanity NI dans Klaviyo,
+ * et le visiteur voyait "Erreur serveur".
+ */
+const WRITE_TOKEN_NAMES = ["SANITY_WRITE_TOKEN_V2", "SANITY_WRITE_TOKEN"] as const;
+
 let _writeClient: ReturnType<typeof createClient> | null = null;
 function getWriteClient() {
-  const token =
-    import.meta.env.SANITY_WRITE_TOKEN ||
-    (typeof process !== "undefined" ? process.env.SANITY_WRITE_TOKEN : undefined);
-  if (!token) throw new Error("SANITY_WRITE_TOKEN manquant (token d'écriture Sanity)");
+  const env = import.meta.env as Record<string, string | undefined>;
+  const token = WRITE_TOKEN_NAMES.map(
+    (name) => env[name] || (typeof process !== "undefined" ? process.env[name] : undefined)
+  ).find(Boolean);
+  if (!token) {
+    throw new Error(`Token d'écriture Sanity manquant (${WRITE_TOKEN_NAMES.join(" ou ")})`);
+  }
   if (!_writeClient) {
     _writeClient = createClient({
       projectId: import.meta.env.SANITY_PROJECT_ID,

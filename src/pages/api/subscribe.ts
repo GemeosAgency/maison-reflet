@@ -53,13 +53,15 @@ function json(data: unknown, status: number) {
 /**
  * Abonne le profil à la liste Newsletter avec un vrai consentement marketing
  * (SUBSCRIBED) — sans ça, Klaviyo ne déclenche jamais "Subscribed to List" et
- * ne peut légalement/fonctionnellement rien envoyer au profil. Best effort :
- * ne doit jamais faire échouer l'inscription si Klaviyo est indisponible.
+ * ne peut légalement/fonctionnellement rien envoyer au profil.
+ *
+ * Renvoie vrai si l'abonnement est passé : l'appelant s'en sert pour décider
+ * s'il reste au moins un enregistrement de l'email avant de répondre OK.
  */
-async function subscribeToKlaviyo(email: string) {
+async function subscribeToKlaviyo(email: string): Promise<boolean> {
   if (!KLAVIYO_SUBSCRIBE_API_KEY) {
     console.error("[subscribe] KLAVIYO_SUBSCRIBE_API_KEY absente — abonnement Klaviyo ignoré.");
-    return;
+    return false;
   }
 
   const payload = {
@@ -98,9 +100,12 @@ async function subscribeToKlaviyo(email: string) {
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       console.error("[subscribe] Klaviyo a refusé l'abonnement :", res.status, detail.slice(0, 500));
+      return false;
     }
+    return true;
   } catch (error) {
     console.error("[subscribe] Klaviyo injoignable :", error);
+    return false;
   }
 }
 
@@ -181,13 +186,28 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: false, error: "Adresse email invalide." }, 400);
   }
 
-  try {
-    await createSubscriber(email, source);
-    await subscribeToKlaviyo(email);
-    if (locale) await recordSignupLocale(email, locale, source);
-    return json({ ok: true }, 200);
-  } catch (error) {
-    console.error("[subscribe]", error);
+  /*
+   * Les deux enregistrements partent EN PARALLÈLE et chacun encaisse son
+   * propre échec. Ils étaient enchaînés, Sanity d'abord : un token d'écriture
+   * Sanity manquant levait une exception AVANT l'appel à Klaviyo, donc
+   * l'email n'arrivait ni dans l'un ni dans l'autre et le visiteur recevait
+   * une erreur serveur. Klaviyo est le système de référence pour l'emailing,
+   * il n'a pas à dépendre d'un journal de confort.
+   */
+  const [sanity, klaviyo] = await Promise.allSettled([
+    createSubscriber(email, source),
+    subscribeToKlaviyo(email),
+  ]);
+  const sanityOk = sanity.status === "fulfilled";
+  const klaviyoOk = klaviyo.status === "fulfilled" && klaviyo.value;
+  if (!sanityOk) console.error("[subscribe] écriture Sanity échouée :", sanity.reason);
+
+  // On ne renvoie une erreur que si l'email n'a été retenu NULLE PART : sinon
+  // le visiteur verrait un échec alors qu'il est bien inscrit.
+  if (!sanityOk && !klaviyoOk) {
     return json({ ok: false, error: "Erreur serveur, réessayez." }, 500);
   }
+
+  if (locale) await recordSignupLocale(email, locale, source);
+  return json({ ok: true }, 200);
 };
