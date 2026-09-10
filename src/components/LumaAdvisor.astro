@@ -273,16 +273,25 @@ const t = useTranslations(lang);
       return node;
     };
     /**
-     * Défilement collant : on suit la frappe seulement si le visiteur est déjà
-     * en bas. S'il remonte pour relire pendant que Luma écrit, on le laisse —
-     * forcer le bas à chaque mot donnait un effet de bug (Sandro, 11 septembre
-     * 2026). `force` pour les gestes du visiteur lui-même (son message, l'ouverture).
+     * Défilement façon messagerie : le fil suit ce qui arrive (mots, fiches,
+     * réponses toutes faites) — sauf si le visiteur remonte lui-même pendant
+     * que Luma écrit ; on le laisse lire, et on reprend dès qu'il revient en
+     * bas. Un seuil de distance ne suffisait pas : une fiche entière arrivant
+     * d'un coup dépassait le seuil et le fil restait bloqué au-dessus.
+     * `force` pour les gestes du visiteur (son message, l'ouverture).
      */
-    const STICKY_PX = 80;
+    let follow = true;
+    let placedAt = 0; // la position posée par le code, pour reconnaître un geste du visiteur
     const scrollToEnd = (force = false) => {
-      const distance = log!.scrollHeight - log!.scrollTop - log!.clientHeight;
-      if (force || distance < STICKY_PX) log!.scrollTop = log!.scrollHeight;
+      if (force) follow = true;
+      if (!follow) return;
+      log!.scrollTop = log!.scrollHeight;
+      placedAt = log!.scrollTop;
     };
+    log.addEventListener("scroll", () => {
+      if (log!.scrollTop < placedAt - 4) follow = false; // il a remonté
+      if (log!.scrollHeight - log!.scrollTop - log!.clientHeight < 8) follow = true; // il est revenu en bas
+    });
 
     function addVisitor(text: string) {
       const msg = el("div", "luma-msg luma-msg-visitor");
