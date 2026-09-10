@@ -15,7 +15,7 @@
  */
 import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle, shopifyImage } from "../lib/shopify";
 import { getInspiredByMap } from "../lib/sanity";
-import { type Locale, useTranslations } from "../i18n";
+import { type Locale, localePath, useTranslations } from "../i18n";
 
 interface Props {
   lang: Locale;
@@ -67,6 +67,20 @@ const sampleOptions = allProducts.flatMap((p) =>
         return im ? shopifyImage(im, [THUMB_WIDTH]).src : null;
       })(),
     }))
+);
+
+/*
+ * Chemin de fiche par handle. Construit côté serveur parce que le tiroir sait
+ * distinguer un parfum d'un coffret (isCoffret), alors que les lignes de
+ * panier arrivent de la Storefront API au runtime et n'ont que le handle.
+ * Une variante échantillon porte le handle de SON parfum : le lien tombe donc
+ * bien sur la fiche du parfum.
+ */
+const productPaths = Object.fromEntries(
+  allProducts.map((p) => [
+    p.handle,
+    localePath(lang, `${isCoffret(p) ? "/coffrets" : "/parfums"}/${p.handle}`),
+  ])
 );
 
 const FREE_SHIPPING_THRESHOLD = 400;
@@ -144,6 +158,7 @@ const FREE_SHIPPING_THRESHOLD = 400;
 
 <script type="application/json" id="cart-upsell-catalog" is:inline set:html={JSON.stringify(upsellCatalog)} />
 <script type="application/json" id="cart-sample-options" is:inline set:html={JSON.stringify(sampleOptions)} />
+<script type="application/json" id="cart-product-paths" is:inline set:html={JSON.stringify(productPaths)} />
 <script
   type="application/json"
   id="cart-drawer-i18n"
@@ -196,6 +211,11 @@ const FREE_SHIPPING_THRESHOLD = 400;
   const upsellCatalog: UpsellItem[] = JSON.parse(
     document.getElementById("cart-upsell-catalog")?.textContent ?? "[]"
   );
+  const productPaths: Record<string, string> = JSON.parse(
+    document.getElementById("cart-product-paths")?.textContent ?? "{}"
+  );
+  /** Lien vers la fiche produit, ou null pour un handle inconnu du catalogue. */
+  const productHref = (handle: string): string | null => productPaths[handle] ?? null;
   const sampleOptions: SampleOption[] = JSON.parse(
     document.getElementById("cart-sample-options")?.textContent ?? "[]"
   );
@@ -318,13 +338,20 @@ const FREE_SHIPPING_THRESHOLD = 400;
       line.amount === 0
         ? `<span class="cart-badge">${I18N.free}</span>`
         : `<span class="cart-line-price">${formatPrice(String(line.amount), line.currency)}</span>`;
+    // Vignette et nom cliquables vers la fiche. Pas la ligne entière : elle
+    // contient les boutons de quantité et « Retirer ».
+    const href = productHref(line.handle);
+    const nom = `<span class="cart-line-title">${line.productTitle}</span>${line.variantTitle !== "Default Title" ? ` · ${line.variantTitle}` : ""}`;
+    const vignette = line.img
+      ? `<img class="cart-line-img" src="${sizedUrl(line.img.url, THUMB_WIDTH)}" alt="${line.productTitle}" width="120" height="120" />`
+      : "";
     return `
       <div class="cart-line" data-variant-id="${line.variantId}">
-        ${line.img ? `<img class="cart-line-img" src="${sizedUrl(line.img.url, THUMB_WIDTH)}" alt="${line.productTitle}" width="120" height="120" />` : ""}
+        ${vignette && href ? `<a class="cart-line-img-link" href="${href}" tabindex="-1" aria-hidden="true">${vignette}</a>` : vignette}
         <div class="cart-line-body">
           <div class="cart-line-text">
             <div class="cart-line-top">
-              <span class="cart-line-name"><span class="cart-line-title">${line.productTitle}</span>${line.variantTitle !== "Default Title" ? ` · ${line.variantTitle}` : ""}</span>
+              ${href ? `<a class="cart-line-name" href="${href}">${nom}</a>` : `<span class="cart-line-name">${nom}</span>`}
               ${priceHtml}
             </div>
             ${catalogEntry?.inspiredBy ? `<p class="cart-line-inspired">${I18N.inspiredBy} ${catalogEntry.inspiredBy}</p>` : ""}
@@ -347,12 +374,14 @@ const FREE_SHIPPING_THRESHOLD = 400;
 
   function upsellCardHtml(p: UpsellItem): string {
     const price = `<span class="cart-upsell-price">${formatPrice(String(p.price), p.currency)}</span>`;
+    const href = productHref(p.handle);
+    const vignette = p.img ? `<img src="${p.img}" alt="${p.title}" width="120" height="120" />` : "";
     return `
       <div class="cart-upsell-card">
-        ${p.img ? `<img src="${p.img}" alt="${p.title}" width="120" height="120" />` : ""}
+        ${vignette && href ? `<a class="cart-upsell-card-img-link" href="${href}" tabindex="-1" aria-hidden="true">${vignette}</a>` : vignette}
         <div class="cart-upsell-card-body">
           <div class="cart-upsell-card-text">
-            <p class="cart-upsell-card-name">${p.title}</p>
+            ${href ? `<a class="cart-upsell-card-name" href="${href}">${p.title}</a>` : `<p class="cart-upsell-card-name">${p.title}</p>`}
             ${p.inspiredBy ? `<p class="cart-upsell-card-inspired">${I18N.inspiredBy} ${p.inspiredBy}</p>` : ""}
           </div>
           <div class="cart-upsell-cta">
@@ -637,7 +666,14 @@ const FREE_SHIPPING_THRESHOLD = 400;
   .cart-line-body { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; justify-content: center; }
   .cart-line-text { display: flex; flex-direction: column; gap: 2px; }
   .cart-line-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  /* Liens vers la fiche : rien ne change au repos, soulignement au survol —
+     le tiroir reste calme. */
   .cart-line-name { font-size: 14px; font-weight: 400; color: var(--ink); }
+  a.cart-line-name:hover .cart-line-title,
+  a.cart-upsell-card-name:hover { text-decoration: underline; }
+  .cart-line-img-link,
+  .cart-upsell-card-img-link { display: block; flex-shrink: 0; line-height: 0; }
+  .cart-upsell-card-img-link img { display: block; }
   .cart-line-title { font-size: 16px; font-weight: 500; text-transform: uppercase; }
   .cart-line-price { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; }
   /* Quantité déjà changée à l'écran, montant pas encore confirmé par Shopify
