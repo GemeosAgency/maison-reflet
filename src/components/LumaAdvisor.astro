@@ -379,8 +379,8 @@ const t = useTranslations(lang);
       return msg;
     }
 
-    /** La fiche d'un Reflet : visuel, nom et prix, la phrase de Luma, les deux gestes du site. */
-    function cardNode(card: Card, line?: string): HTMLElement {
+    /** La fiche d'un Reflet : visuel, nom et prix, les deux gestes du site — pas de texte (Sandro). */
+    function cardNode(card: Card): HTMLElement {
       const node = el("article", "luma-card");
       node.dataset.handle = card.handle;
       if (card.image) {
@@ -400,7 +400,6 @@ const t = useTranslations(lang);
       head.append(el("p", "luma-card-name", card.name));
       if (card.price) head.append(el("p", "luma-card-price", card.price));
       body.append(head);
-      if (line) body.append(el("p", "luma-card-line", line));
 
       const actions = el("div", "luma-card-actions");
       if (card.available && card.variantId) {
@@ -447,7 +446,7 @@ const t = useTranslations(lang);
     function render(action: Action, into: HTMLElement, entry?: Entry) {
       switch (action.type) {
         case "recommend_reflet": {
-          into.append(cardNode(action.reflet, action.reason));
+          into.append(cardNode(action.reflet));
           // Deux parfums proposés, deux fiches (Sandro, 11 septembre 2026).
           if (action.alternative) {
             into.append(el("p", "luma-alt-label", i18n.alternative));
@@ -800,7 +799,7 @@ const t = useTranslations(lang);
   .luma-msg-luma:has(.luma-card) { max-width: 100%; }
   .luma-card {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 16px;
     padding: 12px;
     background: var(--paper);
@@ -809,11 +808,10 @@ const t = useTranslations(lang);
   }
   .luma-card-media { flex: none; line-height: 0; }
   .luma-card-img { width: 96px; height: 96px; object-fit: cover; background: var(--sand); border-radius: 4px; }
-  .luma-card-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+  .luma-card-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; flex: 1; }
   .luma-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .luma-card-name { font-size: 15px; font-weight: 500; text-transform: uppercase; }
   .luma-card-price { font-size: 14px; opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .luma-card-line { font-size: 14px; line-height: 1.45; opacity: 0.85; }
   .luma-card-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
   /* Le CTA panier du site : pilule rose, blanc, capitales (BoxCard, tiroir panier). */
   .luma-card-add {
