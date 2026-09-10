@@ -23,6 +23,18 @@ const KLAVIYO_REVISION = "2025-04-15";
 // de "Waitlist Lancement" qui garde son usage d'origine.
 const KLAVIYO_NEWSLETTER_LIST_ID = "R6AmNZ";
 
+/**
+ * Formulaire d'origine ("teaser", "footer"…). Sert à la fois de `source` sur
+ * le document Sanity et de propriété d'événement Klaviyo. Défaut "teaser" :
+ * c'est l'appelant historique, qui n'envoyait rien.
+ */
+function parseSource(value: unknown): string {
+  const v = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  return /^[a-z0-9_-]{1,24}$/.test(v) ? v : "teaser";
+}
+
 /** Langue du site (fr/ar/en) si valide, sinon null — optionnelle, jamais bloquante. */
 function parseLocale(value: unknown): Locale | null {
   const v = String(value ?? "")
@@ -105,7 +117,7 @@ async function subscribeToKlaviyo(email: string) {
  * L'événement documente au passage l'inscription côté serveur (source, langue).
  * Best effort, comme tout le tracking.
  */
-async function recordSignupLocale(email: string, locale: Locale) {
+async function recordSignupLocale(email: string, locale: Locale, source: string) {
   if (!KLAVIYO_EVENTS_API_KEY) {
     console.error("[subscribe] KLAVIYO_PRIVATE_API_KEY absente — locale non enregistrée.");
     return;
@@ -115,7 +127,7 @@ async function recordSignupLocale(email: string, locale: Locale) {
     data: {
       type: "event",
       attributes: {
-        properties: { source: "footer", site_locale: locale },
+        properties: { source, site_locale: locale },
         metric: { data: { type: "metric", attributes: { name: "Subscribed to Newsletter" } } },
         profile: {
           data: { type: "profile", attributes: { email, properties: { site_locale: locale } } },
@@ -146,16 +158,19 @@ async function recordSignupLocale(email: string, locale: Locale) {
 export const POST: APIRoute = async ({ request }) => {
   let email = "";
   let locale: Locale | null = null;
+  let source = "teaser";
   try {
     const ct = request.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
       const body = await request.json();
       email = String(body?.email ?? "");
       locale = parseLocale(body?.locale);
+      source = parseSource(body?.source);
     } else {
       const form = await request.formData();
       email = String(form.get("email") ?? "");
       locale = parseLocale(form.get("locale"));
+      source = parseSource(form.get("source"));
     }
   } catch {
     return json({ ok: false, error: "Requête invalide." }, 400);
@@ -167,9 +182,9 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   try {
-    await createSubscriber(email, "teaser");
+    await createSubscriber(email, source);
     await subscribeToKlaviyo(email);
-    if (locale) await recordSignupLocale(email, locale);
+    if (locale) await recordSignupLocale(email, locale, source);
     return json({ ok: true }, 200);
   } catch (error) {
     console.error("[subscribe]", error);

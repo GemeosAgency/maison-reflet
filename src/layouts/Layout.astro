@@ -628,7 +628,7 @@ const navLinks = [
           const res = await fetch("/api/subscribe", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, locale }),
+            body: JSON.stringify({ email, locale, source: "footer" }),
           });
           const data = await res.json().catch(() => null);
           if (res.ok && data?.ok) {
