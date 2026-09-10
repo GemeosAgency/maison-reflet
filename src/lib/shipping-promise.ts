@@ -14,6 +14,7 @@
 
 import {
   DELIVERY_DAYS,
+  UAE_DELIVERY_DAYS,
   countryName,
   formatMoney,
   freeShippingThreshold,
@@ -67,7 +68,10 @@ export function promiseFor(country: Country): Promise2Lines {
       main: sameDay.open
         ? t("shipping.sameDayOpen", { time: formatCountdown(sameDay.msLeft) })
         : t("shipping.sameDayClosed"),
-      sub: `${t("shipping.restOfUae", { min: days.min, max: days.max })} · ${rate}, ${freeFrom}`,
+      sub: `${t("shipping.restOfUae", {
+        min: UAE_DELIVERY_DAYS.min,
+        max: UAE_DELIVERY_DAYS.max,
+      })} · ${rate}, ${freeFrom}`,
       urgent: sameDay.open,
     };
   }

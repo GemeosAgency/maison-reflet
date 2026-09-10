@@ -24,7 +24,6 @@ import {
 import {
   COUNTRIES,
   DEFAULT_COUNTRY,
-  DELIVERY_DAYS,
   GROUP_ORDER,
   countryName,
   getCountry,
@@ -61,7 +60,6 @@ const groups = GROUP_ORDER.map((group) => ({
     .map((c) => ({
       ...c,
       name: countryName(c.code, lang),
-      days: DELIVERY_DAYS[c.group],
       search: [c.code, ...locales.map((loc) => countryName(c.code, loc))].map(fold).join(" "),
     }))
     .sort((a, b) => a.name.localeCompare(b.name, intlLocale(lang))),

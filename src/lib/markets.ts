@@ -3,8 +3,9 @@
  *
  * Source de vérité UNIQUE, partagée par le build (Astro) et le navigateur
  * (sélecteur de pays, panier, hydratation des prix). Elle décrit exactement
- * les 28 pays des zones de livraison Shopify — zone « Domestic » (Émirats) et
- * zone « International » (27 pays) — relevées le 10 septembre 2026.
+ * les 33 pays des zones de livraison Shopify — « Domestic » (Émirats),
+ * « Golfe (CCG) » (5 pays) et « International » (27 pays) — et les six marchés
+ * `ae` / `gcc` / `europe` / `americas` / `apac` / `other`.
  *
  * ⚠️ À garder synchronisé avec Shopify si les zones changent :
  *   Admin > Paramètres > Expédition > General profile.
@@ -38,6 +39,11 @@ export type Country = {
  */
 export const COUNTRIES: Country[] = [
   { code: "AE", currency: "AED", zone: "domestic", group: "gulf" },
+  { code: "BH", currency: "BHD", zone: "international", group: "gulf" },
+  { code: "KW", currency: "KWD", zone: "international", group: "gulf" },
+  { code: "OM", currency: "OMR", zone: "international", group: "gulf" },
+  { code: "QA", currency: "QAR", zone: "international", group: "gulf" },
+  { code: "SA", currency: "SAR", zone: "international", group: "gulf" },
 
   { code: "AT", currency: "EUR", zone: "international", group: "europe" },
   { code: "BE", currency: "EUR", zone: "international", group: "europe" },
@@ -101,6 +107,11 @@ export function isShippedCountry(code: string | null | undefined): boolean {
  */
 export const FREE_SHIPPING_THRESHOLDS: Record<string, number> = {
   AED: 400,
+  SAR: 450,
+  QAR: 440,
+  KWD: 37,
+  BHD: 45,
+  OMR: 46,
   EUR: 100,
   USD: 110,
   GBP: 85,
@@ -129,6 +140,11 @@ export const FREE_SHIPPING_THRESHOLDS: Record<string, number> = {
  */
 export const SHIPPING_RATES: Record<string, { domestic?: number; international: number }> = {
   AED: { domestic: 25, international: 70 },
+  SAR: { international: 80 },
+  QAR: { international: 78 },
+  KWD: { international: 7 },
+  BHD: { international: 8 },
+  OMR: { international: 8 },
   EUR: { international: 20 },
   USD: { international: 22 },
   GBP: { international: 17 },
@@ -171,9 +187,15 @@ export function shippingRate(zone: ShippingZone, currency: string): number {
  * Aucun délai n'est renseigné côté Shopify (`methodDefinitions` sans
  * description) : ces valeurs sont éditoriales et se règlent ici, à un seul
  * endroit, pour les trois langues.
+ *
+ * ⚠️ `gulf` vaut pour le Golfe HORS Émirats. Les Émirats sont le seul marché
+ * domestique et ont leur propre délai, `UAE_DELIVERY_DAYS` — sans quoi
+ * l'expédition vers Riyad aurait hérité du « 1 à 2 jours » de Dubaï.
  */
+export const UAE_DELIVERY_DAYS = { min: 1, max: 2 };
+
 export const DELIVERY_DAYS: Record<MarketGroup, { min: number; max: number }> = {
-  gulf: { min: 1, max: 2 },
+  gulf: { min: 3, max: 5 },
   europe: { min: 5, max: 8 },
   americas: { min: 7, max: 12 },
   apac: { min: 7, max: 12 },

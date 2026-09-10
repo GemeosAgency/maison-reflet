@@ -13,7 +13,7 @@
 import { useTranslations, type Locale } from "../i18n";
 import {
   DEFAULT_COUNTRY,
-  DELIVERY_DAYS,
+  UAE_DELIVERY_DAYS,
   formatMoney,
   freeShippingThreshold,
   getCountry,
@@ -32,7 +32,8 @@ const { lang, sub = true, compact = false } = Astro.props;
 const t = useTranslations(lang);
 
 const country = getCountry(DEFAULT_COUNTRY);
-const days = DELIVERY_DAYS[country.group];
+// Le HTML statique est celui des Émirats, seul marché domestique.
+const days = UAE_DELIVERY_DAYS;
 const rate = formatMoney(shippingRate(country.zone, country.currency), country.currency, lang);
 const free = formatMoney(freeShippingThreshold(country.currency), country.currency, lang);
 
