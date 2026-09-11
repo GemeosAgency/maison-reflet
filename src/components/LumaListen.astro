@@ -1,7 +1,8 @@
 ---
 /**
- * Le portrait audio d'un Reflet, sur sa fiche : « Écouter Luma raconter
- * Melting Mango ». Un fichier statique pré-généré (portraits.ts), donc zéro
+ * Le portrait audio d'un Reflet, sur sa fiche : « Découvrir Melting Mango »
+ * (le verbe de Luma, sans mention de qui parle — la voix arabe est celle de
+ * la Maison). Un fichier statique pré-généré (portraits.ts), donc zéro
  * crédit à l'écoute. Une seule ligne dans la charte (Sandro voulait « moins de
  * place ») : un petit bouton rond, le libellé, la durée ; la progression est
  * une ligne fine qui n'apparaît qu'en lecture ; le texte se déplie pour qui
@@ -20,7 +21,7 @@ const { lang, handle, name } = Astro.props;
 const t = useTranslations(lang);
 const src = portraitAudioPath(lang, handle);
 const text = portraitText(lang, handle);
-const label = t("luma.listenPortrait").replace("{name}", name);
+const label = t("luma.discover").replace("{name}", name);
 ---
 
 {
