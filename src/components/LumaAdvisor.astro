@@ -69,6 +69,7 @@ const t = useTranslations(lang);
     voiceOff: t("luma.voiceOff"),
     replay: t("luma.replay"),
     listen: t("luma.listen"),
+    pause: t("luma.pause"),
     voicePaused: t("luma.voicePaused"),
     you: t("luma.you"),
     name: t("luma.name"),
@@ -598,13 +599,29 @@ const t = useTranslations(lang);
       actions.append(link);
       if (card.audio) {
         // Le portrait du Reflet, pré-généré : gratuit, et le clic est un geste (lecture autorisée).
+        // Écouter ⇄ Pause : le bouton suit l'état du lecteur partagé, et redevient « Écouter »
+        // à la fin ou quand un autre portrait prend la place.
+        const src = new URL(card.audio, location.origin).href;
         const listen = el("button", "luma-card-listen", i18n.listen) as HTMLButtonElement;
         listen.type = "button";
-        listen.setAttribute("aria-label", `${i18n.listen} — ${card.name}`);
+        listen.setAttribute("aria-pressed", "false");
+        const isMine = () => audio.src === src;
+        const sync = () => {
+          const active = isMine() && !audio.paused && !audio.ended;
+          listen.textContent = active ? i18n.pause : i18n.listen;
+          listen.setAttribute("aria-pressed", String(active));
+          listen.setAttribute("aria-label", `${active ? i18n.pause : i18n.listen} — ${card.name}`);
+        };
         listen.addEventListener("click", () => {
-          audio.src = card.audio!;
+          if (isMine() && !audio.paused) {
+            audio.pause();
+            return;
+          }
+          if (!isMine()) audio.src = src;
           audio.play().catch(() => {});
         });
+        for (const ev of ["play", "pause", "ended", "emptied"]) audio.addEventListener(ev, sync);
+        sync();
         actions.append(listen);
       }
       // Les gestes restent à côté du visuel (choix de Sandro) ; la fiche prend
@@ -1120,6 +1137,8 @@ const t = useTranslations(lang);
     text-underline-offset: 3px;
   }
   .luma-card-listen { padding: 0; border: 0; background: none; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .luma-card-listen::before { content: "▶"; font-size: 9px; margin-inline-end: 6px; vertical-align: 1px; }
+  .luma-card-listen[aria-pressed="true"]::before { content: "❚❚"; letter-spacing: -1px; }
 
   .luma-alt-label { font-size: 12px; font-style: normal; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.6; }
   .luma-handoff a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
