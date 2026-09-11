@@ -68,6 +68,7 @@ const t = useTranslations(lang);
     voiceOn: t("luma.voiceOn"),
     voiceOff: t("luma.voiceOff"),
     replay: t("luma.replay"),
+    voicePaused: t("luma.voicePaused"),
     you: t("luma.you"),
     name: t("luma.name"),
     contact: CONTACT_EMAIL,
@@ -161,6 +162,7 @@ const t = useTranslations(lang);
     | { type: "text"; text: string }
     | { type: "action"; action: Action }
     | { type: "speak"; s: string; t: string; l: string }
+    | { type: "voice_paused" }
     | { type: "done"; sessionId: string | null; fallback: boolean; reason?: string };
   /** Une ligne du fil, telle qu'on la garde le temps de l'onglet. */
   type Entry =
@@ -173,8 +175,8 @@ const t = useTranslations(lang);
   const TYPING_MS = 34;
   const PILL_KEY = "maison-reflet:luma-pill"; // « off » quand le visiteur l'a fermée pour la session
   const VOICE_KEY = "maison-reflet:luma-voice"; // « on » quand le visiteur écoute Luma
-  // Un WAV vide : joué au clic sur le bouton voix, il déverrouille la lecture audio pour la suite (iOS).
-  const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+  // Les phrases fixes de Luma sont pré-générées (scripts/luma-voice-static.mjs) : zéro crédit à l'usage.
+  type StaticPhrase = "opening" | "unavailable" | "fallback" | "emailDone";
   const PILL_SCROLL_PX = 320;
   const PILL_DELAY_MS = 6000;
 
@@ -355,6 +357,13 @@ const t = useTranslations(lang);
         /* lecture refusée (pas de geste, onglet caché) : le texte est là, et « Réécouter » aussi */
       });
     }
+    /** Une phrase fixe, servie en fichier statique (absente pour une langue sans voix : silence). */
+    function playStatic(key: StaticPhrase) {
+      if (!voiceOn) return;
+      audio.src = `/luma/voice/${locale}/${key}.mp3`;
+      audio.play().catch(() => {});
+    }
+    let voicePausedShown = false;
     function renderVoice() {
       if (!voiceButton) return;
       voiceButton.setAttribute("aria-pressed", String(voiceOn));
@@ -368,9 +377,8 @@ const t = useTranslations(lang);
         /* sans stockage, le choix vaut pour cette page */
       }
       if (voiceOn) {
-        // Le clic est un geste : on en profite pour déverrouiller l'audio.
-        audio.src = SILENT_WAV;
-        audio.play().catch(() => {});
+        // Le clic est un geste : la phrase d'ouverture déverrouille l'audio et fait entendre la voix tout de suite.
+        playStatic("opening");
       } else {
         audio.pause();
       }
@@ -663,6 +671,7 @@ const t = useTranslations(lang);
           });
           if (!res.ok) throw new Error(String(res.status));
           f.replaceWith(el("p", "luma-email-done", i18n.emailDone));
+          playStatic("emailDone");
           if (entry && entry.role === "luma") {
             entry.emailDone = true;
             saveTranscript();
@@ -773,6 +782,8 @@ const t = useTranslations(lang);
       let lumaMsg: HTMLElement | null = null;
       let lumaText = "";
       let speech: Speech | undefined;
+      let voicePaused = false;
+      let fallbackReply = false;
       const pending: Action[] = [];
       try {
         const res = await fetch("/api/luma/chat", {
@@ -807,6 +818,10 @@ const t = useTranslations(lang);
               // La voix part tout de suite, pendant que le texte s'écrit.
               speech = { s: event.s, t: event.t, l: event.l };
               if (voiceOn) playSpeech(speech);
+            } else if (event.type === "voice_paused") {
+              voicePaused = true;
+            } else if (event.type === "done") {
+              fallbackReply = event.fallback;
             }
           }
         }
@@ -818,10 +833,17 @@ const t = useTranslations(lang);
         transcript.push(entry);
         saveTranscript();
         if (speech) lumaMsg.append(replayButton(speech));
+        // Une réponse de secours n'a pas de script : sa phrase fixe est pré-générée.
+        if (fallbackReply && !speech) playStatic(lumaText === i18n.unavailable ? "unavailable" : "fallback");
+        if (voicePaused && voiceOn && !voicePausedShown) {
+          voicePausedShown = true;
+          lumaMsg.append(el("p", "luma-note", i18n.voicePaused));
+        }
         for (const action of pending) render(action, lumaMsg, entry);
       } catch {
         status!.textContent = "";
         typing.remove();
+        playStatic("unavailable");
         await addLuma(i18n.unavailable);
         transcript.push({ role: "luma", text: i18n.unavailable, actions: [] });
         saveTranscript();
@@ -977,6 +999,7 @@ const t = useTranslations(lang);
     cursor: pointer;
   }
   .luma-replay:hover { opacity: 1; }
+  .luma-note { font-size: 13px; font-style: normal; opacity: 0.6; }
 
   .luma-head { display: flex; flex-direction: column; gap: 4px; }
   .luma-title { margin: 0; font-size: 24px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }

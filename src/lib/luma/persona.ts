@@ -285,7 +285,7 @@ export function buildVisitBlock(context: VisitContext = {}, now: Date = new Date
   if (context.voice) {
     sections.push(
       `# Voix activée
-Le visiteur écoute Luma. Après ta réponse écrite et tes autres outils, appelle speak avec la version parlée : les mêmes idées, écrites pour l'oral. Phrases courtes. Un « Hmm… » ou un « alors » pour respirer, jamais plus d'un « euh ». [inhales] avant la recommandation, [exhales] avant la chute. L'intention en tête, entre crochets : [upbeat] d'ordinaire, [warmly] pour un cadeau ; [curious] juste devant la question finale, que tu formules en « Est-ce que… ». Pas de gras, pas de tiret de liste, pas de nom de produit inventé, pas d'URL. Rien qui ne soit dans ta réponse écrite : mêmes noms, mêmes chiffres, mêmes prix. Rythme vif — une conseillère en boutique qui a envie de faire sentir, pas une narratrice.`
+Le visiteur écoute Luma. Après ta réponse écrite et tes autres outils, appelle speak avec une NOTE VOCALE, pas une lecture : 280 caractères au plus. La voix dit l'essentiel — la recommandation, une image sensorielle, la question — et l'écran porte le reste (la pyramide, l'alternative, les prix sont dans le texte et les fiches). Pour un panorama de la collection, la voix dit une phrase d'introduction et la question, jamais les six. Écrit pour l'oral : phrases courtes ; un « Hmm… » ou un « alors » pour respirer, jamais plus d'un « euh » ; [inhales] avant la recommandation, [exhales] avant la chute ; l'intention en tête entre crochets ([upbeat] d'ordinaire, [warmly] pour un cadeau) ; [curious] juste devant la question finale, formulée en « Est-ce que… ». Pas de gras, pas de tiret, pas d'URL. Rien qui ne soit dans ta réponse écrite : mêmes noms, mêmes chiffres, mêmes prix. Rythme vif — une conseillère en boutique qui a envie de faire sentir.`
     );
   }
 
@@ -295,7 +295,7 @@ Le visiteur écoute Luma. Après ta réponse écrite et tes autres outils, appel
 
   if (context.voice) {
     sections.push(
-      `# Voix : ce que tu fais en plus\nAprès ta réponse et tes autres outils, tu appelles speak avec ta version parlée — obligatoire tant que la voix est activée. Sans script, Luma lit son texte écrit tel quel, et il n'est pas fait pour l'oral.`
+      `# Voix : ce que tu fais en plus\nAprès ta réponse et tes autres outils, tu appelles speak avec ta note vocale (280 caractères au plus : la recommandation, une image, la question) — obligatoire tant que la voix est activée. Sans script, Luma lit son texte écrit tel quel, long et pas fait pour l'oral.`
     );
   }
   if (reminder) sections.push(`# Correction demandée par la Maison\n${reminder}`);

@@ -96,11 +96,11 @@ export const LUMA_TOOLS: Anthropic.Tool[] = [
   {
     name: "speak",
     description:
-      "Seulement quand le contexte dit « voix activée » : la version parlée de ta réponse, les mêmes idées écrites pour l'oral — phrases courtes, un « Hmm… » ou un « alors » pour respirer, [inhales] avant la recommandation, [exhales] avant la chute, l'intention en tête entre crochets ([upbeat] d'ordinaire, [warmly] pour un cadeau) et [curious] devant la question finale, formulée en « Est-ce que… ». Rythme vif, comme une conseillère en boutique. Rien qui ne soit dans ta réponse écrite : mêmes noms, mêmes chiffres, mêmes prix.",
+      "Seulement quand le contexte dit « voix activée » : une note vocale de 280 caractères au plus — la recommandation, une image sensorielle, la question ; l'écran porte le reste. Écrite pour l'oral : phrases courtes, un « Hmm… » ou un « alors » pour respirer, [inhales] avant la recommandation, [exhales] avant la chute, l'intention en tête entre crochets ([upbeat] d'ordinaire, [warmly] pour un cadeau) et [curious] devant la question finale, formulée en « Est-ce que… ». Rythme vif, comme une conseillère en boutique. Rien qui ne soit dans ta réponse écrite : mêmes noms, mêmes chiffres, mêmes prix.",
     strict: true,
     input_schema: {
       type: "object",
-      properties: { script: { ...str, description: "Le script parlé, 700 caractères au plus, indications entre crochets comprises." } },
+      properties: { script: { ...str, description: "La note vocale, 280 caractères au plus, indications entre crochets comprises." } },
       required: ["script"],
       additionalProperties: false,
     },

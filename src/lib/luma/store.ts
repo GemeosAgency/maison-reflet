@@ -241,3 +241,14 @@ export async function voiceCharsToday(): Promise<number> {
   if (error) fail("lecture voix du jour", error);
   return (data ?? []).reduce((sum, r) => sum + (Number((r.props as { chars?: number } | null)?.chars) || 0), 0);
 }
+
+/** Réponses déjà dites dans cette session (événements « spoken ») — pour le budget voix par visiteur. */
+export async function spokenCountForSession(sessionId: string): Promise<number> {
+  const { count, error } = await db()
+    .from("luma_events")
+    .select("id", { count: "exact", head: true })
+    .eq("session_id", sessionId)
+    .eq("name", "spoken");
+  if (error) fail("lecture voix de la session", error);
+  return count ?? 0;
+}

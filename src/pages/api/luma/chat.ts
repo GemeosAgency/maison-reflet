@@ -15,6 +15,7 @@ import {
   recordAssistantMessage,
   recordUserMessage,
   resumeOrCreateSession,
+  spokenCountForSession,
   tokensToday,
   upsertSignals,
   userMessageTimes,
@@ -53,6 +54,8 @@ const RATE_PER_MINUTE = 8;
 const RATE_PER_DAY = 150;
 // Tous visiteurs, entrée + sortie, cache compris (brief §7 « plafond quotidien »).
 const DAILY_TOKEN_CAP = Number(import.meta.env.LUMA_DAILY_TOKEN_CAP) || 1_500_000;
+// Réponses parlées par session : au-delà, Luma continue par écrit (économie de crédits ElevenLabs).
+const VOICE_PER_SESSION = Number(import.meta.env.LUMA_VOICE_PER_SESSION) || 10;
 
 /**
  * Ce que le widget affiche d'un produit — nom, visuel, lien localisé, prix,
@@ -237,10 +240,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         const session = await resumeOrCreateSession(visitor, anonId, lang, country.code, knowledge.logistics.currency);
         sessionId = session.id;
 
-        const [history, profile, used] = await Promise.all([
+        const [history, profile, used, spokenSoFar] = await Promise.all([
           loadHistory(session.id),
           latestProfile(visitor),
           tokensToday(),
+          context.voice ? spokenCountForSession(session.id) : Promise.resolve(0),
           // Le message du visiteur s'écrit pendant qu'on lit le reste : son id
           // précède de toute façon celui de la réponse, écrite après le modèle.
           recordUserMessage(session.id, message),
@@ -275,9 +279,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         // synthèse ne lira rien d'autre. Le texte écrit sert de script si le
         // modèle a oublié l'outil.
         const spoken = reply.actions.find((a) => a.type === "speak");
+        let spokenNow = false;
         if (context.voice && !reply.fallback) {
-          const script = spoken?.type === "speak" ? spoken.script : fallbackScript(reply.text);
-          send({ type: "speak", s: encodeScript(script), t: await signScript(script, anonId), l: lang });
+          if (spokenSoFar < VOICE_PER_SESSION) {
+            const script = spoken?.type === "speak" ? spoken.script : fallbackScript(reply.text);
+            send({ type: "speak", s: encodeScript(script), t: await signScript(script, anonId), l: lang });
+            spokenNow = true;
+          } else {
+            // Le budget voix de la session est épuisé : Luma continue par écrit, le widget le dit une fois.
+            send({ type: "voice_paused" });
+          }
         }
 
         if (reply.fallback) console.error("[luma/chat] réponse de secours servie :", reply.error ?? reply.violations);
@@ -287,6 +298,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           if (a.type === "propose_email_capture") events.push(logEvent(session.id, "email_capture_proposed", {}));
         }
         if (reply.fallback) events.push(logEvent(session.id, "fallback", { error: reply.error ?? null, violations: reply.violations }));
+        if (spokenNow) events.push(logEvent(session.id, "spoken", { chars: (spoken?.type === "speak" ? spoken.script : reply.text).length }));
         await Promise.all([recordAssistantMessage(session.id, reply), upsertSignals(session.id, reply.actions), ...events]);
         mark("persist_ms");
 

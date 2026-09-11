@@ -178,7 +178,7 @@ function completeInstruction(voice: boolean): string {
     '{"question": "la question courte, dans la langue de la conversation, qui vérifie le choix et continue l\'échange (jour ou soir, présence ou discrétion, déjà senti, pour qui) — ou une chaîne vide si ta réponse se termine déjà par une question", ' +
     '"replies": ["deux à quatre réponses courtes, formulées comme le visiteur les dirait, dans la langue de la conversation : les réponses possibles à la question posée à la fin de ta réponse (occasion → des occasions ; jour ou soir → jour ou soir ; ce qu\'il porte → les parfums d\'origine de la collection), ou les suites de ta proposition s\'il n\'y a pas de question ; jamais ce que le visiteur vient de dire"]' +
     (voice
-      ? ', "script": "la version parlée de ta réponse complète (question comprise), écrite pour l\'oral : phrases courtes, un Hmm… ou un alors pour respirer, [inhales] avant la recommandation, [exhales] avant la chute, l\'intention en tête entre crochets ([upbeat] d\'ordinaire, [warmly] pour un cadeau), [curious] devant la question finale formulée en Est-ce que… ; mêmes noms, mêmes chiffres, mêmes prix que ta réponse écrite ; 700 caractères au plus"'
+      ? ', "script": "une note vocale de 280 caractères au plus (la recommandation, une image sensorielle, la question — l\'écran porte le reste), écrite pour l\'oral : phrases courtes, un Hmm… ou un alors pour respirer, [inhales] avant la recommandation, [exhales] avant la chute, l\'intention en tête entre crochets ([upbeat] d\'ordinaire, [warmly] pour un cadeau), [curious] devant la question finale formulée en Est-ce que… ; mêmes noms, mêmes chiffres, mêmes prix que ta réponse écrite"'
       : "") +
     "}"
   );
