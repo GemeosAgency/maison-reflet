@@ -12,7 +12,10 @@
  * matière de marque (REFLET_BRIEFS). Pas de question : c'est un portrait. Les indications entre crochets sont
  * pour la voix (v3) et retirées du texte affiché. Mêmes interdits que Luma.
  *
- * Arabe : à écrire quand la voix arabe sera validée.
+ * Arabe : voix d'homme (Jeddawi), donc « la voix de la Maison » et non Luma ;
+ * arabe standard, courtoisie du Golfe, noms des parfums et des références en
+ * caractères latins. Une image adaptée quand il le faut (un kob dafi' plutôt
+ * qu'« un verre »). À faire écouter à un natif avant la production.
  */
 
 import type { Locale } from "../../i18n";
@@ -45,6 +48,20 @@ export const PORTRAITS: Partial<Record<Locale, Record<string, string>>> = {
       "[warmly] Minuit Bourbon is a winter evening, a blanket, a glass held for a long while between your hands. [inhales] Cardamom and Ceylon cinnamon open the composition with warmth, orange blossom and almond soften the heart, then tonka bean and Bourbon vanilla settle in the base, held by a leather accord that keeps the sweetness from sinking into sugar. [exhales] Our reinterpretation of Althaïr, enriched with the leather that gives it character. Warm, sophisticated, addictive.",
     "fifth-season":
       "[upbeat] Fifth Season is a spring morning that already feels like summer — an open window, clean linen, light everywhere. [inhales] Mandarin, orange and exotic fruits open, vibrant, over a fougère freshness; at the heart, sambac jasmine and lily of the valley rest on a light caramel; in the base, Bourbon vanilla, tonka bean and white musk round everything off, creamy and clean. [exhales] Our reinterpretation of Erba Pura, softened with a milky touch. Vibrant, versatile, refined — the freshest of the collection, the one for daytime.",
+  },
+  ar: {
+    "bois-alert":
+      "[warmly] Bois Alert، قميصٌ أبيض بلا تجعيدة، وصباحٌ كلُّ شيءٍ فيه واضح — العطر الذي تضعونه دون تفكير، ويلاحظه الآخرون عليكم طوال اليوم. [inhales] يفتتحه الفلفل الأسود والزعفران بطبعٍ قوي، ويخفّفهما برغموت كالابريا؛ في القلب يشعّ ياسمين سامباك فوق العنبر الرمادي ولمسةٍ من الكراميل؛ وفي القاعدة يرسّخ الفيتيفر والباتشولي وخشب الأرز خشبيةً صريحةً نابضة. [exhales] إعادة تأويلنا لـ Bois Impérial، مُغناةً بأوجه الزعفران والياسمين من Baccarat Rouge 540. جذّاب، مميّز، مشعّ — النارُ التي تعرفها الضفّتان.",
+    "new-oud":
+      "[warmly] New Oud، ليلٌ يهبط على شرفةٍ في الرياض، والهواء ما زال دافئًا، وشيءٌ ثمين تحملونه قريبًا من القلب. [inhales] تفتتحه فاكهة الباشن واليوسفي بحيويةٍ فوق الزعفران؛ في القلب يُنير ورد الطائف وزنبق الوادي العنبر؛ وفي القاعدة يستقرّ العود عميقًا، يُليّنه خشب صندلٍ كريمي والمسك الأبيض. [exhales] إعادة تأويلنا لـ Oud Maracuja، مع صندلٍ بودري وزهورٍ بيضاء مضيئة. كثيف، عميق، فخم — عودٌ يحفظ غناه ويرتدي وجهًا حديثًا.",
+    "melting-mango":
+      "[upbeat] Melting Mango، عصرُ يومٍ صيفي، ومانجو تُقطَع بالسكين، وعصيرٌ يسيل على الأصابع — وخلف ذلك دفءٌ تعرفونه بين ألف. [inhales] تنفجر المانجو والبرتقال في الافتتاح فوق الزعفران؛ في القلب يُرسّخ البرالين ونواة المشمش وخلاصة الياسمين الحلاوة؛ وفي القاعدة يحمل طحلب البلوط والباتشولي وفيتيفر هايتي كلَّ ذلك، عميقًا ومنتشرًا. [exhales] إعادة تأويلنا لـ Baccarat Rouge 540، مع جرعةٍ مضاعفة من المانجو لم تكن في الأصل. جريء، حديث، آسر.",
+    "ultra-cuir":
+      "[warmly] Ultra Cuir، سترةٌ من الجلد تبقى على الكتفين حين يهبط المساء، وضوءٌ خافت، وأحدٌ يقترب. [inhales] يفتتحه توت العليق عصيرًا مع برغموت كالابريا والتوت الأحمر — ضوءٌ يستقرّ على الجلد؛ في القلب يمنح البخور وثلاثةُ أنواعٍ من الزعفران الملمس، ويأتي السوسن بنعومته البودرية؛ وفي القاعدة يستقرّ خشب الأرز والجلد والباتشولي لليل. [exhales] إعادة تأويلنا لـ Tuscan Leather، أُعيد رسمها بمادّتَين نفيستَين: الزعفران والسوسن. داكن، ذو ملمس، غامض.",
+    "minuit-bourbon":
+      "[warmly] Minuit Bourbon، مساءُ شتاءٍ، وشالٌ على الكتفين، وكوبٌ دافئ يُمسَك طويلاً بين اليدين. [inhales] يفتتح الهيل وقرفة سيلان التركيبة بدفء، ويُليّن زهر البرتقال واللوز القلب، ثم تستقرّ حبة التونكا وفانيليا بوربون في القاعدة، يشدّهما اتّفاقُ جلدٍ يمنع الحلاوة من الغرق في السكر. [exhales] إعادة تأويلنا لـ Althaïr، مُغناةً بهذا الجلد الذي يمنحها شخصيّة. دافئ، راقٍ، آسر.",
+    "fifth-season":
+      "[upbeat] Fifth Season، صباحُ ربيعٍ يشبه الصيف من الآن — نافذةٌ مفتوحة، وأقمشةٌ نظيفة، وضوءٌ في كلّ مكان. [inhales] يفتتحه اليوسفي والبرتقال والفواكه الاستوائية بحيويةٍ فوق نضارةٍ فوجيرية؛ في القلب يستقرّ ياسمين سامباك وزنبق الوادي على كراميلٍ خفيف؛ وفي القاعدة تُدوّر فانيليا بوربون وحبة التونكا والمسك الأبيض كلَّ شيء، كريميةً ونقيّة. [exhales] إعادة تأويلنا لـ Erba Pura، مُليَّنةً بلمسةٍ حليبية. نابض، متعدّد الأوجه، راقٍ — الأنعش في المجموعة، عطرُ النهار.",
   },
 };
 

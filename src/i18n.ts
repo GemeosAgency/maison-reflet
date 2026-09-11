@@ -459,7 +459,7 @@ const ui = {
     "luma.voiceOff": "إيقاف الصوت",
     "luma.replay": "إعادة الاستماع",
     "luma.voicePaused": "يستريح الصوت، وأتابع كتابةً.",
-    "luma.listenPortrait": "استمعوا إلى لوما تحكي {name}",
+    "luma.listenPortrait": "استمعوا إلى قصة {name}",
     "luma.listenText": "قراءة النص",
     "luma.listen": "استماع",
     "luma.doors.title": "اعثروا على انعكاسكم",
