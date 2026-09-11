@@ -401,6 +401,8 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
           aria-controls="site-mega"
         >
           {t("nav.perfumes")}
+          {/* Le chevron dit qu'un panneau s'ouvre (Sandro) ; il se retourne quand c'est le cas. */}
+          <img src="/brand/chevron.svg" alt="" width="8" height="8" class="site-nav-chevron" />
         </a>
         <a href={localePath(lang, "/coffrets/sample-box")}>{t("nav.discovery")}</a>
         <a href={localePath(lang, "/maison")}>{t("nav.maison")}</a>
@@ -585,6 +587,9 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
       }
       .site-nav { display: flex; gap: 24px; align-items: center; width: 300px; }
       .site-nav a { font-size: 16px; padding: 8px 0; }
+      .site-nav-trigger { display: inline-flex; align-items: center; gap: 7px; }
+      .site-nav-chevron { transition: transform 0.3s ease; }
+      .site-nav-trigger[aria-expanded="true"] .site-nav-chevron { transform: rotate(180deg); }
       .site-nav a:hover { opacity: 0.6; }
       /* Panneau ouvert : un trait sous « Parfums », pas de grisé (Sandro). */
       .site-nav-trigger[aria-expanded="true"] {

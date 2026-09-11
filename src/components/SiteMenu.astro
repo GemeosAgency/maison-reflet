@@ -527,6 +527,9 @@ const maisonHref = localePath(lang, "/maison");
     b.addEventListener("click", (e) => {
       e.stopPropagation();
       e.preventDefault();
+      // Un portrait ne part que d'un vrai geste du visiteur — jamais d'un
+      // événement synthétique (Sandro a entendu Bois Alert démarrer tout seul).
+      if (!e.isTrusted) return;
       const handle = b.dataset.menuListen ?? "";
       const src = b.dataset.src ?? "";
       if (!handle || !src) return;
@@ -853,15 +856,17 @@ const maisonHref = localePath(lang, "/maison");
     overflow: hidden;
     transition: border-color 0.25s ease, background-color 0.25s ease, color 0.25s ease;
   }
-  .mega-listen-big .mega-listen-icon { width: 24px; height: 24px; border-color: currentColor; }
+  .mega-listen-big .mega-listen-icon { width: 24px; height: 24px; border-color: rgba(21, 14, 10, 0.4); }
   .mega-listen-big .mega-listen-label { opacity: 1; }
   .mega-listen-big .mega-listen-time { margin-inline-start: auto; }
+  /* Survol et lecture : le contour s'affirme et seule la pastille se remplit —
+     le plein noir sur toute la pilule faisait « cheap » (Sandro). */
   .mega-listen-big:hover,
-  .mega-listen-big.is-playing { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .mega-listen-big.is-playing { border-color: var(--ink); }
   .mega-listen-big:hover .mega-listen-icon,
-  .mega-listen-big.is-playing .mega-listen-icon { background: transparent; color: inherit; }
-  .mega-listen-track-big { inset-inline: 0; bottom: 0; height: 2px; background: transparent; opacity: 1; }
-  .mega-listen-big .mega-listen-progress { background: var(--bg); }
+  .mega-listen-big.is-playing .mega-listen-icon { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .mega-listen-track-big { inset-inline: 14px; bottom: 0; height: 1px; background: transparent; opacity: 1; }
+  .mega-listen-big .mega-listen-progress { background: var(--ink); }
 
   .mega-foot {
     max-width: var(--page-max);
