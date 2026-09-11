@@ -13,6 +13,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Locale } from "../../i18n";
 import { checkNumbers, checkOutput, type Violation } from "./guardrails";
+import { SCRIPT_MAX_CHARS, stripTags } from "./voice";
 import type { Knowledge, KnowledgeProduct } from "./knowledge";
 
 const str = { type: "string" } as const;
@@ -93,6 +94,18 @@ export const LUMA_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "speak",
+    description:
+      "Seulement quand le contexte dit « voix activée » : la version parlée de ta réponse, les mêmes idées écrites pour l'oral — phrases courtes, un « Hmm… » ou un « alors » pour respirer, [inhales] avant la recommandation, [exhales] avant la chute, l'intention en tête entre crochets ([upbeat] d'ordinaire, [warmly] pour un cadeau) et [curious] devant la question finale, formulée en « Est-ce que… ». Rythme vif, comme une conseillère en boutique. Rien qui ne soit dans ta réponse écrite : mêmes noms, mêmes chiffres, mêmes prix.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: { script: { ...str, description: "Le script parlé, 700 caractères au plus, indications entre crochets comprises." } },
+      required: ["script"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "log_profile_signal",
     description:
       "Enregistre ce que Luma apprend du visiteur, dès qu'elle l'apprend : ce qu'il porte, le parfum d'origine cité, pour qui, l'occasion. Un champ inconnu reste null.",
@@ -118,6 +131,7 @@ export type LumaAction =
   | { type: "propose_email_capture"; pretext: string }
   | { type: "handoff_to_human"; reason: string }
   | { type: "suggest_replies"; replies: string[] }
+  | { type: "speak"; script: string }
   | {
       type: "log_profile_signal";
       wearsToday: string | null;
@@ -182,6 +196,15 @@ export function extractActions(
           .slice(0, MAX_REPLIES);
         for (const r of replies) shown(r);
         if (replies.length) actions.push({ type: "suggest_replies", replies });
+        break;
+      }
+      case "speak": {
+        const script = typeof input.script === "string" ? input.script.trim().slice(0, SCRIPT_MAX_CHARS) : "";
+        if (script) {
+          // Les garde-fous lisent le script sans ses indications entre crochets.
+          shown(stripTags(script));
+          actions.push({ type: "speak", script });
+        }
         break;
       }
       case "log_profile_signal":

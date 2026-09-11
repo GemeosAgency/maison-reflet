@@ -7,6 +7,7 @@ import { findProduct, type Knowledge, type KnowledgeProduct } from "../../../lib
 import { getKnowledge } from "../../../lib/luma/knowledge-live";
 import type { LumaAction } from "../../../lib/luma/tools";
 import { UNAVAILABLE_REPLY, type VisitContext } from "../../../lib/luma/persona";
+import { SCRIPT_MAX_CHARS, encodeScript, signScript, voiceEnabled } from "../../../lib/luma/voice";
 import {
   latestProfile,
   loadHistory,
@@ -100,6 +101,9 @@ function forClient(action: LumaAction, knowledge: Knowledge, lang: Locale): Reco
       return { type: action.type, email: CONTACT_EMAIL, reason: action.reason };
     case "suggest_replies":
       return { type: action.type, replies: action.replies };
+    case "speak":
+      // Envoyé à part, signé (voir plus bas) : jamais tel quel.
+      return null;
     case "log_profile_signal":
       return null;
   }
@@ -107,6 +111,12 @@ function forClient(action: LumaAction, knowledge: Knowledge, lang: Locale): Reco
 
 function json(data: unknown, status: number) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+}
+
+/** Si le modèle a oublié speak alors que la voix est activée : le texte lui-même, sans le gras, avec une intention. */
+function fallbackScript(text: string): string {
+  const flat = text.replace(/\*\*/g, "").replace(/\s*\n+\s*/g, " ").trim();
+  return `[upbeat] ${flat}`.slice(0, SCRIPT_MAX_CHARS);
 }
 
 function parseLocale(value: unknown): Locale | null {
@@ -155,17 +165,21 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   let message = "";
   let locale: Locale | null = null;
   let context: VisitContext = {};
+  let voice = false;
   try {
     const body = await request.json();
     message = String(body?.message ?? "").trim();
     locale = parseLocale(body?.locale);
     context = parseContext(body?.context);
+    voice = body?.voice === true;
   } catch {
     return json({ ok: false, error: "Requête invalide." }, 400);
   }
   if (!locale) return json({ ok: false, error: "Langue invalide." }, 400);
   if (!message || message.length > MESSAGE_MAX_CHARS) return json({ ok: false, error: "Message vide ou trop long." }, 400);
   const lang: Locale = locale;
+  // La voix : demandée par le visiteur ET disponible pour sa langue (clé présente, langue validée).
+  context.voice = voice && voiceEnabled(lang);
 
   // Pays : le choix du visiteur (cookie du sélecteur), sinon l'infrastructure.
   const cookieCountry = cookies.get(COUNTRY_COOKIE)?.value;
@@ -257,6 +271,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           const visible = forClient(action, knowledge, lang);
           if (visible) send({ type: "action", action: visible });
         }
+        // La version parlée, signée pour ce visiteur et ce jour : la route de
+        // synthèse ne lira rien d'autre. Le texte écrit sert de script si le
+        // modèle a oublié l'outil.
+        const spoken = reply.actions.find((a) => a.type === "speak");
+        if (context.voice && !reply.fallback) {
+          const script = spoken?.type === "speak" ? spoken.script : fallbackScript(reply.text);
+          send({ type: "speak", s: encodeScript(script), t: await signScript(script, anonId), l: lang });
+        }
 
         if (reply.fallback) console.error("[luma/chat] réponse de secours servie :", reply.error ?? reply.violations);
         const events: Promise<void>[] = [];
@@ -275,6 +297,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           violations: reply.violations.length,
           soft: reply.soft.map((v) => v.rule),
           chips: reply.chipsSource,
+          voice: context.voice ?? false,
+          spoken: Boolean(spoken),
           entry: context.entry ?? null,
           page: context.page?.type ?? null,
           actions: reply.actions.map((a) => a.type),

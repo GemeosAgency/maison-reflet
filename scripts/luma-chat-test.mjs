@@ -67,7 +67,7 @@ async function play(name, turns) {
   for (const userMessage of turns) {
     console.log(`\n  › ${userMessage}`);
     const t0 = Date.now();
-    const reply = await answer({ knowledge, locale, history, userMessage, context: { page: { type: "home" }, profile } });
+    const reply = await answer({ knowledge, locale, history, userMessage, context: { page: { type: "home" }, profile, voice: args.includes("--voice") } });
     const ms = Date.now() - t0;
     for (const k of Object.keys(total)) total[k] += reply.usage[k];
     console.log(`  ‹ ${reply.text.replace(/\n/g, "\n    ")}`);

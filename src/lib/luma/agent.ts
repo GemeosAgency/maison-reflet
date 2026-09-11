@@ -21,6 +21,7 @@ import type { Locale } from "../../i18n";
 import { checkNumbers, checkOutput, reminderFor, type Violation } from "./guardrails";
 import type { Knowledge } from "./knowledge";
 import { FALLBACK_REPLY, UNAVAILABLE_REPLY, buildSystemBlocks, type VisitContext } from "./persona";
+import { SCRIPT_MAX_CHARS, stripTags } from "./voice";
 import {
   LUMA_TOOLS,
   extractActions,
@@ -33,6 +34,8 @@ import {
 
 export const LUMA_MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 1024;
+// Avec la voix, la réponse porte aussi son script parlé (~250 tokens) : plus de place, sinon elle est coupée.
+const MAX_TOKENS_VOICE = 1700;
 const REQUEST_TIMEOUT_MS = 25_000;
 
 let client: Anthropic | null = null;
@@ -117,7 +120,7 @@ type Attempt = {
 async function generate(input: AnswerInput, reminder?: string): Promise<Attempt> {
   const message = await getClient().messages.create({
     model: LUMA_MODEL,
-    max_tokens: MAX_TOKENS,
+    max_tokens: input.context?.voice ? MAX_TOKENS_VOICE : MAX_TOKENS,
     thinking: { type: "adaptive" },
     output_config: { effort: "low" },
     system: buildSystemBlocks(input.knowledge, input.context, input.now, reminder),
@@ -159,6 +162,9 @@ async function generate(input: AnswerInput, reminder?: string): Promise<Attempt>
   if (recommends(actions) && text && !/[?؟]/.test(lastParagraph)) {
     soft.push({ rule: "recommandation sans question de suite", match: lastParagraph.slice(-60) });
   }
+  if (input.context?.voice && text && !actions.some((a) => a.type === "speak")) {
+    soft.push({ rule: "script parlé manquant", match: "speak" });
+  }
   return { text, actions, violations, soft, chipsSource: soft.some((v) => v.match === "suggest_replies") ? "none" : "model", message };
 }
 
@@ -166,10 +172,17 @@ function recommends(actions: LumaAction[]): boolean {
   return actions.some((a) => a.type === "recommend_reflet" || a.type === "show_product");
 }
 
-const COMPLETE_INSTRUCTION =
-  "[Consigne de la Maison — le visiteur ne voit pas ce message] Complète ta dernière réponse sans la réécrire. Réponds uniquement par un objet JSON, sans autre texte : " +
-  '{"question": "la question courte, dans la langue de la conversation, qui vérifie le choix et continue l\'échange (jour ou soir, présence ou discrétion, déjà senti, pour qui) — ou une chaîne vide si ta réponse se termine déjà par une question", ' +
-  '"replies": ["deux à quatre réponses courtes, formulées comme le visiteur les dirait, dans la langue de la conversation : les réponses possibles à la question posée à la fin de ta réponse (occasion → des occasions ; jour ou soir → jour ou soir ; ce qu\'il porte → les parfums d\'origine de la collection), ou les suites de ta proposition s\'il n\'y a pas de question ; jamais ce que le visiteur vient de dire"]}';
+function completeInstruction(voice: boolean): string {
+  return (
+    "[Consigne de la Maison — le visiteur ne voit pas ce message] Complète ta dernière réponse sans la réécrire. Réponds uniquement par un objet JSON, sans autre texte : " +
+    '{"question": "la question courte, dans la langue de la conversation, qui vérifie le choix et continue l\'échange (jour ou soir, présence ou discrétion, déjà senti, pour qui) — ou une chaîne vide si ta réponse se termine déjà par une question", ' +
+    '"replies": ["deux à quatre réponses courtes, formulées comme le visiteur les dirait, dans la langue de la conversation : les réponses possibles à la question posée à la fin de ta réponse (occasion → des occasions ; jour ou soir → jour ou soir ; ce qu\'il porte → les parfums d\'origine de la collection), ou les suites de ta proposition s\'il n\'y a pas de question ; jamais ce que le visiteur vient de dire"]' +
+    (voice
+      ? ', "script": "la version parlée de ta réponse complète (question comprise), écrite pour l\'oral : phrases courtes, un Hmm… ou un alors pour respirer, [inhales] avant la recommandation, [exhales] avant la chute, l\'intention en tête entre crochets ([upbeat] d\'ordinaire, [warmly] pour un cadeau), [curious] devant la question finale formulée en Est-ce que… ; mêmes noms, mêmes chiffres, mêmes prix que ta réponse écrite ; 700 caractères au plus"'
+      : "") +
+    "}"
+  );
+}
 
 /**
  * Complète une réponse propre mais incomplète — sans question de suite, ou
@@ -189,7 +202,8 @@ async function complete(a: Attempt, input: AnswerInput): Promise<{ attempt: Atte
     // persona + catalogue) est relu, pas réécrit. tool_choice none : du texte.
     const res = await getClient().messages.create({
       model: LUMA_MODEL,
-      max_tokens: 300,
+      // Avec la voix, le complément porte aussi le script parlé (~250 tokens) : sinon le JSON est coupé.
+      max_tokens: input.context?.voice ? 900 : 300,
       thinking: { type: "adaptive" },
       output_config: { effort: "low" },
       system: buildSystemBlocks(input.knowledge, input.context, input.now),
@@ -199,12 +213,14 @@ async function complete(a: Attempt, input: AnswerInput): Promise<{ attempt: Atte
         ...input.history,
         { role: "user", content: input.userMessage },
         { role: "assistant", content: a.text },
-        { role: "user", content: COMPLETE_INSTRUCTION },
+        { role: "user", content: completeInstruction(Boolean(input.context?.voice)) },
       ],
     });
     // Le modèle entoure parfois le JSON de texte ou de clôtures : on prend le premier objet.
     const raw = textOf(res).match(/\{[\s\S]*\}/)?.[0] ?? "";
-    const parsed = JSON.parse(raw) as { question?: unknown; replies?: unknown };
+    if (typeof process !== "undefined" && process.env.LUMA_DEBUG) console.error("[luma/agent] complément brut :", textOf(res).slice(0, 1500));
+    const parsed = JSON.parse(raw) as { question?: unknown; replies?: unknown; script?: unknown };
+    const needsScript = a.soft.some((v) => v.rule === "script parlé manquant");
 
     let text = a.text;
     let actions = a.actions;
@@ -223,6 +239,11 @@ async function complete(a: Attempt, input: AnswerInput): Promise<{ attempt: Atte
         actions = normalizeReplies([...actions, { type: "suggest_replies", replies }], input.knowledge);
         chipsSource = "completion";
       }
+    }
+    if (needsScript && typeof parsed.script === "string") {
+      const script = parsed.script.trim().slice(0, SCRIPT_MAX_CHARS);
+      // Le script doit porter la question ajoutée : sinon la voix s'arrête avant le texte.
+      if (script && clean(stripTags(script))) actions = [...actions, { type: "speak", script }];
     }
     return { attempt: withFallbackChips({ ...a, text, actions, chipsSource }, input), usage: res.usage };
   } catch (error) {

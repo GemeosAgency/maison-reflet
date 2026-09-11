@@ -227,3 +227,17 @@ export async function tokensToday(): Promise<number> {
   if (error) fail("lecture consommation", error);
   return (data ?? []).reduce((sum, r) => sum + (r.tokens_in ?? 0) + (r.tokens_out ?? 0), 0);
 }
+
+/** Caractères synthétisés depuis minuit UTC (événements « voice ») — pour le plafond quotidien de la voix. */
+export async function voiceCharsToday(): Promise<number> {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  const { data, error } = await db()
+    .from("luma_events")
+    .select("props")
+    .eq("name", "voice")
+    .gte("created_at", start.toISOString())
+    .limit(5000);
+  if (error) fail("lecture voix du jour", error);
+  return (data ?? []).reduce((sum, r) => sum + (Number((r.props as { chars?: number } | null)?.chars) || 0), 0);
+}
