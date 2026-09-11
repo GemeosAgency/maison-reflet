@@ -1,0 +1,678 @@
+---
+/**
+ * Menu de navigation — deux formes, un seul composant, monté dans Layout juste
+ * après l'en-tête (dans `.site-header-sticky`, qui est positionné : c'est lui
+ * qui sert de référence au panneau).
+ *
+ * ORDINATEUR — un panneau pleine largeur sous la barre, ouvert au survol de
+ * « Parfums » (avec un délai d'intention, pour ne pas surgir au passage de la
+ * souris) ou au clavier. Trois colonnes : les six Reflets en liste
+ * typographique, les coffrets, et un grand visuel qui change au survol d'un
+ * nom. Le « Parfums » de la barre reste un lien vers le catalogue : sur un
+ * écran tactile, sans survol, le premier toucher ouvre le panneau.
+ *
+ * MOBILE — une feuille plein écran ouverte par le bouton menu, avec les mêmes
+ * entrées en liste (vignette, nom, univers), puis Luma, le pays et la langue.
+ *
+ * Le premium est dans la retenue : papier et encre, beaucoup d'air, une
+ * apparition lente, aucune boîte ni ombre. Les prix portent `data-money`
+ * pour être recalculés dans la devise du visiteur (voir lib/country.ts).
+ */
+import {
+  formatPrice,
+  getAllProducts,
+  getDisplayPrice,
+  getPrimaryVariant,
+  isCoffret,
+  shopifyImage,
+} from "../lib/shopify";
+import { getCoffrets, getMenuParfums, getRecoImages, responsiveImage, type ResponsiveImage } from "../lib/sanity";
+import { type Locale, locales, localeNames, localePath, useTranslations } from "../i18n";
+
+interface Props {
+  lang: Locale;
+  /** Chemin courant sans préfixe de langue, pour le sélecteur de langue. */
+  rest: string;
+}
+
+const { lang, rest } = Astro.props;
+const t = useTranslations(lang);
+
+const [products, menuParfums, recoImages, coffretContent] = await Promise.all([
+  getAllProducts(),
+  getMenuParfums(lang),
+  getRecoImages(),
+  getCoffrets(lang),
+]);
+const docByHandle = Object.fromEntries(menuParfums.map((p) => [p.shopifyHandle, p]));
+
+// La colonne visuelle fait au plus 360 px : deux paliers, écran 2x compris.
+const VISUAL_WIDTHS = [360, 720];
+const THUMB_WIDTHS = [72, 144];
+const BOX_WIDTHS = [320, 640];
+
+type Picture = ResponsiveImage | null;
+
+const reflets = products
+  .filter((p) => !isCoffret(p))
+  .map((p) => {
+    const doc = docByHandle[p.handle];
+    const source = recoImages[p.handle]?.main ?? null;
+    const variant = getPrimaryVariant(p);
+    const price = getDisplayPrice(p);
+    // Même visuel que la tuile du catalogue : la photo curée dans Sanity
+    // (imageRecommandation) sinon la photo principale Shopify.
+    const picture = (widths: number[], aspect: number): Picture =>
+      source
+        ? responsiveImage(source as any, { widths, aspect })
+        : p.featuredImage
+          ? shopifyImage(p.featuredImage, widths)
+          : null;
+    return {
+      handle: p.handle,
+      name: p.title,
+      href: localePath(lang, `/parfums/${p.handle}`),
+      familles: doc?.familles ?? null,
+      bestSeller: !!doc?.bestSeller,
+      color: doc?.couleurSignature ?? null,
+      price: formatPrice(price.amount, price.currencyCode),
+      variantId: variant.id,
+      visual: picture(VISUAL_WIDTHS, 3 / 4),
+      thumb: picture(THUMB_WIDTHS, 4 / 5),
+    };
+  });
+
+// Visuel affiché à l'ouverture : le best-seller, sinon le premier.
+const initialHandle = (reflets.find((r) => r.bestSeller) ?? reflets[0])?.handle ?? null;
+
+const coffrets = products
+  .filter(isCoffret)
+  .map((sp) => {
+    const content = coffretContent.find((c) => c.shopifyHandle === sp.handle);
+    const variant = getPrimaryVariant(sp);
+    const price = getDisplayPrice(sp);
+    const img: Picture = content?.image
+      ? responsiveImage(content.image as any, { widths: BOX_WIDTHS, aspect: 4 / 3 })
+      : sp.featuredImage
+        ? shopifyImage(sp.featuredImage, BOX_WIDTHS)
+        : null;
+    return {
+      handle: sp.handle,
+      title: content?.titre ?? sp.title,
+      href: localePath(lang, `/coffrets/${sp.handle}`),
+      price: formatPrice(price.amount, price.currencyCode),
+      variantId: variant.id,
+      img,
+    };
+  });
+
+const catalogueHref = localePath(lang, "/parfums");
+const materialsHref = `${catalogueHref}#luma-doors-title`;
+const maisonHref = localePath(lang, "/maison");
+---
+
+{/* ---------------- Ordinateur : le panneau ---------------- */}
+<div class="mega-veil" data-menu-veil aria-hidden="true"></div>
+<div class="mega" id="site-mega" data-menu-panel aria-label={t("nav.perfumes")}>
+  <div class="mega-inner">
+    <div class="mega-col mega-col-reflets">
+      <p class="mega-eyebrow">{t("menu.reflets")}</p>
+      <ul class="mega-list">
+        {
+          reflets.map((r) => (
+            <li>
+              <a
+                class:list={["mega-item", { "is-active": r.handle === initialHandle }]}
+                href={r.href}
+                data-menu-item={r.handle}
+              >
+                <span class="mega-item-name">{r.name}</span>
+                <span class="mega-item-meta">
+                  {r.color && <i class="mega-swatch" style={`background:${r.color}`} aria-hidden="true"></i>}
+                  {r.familles && <span>{r.familles}</span>}
+                  {r.bestSeller && <span class="mega-tag">{t("product.bestSeller")}</span>}
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+      <a class="mega-all" href={catalogueHref}>{t("menu.all")}</a>
+    </div>
+
+    <div class="mega-col mega-col-coffrets">
+      <p class="mega-eyebrow">{t("menu.coffrets")}</p>
+      <div class="mega-boxes">
+        {
+          coffrets.map((c) => (
+            <a class="mega-box" href={c.href}>
+              {c.img && (
+                <img
+                  class="mega-box-img"
+                  src={c.img.src}
+                  srcset={c.img.srcset}
+                  sizes="240px"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+              <span class="mega-box-title">{c.title}</span>
+              <span class="mega-box-price" data-money={c.variantId}>{c.price}</span>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="mega-visual" aria-hidden="true">
+      {
+        reflets.map((r) => (
+          <a
+            class:list={["mega-fig", { "is-active": r.handle === initialHandle }]}
+            href={r.href}
+            data-menu-figure={r.handle}
+            tabindex="-1"
+          >
+            {r.visual && (
+              <img
+                src={r.visual.src}
+                srcset={r.visual.srcset}
+                sizes="360px"
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
+            )}
+            <span class="mega-fig-caption">
+              <span class="mega-fig-name">{r.name}</span>
+              <span class="mega-fig-price" data-money={r.variantId}>{r.price}</span>
+              <span class="mega-fig-cta">{t("menu.discover")}</span>
+            </span>
+          </a>
+        ))
+      }
+    </div>
+  </div>
+  <div class="mega-foot">
+    <button type="button" class="mega-luma" data-luma-open data-luma-source="menu">
+      <span class="mega-luma-name">{t("luma.name")}</span>
+      <span>{t("menu.luma")}</span>
+    </button>
+    <a class="mega-foot-link" href={materialsHref}>{t("menu.materials")}</a>
+    <a class="mega-foot-link" href={maisonHref}>{t("nav.maison")}</a>
+  </div>
+</div>
+
+{/* ---------------- Mobile : la feuille ---------------- */}
+<div class="msheet" id="site-menu-sheet" data-menu-sheet aria-hidden="true" role="dialog" aria-label={t("menu.open")}>
+  <div class="msheet-head">
+    <img src="/brand/logo.svg" alt="Maison Reflet" height="22" />
+    <button type="button" class="msheet-close" data-menu-close aria-label={t("menu.close")}>
+      <img src="/brand/close.svg" alt="" width="16" height="16" />
+    </button>
+  </div>
+  <nav class="msheet-body">
+    <p class="mega-eyebrow">{t("menu.reflets")}</p>
+    <ul class="msheet-list">
+      {
+        reflets.map((r) => (
+          <li>
+            <a class="msheet-row" href={r.href}>
+              {r.thumb && (
+                <img
+                  class="msheet-thumb"
+                  src={r.thumb.src}
+                  srcset={r.thumb.srcset}
+                  sizes="56px"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+              <span class="msheet-row-text">
+                <span class="msheet-row-name">{r.name}</span>
+                {r.familles && <span class="msheet-row-meta">{r.familles}</span>}
+              </span>
+              <span class="msheet-row-price" data-money={r.variantId}>{r.price}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+    <a class="msheet-all" href={catalogueHref}>{t("menu.all")}</a>
+
+    <p class="mega-eyebrow">{t("menu.coffrets")}</p>
+    <ul class="msheet-list">
+      {
+        coffrets.map((c) => (
+          <li>
+            <a class="msheet-row" href={c.href}>
+              {c.img && (
+                <img
+                  class="msheet-thumb msheet-thumb-box"
+                  src={c.img.src}
+                  srcset={c.img.srcset}
+                  sizes="56px"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+              <span class="msheet-row-text">
+                <span class="msheet-row-name">{c.title}</span>
+              </span>
+              <span class="msheet-row-price" data-money={c.variantId}>{c.price}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <a class="msheet-link" href={maisonHref}>{t("nav.maison")}</a>
+  </nav>
+  <div class="msheet-foot">
+    <button type="button" class="msheet-luma" data-luma-open data-luma-source="menu">
+      <span class="mega-luma-name">{t("luma.name")}</span>
+      <span>{t("menu.luma")}</span>
+    </button>
+    <div class="msheet-settings">
+      <button type="button" class="msheet-region" data-region-open>{t("menu.region")}</button>
+      <ul class="msheet-langs">
+        {
+          locales.map((loc) => (
+            <li>
+              <a href={localePath(loc, rest)} aria-current={loc === lang ? "true" : undefined} lang={loc}>
+                {localeNames[loc]}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ---------------- Ordinateur ---------------- */
+  const trigger = document.querySelector<HTMLAnchorElement>("[data-menu-trigger]");
+  const panel = document.querySelector<HTMLElement>("[data-menu-panel]");
+  const veil = document.querySelector<HTMLElement>("[data-menu-veil]");
+  const hoverable = window.matchMedia("(hover: hover)");
+
+  let openTimer: number | undefined;
+  let closeTimer: number | undefined;
+  let isOpen = false;
+
+  function openPanel() {
+    window.clearTimeout(closeTimer);
+    if (!panel || isOpen) return;
+    isOpen = true;
+    document.body.classList.add("menu-open");
+    panel.classList.add("is-open");
+    veil?.classList.add("is-open");
+    trigger?.setAttribute("aria-expanded", "true");
+  }
+  function closePanel() {
+    window.clearTimeout(openTimer);
+    if (!panel || !isOpen) return;
+    isOpen = false;
+    document.body.classList.remove("menu-open");
+    panel.classList.remove("is-open");
+    veil?.classList.remove("is-open");
+    trigger?.setAttribute("aria-expanded", "false");
+  }
+  // Délais d'intention : ouvrir au passage de la souris serait agressif,
+  // fermer à la sortie immédiate ferait perdre le panneau en diagonale.
+  const scheduleOpen = () => {
+    window.clearTimeout(closeTimer);
+    openTimer = window.setTimeout(openPanel, 120);
+  };
+  const scheduleClose = () => {
+    window.clearTimeout(openTimer);
+    closeTimer = window.setTimeout(closePanel, 220);
+  };
+
+  if (trigger && panel) {
+    trigger.addEventListener("mouseenter", () => hoverable.matches && scheduleOpen());
+    trigger.addEventListener("mouseleave", () => hoverable.matches && scheduleClose());
+    panel.addEventListener("mouseenter", () => window.clearTimeout(closeTimer));
+    panel.addEventListener("mouseleave", () => hoverable.matches && scheduleClose());
+    // Sans survol (tactile) : le premier toucher ouvre, le second suit le lien.
+    trigger.addEventListener("click", (e) => {
+      if (!isOpen) {
+        e.preventDefault();
+        openPanel();
+      }
+    });
+    trigger.addEventListener("focus", openPanel);
+    veil?.addEventListener("click", closePanel);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && isOpen) {
+        closePanel();
+        trigger.focus();
+      }
+    });
+    // Le focus clavier quitte le trigger et le panneau : on referme.
+    document.addEventListener("focusin", (e) => {
+      const target = e.target as Node | null;
+      if (isOpen && target && !panel.contains(target) && target !== trigger) closePanel();
+    });
+    document.addEventListener("click", (e) => {
+      const target = e.target as Node | null;
+      if (isOpen && target && !panel.contains(target) && !trigger.contains(target)) closePanel();
+    });
+
+    // Survoler un nom change le visuel : chaque Reflet a sa figure empilée,
+    // on n'active que la sienne (fondu en CSS).
+    const figures = panel.querySelectorAll<HTMLElement>("[data-menu-figure]");
+    const items = panel.querySelectorAll<HTMLElement>("[data-menu-item]");
+    function activate(handle: string) {
+      for (const f of figures) f.classList.toggle("is-active", f.dataset.menuFigure === handle);
+      for (const i of items) i.classList.toggle("is-active", i.dataset.menuItem === handle);
+    }
+    for (const item of items) {
+      const show = () => activate(item.dataset.menuItem ?? "");
+      item.addEventListener("mouseenter", show);
+      item.addEventListener("focus", show);
+    }
+  }
+
+  /* ---------------- Mobile ---------------- */
+  const sheet = document.querySelector<HTMLElement>("[data-menu-sheet]");
+  const burger = document.querySelector<HTMLButtonElement>("[data-menu-open]");
+  let sheetOpen = false;
+
+  function openSheet() {
+    if (!sheet) return;
+    sheetOpen = true;
+    document.body.classList.add("menu-open");
+    sheet.classList.add("is-open");
+    sheet.setAttribute("aria-hidden", "false");
+    burger?.setAttribute("aria-expanded", "true");
+    document.body.style.overflow = "hidden";
+    sheet.querySelector<HTMLElement>("[data-menu-close]")?.focus();
+  }
+  function closeSheet() {
+    if (!sheet || !sheetOpen) return;
+    sheetOpen = false;
+    document.body.classList.remove("menu-open");
+    sheet.classList.remove("is-open");
+    sheet.setAttribute("aria-hidden", "true");
+    burger?.setAttribute("aria-expanded", "false");
+    document.body.style.overflow = "";
+  }
+  burger?.addEventListener("click", () => (sheetOpen ? closeSheet() : openSheet()));
+  sheet?.querySelector("[data-menu-close]")?.addEventListener("click", closeSheet);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && sheetOpen) {
+      closeSheet();
+      burger?.focus();
+    }
+  });
+  // Luma et le sélecteur de pays ouvrent leur propre panneau : la feuille se
+  // retire d'abord, sinon ils s'ouvriraient derrière elle.
+  for (const b of sheet?.querySelectorAll("[data-luma-open], [data-region-open]") ?? []) {
+    b.addEventListener("click", closeSheet);
+  }
+</script>
+
+<style>
+  /*
+   * Le menu vit dans l'en-tête collant, dont le z-index (20) plafonne tout
+   * ce qu'il contient : la pilule Luma (55, à la racine) passerait devant la
+   * feuille et le pied du panneau. Plutôt que de sortir le menu de l'en-tête,
+   * la pilule s'efface tant que le menu est ouvert (classe posée sur body).
+   */
+  :global(body.menu-open .luma-pill) { opacity: 0 !important; pointer-events: none !important; }
+
+  /* ===== Panneau ordinateur ===== */
+  .mega-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: rgba(21, 14, 10, 0.16);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease, visibility 0s 0.4s;
+  }
+  .mega-veil.is-open { opacity: 1; visibility: visible; transition: opacity 0.4s ease; }
+
+  .mega {
+    position: absolute;
+    inset-inline: 0;
+    top: 100%;
+    z-index: 3;
+    background: var(--bg);
+    border-bottom: 0.8px solid rgba(0, 0, 0, 0.1);
+    max-height: calc(100vh - var(--header-h) - var(--banner-h));
+    overflow-y: auto;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.28s ease, transform 0.28s ease, visibility 0s 0.28s;
+  }
+  .mega.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition: opacity 0.36s ease, transform 0.36s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .mega-inner {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: 44px 40px 36px;
+    display: grid;
+    grid-template-columns: minmax(280px, 1.1fr) minmax(220px, 0.8fr) clamp(260px, 22vw, 360px);
+    gap: 64px;
+    align-items: start;
+  }
+  .mega-eyebrow {
+    margin: 0 0 20px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.55;
+  }
+
+  .mega-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .mega-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 0;
+    transition: opacity 0.25s ease;
+  }
+  /* Le survol d'un nom fait pâlir les autres : c'est le seul "état actif". */
+  .mega-list:hover .mega-item:not(:hover) { opacity: 0.42; }
+  .mega-item-name {
+    font-size: 30px;
+    line-height: 1.05;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  .mega-item-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    opacity: 0.6;
+  }
+  .mega-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+  .mega-tag { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; color: var(--rose); opacity: 1; }
+  .mega-all,
+  .mega-foot-link {
+    display: inline-block;
+    margin-top: 28px;
+    font-size: 14px;
+    text-decoration: underline;
+    text-decoration-color: rgba(21, 14, 10, 0.3);
+    text-underline-offset: 4px;
+    transition: text-decoration-color 0.25s ease;
+  }
+  .mega-all:hover,
+  .mega-foot-link:hover { text-decoration-color: currentColor; }
+
+  .mega-boxes { display: flex; flex-direction: column; gap: 28px; }
+  .mega-box { display: flex; flex-direction: column; gap: 10px; }
+  .mega-box-img {
+    width: 100%;
+    max-width: 240px;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    transition: opacity 0.3s ease;
+  }
+  .mega-box:hover .mega-box-img { opacity: 0.86; }
+  .mega-box-title { font-size: 16px; }
+  .mega-box-price { font-size: 13px; opacity: 0.6; }
+
+  .mega-visual {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    /* La légende vit sous la photo : on lui réserve sa place. */
+    padding-bottom: 56px;
+    box-sizing: content-box;
+  }
+  .mega-fig {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    opacity: 0;
+    transition: opacity 0.55s ease;
+    pointer-events: none;
+  }
+  .mega-fig.is-active { opacity: 1; pointer-events: auto; }
+  .mega-fig img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; }
+  .mega-fig-caption {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 14px;
+  }
+  .mega-fig-name { font-weight: 500; }
+  .mega-fig-price { opacity: 0.6; }
+  .mega-fig-cta {
+    margin-inline-start: auto;
+    text-decoration: underline;
+    text-decoration-color: rgba(21, 14, 10, 0.3);
+    text-underline-offset: 4px;
+  }
+  .mega-fig:hover .mega-fig-cta { text-decoration-color: currentColor; }
+
+  .mega-foot {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: 20px 40px 28px;
+    border-top: 0.8px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: baseline;
+    gap: 40px;
+  }
+  .mega-foot .mega-foot-link { margin-top: 0; }
+  .mega-luma,
+  .msheet-luma {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 14px;
+    color: inherit;
+    cursor: pointer;
+  }
+  .mega-luma:hover { opacity: 0.6; }
+  .mega-luma-name { font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* ===== Feuille mobile ===== */
+  .msheet {
+    position: fixed;
+    inset: 0;
+    /* Au-dessus de la pilule Luma (qui passait devant le pied de la feuille),
+       sous le panier (60) ; Luma et le pays ferment la feuille avant de s'ouvrir. */
+    z-index: 59;
+    display: none;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--ink);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .msheet.is-open { opacity: 1; transform: none; }
+  .msheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    padding: 0 20px;
+    border-bottom: 0.8px solid rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+  }
+  .msheet-head img { height: 22px; width: auto; }
+  .msheet-close { border: 0; background: none; padding: 8px; margin-inline-end: -8px; cursor: pointer; line-height: 0; }
+  .msheet-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 28px 20px 12px;
+  }
+  .msheet-body .mega-eyebrow { margin-bottom: 8px; }
+  .msheet-body .mega-eyebrow + .msheet-list { margin-bottom: 8px; }
+  .msheet-list { list-style: none; margin: 0; padding: 0; }
+  .msheet-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 0.8px solid rgba(0, 0, 0, 0.08);
+  }
+  .msheet-thumb { width: 56px; height: 70px; object-fit: cover; flex-shrink: 0; }
+  .msheet-thumb-box { height: 56px; }
+  .msheet-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+  .msheet-row-name { font-size: 20px; line-height: 1.15; }
+  .msheet-row-meta { font-size: 13px; opacity: 0.6; }
+  .msheet-row-price { font-size: 13px; opacity: 0.6; flex-shrink: 0; }
+  .msheet-all,
+  .msheet-link {
+    display: block;
+    padding: 14px 0 28px;
+    font-size: 14px;
+    text-decoration: underline;
+    text-decoration-color: rgba(21, 14, 10, 0.3);
+    text-underline-offset: 4px;
+  }
+  .msheet-link { padding: 20px 0 8px; font-size: 20px; text-decoration: none; }
+  .msheet-foot {
+    flex-shrink: 0;
+    padding: 16px 20px calc(20px + env(safe-area-inset-bottom));
+    border-top: 0.8px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .msheet-settings { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 13px; }
+  .msheet-region { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+  .msheet-langs { list-style: none; margin: 0; padding: 0; display: flex; gap: 14px; }
+  .msheet-langs a { opacity: 0.6; }
+  .msheet-langs a[aria-current="true"] { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+
+  @media (max-width: 720px) {
+    .mega,
+    .mega-veil { display: none; }
+    .msheet { display: flex; }
+    .msheet:not(.is-open) { pointer-events: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mega,
+    .mega-veil,
+    .mega-fig,
+    .mega-item,
+    .msheet { transition: none; }
+  }
+</style>

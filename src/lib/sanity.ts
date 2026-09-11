@@ -416,6 +416,29 @@ export async function getLumaParfums(locale: Locale): Promise<LumaParfumDoc[]> {
   return sanityClient.fetch(query);
 }
 
+/** Ce que le menu de navigation montre d'un Reflet : univers, couleur, best-seller. */
+export type MenuParfum = {
+  shopifyHandle: string;
+  familles: string | null;
+  couleurSignature: string | null;
+  bestSeller: boolean | null;
+};
+
+/**
+ * Les six Reflets pour le menu (voir SiteMenu.astro) — une projection minuscule,
+ * le menu est monté sur CHAQUE page et n'a besoin ni des notes ni des textes.
+ */
+export async function getMenuParfums(locale: Locale): Promise<MenuParfum[]> {
+  const l = safeLocale(locale);
+  const query = `*[_type == "parfum" && defined(shopifyHandle)]{
+    shopifyHandle,
+    "familles": coalesce(familles.${l}, familles.fr),
+    couleurSignature,
+    bestSeller
+  }`;
+  return sanityClient.fetch(query);
+}
+
 export type SiteSettings = {
   brandName: string | null;
   baseline: string | null;
