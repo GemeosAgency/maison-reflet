@@ -24,6 +24,7 @@ import {
   getDisplayPrice,
   getPrimaryVariant,
   isCoffret,
+  secondaryImage,
   shopifyImage,
 } from "../lib/shopify";
 import { getCoffrets, getMenuParfums, getRecoImages, responsiveImage, type ResponsiveImage } from "../lib/sanity";
@@ -58,6 +59,15 @@ const reflets = products
   .map((p) => {
     const doc = docByHandle[p.handle];
     const source = recoImages[p.handle]?.main ?? null;
+    // Seconde photo au survol du visuel — la même que les tuiles du
+    // catalogue : la version curée dans Sanity, sinon la deuxième photo Shopify.
+    const hoverSource = recoImages[p.handle]?.hover ?? null;
+    const secondary = secondaryImage(p);
+    const hoverVisual: Picture = hoverSource
+      ? responsiveImage(hoverSource as any, { widths: VISUAL_WIDTHS, aspect: 3 / 4 })
+      : secondary
+        ? shopifyImage(secondary, VISUAL_WIDTHS)
+        : null;
     const variant = getPrimaryVariant(p);
     const price = getDisplayPrice(p);
     // Même visuel que la tuile du catalogue : la photo curée dans Sanity
@@ -78,6 +88,7 @@ const reflets = products
       price: formatPrice(price.amount, price.currencyCode),
       variantId: variant.id,
       visual: picture(VISUAL_WIDTHS, 3 / 4),
+      hoverVisual,
       thumb: picture(THUMB_WIDTHS, 4 / 5),
     };
   });
@@ -149,16 +160,30 @@ const maisonHref = localePath(lang, "/maison");
             data-menu-figure={r.handle}
             tabindex="-1"
           >
-            {r.visual && (
-              <img
-                src={r.visual.src}
-                srcset={r.visual.srcset}
-                sizes="360px"
-                alt=""
-                loading="lazy"
-                decoding="async"
-              />
-            )}
+            <span class="mega-fig-media">
+              {r.visual && (
+                <img
+                  class="mega-fig-img"
+                  src={r.visual.src}
+                  srcset={r.visual.srcset}
+                  sizes="360px"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+              {r.hoverVisual && (
+                <img
+                  class="mega-fig-img mega-fig-img-hover"
+                  src={r.hoverVisual.src}
+                  srcset={r.hoverVisual.srcset}
+                  sizes="360px"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+            </span>
             <span class="mega-fig-caption">
               <span class="mega-fig-name">{r.name}</span>
               <span class="mega-fig-price" data-money={r.variantId}>{r.price}</span>
@@ -484,10 +509,9 @@ const maisonHref = localePath(lang, "/maison");
     flex-direction: column;
     gap: 4px;
     padding: 8px 0;
-    transition: opacity 0.25s ease;
   }
-  /* Le survol d'un nom fait pâlir les autres : c'est le seul "état actif". */
-  .mega-list:hover .mega-item:not(:hover) { opacity: 0.42; }
+  /* Pas de grisé des autres noms au survol (Sandro) : le visuel qui change
+     au centre suffit comme retour. */
   .mega-item-name {
     font-size: 30px;
     line-height: 1.05;
@@ -547,7 +571,11 @@ const maisonHref = localePath(lang, "/maison");
     pointer-events: none;
   }
   .mega-fig.is-active { opacity: 1; pointer-events: auto; }
-  .mega-fig img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; }
+  .mega-fig-media { position: relative; display: block; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; }
+  .mega-fig-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  /* Au survol du visuel : fondu vers la seconde photo, comme sur les tuiles. */
+  .mega-fig-img-hover { opacity: 0; transition: opacity 0.45s ease; }
+  .mega-fig:hover .mega-fig-img-hover { opacity: 1; }
   .mega-fig-caption {
     display: flex;
     align-items: baseline;
