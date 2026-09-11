@@ -140,31 +140,6 @@ const maisonHref = localePath(lang, "/maison");
       <a class="mega-all" href={catalogueHref}>{t("menu.all")}</a>
     </div>
 
-    <div class="mega-col mega-col-coffrets">
-      <p class="mega-eyebrow">{t("menu.coffrets")}</p>
-      <div class="mega-boxes">
-        {
-          coffrets.map((c) => (
-            <a class="mega-box" href={c.href}>
-              {c.img && (
-                <img
-                  class="mega-box-img"
-                  src={c.img.src}
-                  srcset={c.img.srcset}
-                  sizes="240px"
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                />
-              )}
-              <span class="mega-box-title">{c.title}</span>
-              <span class="mega-box-price" data-money={c.variantId}>{c.price}</span>
-            </a>
-          ))
-        }
-      </div>
-    </div>
-
     <div class="mega-visual" aria-hidden="true">
       {
         reflets.map((r) => (
@@ -193,6 +168,31 @@ const maisonHref = localePath(lang, "/maison");
         ))
       }
     </div>
+    <div class="mega-col mega-col-coffrets">
+      <p class="mega-eyebrow">{t("menu.coffrets")}</p>
+      <div class="mega-boxes">
+        {
+          coffrets.map((c) => (
+            <a class="mega-box" href={c.href}>
+              {c.img && (
+                <img
+                  class="mega-box-img"
+                  src={c.img.src}
+                  srcset={c.img.srcset}
+                  sizes="240px"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+              <span class="mega-box-title">{c.title}</span>
+              <span class="mega-box-price" data-money={c.variantId}>{c.price}</span>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+
   </div>
   <div class="mega-foot">
     <button type="button" class="mega-luma" data-luma-open data-luma-source="menu">
@@ -463,7 +463,9 @@ const maisonHref = localePath(lang, "/maison");
     margin: 0 auto;
     padding: 44px 40px 36px;
     display: grid;
-    grid-template-columns: minmax(280px, 1.1fr) minmax(220px, 0.8fr) clamp(260px, 22vw, 360px);
+    /* Les Reflets, le visuel au centre, les coffrets à droite (demande de
+       Sandro) ; en arabe la grille se retourne d'elle-même. */
+    grid-template-columns: minmax(280px, 1.1fr) clamp(260px, 22vw, 360px) minmax(220px, 0.8fr);
     gap: 64px;
     align-items: start;
   }
