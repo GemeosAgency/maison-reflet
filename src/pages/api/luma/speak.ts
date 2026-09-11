@@ -28,9 +28,11 @@ export const prerender = false;
  *     depuis Supabase Storage, sans toucher ElevenLabs ;
  *  2. un plafond quotidien de caractères, tous visiteurs ; à 80 %, bascule
  *     sur le modèle économique plutôt que de couper ;
- *  3. l'audio est gardé pour la prochaine fois. On attend la synthèse
- *     complète (scripts courts, ~3-5 s) plutôt que de la relayer en flux :
- *     c'est ce qui permet de la ranger de façon fiable.
+ *  3. l'audio est gardé pour la prochaine fois — sans renoncer au flux : les
+ *     octets passent au navigateur au fil de l'eau (premier son ~3 s) et sont
+ *     accumulés en chemin ; la mise en cache se fait dans le `flush` du flux,
+ *     c'est-à-dire avant que la réponse ne se ferme, donc avant que la
+ *     fonction ne s'arrête.
  * Chaque synthèse est journalisée (chars, langue, modèle) : c'est le compteur.
  */
 
@@ -80,18 +82,35 @@ export const GET: APIRoute = async ({ cookies, url }) => {
     const economy = used > DAILY_CHARS_CAP * ECONOMY_FROM;
 
     const upstream = await synthesize(script, locale, economy);
-    if (!upstream.ok) {
+    if (!upstream.ok || !upstream.body) {
       const detail = await upstream.text().catch(() => "");
       console.error("[luma/speak] ElevenLabs a refusé :", upstream.status, detail.slice(0, 300));
       return deny(502, "Synthèse indisponible.");
     }
-    const bytes = await upstream.arrayBuffer();
-    // Journal et cache en parallèle ; ni l'un ni l'autre ne retient l'audio.
-    void Promise.all([
-      logEvent(null, "voice", { chars: script.length, locale, model: economy ? ECONOMY_MODEL : VOICE_MODEL, bytes: bytes.byteLength }),
-      storeAudio(hash, bytes),
-    ]);
-    return new Response(bytes, { status: 200, headers: { ...AUDIO_HEADERS, "X-Luma-Voice": economy ? "economy" : "v3" } });
+    const model = economy ? ECONOMY_MODEL : VOICE_MODEL;
+    const chunks: Uint8Array[] = [];
+    const cacheOnTheWay = new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        chunks.push(chunk);
+        controller.enqueue(chunk);
+      },
+      async flush() {
+        const bytes = new Uint8Array(chunks.reduce((n, c) => n + c.byteLength, 0));
+        let offset = 0;
+        for (const c of chunks) {
+          bytes.set(c, offset);
+          offset += c.byteLength;
+        }
+        await Promise.all([
+          logEvent(null, "voice", { chars: script.length, locale, model, bytes: bytes.byteLength }),
+          storeAudio(hash, bytes.buffer),
+        ]);
+      },
+    });
+    return new Response(upstream.body.pipeThrough(cacheOnTheWay), {
+      status: 200,
+      headers: { ...AUDIO_HEADERS, "X-Luma-Voice": economy ? "economy" : "v3" },
+    });
   } catch (error) {
     console.error("[luma/speak] échec :", error);
     return deny(502, "Synthèse indisponible.");

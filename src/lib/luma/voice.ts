@@ -117,7 +117,7 @@ export async function synthesize(script: string, locale: Locale, economy = false
   const body = economy
     ? { text: stripTags(script), model_id: ECONOMY_MODEL, voice_settings: ECONOMY_SETTINGS, language_code: locale }
     : { text: script, model_id: VOICE_MODEL, voice_settings: VOICE_SETTINGS };
-  return fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${OUTPUT_FORMAT}`, {
+  return fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream?output_format=${OUTPUT_FORMAT}`, {
     method: "POST",
     headers: { "xi-api-key": apiKey, "Content-Type": "application/json", Accept: "audio/mpeg" },
     body: JSON.stringify(body),
