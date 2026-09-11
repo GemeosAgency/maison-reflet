@@ -35,7 +35,7 @@ export const SCRIPT_MAX_CHARS = 280;
 /** Une voix par langue. EN partage la voix FR tant que Sandro n'a pas tranché. */
 export const VOICES: Record<Locale, { voiceId: string; enabled: boolean }> = {
   fr: { voiceId: "O31r762Gb3WFygrEOGh0", enabled: true }, // Victoria
-  en: { voiceId: "O31r762Gb3WFygrEOGh0", enabled: true }, // Victoria, en attendant
+  en: { voiceId: "oW8bn5YtBB89X2nJ0DT9", enabled: true }, // Verity — britannique, vive (choix de Sandro, 11 sept.)
   ar: { voiceId: "O31r762Gb3WFygrEOGh0", enabled: false }, // après validation par un natif
 };
 

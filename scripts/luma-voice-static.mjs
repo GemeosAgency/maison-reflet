@@ -12,9 +12,10 @@ const env = Object.fromEntries(
 const KEY = process.env.ELEVENLABS_API_KEY ?? env.ELEVENLABS_API_KEY;
 if (!KEY) throw new Error("ELEVENLABS_API_KEY manquante");
 
-// Même voix, même modèle, mêmes réglages que src/lib/luma/voice.ts.
-const VOICE = "O31r762Gb3WFygrEOGh0";
-const MODEL = "eleven_v3";
+// Même voix par langue, même modèle, mêmes réglages que src/lib/luma/voice.ts.
+import { register } from "node:module";
+register("./lib/ts-resolve-hooks.mjs", import.meta.url);
+const { VOICES, VOICE_MODEL: MODEL } = await import("../src/lib/luma/voice.ts");
 const SETTINGS = { stability: 0, similarity_boost: 0.8, speed: 1.2 };
 
 // Les phrases dites : l'adresse email ne se lit pas à voix haute, on dit « la Maison ».
@@ -33,10 +34,12 @@ const PHRASES = {
   },
 };
 
+const langOnly = process.argv.includes("--lang") ? process.argv[process.argv.indexOf("--lang") + 1] : null;
 for (const [lang, phrases] of Object.entries(PHRASES)) {
+  if (langOnly && lang !== langOnly) continue;
   mkdirSync(`public/luma/voice/${lang}`, { recursive: true });
   for (const [key, text] of Object.entries(phrases)) {
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE}?output_format=mp3_44100_128`, {
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICES[lang].voiceId}?output_format=mp3_44100_128`, {
       method: "POST",
       headers: { "xi-api-key": KEY, "Content-Type": "application/json" },
       body: JSON.stringify({ text, model_id: MODEL, voice_settings: SETTINGS }),
