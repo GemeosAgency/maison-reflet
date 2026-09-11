@@ -1,0 +1,105 @@
+---
+/**
+ * « Trouver votre Reflet » — les trois portes d'entrée vers le bon parfum, sur
+ * la page collection (décision de Sandro, 11 septembre 2026) : ce que le
+ * visiteur porte déjà (les parfums d'origine), une matière qu'il aime (les
+ * matières signature des pyramides), une ambiance (les cinq univers de la
+ * section 6 du persona — le seul vocabulaire de familles de la Maison).
+ *
+ * Pas un quiz à part : chaque réponse ouvre Luma et lui envoie la phrase, dans
+ * les mots du visiteur (« J'aime la vanille »). Luma est le guide ; ici on lui
+ * donne trois prises. Placé après les six Reflets : le visiteur les a vus, il
+ * hésite encore.
+ */
+import { useTranslations, type Locale } from "../i18n";
+import { REFLETS } from "../lib/luma/collection";
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const fill = (template: string, tokens: Record<string, string>) =>
+  Object.entries(tokens).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, v), template);
+
+// Les parfums d'origine, dans l'ordre de la collection — le nom seul, avant la maison.
+const origins = REFLETS.map((r) => r.twistOf.split(",")[0].trim());
+
+// Matières signature de la collection, toutes présentes dans les pyramides Sanity.
+const MATERIALS = ["vanilla", "oud", "leather", "mango", "saffron", "musk", "rose", "praline"] as const;
+// Une phrase par matière et par langue : les articles (la vanille, l'oud, الفانيليا) ne se devinent pas.
+const materials = MATERIALS.map((m) => ({ label: t(`luma.doors.m.${m}`), say: t(`luma.doors.m.${m}.say`) }));
+
+const UNIVERSES = ["warm", "woody", "leather", "fresh", "oud"] as const;
+const universes = UNIVERSES.map((u) => {
+  const label = t(`luma.doors.u.${u}`);
+  return { label, say: fill(t("luma.doors.moodSay"), { universe: lang === "ar" ? label : label.toLowerCase() }) };
+});
+
+const doors = [
+  { label: t("luma.doors.wear"), chips: origins.map((o) => ({ label: o, say: fill(t("luma.doors.wearSay"), { origin: o }) })) },
+  { label: t("luma.doors.material"), chips: materials },
+  { label: t("luma.doors.mood"), chips: universes },
+];
+---
+
+<section class="doors full-bleed" aria-labelledby="luma-doors-title">
+  <div class="doors-inner">
+    <div class="doors-head">
+      <h2 id="luma-doors-title">{t("luma.doors.title")}</h2>
+      <p>{t("luma.doors.lead")}</p>
+    </div>
+    <div class="doors-rows">
+      {doors.map((door) => (
+        <div class="doors-row">
+          <p class="doors-label">{door.label}</p>
+          <div class="doors-chips">
+            {door.chips.map((c) => (
+              <button type="button" class="doors-chip" data-luma-ask={c.say} data-luma-source="collection">
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .doors { background: var(--paper); }
+  .doors-inner {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: 64px var(--gutter-x);
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+  .doors-head { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+  .doors-head h2 { margin: 0; font-size: 28px; font-weight: 500; text-transform: uppercase; line-height: 1.15; }
+  .doors-head p { margin: 0; font-size: 16px; line-height: 1.5; opacity: 0.75; }
+  .doors-rows { display: flex; flex-direction: column; gap: 28px; }
+  .doors-row { display: grid; grid-template-columns: 200px 1fr; gap: 16px 32px; align-items: baseline; }
+  .doors-label { margin: 0; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
+  .doors-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .doors-chip {
+    padding: 10px 16px;
+    border: 1px solid rgba(21, 14, 10, 0.16);
+    border-radius: 999px;
+    background: var(--bg);
+    font: inherit;
+    font-size: 15px;
+    color: inherit;
+    cursor: pointer;
+    text-align: start;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .doors-chip:hover { background: var(--sand); border-color: rgba(21, 14, 10, 0.3); }
+  @media (max-width: 720px) {
+    .doors-inner { padding: 48px var(--gutter-x); gap: 32px; }
+    .doors-head h2 { font-size: 24px; }
+    .doors-row { grid-template-columns: 1fr; gap: 12px; }
+  }
+</style>

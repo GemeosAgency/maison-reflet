@@ -4,6 +4,7 @@ import ProductCard from "../../../components/ProductCard.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import Faq from "../../../components/Faq.astro";
 import Pillars from "../../../components/Pillars.astro";
+import LumaDoors from "../../../components/LumaDoors.astro";
 import Reassurance from "../../../components/Reassurance.astro";
 import Reviews from "../../../components/Reviews.astro";
 import {
@@ -165,6 +166,8 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
       ))
     }
   </section>
+
+  <LumaDoors lang={lang} />
 
   {
     discovery && (
