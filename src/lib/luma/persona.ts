@@ -154,6 +154,8 @@ export const SYSTEM_STATIC = STATIC_SECTIONS.join("\n\n");
 
 export type VisitContext = {
   page?: { type: string; handle?: string | null };
+  /** Par où le visiteur est entré dans Luma (header, fiche produit…) — pour le suivi, pas pour le modèle. */
+  entry?: string;
   cart?: { lines: { handle: string; title: string; quantity: number }[] };
   /** Ce que la conversation a déjà établi (signaux persistés), pour rester cohérente. */
   profile?: {

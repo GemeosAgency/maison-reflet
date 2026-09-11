@@ -1,0 +1,80 @@
+---
+/**
+ * L'entrée contextuelle de Luma sur une fiche produit (décision de Sandro,
+ * 11 septembre 2026). Pas un slogan « parlez à Luma » : les questions que le
+ * visiteur se pose devant CE produit, générées depuis le catalogue — le parfum
+ * d'origine (`twistOf`), l'alternative de la grille §6, le nom du Reflet ; pour
+ * un coffret, lequel des six, et pour offrir. Un clic ouvre Luma et envoie la
+ * question : la conversation démarre en contexte, fiche et réponses comprises.
+ *
+ * Placement : sous les réassurances du panneau produit, le moment du doute
+ * résiduel — jamais à côté du bouton panier, avec lequel rien ne doit rivaliser.
+ * Chaque entrée porte sa source (`data-luma-source`) pour le suivi.
+ */
+import { useTranslations, type Locale } from "../i18n";
+import { MATCH_RULES, REFLETS, knownProduct } from "../lib/luma/collection";
+
+interface Props {
+  lang: Locale;
+  handle: string;
+  /** Nom affiché du produit, dans la langue de la page. */
+  name: string;
+  kind: "parfum" | "coffret";
+}
+
+const { lang, handle, name, kind } = Astro.props;
+const t = useTranslations(lang);
+const fill = (template: string, tokens: Record<string, string>) =>
+  Object.entries(tokens).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, v), template);
+
+const questions: string[] = [];
+if (kind === "parfum") {
+  // « Baccarat Rouge 540, MFK, avec une surdose… » → le nom seul, avant la première virgule.
+  const origin = REFLETS.find((r) => r.handle === handle)?.twistOf.split(",")[0]?.trim();
+  if (origin) questions.push(fill(t("luma.askOrigin"), { origin }));
+  questions.push(t("luma.askMoment"));
+  const altHandle = MATCH_RULES.find((r) => r.recommend === handle)?.alternative;
+  const alt = altHandle ? knownProduct(altHandle) : undefined;
+  if (alt && alt.name !== name) questions.push(fill(t("luma.askVersus"), { name, alt: alt.name }));
+} else {
+  questions.push(t("luma.askWhich"), t("luma.askGift"));
+}
+---
+
+<div class="luma-ask">
+  <p class="luma-ask-title">{fill(t("luma.askTitle"), { name })}</p>
+  <p class="luma-ask-lead">{t("luma.askLead")}</p>
+  <div class="luma-ask-chips">
+    {questions.map((q) => (
+      <button type="button" class="luma-ask-chip" data-luma-ask={q} data-luma-source="product">
+        {q}
+      </button>
+    ))}
+  </div>
+</div>
+
+<style>
+  .luma-ask {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 8px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(21, 14, 10, 0.12);
+  }
+  .luma-ask-title { margin: 0; font-size: 15px; font-weight: 500; }
+  .luma-ask-lead { margin: 0; font-size: 14px; opacity: 0.7; }
+  .luma-ask-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .luma-ask-chip {
+    padding: 8px 14px;
+    border: 1px solid rgba(21, 14, 10, 0.16);
+    border-radius: 999px;
+    background: transparent;
+    font: inherit;
+    font-size: 14px;
+    color: inherit;
+    cursor: pointer;
+    text-align: start;
+  }
+  .luma-ask-chip:hover { background: var(--paper); }
+</style>

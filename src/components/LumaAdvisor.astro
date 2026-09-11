@@ -222,10 +222,21 @@ const t = useTranslations(lang);
       document.body.style.overflow = "";
       lastFocused?.focus();
     }
+    /** Par où le visiteur est entré (header, fiche produit…) : voyage avec chaque tour, pour le suivi. */
+    let entry = "header";
     for (const trigger of document.querySelectorAll<HTMLElement>("[data-luma-open]")) {
       trigger.addEventListener("click", (e) => {
         e.preventDefault();
+        entry = trigger.dataset.lumaSource ?? "header";
         open();
+      });
+    }
+    // Une question posée depuis une fiche (LumaAsk) : on ouvre et on l'envoie.
+    for (const ask of document.querySelectorAll<HTMLElement>("[data-luma-ask]")) {
+      ask.addEventListener("click", () => {
+        entry = ask.dataset.lumaSource ?? "product";
+        open();
+        void say(ask.dataset.lumaAsk ?? "");
       });
     }
     for (const el of root.querySelectorAll<HTMLElement>("[data-luma-close]")) el.addEventListener("click", close);
@@ -261,7 +272,7 @@ const t = useTranslations(lang);
       else if (path.startsWith("/panier")) page = { type: "cart" };
       else if (path.startsWith("/maison")) page = { type: "maison" };
       else page = { type: "home" };
-      return { page, cart: cartContext() };
+      return { page, cart: cartContext(), entry };
     }
 
     /* ---------------- Rendu ---------------- */

@@ -123,6 +123,7 @@ function parseContext(value: unknown): VisitContext {
   if (page && typeof page.type === "string") {
     ctx.page = { type: page.type.slice(0, 32), handle: typeof page.handle === "string" ? page.handle.slice(0, 64) : null };
   }
+  if (typeof v.entry === "string") ctx.entry = v.entry.slice(0, 32);
   const cart = v.cart as Record<string, unknown> | undefined;
   if (cart && Array.isArray(cart.lines)) {
     ctx.cart = {
@@ -274,6 +275,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           violations: reply.violations.length,
           soft: reply.soft.map((v) => v.rule),
           chips: reply.chipsSource,
+          entry: context.entry ?? null,
+          page: context.page?.type ?? null,
           actions: reply.actions.map((a) => a.type),
           tokens_out: reply.usage.outputTokens,
           cache_read: reply.usage.cacheReadTokens,

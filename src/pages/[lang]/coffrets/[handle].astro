@@ -15,6 +15,7 @@ import Layout from "../../../layouts/Layout.astro";
 import Faq from "../../../components/Faq.astro";
 import Pillars from "../../../components/Pillars.astro";
 import Reassurance from "../../../components/Reassurance.astro";
+import LumaAsk from "../../../components/LumaAsk.astro";
 import RelatedProducts from "../../../components/RelatedProducts.astro";
 import Reviews from "../../../components/Reviews.astro";
 import ProductGallery from "../../../components/product/ProductGallery.astro";
@@ -305,7 +306,9 @@ const productJsonLd = {
         decreaseLabel={t("cart.decrease")}
         increaseLabel={t("cart.increase")}
         perks={perks}
-      />
+      >
+        <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={title} kind="coffret" />
+      </ProductInfoPanel>
     </aside>
   </div>
 
