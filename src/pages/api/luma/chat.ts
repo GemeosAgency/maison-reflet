@@ -8,6 +8,7 @@ import { getKnowledge } from "../../../lib/luma/knowledge-live";
 import type { LumaAction } from "../../../lib/luma/tools";
 import { UNAVAILABLE_REPLY, type VisitContext } from "../../../lib/luma/persona";
 import { SCRIPT_MAX_CHARS, encodeScript, signScript, voiceEnabled } from "../../../lib/luma/voice";
+import { portraitAudioPath } from "../../../lib/luma/portraits";
 import {
   latestProfile,
   loadHistory,
@@ -74,6 +75,8 @@ function card(p: KnowledgeProduct, lang: Locale) {
     price: main ? `${main.price} ${main.currency}` : null,
     available: p.available,
     variantId: main?.id ?? null,
+    // Le portrait audio pré-généré (zéro crédit) : « Écouter » sur la carte.
+    audio: portraitAudioPath(lang, p.handle),
   };
 }
 

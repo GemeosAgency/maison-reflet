@@ -200,6 +200,11 @@ function productLines(p: KnowledgeProduct): string {
   const details: string[] = [];
   if (p.twistOf) details.push(`Twist de : ${p.twistOf}`);
   if (p.essence) details.push(`Ce que Luma en retient : ${p.essence}`);
+  if (p.brief) {
+    details.push(`Caractère : ${p.brief.global.join(", ")} · Registre : ${p.brief.olfactive.join(", ")}`);
+    details.push(`La Maison le décrit ainsi (à rendre dans la langue du visiteur) : ${p.brief.description}`);
+    details.push(`Le parfumeur — à citer sans le nommer, jamais de durée ni d'heures : « ${p.brief.perfumer} »`);
+  }
   if (p.familles) details.push(`Familles olfactives : ${p.familles}`);
   if (p.notes) {
     details.push(

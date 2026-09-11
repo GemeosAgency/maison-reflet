@@ -42,6 +42,8 @@ import {
   REFLETS,
   UNIVERSES,
   knownProduct,
+  REFLET_BRIEFS,
+  type RefletBrief,
 } from "./collection";
 
 export type KnowledgeVariant = {
@@ -66,6 +68,8 @@ export type KnowledgeProduct = {
   variants: KnowledgeVariant[];
   /** « Twist de … » — la référence assumée, telle qu'écrite par Sandro. */
   twistOf: string | null;
+  /** Caractère, registre, description et mot du parfumeur (collection.ts, matière de Sandro). */
+  brief: RefletBrief | null;
   /** « Ce que Luma en retient ». */
   essence: string | null;
   inspiredBy: string | null;
@@ -194,6 +198,7 @@ function toKnowledgeProduct(
     available: variants.some((v) => v.available),
     variants,
     twistOf: known && "twistOf" in known ? known.twistOf : null,
+    brief: REFLET_BRIEFS[product.handle] ?? null,
     essence: known?.essence ?? null,
     inspiredBy: doc?.inspiredBy ?? null,
     bestSeller: doc?.bestSeller ?? (known && "bestSeller" in known ? Boolean(known.bestSeller) : false),

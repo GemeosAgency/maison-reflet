@@ -228,3 +228,70 @@ export function knownProduct(handle: string) {
 
 /** Handles que Luma est autorisée à nommer. Tout le reste n'existe pas pour elle. */
 export const ALLOWED_HANDLES = [...REFLETS.map((r) => r.handle), ...COFFRETS.map((c) => c.handle)];
+
+/**
+ * La matière de marque par Reflet, transmise par Sandro le 11 septembre 2026
+ * (« pour entraîner le modèle ») : le caractère en trois mots, le registre
+ * olfactif, la description courte, et le mot du parfumeur — cité sans jamais
+ * le nommer (persona §7 : ni fournisseur, ni parfumeur, ni laboratoire).
+ * Source en anglais ; Luma la rend dans la langue de la conversation.
+ */
+export type RefletBrief = {
+  /** Caractère : trois adjectifs. */
+  global: string[];
+  /** Registre olfactif : trois mots. */
+  olfactive: string[];
+  description: string;
+  /** Le mot du parfumeur, anonyme. */
+  perfumer: string;
+};
+
+export const REFLET_BRIEFS: Record<string, RefletBrief> = {
+  "bois-alert": {
+    global: ["Magnetic", "Distinctive", "Radiant"],
+    olfactive: ["Wood", "Oak Moss", "Spicy"],
+    description: "A bold, vibrant woody signature enriched with textured saffron, luminous jasmine and sweet mossy facets, bringing depth.",
+    perfumer:
+      "I wanted to give a new dimension to woods, playing with their strength and natural vibrancy. Saffron and Jasmine bring contrast and radiance, while mossy and ambery facets reinforce the depth and lasting trail.",
+  },
+  "new-oud": {
+    global: ["Intense", "Depth", "Opulent"],
+    olfactive: ["Oud", "Oriental", "Floral"],
+    description:
+      "A modern Oud contrasted with vibrant Passion Fruit, enriched by creamy Sandalwood and soft Musks, while luminous white florals and Rose bring a refined, blooming dimension.",
+    perfumer:
+      "I wanted to preserve the richness and opulence of Oud, while giving it a distinctly modern expression. I contrasted its deep woody character with vibrant fruits, creamy musks and luminous florals.",
+  },
+  "melting-mango": {
+    global: ["Bold", "Modern", "Captivating"],
+    olfactive: ["Exotic", "Sparkling", "Ambery"],
+    description:
+      "A bold, addictive ambery signature modernised with an overdose of a modern, sparkling mango accord. Its juicy, vibrant fruitiness brings a very catchy top note and a strong contrast.",
+    perfumer:
+      "I wanted to explore the tension between two opposite sensations: the bold and addictive ambery-woody signature and the almost electric brightness of mango. I worked the fruit as both luminous and addictive, creating a strong contrast between juicy radiance and deep, diffusive woods.",
+  },
+  "ultra-cuir": {
+    global: ["Dark", "Textured", "Mysterious"],
+    olfactive: ["Leathery", "Juicy Saffron", "Orris"],
+    description:
+      "A dark, textured leather signature opens with a juicy raspberry accord, contrasted by a rich trio of saffron qualities. A refined orris facet brings a soft powdery texture, smoothing the leather.",
+    perfumer:
+      "I wanted to redesign the fruity leather signature through more precious and distinctive materials. I worked with Saffron and Orris, two of perfumery's most noble ingredients, to bring texture and contrast.",
+  },
+  "minuit-bourbon": {
+    global: ["Warm", "Sophisticated", "Addictive"],
+    olfactive: ["Creamy", "Leather", "Balsamic"],
+    description:
+      "A rich Tonka Bean and Vanilla signature is contrasted with a refined Leather accord, enhanced by a blooming duo of Orange Blossom and Lavender.",
+    perfumer:
+      "I wanted to create a sense of addiction with a more prestigious expression, building the fragrance around rich balms, Vanilla and Tonka Bean. I contrasted this warm, moreish texture with Orange and Lavender, bringing brightness and aromatic tension to the composition.",
+  },
+  "fifth-season": {
+    global: ["Vibrant", "Versatile", "Refined"],
+    olfactive: ["Fruity", "Fougère", "Musky"],
+    description:
+      "A vibrant fruity opening meets a subtle fougère freshness, evolving into a powerful ambery signature enriched with saffron, praline and mossy facets. Creamy vanilla and clean musks soften the intensity, creating a smooth and addictive signature.",
+    perfumer:
+      "I wanted to create a multi-faceted fragrance, built around contrasts yet effortless to wear. A composition that moves between freshness, addiction and sensuality, with a blooming diffusion that reveals new facets throughout the day. Something versatile, vibrant and full of movement.",
+  },
+};

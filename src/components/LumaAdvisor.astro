@@ -68,6 +68,7 @@ const t = useTranslations(lang);
     voiceOn: t("luma.voiceOn"),
     voiceOff: t("luma.voiceOff"),
     replay: t("luma.replay"),
+    listen: t("luma.listen"),
     voicePaused: t("luma.voicePaused"),
     you: t("luma.you"),
     name: t("luma.name"),
@@ -148,6 +149,8 @@ const t = useTranslations(lang);
     price: string | null;
     available: boolean;
     variantId: string | null;
+    /** Portrait audio statique du produit, s'il existe. */
+    audio?: string | null;
   };
   type Action =
     | { type: "recommend_reflet"; reflet: Card; alternative: Card | null; reason: string }
@@ -588,6 +591,17 @@ const t = useTranslations(lang);
       link.href = card.url;
       link.setAttribute("aria-label", `${i18n.viewProduct} ${card.name}`);
       actions.append(link);
+      if (card.audio) {
+        // Le portrait du Reflet, pré-généré : gratuit, et le clic est un geste (lecture autorisée).
+        const listen = el("button", "luma-card-listen", i18n.listen) as HTMLButtonElement;
+        listen.type = "button";
+        listen.setAttribute("aria-label", `${i18n.listen} — ${card.name}`);
+        listen.addEventListener("click", () => {
+          audio.src = card.audio!;
+          audio.play().catch(() => {});
+        });
+        actions.append(listen);
+      }
       // Les gestes restent à côté du visuel (choix de Sandro) ; la fiche prend
       // toute la largeur du panneau pour que le rang tienne sur une ligne.
       body.append(actions);
@@ -1092,13 +1106,15 @@ const t = useTranslations(lang);
   .luma-card-add:disabled { cursor: default; }
   .luma-card-add.is-added { opacity: 0.6; }
   .luma-card-soldout { font-size: 13px; opacity: 0.6; }
-  .luma-card-link {
+  .luma-card-link,
+  .luma-card-listen {
     font-size: 14px;
     font-weight: 500;
     color: inherit;
     text-decoration: underline;
     text-underline-offset: 3px;
   }
+  .luma-card-listen { padding: 0; border: 0; background: none; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
 
   .luma-alt-label { font-size: 12px; font-style: normal; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.6; }
   .luma-handoff a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }

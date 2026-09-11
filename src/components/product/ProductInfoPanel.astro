@@ -102,6 +102,7 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
       <span class="ppanel-rating-count">· {reviewCount} {reviewsWord}</span>
     </div>
     {descriptionHtml && <div class="ppanel-desc" set:html={descriptionHtml} />}
+    <slot name="after-description" />
   </div>
 
   <div class="ppanel-meta">

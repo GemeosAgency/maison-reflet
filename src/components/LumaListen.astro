@@ -1,0 +1,117 @@
+---
+/**
+ * Le portrait audio d'un Reflet, sur sa fiche : « Écouter Luma raconter
+ * Melting Mango ». Un fichier statique pré-généré (portraits.ts), donc zéro
+ * crédit à l'écoute. Lecteur minimal dans la charte : un bouton, une ligne de
+ * progression, la durée ; le texte du portrait est disponible pour qui ne
+ * peut pas écouter.
+ */
+import { useTranslations, type Locale } from "../i18n";
+import { portraitAudioPath, portraitText } from "../lib/luma/portraits";
+
+interface Props {
+  lang: Locale;
+  handle: string;
+  name: string;
+}
+
+const { lang, handle, name } = Astro.props;
+const t = useTranslations(lang);
+const src = portraitAudioPath(lang, handle);
+const text = portraitText(lang, handle);
+const label = t("luma.listenPortrait").replace("{name}", name);
+---
+
+{
+  src && (
+    <div class="listen" data-luma-listen>
+      <button type="button" class="listen-btn" data-listen-toggle aria-label={label} aria-pressed="false">
+        <svg class="listen-play" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
+        <svg class="listen-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
+      </button>
+      <div class="listen-body">
+        <p class="listen-label">{label}</p>
+        <div class="listen-track" aria-hidden="true"><span class="listen-progress" data-listen-progress></span></div>
+      </div>
+      <span class="listen-time" data-listen-time aria-hidden="true">–:––</span>
+      <audio preload="metadata" src={src} data-listen-audio></audio>
+      {text && (
+        <details class="listen-text">
+          <summary>{t("luma.listenText")}</summary>
+          <p>{text}</p>
+        </details>
+      )}
+    </div>
+  )
+}
+
+<script>
+  const fmt = (s: number) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "–:––");
+  for (const root of document.querySelectorAll<HTMLElement>("[data-luma-listen]")) {
+    const audio = root.querySelector<HTMLAudioElement>("[data-listen-audio]");
+    const btn = root.querySelector<HTMLButtonElement>("[data-listen-toggle]");
+    const bar = root.querySelector<HTMLElement>("[data-listen-progress]");
+    const time = root.querySelector<HTMLElement>("[data-listen-time]");
+    if (!audio || !btn || !bar || !time) continue;
+    const render = () => {
+      const playing = !audio.paused && !audio.ended;
+      root.classList.toggle("is-playing", playing);
+      btn.setAttribute("aria-pressed", String(playing));
+      if (audio.duration) bar.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+      time.textContent = playing || audio.currentTime > 0 ? fmt(audio.currentTime) : fmt(audio.duration);
+    };
+    btn.addEventListener("click", () => {
+      if (audio.paused) {
+        // Un seul portrait à la fois sur la page.
+        for (const other of document.querySelectorAll<HTMLAudioElement>("[data-listen-audio]")) if (other !== audio) other.pause();
+        audio.play().catch(() => {});
+      } else audio.pause();
+    });
+    for (const ev of ["play", "pause", "ended", "timeupdate", "loadedmetadata"]) audio.addEventListener(ev, render);
+    audio.addEventListener("ended", () => {
+      audio.currentTime = 0;
+      render();
+    });
+    render();
+  }
+</script>
+
+<style>
+  .listen {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 6px 14px;
+    margin-top: 16px;
+    padding: 12px 14px;
+    background: var(--paper);
+    border-radius: 8px;
+  }
+  .listen-btn {
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--bg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .listen-btn:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+  .listen-pause { display: none; }
+  .is-playing .listen-play { display: none; }
+  .is-playing .listen-pause { display: block; }
+  .listen-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .listen-label { margin: 0; font-size: 14px; font-weight: 500; line-height: 1.3; }
+  .listen-track { height: 2px; background: rgba(21, 14, 10, 0.14); border-radius: 1px; overflow: hidden; }
+  .listen-progress { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.25s linear; }
+  .listen-time { font-size: 13px; opacity: 0.6; font-variant-numeric: tabular-nums; }
+  .listen-text { grid-column: 1 / -1; font-size: 14px; line-height: 1.45; }
+  .listen-text summary { cursor: pointer; opacity: 0.6; font-size: 13px; }
+  .listen-text p { margin: 8px 0 0; opacity: 0.85; }
+  @media (prefers-reduced-motion: reduce) {
+    .listen-progress { transition: none; }
+  }
+</style>

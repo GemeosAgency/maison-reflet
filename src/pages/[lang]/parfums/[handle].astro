@@ -11,6 +11,7 @@ import Faq from "../../../components/Faq.astro";
 import Pillars from "../../../components/Pillars.astro";
 import Reassurance from "../../../components/Reassurance.astro";
 import LumaAsk from "../../../components/LumaAsk.astro";
+import LumaListen from "../../../components/LumaListen.astro";
 import RelatedProducts from "../../../components/RelatedProducts.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import ProductGallery from "../../../components/product/ProductGallery.astro";
@@ -395,6 +396,7 @@ const productJsonLd = {
         increaseLabel={t("cart.increase")}
         perks={perks}
       >
+        <LumaListen slot="after-description" lang={lang} handle={product.handle} name={product.title} />
         <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={product.title} kind="parfum" />
       </ProductInfoPanel>
     </aside>
