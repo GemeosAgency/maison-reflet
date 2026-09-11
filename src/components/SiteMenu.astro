@@ -140,30 +140,14 @@ const maisonHref = localePath(lang, "/maison");
           reflets.map((r) => (
             <li class:list={["mega-entry", { "is-active": r.handle === initialHandle }]} data-menu-entry={r.handle}>
               <a class="mega-item" href={r.href} data-menu-item={r.handle}>
-                <span class="mega-item-name">{r.name}</span>
-                <span class="mega-item-meta">
-                  {r.universe && <span>{r.universe}</span>}
-                  {r.bestSeller && <span class="mega-tag">{t("product.bestSeller")}</span>}
-                  {r.nouveau && <span class="mega-tag mega-tag-new">{t("menu.new")}</span>}
+                <span class="mega-kicker">
+                  {r.universe && <span class="mega-universe">{r.universe}</span>}
+                  {r.bestSeller && <span class="mega-pill mega-pill-best">{t("product.bestSeller")}</span>}
+                  {r.nouveau && <span class="mega-pill mega-pill-new">{t("menu.new")}</span>}
                 </span>
+                <span class="mega-item-name">{r.name}</span>
               </a>
-              {r.audio && (
-                <button
-                  type="button"
-                  class="mega-listen"
-                  data-menu-listen={r.handle}
-                  data-src={r.audio}
-                  aria-label={r.listenLabel}
-                  aria-pressed="false"
-                >
-                  <span class="mega-listen-icon" aria-hidden="true">
-                    <svg class="mega-listen-play" width="10" height="10" viewBox="0 0 12 12"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
-                    <svg class="mega-listen-pause" width="10" height="10" viewBox="0 0 12 12"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
-                  </span>
-                  <span class="mega-listen-label">{t("luma.listen")}</span>
-                  <span class="mega-listen-time" data-menu-time={r.handle}></span>
-                </button>
-              )}
+              {/* Le trait de progression relie la ligne au portrait en cours d'écoute (bouton sous le visuel). */}
               <span class="mega-listen-track" aria-hidden="true"><span class="mega-listen-progress" data-menu-progress={r.handle}></span></span>
             </li>
           ))
@@ -283,47 +267,29 @@ const maisonHref = localePath(lang, "/maison");
     <ul class="msheet-list">
       {
         reflets.map((r) => (
-          <li class="msheet-entry" data-menu-entry={r.handle}>
-            <div class="msheet-entry-row">
-              <a class="msheet-row" href={r.href}>
-                {r.thumb && (
-                  <img
-                    class="msheet-thumb"
-                    src={r.thumb.src}
-                    srcset={r.thumb.srcset}
-                    sizes="56px"
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                  />
-                )}
-                <span class="msheet-row-text">
-                  <span class="msheet-row-name">{r.name}</span>
-                  <span class="msheet-row-meta">
-                    {r.universe && <span>{r.universe}</span>}
-                    {r.bestSeller && <span class="mega-tag">{t("product.bestSeller")}</span>}
-                    {r.nouveau && <span class="mega-tag mega-tag-new">{t("menu.new")}</span>}
-                  </span>
-                </span>
-                <span class="msheet-row-price" data-money={r.variantId}>{r.price}</span>
-              </a>
-              {r.audio && (
-                <button
-                  type="button"
-                  class="mega-listen msheet-listen"
-                  data-menu-listen={r.handle}
-                  data-src={r.audio}
-                  aria-label={r.listenLabel}
-                  aria-pressed="false"
-                >
-                  <span class="mega-listen-icon" aria-hidden="true">
-                    <svg class="mega-listen-play" width="10" height="10" viewBox="0 0 12 12"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
-                    <svg class="mega-listen-pause" width="10" height="10" viewBox="0 0 12 12"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
-                  </span>
-                </button>
+          <li>
+            <a class="msheet-row" href={r.href}>
+              {r.thumb && (
+                <img
+                  class="msheet-thumb"
+                  src={r.thumb.src}
+                  srcset={r.thumb.srcset}
+                  sizes="56px"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
               )}
-            </div>
-            <span class="mega-listen-track" aria-hidden="true"><span class="mega-listen-progress" data-menu-progress={r.handle}></span></span>
+              <span class="msheet-row-text">
+                <span class="mega-kicker">
+                  {r.universe && <span class="mega-universe">{r.universe}</span>}
+                  {r.bestSeller && <span class="mega-pill mega-pill-best">{t("product.bestSeller")}</span>}
+                  {r.nouveau && <span class="mega-pill mega-pill-new">{t("menu.new")}</span>}
+                </span>
+                <span class="msheet-row-name">{r.name}</span>
+              </span>
+              <span class="msheet-row-price" data-money={r.variantId}>{r.price}</span>
+            </a>
           </li>
         ))
       }
@@ -711,21 +677,20 @@ const maisonHref = localePath(lang, "/maison");
    */
   .mega-entry {
     position: relative;
-    display: flex;
-    align-items: flex-end;
-    gap: 20px;
-    padding: 9px 16px 11px;
+    display: block;
     margin: 0 -16px;
     border-radius: 2px;
     transition: background-color 0.25s ease;
   }
   .mega-entry:hover,
   .mega-entry.is-active { background: rgba(255, 255, 255, 0.55); }
+  /* Le lien est la ligne entière : toute la bande blanche est cliquable (Sandro), pas seulement le nom. */
   .mega-item {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     min-width: 0;
+    padding: 9px 16px 11px;
   }
   .mega-item-name {
     font-size: 28px;
@@ -733,14 +698,38 @@ const maisonHref = localePath(lang, "/maison");
     font-weight: 400;
     letter-spacing: -0.01em;
   }
-  .mega-item-meta {
-    display: inline-flex;
-    align-items: baseline;
+  /*
+   * L'accroche au-dessus du nom : l'univers en capitales espacées, rose comme
+   * le bandeau du site, et les pastilles Best seller / Nouveau. Sous le nom en
+   * petit gris, ça ne donnait pas envie (Sandro) ; en chapeau, ça se lit
+   * avant le nom, comme une rubrique de magazine.
+   */
+  .mega-kicker {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
-    font-size: 13px;
-    opacity: 0.6;
+    min-height: 18px;
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--rose);
   }
-  /* Le bouton d'écoute : pastille ronde + « Écouter » + durée, sur la ligne de l'univers. */
+  .mega-universe { font-weight: 500; }
+  .mega-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px 2px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    line-height: 1.3;
+  }
+  .mega-pill-best { background: var(--rose); color: var(--paper); }
+  .mega-pill-new { border: 1px solid var(--ink); color: var(--ink); }
+  /* Le bouton d'écoute (sous le visuel, seul emplacement — Sandro) : pastille ronde, libellé, durée. */
   .mega-listen {
     flex-shrink: 0;
     display: inline-flex;
@@ -754,7 +743,6 @@ const maisonHref = localePath(lang, "/maison");
     font-size: 13px;
     line-height: 1;
     cursor: pointer;
-    transform: translateY(-1px);
   }
   .mega-listen-icon {
     display: inline-flex;
@@ -790,8 +778,6 @@ const maisonHref = localePath(lang, "/maison");
      prix du second coffret (la règle générique .mega-all plus bas pose 28px). */
   .mega-col-reflets .mega-all { margin-top: auto; padding-top: 20px; }
 
-  .mega-tag { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; color: var(--rose); opacity: 1; }
-  .mega-tag-new { color: var(--ink); }
   .mega-all,
   .mega-foot-link {
     display: inline-block;
@@ -944,13 +930,10 @@ const maisonHref = localePath(lang, "/maison");
   }
   .msheet-thumb { width: 56px; height: 70px; object-fit: cover; flex-shrink: 0; }
   .msheet-thumb-box { height: 56px; }
-  .msheet-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+  .msheet-row-text { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1 1 auto; }
   .msheet-row-name { font-size: 20px; line-height: 1.15; }
-  .msheet-row-meta { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-  .msheet-entry-row .msheet-row { flex: 1 1 auto; min-width: 0; }
-  .msheet-listen { margin-inline-start: -4px; }
-  .msheet-entry .mega-listen-track { margin: 0 0 4px; }
-  .msheet-row-meta { font-size: 13px; opacity: 0.6; }
+  .msheet-row-text .mega-kicker { font-size: 10px; gap: 8px; min-height: 0; }
+
   .msheet-row-price { font-size: 13px; opacity: 0.6; flex-shrink: 0; }
   .msheet-all,
   .msheet-link {
