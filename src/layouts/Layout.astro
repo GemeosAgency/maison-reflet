@@ -585,8 +585,14 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
       }
       .site-nav { display: flex; gap: 24px; align-items: center; width: 300px; }
       .site-nav a { font-size: 16px; padding: 8px 0; }
-      .site-nav a:hover,
-      .site-nav-trigger[aria-expanded="true"] { opacity: 0.6; }
+      .site-nav a:hover { opacity: 0.6; }
+      /* Panneau ouvert : un trait sous « Parfums », pas de grisé (Sandro). */
+      .site-nav-trigger[aria-expanded="true"] {
+        opacity: 1;
+        text-decoration: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 6px;
+      }
       .menu-burger { display: none; }
       .site-logo {
         position: absolute;

@@ -107,10 +107,12 @@ const coffrets = products
     const content = coffretContent.find((c) => c.shopifyHandle === sp.handle);
     const variant = getPrimaryVariant(sp);
     const price = getDisplayPrice(sp);
-    const img: Picture = content?.image
-      ? responsiveImage(content.image as any, { widths: BOX_WIDTHS, aspect: 4 / 3 })
-      : sp.featuredImage
-        ? shopifyImage(sp.featuredImage, BOX_WIDTHS)
+    // La photo Shopify d'abord (règle de la Maison : les photos produit vivent
+    // dans Shopify), l'image Sanity du coffret en repli.
+    const img: Picture = sp.featuredImage
+      ? shopifyImage(sp.featuredImage, BOX_WIDTHS)
+      : content?.image
+        ? responsiveImage(content.image as any, { widths: BOX_WIDTHS, aspect: 4 / 3 })
         : null;
     return {
       handle: sp.handle,
@@ -136,38 +138,33 @@ const maisonHref = localePath(lang, "/maison");
       <ul class="mega-list">
         {
           reflets.map((r) => (
-            <li class="mega-entry" data-menu-entry={r.handle}>
-              <div class="mega-entry-row">
-                <a
-                  class:list={["mega-item", { "is-active": r.handle === initialHandle }]}
-                  href={r.href}
-                  data-menu-item={r.handle}
+            <li class:list={["mega-entry", { "is-active": r.handle === initialHandle }]} data-menu-entry={r.handle}>
+              <a class="mega-item" href={r.href} data-menu-item={r.handle}>
+                <span class="mega-item-name">{r.name}</span>
+                <span class="mega-item-meta">
+                  {r.universe && <span>{r.universe}</span>}
+                  {r.bestSeller && <span class="mega-tag">{t("product.bestSeller")}</span>}
+                  {r.nouveau && <span class="mega-tag mega-tag-new">{t("menu.new")}</span>}
+                </span>
+              </a>
+              {r.audio && (
+                <button
+                  type="button"
+                  class="mega-listen"
+                  data-menu-listen={r.handle}
+                  data-src={r.audio}
+                  aria-label={r.listenLabel}
+                  aria-pressed="false"
                 >
-                  <span class="mega-item-name">{r.name}</span>
-                  <span class="mega-item-meta">
-                    {r.universe && <span>{r.universe}</span>}
-                    {r.bestSeller && <span class="mega-tag">{t("product.bestSeller")}</span>}
-                    {r.nouveau && <span class="mega-tag mega-tag-new">{t("menu.new")}</span>}
+                  <span class="mega-listen-icon" aria-hidden="true">
+                    <svg class="mega-listen-play" width="10" height="10" viewBox="0 0 12 12"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
+                    <svg class="mega-listen-pause" width="10" height="10" viewBox="0 0 12 12"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
                   </span>
-                </a>
-                {r.audio && (
-                  <button
-                    type="button"
-                    class="mega-listen"
-                    data-menu-listen={r.handle}
-                    data-src={r.audio}
-                    aria-label={r.listenLabel}
-                    aria-pressed="false"
-                  >
-                    <svg class="mega-listen-play" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
-                    <svg class="mega-listen-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
-                  </button>
-                )}
-              </div>
-              <div class="mega-listen-track" aria-hidden="true">
-                <span class="mega-listen-progress" data-menu-progress={r.handle}></span>
-                <span class="mega-listen-time" data-menu-time={r.handle}></span>
-              </div>
+                  <span class="mega-listen-label">{t("luma.listen")}</span>
+                  <span class="mega-listen-time" data-menu-time={r.handle}></span>
+                </button>
+              )}
+              <span class="mega-listen-track" aria-hidden="true"><span class="mega-listen-progress" data-menu-progress={r.handle}></span></span>
             </li>
           ))
         }
@@ -176,15 +173,13 @@ const maisonHref = localePath(lang, "/maison");
     </div>
 
     <div class="mega-visual" aria-hidden="true">
+      {/* Même hauteur d'intitulé que les colonnes voisines : les trois visuels partent de la même ligne. */}
+      <p class="mega-eyebrow mega-eyebrow-ghost">{t("menu.reflets")}</p>
+      <div class="mega-visual-stack">
       {
         reflets.map((r) => (
-          <a
-            class:list={["mega-fig", { "is-active": r.handle === initialHandle }]}
-            href={r.href}
-            data-menu-figure={r.handle}
-            tabindex="-1"
-          >
-            <span class="mega-fig-media">
+          <div class:list={["mega-fig", { "is-active": r.handle === initialHandle }]} data-menu-figure={r.handle}>
+            <a class="mega-fig-media" href={r.href} tabindex="-1" aria-label={r.name}>
               {r.visual && (
                 <img
                   class="mega-fig-img"
@@ -207,15 +202,37 @@ const maisonHref = localePath(lang, "/maison");
                   decoding="async"
                 />
               )}
-            </span>
-            <span class="mega-fig-caption">
-              <span class="mega-fig-name">{r.name}</span>
-              <span class="mega-fig-price" data-money={r.variantId}>{r.price}</span>
-              <span class="mega-fig-cta">{t("menu.discover")}</span>
-            </span>
-          </a>
+            </a>
+            <div class="mega-fig-caption">
+              <a class="mega-fig-title" href={r.href} tabindex="-1">
+                <span class="mega-fig-name">{r.name}</span>
+                <span class="mega-fig-price" data-money={r.variantId}>{r.price}</span>
+                <span class="mega-fig-cta">{t("menu.discover")}</span>
+              </a>
+              {r.audio && (
+                <button
+                  type="button"
+                  class="mega-listen mega-listen-big"
+                  data-menu-listen={r.handle}
+                  data-src={r.audio}
+                  aria-label={r.listenLabel}
+                  aria-pressed="false"
+                  tabindex="-1"
+                >
+                  <span class="mega-listen-icon" aria-hidden="true">
+                    <svg class="mega-listen-play" width="12" height="12" viewBox="0 0 12 12"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
+                    <svg class="mega-listen-pause" width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
+                  </span>
+                  <span class="mega-listen-label">{t("menu.listenPortrait")}</span>
+                  <span class="mega-listen-time" data-menu-time={r.handle}></span>
+                  <span class="mega-listen-track mega-listen-track-big" aria-hidden="true"><span class="mega-listen-progress" data-menu-progress={r.handle}></span></span>
+                </button>
+              )}
+            </div>
+          </div>
         ))
       }
+      </div>
     </div>
     <div class="mega-col mega-col-coffrets">
       <p class="mega-eyebrow">{t("menu.coffrets")}</p>
@@ -243,7 +260,6 @@ const maisonHref = localePath(lang, "/maison");
     </div>
 
   </div>
-  <audio preload="none" data-menu-audio data-listen-audio></audio>
   <div class="mega-foot">
     <button type="button" class="mega-luma" data-luma-open data-luma-source="menu">
       <span class="mega-luma-name">{t("luma.name")}</span>
@@ -300,15 +316,14 @@ const maisonHref = localePath(lang, "/maison");
                   aria-label={r.listenLabel}
                   aria-pressed="false"
                 >
-                  <svg class="mega-listen-play" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
-                  <svg class="mega-listen-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
+                  <span class="mega-listen-icon" aria-hidden="true">
+                    <svg class="mega-listen-play" width="10" height="10" viewBox="0 0 12 12"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
+                    <svg class="mega-listen-pause" width="10" height="10" viewBox="0 0 12 12"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
+                  </span>
                 </button>
               )}
             </div>
-            <div class="mega-listen-track" aria-hidden="true">
-              <span class="mega-listen-progress" data-menu-progress={r.handle}></span>
-              <span class="mega-listen-time" data-menu-time={r.handle}></span>
-            </div>
+            <span class="mega-listen-track" aria-hidden="true"><span class="mega-listen-progress" data-menu-progress={r.handle}></span></span>
           </li>
         ))
       }
@@ -381,6 +396,7 @@ const maisonHref = localePath(lang, "/maison");
     window.clearTimeout(closeTimer);
     if (!panel || isOpen) return;
     isOpen = true;
+    primeDurations();
     document.body.classList.add("menu-open");
     panel.classList.add("is-open");
     veil?.classList.add("is-open");
@@ -449,82 +465,123 @@ const maisonHref = localePath(lang, "/maison");
     // on n'active que la sienne (fondu en CSS).
     const figures = panel.querySelectorAll<HTMLElement>("[data-menu-figure]");
     const items = panel.querySelectorAll<HTMLElement>("[data-menu-item]");
+    const entries = panel.querySelectorAll<HTMLElement>("[data-menu-entry]");
     function activate(handle: string) {
       for (const f of figures) f.classList.toggle("is-active", f.dataset.menuFigure === handle);
-      for (const i of items) i.classList.toggle("is-active", i.dataset.menuItem === handle);
+      for (const e of entries) e.classList.toggle("is-active", e.dataset.menuEntry === handle);
     }
-    for (const item of items) {
-      const show = () => activate(item.dataset.menuItem ?? "");
-      item.addEventListener("mouseenter", show);
-      item.addEventListener("focus", show);
+    for (const entry of entries) {
+      const show = () => activate(entry.dataset.menuEntry ?? "");
+      entry.addEventListener("mouseenter", show);
+      entry.addEventListener("focusin", show);
     }
+    void items;
   }
 
   /* ---------------- Portraits audio ----------------
-   * Un seul lecteur pour le panneau et la feuille : les fichiers sont ceux de
-   * la fiche produit (portraits.ts). Le bouton d'un Reflet joue son portrait,
-   * met en pause les autres lecteurs de la page (et réciproquement, via
-   * l'attribut data-listen-audio que LumaListen surveille).
+   * Un lecteur par Reflet, créé à la première ouverture du menu (panneau ou
+   * feuille) en `preload="metadata"` : la durée s'affiche à côté de chaque
+   * bouton avant même d'écouter, pour quelques kilo-octets. Les fichiers sont
+   * ceux de la fiche produit (portraits.ts). Les lecteurs portent
+   * data-listen-audio et vivent dans le DOM : LumaListen (fiche produit) met
+   * les autres en pause, et réciproquement.
    */
-  const audio = document.querySelector<HTMLAudioElement>("[data-menu-audio]");
   const listenButtons = document.querySelectorAll<HTMLButtonElement>("[data-menu-listen]");
+  const players = new Map<string, HTMLAudioElement>();
   const fmt = (s: number) =>
     Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "";
   let current = "";
-  const listening = () => Boolean(audio) && current !== "" && !audio!.paused && !audio!.ended;
+  const currentPlayer = () => (current ? players.get(current) : undefined);
+  const listening = () => {
+    const a = currentPlayer();
+    return Boolean(a) && !a!.paused && !a!.ended;
+  };
+
+  function player(handle: string, src: string): HTMLAudioElement {
+    let a = players.get(handle);
+    if (a) return a;
+    a = document.createElement("audio");
+    a.preload = "metadata";
+    a.src = src;
+    a.dataset.listenAudio = "";
+    a.dataset.menuPlayer = handle;
+    (panel ?? document.body).appendChild(a);
+    players.set(handle, a);
+    for (const ev of ["play", "pause", "ended", "timeupdate", "loadedmetadata"]) a.addEventListener(ev, renderListening);
+    a.addEventListener("ended", () => {
+      a!.currentTime = 0;
+      renderListening();
+    });
+    return a;
+  }
+  let primed = false;
+  function primeDurations() {
+    if (primed) return;
+    primed = true;
+    for (const b of listenButtons) if (b.dataset.menuListen && b.dataset.src) player(b.dataset.menuListen, b.dataset.src);
+  }
 
   function renderListening() {
-    if (!audio) return;
     const playing = listening();
     for (const b of listenButtons) {
-      const mine = b.dataset.menuListen === current;
+      const handle = b.dataset.menuListen ?? "";
+      const mine = handle === current;
       b.classList.toggle("is-playing", mine && playing);
       b.setAttribute("aria-pressed", String(mine && playing));
     }
     for (const entry of document.querySelectorAll<HTMLElement>("[data-menu-entry]")) {
-      const mine = entry.dataset.menuEntry === current && (playing || audio.currentTime > 0);
-      entry.classList.toggle("is-listening", mine);
+      const a = players.get(entry.dataset.menuEntry ?? "");
+      entry.classList.toggle("is-listening", entry.dataset.menuEntry === current && Boolean(a) && (playing || a!.currentTime > 0));
     }
-    const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
     for (const bar of document.querySelectorAll<HTMLElement>("[data-menu-progress]")) {
+      const a = players.get(bar.dataset.menuProgress ?? "");
+      const pct = a && a.duration ? (a.currentTime / a.duration) * 100 : 0;
       bar.style.width = bar.dataset.menuProgress === current ? `${pct}%` : "0%";
     }
     for (const time of document.querySelectorAll<HTMLElement>("[data-menu-time]")) {
-      time.textContent = time.dataset.menuTime === current && audio.duration ? `${fmt(audio.currentTime)} / ${fmt(audio.duration)}` : "";
+      const handle = time.dataset.menuTime ?? "";
+      const a = players.get(handle);
+      if (!a || !a.duration) {
+        time.textContent = "";
+        continue;
+      }
+      const active = handle === current && (playing || a.currentTime > 0);
+      time.textContent = active ? `${fmt(a.currentTime)} / ${fmt(a.duration)}` : fmt(a.duration);
     }
   }
   function stopListening() {
-    if (!audio || !current) return;
-    audio.pause();
-    audio.currentTime = 0;
+    const a = currentPlayer();
+    if (!a) return;
+    a.pause();
+    a.currentTime = 0;
     current = "";
     renderListening();
   }
-  if (audio) {
-    for (const b of listenButtons) {
-      b.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const handle = b.dataset.menuListen ?? "";
-        const src = b.dataset.src ?? "";
-        if (current === handle && !audio.paused) {
-          audio.pause();
-          return;
+  for (const b of listenButtons) {
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const handle = b.dataset.menuListen ?? "";
+      const src = b.dataset.src ?? "";
+      if (!handle || !src) return;
+      const a = player(handle, src);
+      if (current === handle && !a.paused) {
+        a.pause();
+        return;
+      }
+      if (current !== handle) {
+        const previous = currentPlayer();
+        if (previous) {
+          previous.pause();
+          previous.currentTime = 0;
         }
-        if (current !== handle) {
-          current = handle;
-          audio.src = src;
-          audio.currentTime = 0;
-          // Le visuel suit la voix.
-          for (const f of panel?.querySelectorAll<HTMLElement>("[data-menu-figure]") ?? []) f.classList.toggle("is-active", f.dataset.menuFigure === handle);
-          for (const i of panel?.querySelectorAll<HTMLElement>("[data-menu-item]") ?? []) i.classList.toggle("is-active", i.dataset.menuItem === handle);
-        }
-        for (const other of document.querySelectorAll<HTMLAudioElement>("[data-listen-audio]")) if (other !== audio) other.pause();
-        audio.play().catch(() => {});
-      });
-    }
-    for (const ev of ["play", "pause", "ended", "timeupdate", "loadedmetadata"]) audio.addEventListener(ev, renderListening);
-    audio.addEventListener("ended", () => {
-      audio.currentTime = 0;
+        current = handle;
+        // Le visuel suit la voix.
+        for (const f of panel?.querySelectorAll<HTMLElement>("[data-menu-figure]") ?? []) f.classList.toggle("is-active", f.dataset.menuFigure === handle);
+        for (const i of panel?.querySelectorAll<HTMLElement>("[data-menu-entry]") ?? []) i.classList.toggle("is-active", i.dataset.menuEntry === handle);
+      }
+      for (const other of document.querySelectorAll<HTMLAudioElement>("[data-listen-audio]")) if (other !== a) other.pause();
+      a.play().catch(() => {});
       renderListening();
     });
   }
@@ -537,6 +594,7 @@ const maisonHref = localePath(lang, "/maison");
   function openSheet() {
     if (!sheet) return;
     sheetOpen = true;
+    primeDurations();
     document.body.classList.add("menu-open");
     sheet.classList.add("is-open");
     sheet.setAttribute("aria-hidden", "false");
@@ -611,15 +669,28 @@ const maisonHref = localePath(lang, "/maison");
     transition: opacity 0.36s ease, transform 0.36s cubic-bezier(0.2, 0.7, 0.2, 1);
   }
   .mega-inner {
+    /*
+     * Trois colonnes de MÊME hauteur (Sandro : « il faut que ce soit bien
+     * aligné ») : les intitulés partent de la même ligne, et le bas de chaque
+     * colonne tombe au même niveau — « Tous les parfums », le bouton d'écoute
+     * sous le visuel, le prix du second coffret. La hauteur suit la fenêtre,
+     * bornée pour que la liste des six tienne sans défiler.
+     */
+    --menu-h: clamp(460px, calc(100vh - 330px), 600px);
     max-width: var(--page-max);
     margin: 0 auto;
     padding: 44px 40px 36px;
     display: grid;
-    /* Les Reflets, le visuel au centre, les coffrets à droite (demande de
-       Sandro) ; en arabe la grille se retourne d'elle-même. */
-    grid-template-columns: minmax(280px, 1.1fr) clamp(260px, 22vw, 360px) minmax(220px, 0.8fr);
+    grid-template-columns: minmax(300px, 1.1fr) clamp(260px, 22vw, 360px) minmax(220px, 0.7fr);
     gap: 64px;
-    align-items: start;
+    align-items: stretch;
+  }
+  .mega-col,
+  .mega-visual {
+    display: flex;
+    flex-direction: column;
+    height: var(--menu-h);
+    min-height: 0;
   }
   .mega-eyebrow {
     margin: 0 0 20px;
@@ -630,64 +701,95 @@ const maisonHref = localePath(lang, "/maison");
     opacity: 0.55;
   }
 
-  .mega-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-  .mega-entry-row,
-  .msheet-entry-row { display: flex; align-items: center; gap: 16px; }
-  .mega-entry-row .mega-item { flex: 1 1 auto; min-width: 0; }
-  /* Le bouton d'écoute : le même rond que sur la fiche (LumaListen). */
-  .mega-listen {
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border: 1px solid rgba(21, 14, 10, 0.28);
-    border-radius: 50%;
-    background: none;
-    color: var(--ink);
-    cursor: pointer;
-    transition: border-color 0.25s ease, background-color 0.25s ease;
-  }
-  .mega-listen:hover { border-color: var(--ink); }
-  .mega-listen.is-playing { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-  .mega-listen-pause { display: none; }
-  .mega-listen.is-playing .mega-listen-play { display: none; }
-  .mega-listen.is-playing .mega-listen-pause { display: inline; }
-  .mega-entry-row .mega-listen { margin-inline-end: 24px; }
-  /* La progression : une ligne fine qui n'existe qu'à l'écoute. */
-  .mega-listen-track {
+  .mega-eyebrow-ghost { visibility: hidden; }
+
+  .mega-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  /*
+   * Une entrée = le nom et son univers, le bouton d'écoute collé au texte, et
+   * une ligne de progression. Le survol (et l'entrée active, celle du visuel)
+   * pose une bande claire sur toute la ligne : un retour franc, sans grisé.
+   */
+  .mega-entry {
     position: relative;
-    display: none;
-    height: 1px;
-    margin: 2px 0 6px;
-    background: rgba(21, 14, 10, 0.12);
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    padding: 9px 16px 11px;
+    margin: 0 -16px;
+    border-radius: 2px;
+    transition: background-color 0.25s ease;
   }
-  .is-listening > .mega-listen-track { display: block; }
-  .mega-listen-progress { position: absolute; inset-block: 0; inset-inline-start: 0; width: 0%; background: var(--ink); transition: width 0.25s linear; }
-  .mega-listen-time { position: absolute; inset-inline-end: 0; top: 6px; font-size: 11px; opacity: 0.55; font-variant-numeric: tabular-nums; }
+  .mega-entry:hover,
+  .mega-entry.is-active { background: rgba(255, 255, 255, 0.55); }
   .mega-item {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 8px 0;
+    min-width: 0;
   }
-  /* Pas de grisé des autres noms au survol (Sandro) : le visuel qui change
-     au centre suffit comme retour. */
   .mega-item-name {
-    font-size: 30px;
+    font-size: 28px;
     line-height: 1.05;
     font-weight: 400;
     letter-spacing: -0.01em;
   }
   .mega-item-meta {
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
     gap: 10px;
     font-size: 13px;
     opacity: 0.6;
   }
+  /* Le bouton d'écoute : pastille ronde + « Écouter » + durée, sur la ligne de l'univers. */
+  .mega-listen {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transform: translateY(-1px);
+  }
+  .mega-listen-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid rgba(21, 14, 10, 0.3);
+    border-radius: 50%;
+    transition: border-color 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+  }
+  .mega-listen:hover .mega-listen-icon { border-color: var(--ink); }
+  .mega-listen.is-playing .mega-listen-icon { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .mega-listen-label { opacity: 0.85; }
+  .mega-listen-time { opacity: 0.55; font-variant-numeric: tabular-nums; }
+  .mega-listen-time:empty { display: none; }
+  .mega-listen-pause { display: none; }
+  .mega-listen.is-playing .mega-listen-play { display: none; }
+  .mega-listen.is-playing .mega-listen-pause { display: inline; }
+  /* La progression : un trait au ras du bas de la ligne, seulement à l'écoute. */
+  .mega-listen-track {
+    position: absolute;
+    inset-inline: 16px;
+    bottom: 4px;
+    height: 1px;
+    background: rgba(21, 14, 10, 0.12);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .mega-entry.is-listening > .mega-listen-track { opacity: 1; }
+  .mega-listen-progress { position: absolute; inset-block: 0; inset-inline-start: 0; width: 0%; background: var(--ink); transition: width 0.25s linear; }
+  /* Poussé au bas de la colonne, aligné sur le bouton d'écoute du visuel et le
+     prix du second coffret (la règle générique .mega-all plus bas pose 28px). */
+  .mega-col-reflets .mega-all { margin-top: auto; padding-top: 20px; }
+
   .mega-tag { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; color: var(--rose); opacity: 1; }
   .mega-tag-new { color: var(--ink); }
   .mega-all,
@@ -703,12 +805,13 @@ const maisonHref = localePath(lang, "/maison");
   .mega-all:hover,
   .mega-foot-link:hover { text-decoration-color: currentColor; }
 
-  .mega-boxes { display: flex; flex-direction: column; gap: 28px; }
-  .mega-box { display: flex; flex-direction: column; gap: 10px; }
+  /* Coffrets : deux cartes qui partagent la hauteur de la colonne, l'image remplit, le texte reste au bas. */
+  .mega-boxes { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 24px; }
+  .mega-box { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
   .mega-box-img {
+    flex: 1 1 auto;
+    min-height: 0;
     width: 100%;
-    max-width: 240px;
-    aspect-ratio: 4 / 3;
     object-fit: cover;
     transition: opacity 0.3s ease;
   }
@@ -716,35 +819,26 @@ const maisonHref = localePath(lang, "/maison");
   .mega-box-title { font-size: 16px; }
   .mega-box-price { font-size: 13px; opacity: 0.6; }
 
-  .mega-visual {
-    position: relative;
-    aspect-ratio: 3 / 4;
-    /* La légende vit sous la photo : on lui réserve sa place. */
-    padding-bottom: 56px;
-    box-sizing: content-box;
-  }
+  /* Visuel : les six figures empilées dans la même cellule ; la photo prend la hauteur restante. */
+  .mega-visual-stack { flex: 1 1 auto; min-height: 0; display: grid; }
   .mega-fig {
-    position: absolute;
-    inset: 0;
+    grid-area: 1 / 1;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
+    min-height: 0;
     opacity: 0;
     transition: opacity 0.55s ease;
     pointer-events: none;
   }
   .mega-fig.is-active { opacity: 1; pointer-events: auto; }
-  .mega-fig-media { position: relative; display: block; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; }
+  .mega-fig-media { position: relative; display: block; flex: 1 1 auto; min-height: 0; overflow: hidden; }
   .mega-fig-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   /* Au survol du visuel : fondu vers la seconde photo, comme sur les tuiles. */
   .mega-fig-img-hover { opacity: 0; transition: opacity 0.45s ease; }
-  .mega-fig:hover .mega-fig-img-hover { opacity: 1; }
-  .mega-fig-caption {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    font-size: 14px;
-  }
+  .mega-fig-media:hover .mega-fig-img-hover { opacity: 1; }
+  .mega-fig-caption { flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+  .mega-fig-title { display: flex; align-items: baseline; gap: 12px; font-size: 14px; }
   .mega-fig-name { font-weight: 500; }
   .mega-fig-price { opacity: 0.6; }
   .mega-fig-cta {
@@ -752,8 +846,32 @@ const maisonHref = localePath(lang, "/maison");
     text-decoration: underline;
     text-decoration-color: rgba(21, 14, 10, 0.3);
     text-underline-offset: 4px;
+    transition: text-decoration-color 0.25s ease;
   }
-  .mega-fig:hover .mega-fig-cta { text-decoration-color: currentColor; }
+  .mega-fig-title:hover .mega-fig-cta { text-decoration-color: currentColor; }
+  /* Le grand bouton d'écoute sous le visuel : la mise en avant de l'audio. */
+  .mega-listen-big {
+    position: relative;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid rgba(21, 14, 10, 0.3);
+    border-radius: 100px;
+    font-size: 14px;
+    transform: none;
+    overflow: hidden;
+    transition: border-color 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+  }
+  .mega-listen-big .mega-listen-icon { width: 24px; height: 24px; border-color: currentColor; }
+  .mega-listen-big .mega-listen-label { opacity: 1; }
+  .mega-listen-big .mega-listen-time { margin-inline-start: auto; }
+  .mega-listen-big:hover,
+  .mega-listen-big.is-playing { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .mega-listen-big:hover .mega-listen-icon,
+  .mega-listen-big.is-playing .mega-listen-icon { background: transparent; color: inherit; }
+  .mega-listen-track-big { inset-inline: 0; bottom: 0; height: 2px; background: transparent; opacity: 1; }
+  .mega-listen-big .mega-listen-progress { background: var(--bg); }
 
   .mega-foot {
     max-width: var(--page-max);

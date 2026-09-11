@@ -38,10 +38,18 @@ const label = t("luma.discover").replace("{name}", name);
       <span class="listen-time" data-listen-time aria-hidden="true">–:––</span>
       <audio preload="metadata" src={src} data-listen-audio></audio>
       {text && (
-        <details class="listen-text">
-          <summary>{t("luma.listenText")}</summary>
-          <p>{text}</p>
-        </details>
+        <div class="listen-text">
+          <button type="button" class="listen-more" data-listen-more aria-expanded="false">
+            <span>{t("luma.listenText")}</span>
+            <svg class="listen-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </button>
+          {/* Révélation en douceur : une grille dont la rangée passe de 0fr à 1fr (un <details> s'ouvre d'un bloc). */}
+          <div class="listen-text-reveal" data-listen-reveal>
+            <div class="listen-text-inner">
+              <p>{text}</p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -70,6 +78,13 @@ const label = t("luma.discover").replace("{name}", name);
       } else audio.pause();
     });
     for (const ev of ["play", "pause", "ended", "timeupdate", "loadedmetadata"]) audio.addEventListener(ev, render);
+    // « Lire le portrait » : le texte se déplie en douceur (voir .listen-text-reveal).
+    const more = root.querySelector<HTMLButtonElement>("[data-listen-more]");
+    more?.addEventListener("click", () => {
+      const open = more.getAttribute("aria-expanded") !== "true";
+      more.setAttribute("aria-expanded", String(open));
+      root.classList.toggle("is-text-open", open);
+    });
     audio.addEventListener("ended", () => {
       audio.currentTime = 0;
       render();
@@ -113,12 +128,36 @@ const label = t("luma.discover").replace("{name}", name);
   .listen-progress { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.25s linear; }
   .listen-time { font-size: 13px; opacity: 0.55; font-variant-numeric: tabular-nums; }
   .listen-text { grid-column: 2 / -1; font-size: 13px; line-height: 1.45; }
-  .listen-text summary { cursor: pointer; opacity: 0.55; list-style: none; }
-  .listen-text summary::-webkit-details-marker { display: none; }
-  .listen-text summary::after { content: " ↓"; }
-  .listen-text[open] summary::after { content: " ↑"; }
-  .listen-text p { margin: 6px 0 0; opacity: 0.8; }
+  .listen-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    opacity: 0.55;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.2s;
+  }
+  .listen-more:hover { opacity: 0.85; }
+  /* Pas d'anneau bleu au clic : seul le clavier dessine le contour, en encre. */
+  .listen-more:focus { outline: none; }
+  .listen-more:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
+  .listen-chevron { transition: transform 0.35s ease; }
+  .is-text-open .listen-chevron { transform: rotate(180deg); }
+  .listen-text-reveal {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.35s ease;
+  }
+  .is-text-open .listen-text-reveal { grid-template-rows: 1fr; opacity: 1; transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.4s ease 0.1s; }
+  .listen-text-inner { min-height: 0; overflow: hidden; }
+  .listen-text p { margin: 8px 0 0; opacity: 0.8; }
   @media (prefers-reduced-motion: reduce) {
-    .listen-progress, .listen-track, .listen-btn { transition: none; }
+    .listen-progress, .listen-track, .listen-btn, .listen-text-reveal, .listen-chevron { transition: none; }
   }
 </style>

@@ -73,18 +73,21 @@ const title = content?.titre ?? product.title;
 const description = content?.description ?? product.description;
 
 // ---------- Galerie ----------
-// Deux carrés empilés dans la maquette : image Sanity du coffret d'abord,
-// puis les photos produit Shopify.
+// Les photos produit Shopify, comme sur la fiche parfum (Sandro, 11 sept.
+// 2026 : les photos vivent dans Shopify). L'image Sanity du coffret ne sert
+// plus qu'en repli, pour un coffret sans photo Shopify — avant elle
+// s'empilait AVANT les photos Shopify, souvent la même prise deux fois.
 // shopifyImage() borne la largeur : sans ça le CDN sert le fichier d'origine,
 // plusieurs Mo pour une colonne de 720 px.
-const gallery = [
-  content?.image
-    ? { ...responsiveImage(content.image as any, { widths: [480, 720, 960, 1440], aspect: 1 }), alt: title }
-    : null,
-  ...[product.featuredImage, ...product.images.nodes]
-    .filter((im) => im)
-    .map((im) => ({ ...shopifyImage(im!, [480, 720, 960, 1440]), alt: im!.altText ?? title })),
-].filter((g): g is NonNullable<typeof g> => g !== null);
+const shopifyGallery = [product.featuredImage, ...product.images.nodes]
+  .filter((im) => im)
+  .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i)
+  .map((im) => ({ ...shopifyImage(im!, [480, 720, 960, 1440]), alt: im!.altText ?? title }));
+const gallery = shopifyGallery.length
+  ? shopifyGallery
+  : content?.image
+    ? [{ ...responsiveImage(content.image as any, { widths: [480, 720, 960, 1440], aspect: 1 }), alt: title }]
+    : [];
 
 // ---------- Panneau d'achat ----------
 const descriptionHtml = description ? `<p>${description.replace(/\n/g, "</p><p>")}</p>` : "";

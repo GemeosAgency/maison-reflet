@@ -68,14 +68,13 @@ const inspiredMap = await getInspiredByMap();
 const recoImages = await getRecoImages();
 const bestSellerMap = await getBestSellerMap();
 
-// Galerie : la photo produit Shopify d'abord — c'est le rendu du flacon, la
-// référence commerciale, celle qu'on remplace quand le packaging change — puis
-// les images éditoriales Sanity en complément, puis les visuels de secours.
-//
-// Les deux sources sont CONCATÉNÉES. Avant, un `editorialImgs.length ? … : …`
-// faisait qu'une seule image éditoriale dans Sanity masquait toutes les photos
-// Shopify : on a renommé les 6 parfums et poussé de nouveaux rendus sans qu'ils
-// apparaissent jamais sur la fiche.
+// Galerie : les photos produit Shopify, et RIEN d'autre (Sandro, 11 sept.
+// 2026 : « le réflexe c'est de mettre les photos dans Shopify »). Les images
+// éditoriales Sanity (imagesEditoriales) ont un temps complété la galerie :
+// avec trois visuels génériques par parfum, ça faisait trop d'images, et deux
+// sources pour une même galerie finissent toujours par se décaler. Sanity
+// garde l'éditorial (twist, parfumeur, pyramide, survol des tuiles), Shopify
+// la galerie ; les visuels de secours ne servent qu'à un produit sans photo.
 //
 // Largeurs de la galerie : la colonne fait 50vw en desktop (720px à 1440,
 // jusqu'à ~900px sur un très grand écran) et 100vw en mobile — il faut donc
@@ -84,10 +83,6 @@ const GALLERY_WIDTHS = [480, 720, 960, 1440, 1800];
 // Tuiles « You may also like » et recommandations : 287 px de large dans la
 // maquette, donc 640 suffit en densité 2x, 860 pour les très grands écrans.
 const TILE_WIDTHS = [320, 480, 640, 860];
-const editorialImgs = (parfum?.images ?? []).map((im) => ({
-  ...responsiveImage(im as any, { widths: GALLERY_WIDTHS, aspect: 720 / 896 }),
-  alt: im.alt ?? product.title,
-}));
 // Les variantes échantillon ont leur propre visuel (une vignette de 192 px, vue
 // dans le panier) : dans la galerie de la fiche il serait étiré et illisible.
 const sampleImageUrls = new Set(
@@ -111,8 +106,7 @@ const placeholderImgs = ["/brand/gallery1.jpg", "/brand/gallery2.jpg", "/brand/g
   srcset: "",
   alt: product.title,
 }));
-const galleryImgs = [...shopifyImgs, ...editorialImgs];
-const gallery = galleryImgs.length ? galleryImgs : placeholderImgs;
+const gallery = shopifyImgs.length ? shopifyImgs : placeholderImgs;
 
 // ---------- Tracking ----------
 // "Viewed Product" Klaviyo : propriétés au format standard (flows browse
@@ -182,12 +176,14 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
 // ---------- Sections éditoriales ----------
 const specificTwist = parfum?.specificTwist ?? null;
 // Image panoramique quasi pleine largeur : jusqu'à 2x sur un écran large.
+// Sans image de twist dédiée dans Sanity, la seconde photo Shopify fait
+// l'affaire (la première est le flacon déjà en tête de galerie).
 const twistImg = parfum?.imageTwist
   ? responsiveImage(parfum.imageTwist as any, {
       widths: [768, 1280, 1800, 2400, 3000],
       aspect: 1296 / 560,
     })
-  : (editorialImgs[1] ?? editorialImgs[0] ?? null);
+  : (shopifyImgs[1] ?? shopifyImgs[0] ?? null);
 
 const perfumerWord = parfum?.perfumerWord ?? null;
 const perfumerPhoto = parfum?.perfumerPhoto
@@ -310,12 +306,12 @@ const seo = parfum?.seo ?? null;
 const seoTitle = seo?.metaTitle ?? product.title;
 const seoDescription = seo?.metaDescription ?? parfum?.accroche ?? product.description;
 /*
- * Image de partage : réglage SEO > 1re image éditoriale > photo Shopify.
+ * Image de partage : réglage SEO > photo Shopify.
  * Recadrée en 1200x630 (~1,91:1) car c'est le format attendu par les réseaux
  * sociaux ; servir une image portrait comme nos visuels produit donnerait un
  * aperçu mal cadré. Le recadrage respecte le hotspot défini dans le Studio.
  */
-const ogSource = seo?.ogImage ?? parfum?.images?.[0] ?? null;
+const ogSource = seo?.ogImage ?? null;
 // Le recadrage 1200x630 n'existe que côté Sanity ; en repli Shopify on borne
 // au moins la largeur, sinon l'aperçu de partage pèse plusieurs Mo.
 const shareImage = ogSource
