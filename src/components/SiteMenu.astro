@@ -29,6 +29,8 @@ import {
 } from "../lib/shopify";
 import { getCoffrets, getMenuParfums, getRecoImages, responsiveImage, type ResponsiveImage } from "../lib/sanity";
 import { type Locale, locales, localeNames, localePath, useTranslations } from "../i18n";
+import { portraitAudioPath } from "../lib/luma/portraits";
+import { universeLabel } from "../lib/universes";
 
 interface Props {
   lang: Locale;
@@ -41,7 +43,7 @@ const t = useTranslations(lang);
 
 const [products, menuParfums, recoImages, coffretContent] = await Promise.all([
   getAllProducts(),
-  getMenuParfums(lang),
+  getMenuParfums(),
   getRecoImages(),
   getCoffrets(lang),
 ]);
@@ -82,9 +84,12 @@ const reflets = products
       handle: p.handle,
       name: p.title,
       href: localePath(lang, `/parfums/${p.handle}`),
-      familles: doc?.familles ?? null,
+      universe: universeLabel(p.handle, lang),
       bestSeller: !!doc?.bestSeller,
-      color: doc?.couleurSignature ?? null,
+      nouveau: !!doc?.nouveau,
+      // Le portrait audio déjà enregistré (portraits.ts) : zéro crédit à l'écoute.
+      audio: portraitAudioPath(lang, p.handle),
+      listenLabel: t("luma.discover").replace("{name}", p.title),
       price: formatPrice(price.amount, price.currencyCode),
       variantId: variant.id,
       visual: picture(VISUAL_WIDTHS, 3 / 4),
@@ -131,19 +136,38 @@ const maisonHref = localePath(lang, "/maison");
       <ul class="mega-list">
         {
           reflets.map((r) => (
-            <li>
-              <a
-                class:list={["mega-item", { "is-active": r.handle === initialHandle }]}
-                href={r.href}
-                data-menu-item={r.handle}
-              >
-                <span class="mega-item-name">{r.name}</span>
-                <span class="mega-item-meta">
-                  {r.color && <i class="mega-swatch" style={`background:${r.color}`} aria-hidden="true"></i>}
-                  {r.familles && <span>{r.familles}</span>}
-                  {r.bestSeller && <span class="mega-tag">{t("product.bestSeller")}</span>}
-                </span>
-              </a>
+            <li class="mega-entry" data-menu-entry={r.handle}>
+              <div class="mega-entry-row">
+                <a
+                  class:list={["mega-item", { "is-active": r.handle === initialHandle }]}
+                  href={r.href}
+                  data-menu-item={r.handle}
+                >
+                  <span class="mega-item-name">{r.name}</span>
+                  <span class="mega-item-meta">
+                    {r.universe && <span>{r.universe}</span>}
+                    {r.bestSeller && <span class="mega-tag">{t("product.bestSeller")}</span>}
+                    {r.nouveau && <span class="mega-tag mega-tag-new">{t("menu.new")}</span>}
+                  </span>
+                </a>
+                {r.audio && (
+                  <button
+                    type="button"
+                    class="mega-listen"
+                    data-menu-listen={r.handle}
+                    data-src={r.audio}
+                    aria-label={r.listenLabel}
+                    aria-pressed="false"
+                  >
+                    <svg class="mega-listen-play" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
+                    <svg class="mega-listen-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
+                  </button>
+                )}
+              </div>
+              <div class="mega-listen-track" aria-hidden="true">
+                <span class="mega-listen-progress" data-menu-progress={r.handle}></span>
+                <span class="mega-listen-time" data-menu-time={r.handle}></span>
+              </div>
             </li>
           ))
         }
@@ -219,6 +243,7 @@ const maisonHref = localePath(lang, "/maison");
     </div>
 
   </div>
+  <audio preload="none" data-menu-audio data-listen-audio></audio>
   <div class="mega-foot">
     <button type="button" class="mega-luma" data-luma-open data-luma-source="menu">
       <span class="mega-luma-name">{t("luma.name")}</span>
@@ -242,25 +267,48 @@ const maisonHref = localePath(lang, "/maison");
     <ul class="msheet-list">
       {
         reflets.map((r) => (
-          <li>
-            <a class="msheet-row" href={r.href}>
-              {r.thumb && (
-                <img
-                  class="msheet-thumb"
-                  src={r.thumb.src}
-                  srcset={r.thumb.srcset}
-                  sizes="56px"
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                />
+          <li class="msheet-entry" data-menu-entry={r.handle}>
+            <div class="msheet-entry-row">
+              <a class="msheet-row" href={r.href}>
+                {r.thumb && (
+                  <img
+                    class="msheet-thumb"
+                    src={r.thumb.src}
+                    srcset={r.thumb.srcset}
+                    sizes="56px"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
+                )}
+                <span class="msheet-row-text">
+                  <span class="msheet-row-name">{r.name}</span>
+                  <span class="msheet-row-meta">
+                    {r.universe && <span>{r.universe}</span>}
+                    {r.bestSeller && <span class="mega-tag">{t("product.bestSeller")}</span>}
+                    {r.nouveau && <span class="mega-tag mega-tag-new">{t("menu.new")}</span>}
+                  </span>
+                </span>
+                <span class="msheet-row-price" data-money={r.variantId}>{r.price}</span>
+              </a>
+              {r.audio && (
+                <button
+                  type="button"
+                  class="mega-listen msheet-listen"
+                  data-menu-listen={r.handle}
+                  data-src={r.audio}
+                  aria-label={r.listenLabel}
+                  aria-pressed="false"
+                >
+                  <svg class="mega-listen-play" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
+                  <svg class="mega-listen-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
+                </button>
               )}
-              <span class="msheet-row-text">
-                <span class="msheet-row-name">{r.name}</span>
-                {r.familles && <span class="msheet-row-meta">{r.familles}</span>}
-              </span>
-              <span class="msheet-row-price" data-money={r.variantId}>{r.price}</span>
-            </a>
+            </div>
+            <div class="mega-listen-track" aria-hidden="true">
+              <span class="mega-listen-progress" data-menu-progress={r.handle}></span>
+              <span class="mega-listen-time" data-menu-time={r.handle}></span>
+            </div>
           </li>
         ))
       }
@@ -341,6 +389,7 @@ const maisonHref = localePath(lang, "/maison");
   function closePanel() {
     window.clearTimeout(openTimer);
     if (!panel || !isOpen) return;
+    stopListening();
     isOpen = false;
     document.body.classList.remove("menu-open");
     panel.classList.remove("is-open");
@@ -355,6 +404,9 @@ const maisonHref = localePath(lang, "/maison");
   };
   const scheduleClose = () => {
     window.clearTimeout(openTimer);
+    // Un portrait en cours d'écoute : la souris qui s'éloigne ne coupe pas
+    // la voix ; Échap, un clic ailleurs ou le bouton, si.
+    if (listening()) return;
     closeTimer = window.setTimeout(closePanel, 220);
   };
 
@@ -370,12 +422,17 @@ const maisonHref = localePath(lang, "/maison");
         openPanel();
       }
     });
-    trigger.addEventListener("focus", openPanel);
+    // Le focus clavier ouvre — sauf quand c'est nous qui le rendons au
+    // trigger après Échap, sinon le panneau se rouvrait aussitôt.
+    let returningFocus = false;
+    trigger.addEventListener("focus", () => !returningFocus && openPanel());
     veil?.addEventListener("click", closePanel);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && isOpen) {
         closePanel();
+        returningFocus = true;
         trigger.focus();
+        returningFocus = false;
       }
     });
     // Le focus clavier quitte le trigger et le panneau : on referme.
@@ -403,6 +460,75 @@ const maisonHref = localePath(lang, "/maison");
     }
   }
 
+  /* ---------------- Portraits audio ----------------
+   * Un seul lecteur pour le panneau et la feuille : les fichiers sont ceux de
+   * la fiche produit (portraits.ts). Le bouton d'un Reflet joue son portrait,
+   * met en pause les autres lecteurs de la page (et réciproquement, via
+   * l'attribut data-listen-audio que LumaListen surveille).
+   */
+  const audio = document.querySelector<HTMLAudioElement>("[data-menu-audio]");
+  const listenButtons = document.querySelectorAll<HTMLButtonElement>("[data-menu-listen]");
+  const fmt = (s: number) =>
+    Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "";
+  let current = "";
+  const listening = () => Boolean(audio) && current !== "" && !audio!.paused && !audio!.ended;
+
+  function renderListening() {
+    if (!audio) return;
+    const playing = listening();
+    for (const b of listenButtons) {
+      const mine = b.dataset.menuListen === current;
+      b.classList.toggle("is-playing", mine && playing);
+      b.setAttribute("aria-pressed", String(mine && playing));
+    }
+    for (const entry of document.querySelectorAll<HTMLElement>("[data-menu-entry]")) {
+      const mine = entry.dataset.menuEntry === current && (playing || audio.currentTime > 0);
+      entry.classList.toggle("is-listening", mine);
+    }
+    const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+    for (const bar of document.querySelectorAll<HTMLElement>("[data-menu-progress]")) {
+      bar.style.width = bar.dataset.menuProgress === current ? `${pct}%` : "0%";
+    }
+    for (const time of document.querySelectorAll<HTMLElement>("[data-menu-time]")) {
+      time.textContent = time.dataset.menuTime === current && audio.duration ? `${fmt(audio.currentTime)} / ${fmt(audio.duration)}` : "";
+    }
+  }
+  function stopListening() {
+    if (!audio || !current) return;
+    audio.pause();
+    audio.currentTime = 0;
+    current = "";
+    renderListening();
+  }
+  if (audio) {
+    for (const b of listenButtons) {
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const handle = b.dataset.menuListen ?? "";
+        const src = b.dataset.src ?? "";
+        if (current === handle && !audio.paused) {
+          audio.pause();
+          return;
+        }
+        if (current !== handle) {
+          current = handle;
+          audio.src = src;
+          audio.currentTime = 0;
+          // Le visuel suit la voix.
+          for (const f of panel?.querySelectorAll<HTMLElement>("[data-menu-figure]") ?? []) f.classList.toggle("is-active", f.dataset.menuFigure === handle);
+          for (const i of panel?.querySelectorAll<HTMLElement>("[data-menu-item]") ?? []) i.classList.toggle("is-active", i.dataset.menuItem === handle);
+        }
+        for (const other of document.querySelectorAll<HTMLAudioElement>("[data-listen-audio]")) if (other !== audio) other.pause();
+        audio.play().catch(() => {});
+      });
+    }
+    for (const ev of ["play", "pause", "ended", "timeupdate", "loadedmetadata"]) audio.addEventListener(ev, renderListening);
+    audio.addEventListener("ended", () => {
+      audio.currentTime = 0;
+      renderListening();
+    });
+  }
+
   /* ---------------- Mobile ---------------- */
   const sheet = document.querySelector<HTMLElement>("[data-menu-sheet]");
   const burger = document.querySelector<HTMLButtonElement>("[data-menu-open]");
@@ -420,6 +546,7 @@ const maisonHref = localePath(lang, "/maison");
   }
   function closeSheet() {
     if (!sheet || !sheetOpen) return;
+    stopListening();
     sheetOpen = false;
     document.body.classList.remove("menu-open");
     sheet.classList.remove("is-open");
@@ -504,6 +631,42 @@ const maisonHref = localePath(lang, "/maison");
   }
 
   .mega-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .mega-entry-row,
+  .msheet-entry-row { display: flex; align-items: center; gap: 16px; }
+  .mega-entry-row .mega-item { flex: 1 1 auto; min-width: 0; }
+  /* Le bouton d'écoute : le même rond que sur la fiche (LumaListen). */
+  .mega-listen {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid rgba(21, 14, 10, 0.28);
+    border-radius: 50%;
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color 0.25s ease, background-color 0.25s ease;
+  }
+  .mega-listen:hover { border-color: var(--ink); }
+  .mega-listen.is-playing { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .mega-listen-pause { display: none; }
+  .mega-listen.is-playing .mega-listen-play { display: none; }
+  .mega-listen.is-playing .mega-listen-pause { display: inline; }
+  .mega-entry-row .mega-listen { margin-inline-end: 24px; }
+  /* La progression : une ligne fine qui n'existe qu'à l'écoute. */
+  .mega-listen-track {
+    position: relative;
+    display: none;
+    height: 1px;
+    margin: 2px 0 6px;
+    background: rgba(21, 14, 10, 0.12);
+  }
+  .is-listening > .mega-listen-track { display: block; }
+  .mega-listen-progress { position: absolute; inset-block: 0; inset-inline-start: 0; width: 0%; background: var(--ink); transition: width 0.25s linear; }
+  .mega-listen-time { position: absolute; inset-inline-end: 0; top: 6px; font-size: 11px; opacity: 0.55; font-variant-numeric: tabular-nums; }
   .mega-item {
     display: flex;
     flex-direction: column;
@@ -525,8 +688,8 @@ const maisonHref = localePath(lang, "/maison");
     font-size: 13px;
     opacity: 0.6;
   }
-  .mega-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
   .mega-tag { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; color: var(--rose); opacity: 1; }
+  .mega-tag-new { color: var(--ink); }
   .mega-all,
   .mega-foot-link {
     display: inline-block;
@@ -665,6 +828,10 @@ const maisonHref = localePath(lang, "/maison");
   .msheet-thumb-box { height: 56px; }
   .msheet-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
   .msheet-row-name { font-size: 20px; line-height: 1.15; }
+  .msheet-row-meta { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .msheet-entry-row .msheet-row { flex: 1 1 auto; min-width: 0; }
+  .msheet-listen { margin-inline-start: -4px; }
+  .msheet-entry .mega-listen-track { margin: 0 0 4px; }
   .msheet-row-meta { font-size: 13px; opacity: 0.6; }
   .msheet-row-price { font-size: 13px; opacity: 0.6; flex-shrink: 0; }
   .msheet-all,

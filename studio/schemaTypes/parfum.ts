@@ -163,6 +163,14 @@ export default defineType({
       description: "Affiche le badge « Best seller » sur les cartes produit (« You may also like », catalogue…).",
       group: "contenu",
     }),
+    defineField({
+      name: "nouveau",
+      title: "Nouveauté",
+      type: "boolean",
+      initialValue: false,
+      description: "Affiche le badge « Nouveau » dans le menu de navigation. À décocher quelques semaines après le lancement.",
+      group: "contenu",
+    }),
     defineField({ name: "parfumeur", title: "Parfumeur", type: "string", group: "contenu" }),
     defineField({
       name: "couleurSignature",
