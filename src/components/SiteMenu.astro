@@ -603,9 +603,13 @@ const maisonHref = localePath(lang, "/maison");
   :global(body.menu-open .luma-pill) { opacity: 0 !important; pointer-events: none !important; }
 
   /* ===== Panneau ordinateur ===== */
+  /* Le voile ne couvre que la page SOUS la barre : posé en fixed sur toute la
+     fenêtre, il grisait aussi l'en-tête pendant l'ouverture (Sandro). */
   .mega-veil {
-    position: fixed;
-    inset: 0;
+    position: absolute;
+    top: 100%;
+    inset-inline: 0;
+    height: 100vh;
     z-index: 1;
     background: rgba(21, 14, 10, 0.16);
     opacity: 0;
