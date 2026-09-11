@@ -18,8 +18,8 @@ import type { Knowledge, KnowledgeProduct } from "./knowledge";
 const str = { type: "string" } as const;
 const strOrNull = { type: ["string", "null"] } as const;
 
-// Réponses toutes faites : deux à quatre d'ordinaire, six quand ce sont les parfums d'origine.
-const MAX_REPLIES = 6;
+// Réponses toutes faites : deux à quatre d'ordinaire, six quand ce sont les parfums d'origine — plus la porte de sortie.
+const MAX_REPLIES = 7;
 const MAX_REPLY_CHARS = 60;
 
 export const LUMA_TOOLS: Anthropic.Tool[] = [
@@ -220,6 +220,26 @@ export function productsNamedIn(text: string, knowledge: Knowledge): KnowledgePr
 const ORIGINS = ["Baccarat Rouge 540", "Bois Impérial", "Tuscan Leather", "Althaïr", "Erba Pura", "Oud Maracuja"];
 
 /**
+ * La porte de sortie de la liste des origines (Sandro, 11 septembre 2026) :
+ * qui ne connaît aucun de ces parfums doit pouvoir le dire d'un clic, et Luma
+ * change alors de porte — une matière, puis l'univers.
+ */
+export const ESCAPE_REPLY: Record<Locale, string> = {
+  fr: "Aucun de ces parfums",
+  en: "None of these",
+  ar: "لا شيء من هذه",
+};
+
+/** Les matières signature de la collection, dans les mots du visiteur — même liste que LumaDoors. */
+const MATERIALS: Record<Locale, string[]> = {
+  fr: ["La vanille", "L'oud", "Le cuir", "La mangue", "Le safran", "Le musc", "La rose", "La praline"],
+  en: ["Vanilla", "Oud", "Leather", "Mango", "Saffron", "Musk", "Rose", "Praline"],
+  ar: ["الفانيليا", "العود", "الجلد", "المانجو", "الزعفران", "المسك", "الورد", "البرالين"],
+};
+
+const isOrigin = (r: string) => ORIGINS.some((o) => o.toLowerCase() === r.trim().toLowerCase());
+
+/**
  * Quand le modèle a oublié suggest_replies deux fois, le visiteur a quand même
  * de quoi cliquer (Sandro, 11 septembre 2026 : « toujours proposer des
  * réponses toutes faites »). Trois jeux : après une recommandation, les suites
@@ -244,7 +264,8 @@ const FALLBACK_REPLIES: Record<Locale, { afterReco: string[]; universes: string[
 export function fallbackReplies(locale: Locale, text: string, hasRecommendation: boolean): string[] {
   const set = FALLBACK_REPLIES[locale];
   if (hasRecommendation) return set.afterReco;
-  if (/\b(porte|portez|wear|aimez|like|love)\b|ترتد|تحب|تضع/i.test(text)) return ORIGINS;
+  if (/matière|matieres|material|ingr[ée]dient|نفحة|مادة|مكوّن/i.test(text)) return MATERIALS[locale];
+  if (/\b(porte|portez|wear|aimez|like|love)\b|ترتد|تحب|تضع/i.test(text)) return [...ORIGINS, ESCAPE_REPLY[locale]];
   return set.universes;
 }
 
@@ -257,9 +278,17 @@ export function fallbackReplies(locale: Locale, text: string, hasRecommendation:
 export function normalizeReplies(actions: LumaAction[], knowledge: Knowledge): LumaAction[] {
   const names = knowledge.products.filter((p) => p.kind === "parfum").map((p) => p.name);
   const isName = (r: string) => names.some((n) => n.toLowerCase() === r.trim().toLowerCase());
-  return actions.map((a) =>
-    a.type === "suggest_replies" && a.replies.filter(isName).length >= 2 ? { ...a, replies: names } : a
-  );
+  const escape = ESCAPE_REPLY[knowledge.locale];
+  return actions.map((a) => {
+    if (a.type !== "suggest_replies") return a;
+    // Luma demande de choisir un Reflet : les six, tous.
+    if (a.replies.filter(isName).length >= 2) return { ...a, replies: names };
+    // Luma demande ce qu'on porte : les origines, et la porte de sortie en dernier.
+    if (a.replies.filter(isOrigin).length >= 3 && !a.replies.some((r) => r.trim().toLowerCase() === escape.toLowerCase())) {
+      return { ...a, replies: [...a.replies.filter(isOrigin), escape] };
+    }
+    return a;
+  });
 }
 
 /**

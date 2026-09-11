@@ -38,6 +38,7 @@ const SCENARIOS = {
   fr: [
     { name: "Référence citée", turns: ["Je porte Baccarat Rouge depuis trois ans, j'aimerais changer sans trop m'éloigner."] },
     { name: "Indécis", turns: ["Je ne connais aucun de vos parfums.", "Cuir et soir."] },
+    { name: "Aucun", turns: ["Pour moi", "Aucun de ces parfums", "La vanille"] },
     { name: "Cadeau", turns: ["C'est pour mon père, pour l'Eid.", "Les 6 Reflets c'est combien ?"] },
     { name: "Comparaison", turns: ["Minuit Bourbon ou Fifth Season ?"] },
     { name: "Réduction", turns: ["Vous avez un code promo ?"] },
