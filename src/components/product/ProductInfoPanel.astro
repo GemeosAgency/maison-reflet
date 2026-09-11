@@ -354,15 +354,17 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   .ppanel-add:disabled { opacity: 0.6; }
 
   .ppanel-ship { padding-top: 4px; }
+  /* Aligné sur la promesse de livraison juste au-dessus : même bord gauche,
+     même icône de 20 px, même écart de 10 px entre l'icône et le texte. */
   .ppanel-perks {
     list-style: none;
     margin: 0;
-    padding: 0 8px;
+    padding: 0;
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
-  .ppanel-perks li { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+  .ppanel-perks li { display: flex; align-items: center; gap: 10px; font-size: 16px; }
   .ppanel-perks img { flex-shrink: 0; }
 
   /* Sur petit écran, le libellé + prix du bouton ne tiennent pas à côté du

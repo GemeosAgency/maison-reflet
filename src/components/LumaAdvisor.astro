@@ -8,8 +8,13 @@
  * au-dessus ; sur mobile, une feuille qui glisse depuis le bas avec sa
  * poignée, presque plein écran. Même mécanique que les tiroirs du site :
  * voile, fermeture au voile / à la croix / par Échap, piège de focus. Monté
- * UNE FOIS par le layout ; les déclencheurs vivent dans le header, les fiches
- * et la page collection.
+ * UNE FOIS par le layout ; les déclencheurs vivent dans le header, les fiches,
+ * la page collection — et la pilule collée en bas de l'écran, d'où la modale
+ * sort : « Luma · Trouver votre Reflet », en encre, sans icône ni « IA »
+ * (Sandro, 11 septembre 2026, d'après la pilule de Kayali mais sans son nudge
+ * commercial). Elle apparaît après un peu de défilement, se ferme pour la
+ * session, s'efface quand Luma ou le panier sont ouverts, et jamais sur la
+ * page panier. La ligne au-dessus est réservée aux initiatives (persona §9).
  *
  * Ce que le brief (§5) interdit, et qu'on ne fait donc pas : la bulle ronde en
  * bas à droite, les bulles de chat colorées. Ici : du texte, sans bulles — Luma
@@ -65,6 +70,16 @@ const t = useTranslations(lang);
     contact: CONTACT_EMAIL,
   })}
 />
+
+<div class="luma-pill" data-luma-pill hidden>
+  <button type="button" class="luma-pill-open" data-luma-open data-luma-source="pill">
+    <span class="luma-pill-name">{t("luma.name")}</span>
+    <span class="luma-pill-line" data-luma-pill-line>{t("luma.tagline")}</span>
+  </button>
+  <button type="button" class="luma-pill-close" data-luma-pill-close aria-label={t("luma.pillClose")}>
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+  </button>
+</div>
 
 <div class="luma" data-luma aria-hidden="true">
   <div class="luma-backdrop" data-luma-close></div>
@@ -143,6 +158,9 @@ const t = useTranslations(lang);
   const TRANSCRIPT_KEY = "maison-reflet:luma";
   const TRANSCRIPT_MAX = 60;
   const TYPING_MS = 34;
+  const PILL_KEY = "maison-reflet:luma-pill"; // « off » quand le visiteur l'a fermée pour la session
+  const PILL_SCROLL_PX = 320;
+  const PILL_DELAY_MS = 6000;
 
   const i18n: Record<string, string> = JSON.parse(document.getElementById("luma-i18n")?.textContent || "{}");
 
@@ -177,7 +195,7 @@ const t = useTranslations(lang);
     }
     /** Le déclencheur du header dit « Reprendre la conversation » dès qu'il y a un fil. */
     function markResumable() {
-      for (const line of document.querySelectorAll<HTMLElement>(".luma-trigger-line")) line.textContent = i18n.resume;
+      for (const line of document.querySelectorAll<HTMLElement>(".luma-trigger-line, [data-luma-pill-line]")) line.textContent = i18n.resume;
     }
     function removeOpeningChips() {
       root!.querySelector("[data-luma-opening] .luma-chips")?.remove();
@@ -214,6 +232,7 @@ const t = useTranslations(lang);
       input!.focus();
       void hydrate();
       scrollToEnd(true);
+      pill.hide();
       if (!cartRequested) {
         cartRequested = true;
         loadCart()
@@ -226,6 +245,7 @@ const t = useTranslations(lang);
       root!.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
       lastFocused?.focus();
+      pill.show();
     }
     /** Par où le visiteur est entré (header, fiche produit…) : voyage avec chaque tour, pour le suivi. */
     let entry = "header";
@@ -245,6 +265,60 @@ const t = useTranslations(lang);
       });
     }
     for (const el of root.querySelectorAll<HTMLElement>("[data-luma-close]")) el.addEventListener("click", close);
+
+    /* ---------------- La pilule collée en bas ---------------- */
+
+    const pill = (() => {
+      const node = document.querySelector<HTMLElement>("[data-luma-pill]");
+      let dismissed = false;
+      try {
+        dismissed = sessionStorage.getItem(PILL_KEY) === "off";
+      } catch {
+        /* sans stockage, la pilule revient à chaque page */
+      }
+      // Jamais sur la page panier : le visiteur est en train de conclure.
+      const onCartPage = /^\/(fr|en|ar)?\/?panier/.test(location.pathname);
+      let eligible = false; // vrai après un peu de défilement, ou un délai
+      let cartOpen = false;
+      const wanted = () => Boolean(node) && eligible && !dismissed && !cartOpen && !onCartPage && !root!.classList.contains("is-open");
+      const render = () => {
+        if (!node) return;
+        if (wanted()) {
+          node.hidden = false;
+          // L'état peut changer avant l'image suivante (croix, ouverture) : on revérifie.
+          requestAnimationFrame(() => wanted() && node.classList.add("is-visible"));
+        } else {
+          node.classList.remove("is-visible");
+        }
+      };
+      const becomeEligible = () => {
+        if (eligible) return;
+        eligible = true;
+        render();
+      };
+      if (node && !dismissed && !onCartPage) {
+        window.addEventListener("scroll", () => scrollY > PILL_SCROLL_PX && becomeEligible(), { passive: true });
+        setTimeout(becomeEligible, PILL_DELAY_MS);
+        // Le tiroir panier n'émet rien à la fermeture : on regarde sa classe.
+        const drawer = document.querySelector(".cart-drawer");
+        if (drawer) {
+          new MutationObserver(() => {
+            cartOpen = drawer.classList.contains("is-open");
+            render();
+          }).observe(drawer, { attributes: true, attributeFilter: ["class"] });
+        }
+        node.querySelector("[data-luma-pill-close]")?.addEventListener("click", () => {
+          dismissed = true;
+          try {
+            sessionStorage.setItem(PILL_KEY, "off");
+          } catch {
+            /* la fermeture ne vaut alors que pour cette page */
+          }
+          render();
+        });
+      }
+      return { show: render, hide: () => node?.classList.remove("is-visible") };
+    })();
 
     // Échap ferme ; Tab reste dans le panneau tant qu'il est ouvert.
     document.addEventListener("keydown", (e) => {
@@ -711,6 +785,48 @@ const t = useTranslations(lang);
   préfixées `luma-`, il n'y a rien à protéger.
 */}
 <style is:global>
+  /* La pilule : encre, centrée en bas, d'où la modale sort. */
+  .luma-pill {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    z-index: 55;
+    display: flex;
+    align-items: center;
+    background: var(--ink);
+    color: var(--bg);
+    border-radius: 999px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    transform: translate(-50%, 12px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    pointer-events: none;
+  }
+  .luma-pill.is-visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .luma-pill-open {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 13px 6px 13px 20px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .luma-pill-name { font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .luma-pill-line { font-size: 14px; opacity: 0.8; }
+  .luma-pill-close {
+    padding: 13px 14px 13px 8px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    line-height: 0;
+    opacity: 0.7;
+    cursor: pointer;
+  }
+  .luma-pill-close:hover { opacity: 1; }
+
   .luma { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
   .luma-backdrop {
     position: fixed;
@@ -892,6 +1008,23 @@ const t = useTranslations(lang);
   }
   .luma-input::placeholder { opacity: 0.5; }
   .luma-input:disabled { opacity: 0.6; }
+  /* Le focus dans la charte, jamais le bleu du navigateur — visible au clavier, en encre. */
+  .luma-input:focus { outline: none; border-color: var(--ink); }
+  .luma-chip:focus-visible,
+  .luma-send:focus-visible,
+  .luma-close:focus-visible,
+  .luma-card-add:focus-visible,
+  .luma-card-link:focus-visible,
+  .luma-card-media:focus-visible,
+  .luma-alt-label:focus-visible,
+  .luma-consent input:focus-visible,
+  .luma-handoff a:focus-visible {
+    outline: 1.5px solid var(--ink);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .luma-chip:focus-visible, .luma-card-add:focus-visible { border-radius: 999px; }
+  .luma-pill-open:focus-visible, .luma-pill-close:focus-visible { outline: 1.5px solid var(--bg); outline-offset: -5px; border-radius: 999px; }
   .luma-send {
     padding: 12px 18px;
     border: 0;
@@ -938,10 +1071,12 @@ const t = useTranslations(lang);
     }
     .luma-close { top: 22px; }
     .luma-card-img { width: 72px; height: 72px; }
+    .luma-pill { bottom: 16px; max-width: calc(100vw - 32px); }
+    .luma-pill-line { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .luma-backdrop, .luma-panel { transition: none; }
+    .luma-backdrop, .luma-panel, .luma-pill { transition: none; }
     .luma-cursor, .luma-dots i { animation: none; }
   }
 </style>

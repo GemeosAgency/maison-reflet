@@ -97,6 +97,7 @@ const doors = [
     transition: background 0.2s, border-color 0.2s;
   }
   .doors-chip:hover { background: var(--sand); border-color: rgba(21, 14, 10, 0.3); }
+  .doors-chip:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
   @media (max-width: 720px) {
     .doors-inner { padding: 48px var(--gutter-x); gap: 32px; }
     .doors-head h2 { font-size: 24px; }
