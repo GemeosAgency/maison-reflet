@@ -192,6 +192,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     setVariantQuantity,
     swapCartLine,
     trackCheckoutDeparture,
+    visibleQuantity,
   } from "../lib/cart";
   import { formatPrice, type ShopifyCart } from "../lib/shopify";
   import { freeShippingThreshold, intlLocale } from "../lib/markets";
@@ -411,50 +412,99 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       </div>`;
   }
 
-  async function ensureSampleLine(cart: ShopifyCart, desiredVariantId?: string) {
-    if (reconciling || sampleOptions.length === 0) return;
+  /*
+   * Réconciliation de l'échantillon offert.
+   *
+   * Renvoie le panier tel que Shopify le rend APRÈS la mutation, ou null si
+   * rien n'était à faire. C'est l'appelant (render) qui réaffiche ce panier :
+   * pendant la mutation, l'événement cart:updated est volontairement ignoré
+   * (voir `reconciling`), donc sans ce retour l'écran restait figé sur l'état
+   * d'avant — un panier vidé de ses parfums affichait encore « SAC 1 » et une
+   * barre de livraison calée sur les 15 AED de l'échantillon.
+   *
+   * `lastAttempt` mémorise l'état de panier sur lequel une mutation vient
+   * d'être tentée : si Shopify renvoie exactement le même état (variante
+   * indisponible, userError…), on n'insiste pas — sinon render et
+   * ensureSampleLine se relanceraient l'un l'autre sans fin.
+   */
+  let lastAttempt = "";
+  const cartSignature = (cart: ShopifyCart) =>
+    cart.lines.nodes.map((l) => `${l.merchandise.id}:${l.quantity}`).sort().join("|");
+  const isSampleLine = (l: ShopifyCart["lines"]["nodes"][number]) =>
+    sampleOptions.some((s) => s.variantId === l.merchandise.id);
+
+  async function ensureSampleLine(
+    cart: ShopifyCart,
+    desiredVariantId?: string
+  ): Promise<ShopifyCart | null> {
+    if (reconciling || sampleOptions.length === 0) return null;
     const eligible = cart.lines.nodes.some((l) =>
       upsellCatalog.some((p) => p.variantId === l.merchandise.id)
     );
-    const existingSampleLine = cart.lines.nodes.find((l) =>
-      sampleOptions.some((s) => s.variantId === l.merchandise.id)
-    );
+    const sampleLines = cart.lines.nodes.filter(isSampleLine);
+    const existingSampleLine = sampleLines[0];
+    const target = desiredVariantId ?? existingSampleLine?.merchandise.id ?? sampleOptions[0]?.variantId;
 
-    if (!eligible) {
-      if (existingSampleLine) {
-        reconciling = true;
-        try {
-          await removeFromCart(existingSampleLine.id);
-        } finally {
-          reconciling = false;
-        }
-      }
-      return;
+    // Un seul échantillon, en un seul exemplaire : un deuxième onglet ou deux
+    // réconciliations croisées peuvent avoir fusionné deux ajouts en une
+    // ligne à quantité 2 — dont une unité payante (la remise n'en offre
+    // qu'une par commande).
+    const needsFix =
+      (!eligible && sampleLines.length > 0) ||
+      (eligible &&
+        !!target &&
+        (existingSampleLine?.merchandise.id !== target ||
+          existingSampleLine.quantity !== 1 ||
+          sampleLines.length > 1));
+    if (!needsFix) {
+      lastAttempt = "";
+      return null;
     }
 
-    const target = desiredVariantId ?? existingSampleLine?.merchandise.id ?? sampleOptions[0]?.variantId;
-    if (!target || existingSampleLine?.merchandise.id === target) return;
+    const signature = cartSignature(cart) + (desiredVariantId ? `>${desiredVariantId}` : "");
+    if (signature === lastAttempt) return null;
+    lastAttempt = signature;
 
     reconciling = true;
     try {
+      let next: ShopifyCart | null = cart;
+      if (!eligible) {
+        for (const line of sampleLines) next = (await removeFromCart(line.id)) ?? next;
+        return next;
+      }
+      for (const extra of sampleLines.slice(1)) next = (await removeFromCart(extra.id)) ?? next;
       if (existingSampleLine) {
-        // Une seule mutation : la ligne change de variante. Le retrait suivi
-        // d'un ajout coûtait deux allers-retours et faisait disparaître
-        // l'échantillon entre les deux.
-        await swapCartLine(existingSampleLine.id, target);
+        // Une seule mutation : la ligne change de variante (et revient à
+        // quantité 1). Le retrait suivi d'un ajout coûtait deux
+        // allers-retours et faisait disparaître l'échantillon entre les deux.
+        next = (await swapCartLine(existingSampleLine.id, target!)) ?? next;
       } else {
         // Ajout technique : il peut survenir au chargement de la page (panier
-        // éligible sans ligne échantillon), le tiroir n'a pas à surgir.
-        await addToCart(target, 1, { openDrawer: false });
+        // éligible sans ligne échantillon), le tiroir n'a pas à surgir, et ce
+        // n'est pas un achat à déclarer aux régies (track: false).
+        next = await addToCart(target!, 1, { openDrawer: false, track: false });
       }
+      return next;
     } finally {
       reconciling = false;
     }
   }
 
+  /** Lance la réconciliation et réaffiche le panier qu'elle renvoie. */
+  function reconcileAndRender(cart: ShopifyCart) {
+    ensureSampleLine(cart)
+      .then((next) => {
+        if (next) render(next);
+      })
+      .catch(() => {
+        // Réseau ou Shopify indisponible : l'affichage courant reste, le
+        // prochain cart:updated retentera.
+      });
+  }
+
   function render(cart: ShopifyCart | null) {
     currentCart = cart;
-    if (countEl) countEl.textContent = String(cart?.totalQuantity ?? 0);
+    if (countEl) countEl.textContent = String(visibleQuantity(cart));
 
     // Lignes du panier (regroupées par variante — voir groupLines)
     const grouped = groupLines(cart);
@@ -535,7 +585,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     }
     if (checkoutLink) checkoutLink.href = cart?.checkoutUrl ?? "#";
 
-    if (cart) ensureSampleLine(cart);
+    if (cart) reconcileAndRender(cart);
   }
 
   /*
@@ -576,7 +626,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     // un prix, on peut la deviner sans risque.
     if (countEl && currentCart) {
       const avant = groupLines(currentCart).find((g) => g.variantId === variantId)?.quantity ?? 0;
-      countEl.textContent = String(Math.max(0, currentCart.totalQuantity + next - avant));
+      countEl.textContent = String(Math.max(0, visibleQuantity(currentCart) + next - avant));
     }
 
     window.clearTimeout(flushTimer);
@@ -641,9 +691,9 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       }
     }
 
-    await ensureSampleLine(currentCart, variantId);
     // Le panier renvoyé par la mutation suffit : pas de loadCart en plus.
-    render(currentCart);
+    const next = await ensureSampleLine(currentCart, variantId);
+    render(next ?? currentCart);
   });
 
   // Les cartes upsell utilisent [data-add-to-cart] : gérées par le câblage

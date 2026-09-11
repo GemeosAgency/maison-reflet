@@ -103,16 +103,44 @@ function trackingCartAttributes(): CartAttributeInput[] {
   return attributes;
 }
 
+/**
+ * Prix unitaire RÉELLEMENT payé pour une variante, toutes lignes confondues.
+ *
+ * `merchandise.price` est le prix catalogue : 15 AED pour l'échantillon 2 ml
+ * même quand la remise automatique « Échantillon offert dès 1 flacon 75 ml »
+ * le ramène à 0. Le montant après remise vit dans `cost.totalAmount` de la
+ * ligne — et une même variante peut être scindée en plusieurs lignes (unités
+ * payantes + unité offerte), d'où la somme sur toutes les lignes.
+ */
+function effectiveUnitPrice(cart: ShopifyCart, variantId: string): number {
+  let total = 0;
+  let units = 0;
+  for (const line of cart.lines.nodes) {
+    if (line.merchandise.id !== variantId) continue;
+    total += Number(line.cost.totalAmount.amount);
+    units += line.quantity;
+  }
+  return units > 0 ? total / units : 0;
+}
+
+/** Lignes payantes du panier : une ligne offerte (remise à 0) n'est pas un achat à déclarer. */
+function paidLines(cart: ShopifyCart) {
+  return cart.lines.nodes.filter((line) => Number(line.cost.totalAmount.amount) > 0);
+}
+
 /** Événements "Added to Cart" Klaviyo + AddToCart Meta (best effort — jamais bloquant) */
 function trackAddedToCart(cart: ShopifyCart, lines: CartLine[]) {
   const addedItems = lines
     .map((l) => {
       const line = cart.lines.nodes.find((n) => n.merchandise.id === l.variantId);
       if (!line) return null;
+      const price = effectiveUnitPrice(cart, l.variantId);
+      // Offert par une remise automatique : rien à déclarer aux régies.
+      if (price <= 0) return null;
       return {
         ProductName: line.merchandise.product.title,
         VariantTitle: line.merchandise.title,
-        Price: Number(line.merchandise.price.amount),
+        Price: price,
         Quantity: l.quantity,
         ImageURL: line.merchandise.product.featuredImage?.url ?? null,
         ProductURL: `${window.location.origin}${currentLangPrefix()}/parfums/${line.merchandise.product.handle}`,
@@ -185,6 +213,32 @@ export async function loadCart(): Promise<ShopifyCart | null> {
 
 export type CartLine = { variantId: string; quantity: number };
 
+/**
+ * Unités à afficher au visiteur (compteur du sac, en-tête). L'échantillon
+ * offert est une ligne technique gérée par le tiroir (voir ensureSampleLine
+ * dans CartDrawer) : il n'est ni listé parmi les articles ni compté — sinon
+ * un panier « vide » affichait « SAC 1 ». Les variantes échantillon sont
+ * lues dans le JSON que le tiroir dépose dans la page.
+ */
+export function visibleQuantity(cart: ShopifyCart | null): number {
+  if (!cart) return 0;
+  const hidden = sampleVariantIds();
+  return cart.lines.nodes.reduce((n, l) => n + (hidden.has(l.merchandise.id) ? 0 : l.quantity), 0);
+}
+
+let sampleIdsCache: Set<string> | null = null;
+function sampleVariantIds(): Set<string> {
+  if (sampleIdsCache) return sampleIdsCache;
+  try {
+    const raw = document.getElementById("cart-sample-options")?.textContent;
+    const options = raw ? (JSON.parse(raw) as { variantId: string }[]) : [];
+    sampleIdsCache = new Set(options.map((o) => o.variantId));
+  } catch {
+    sampleIdsCache = new Set();
+  }
+  return sampleIdsCache;
+}
+
 export type AddToCartOptions = {
   /**
    * Ouvrir le tiroir après l'ajout. Vrai par défaut : un ajout est presque
@@ -195,6 +249,14 @@ export type AddToCartOptions = {
    * raison de surgir tout seul.
    */
   openDrawer?: boolean;
+  /**
+   * Émettre les événements AddToCart (Meta) / Added to Cart (Klaviyo) /
+   * add_to_cart (GA4). Vrai par défaut. À passer à `false` pour le même ajout
+   * TECHNIQUE : l'échantillon offert n'est pas un achat du visiteur, et le
+   * compter faisait remonter un AddToCart à 15 AED (son prix catalogue) à
+   * chaque réconciliation — jusque dans le Pixel.
+   */
+  track?: boolean;
 };
 
 /** Ajoute une ou plusieurs lignes au panier d'un coup, en le créant au premier ajout */
@@ -249,7 +311,7 @@ export async function addManyToCart(
 
   notifyCartUpdated(cart);
   if (options.openDrawer !== false) openCartDrawer();
-  trackAddedToCart(cart, lines);
+  if (options.track !== false) trackAddedToCart(cart, lines);
   return cart;
 }
 
@@ -362,17 +424,24 @@ export async function setVariantQuantity(
  *    Shopify fige le checkout, les attributs posés à la création restent.
  */
 export function trackCheckoutDeparture(cart: ShopifyCart | null) {
-  if (!cart || cart.lines.nodes.length === 0) return;
+  if (!cart) return;
+  // L'échantillon offert (ligne à 0) n'apparaît pas dans les contenus : il
+  // était déclaré 15 AED, son prix catalogue, alors que le sous-total ne le
+  // comptait pas. Le sous-total Storefront est déjà net des remises de ligne.
+  const lines = paidLines(cart);
+  if (lines.length === 0) return;
 
   const value = Number(cart.cost.subtotalAmount.amount);
   const currency = cart.cost.subtotalAmount.currencyCode;
+  const unitPrice = (line: (typeof lines)[number]) =>
+    Number(line.cost.totalAmount.amount) / line.quantity;
 
   try {
     metaInitiateCheckout({
-      contents: cart.lines.nodes.map((line) => ({
+      contents: lines.map((line) => ({
         id: shopifyNumericId(line.merchandise.id),
         quantity: line.quantity,
-        item_price: Number(line.merchandise.price.amount),
+        item_price: unitPrice(line),
       })),
       value,
       currency,
@@ -383,10 +452,10 @@ export function trackCheckoutDeparture(cart: ShopifyCart | null) {
 
   try {
     ga4BeginCheckout({
-      items: cart.lines.nodes.map((line) => ({
+      items: lines.map((line) => ({
         item_id: shopifyNumericId(line.merchandise.id),
         item_name: line.merchandise.product.title,
-        price: Number(line.merchandise.price.amount),
+        price: unitPrice(line),
         quantity: line.quantity,
       })),
       value,

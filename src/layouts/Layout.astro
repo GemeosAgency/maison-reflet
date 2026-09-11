@@ -708,7 +708,7 @@ const navLinks = [
     </style>
 
     <script>
-      import { loadCart, initAddToCartButtons, type CartUpdatedEvent } from "../lib/cart";
+      import { loadCart, initAddToCartButtons, visibleQuantity, type CartUpdatedEvent } from "../lib/cart";
       import { initKlaviyo, identify } from "../lib/klaviyo";
       import { initMetaPixel } from "../lib/meta";
       import { initGa4 } from "../lib/ga4";
@@ -742,7 +742,7 @@ const navLinks = [
       const countEl = document.querySelector<HTMLElement>("[data-cart-count]");
       function renderCount(cart: ShopifyCart | null) {
         if (!countEl) return;
-        const q = cart?.totalQuantity ?? 0;
+        const q = visibleQuantity(cart);
         countEl.textContent = q > 0 ? `(${q})` : "";
       }
       document.addEventListener("cart:updated", (e) =>
