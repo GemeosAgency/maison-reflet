@@ -260,27 +260,12 @@ export default defineType({
       description: "Affichée dans la modale « Perfumer's word », au-dessus de la citation.",
       group: "medias",
     }),
-    defineField({
-      name: "imagesEditoriales",
-      title: "Galerie du parfum",
-      description:
-        "Images de la galerie de la page produit (empilées, dans l'ordre). Si vide, on retombe sur les images du produit Shopify.",
-      type: "array",
-      of: [
-        {
-          type: "image",
-          options: { hotspot: true },
-          fields: [
-            defineField({ name: "alt", title: "Texte alternatif", type: "localeString" }),
-            defineField({ name: "caption", title: "Légende", type: "localeString" }),
-          ],
-        },
-      ],
-      group: "medias",
-    }),
+    // Plus de « Galerie du parfum » ici : la galerie de la fiche n'affiche que
+    // les photos Shopify (règle de la Maison, 11 sept. 2026). Les anciennes
+    // valeurs `imagesEditoriales` restent dans le dataset, simplement masquées.
     defineField({ name: "seo", title: "SEO", type: "seo", group: "seo" }),
   ],
   preview: {
-    select: { title: "nomAffiche", subtitle: "shopifyHandle", media: "imagesEditoriales.0" },
+    select: { title: "nomAffiche", subtitle: "shopifyHandle", media: "imageRecommandation" },
   },
 });
