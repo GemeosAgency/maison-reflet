@@ -178,6 +178,10 @@ const t = useTranslations(lang);
   const TYPING_MS = 34;
   const PILL_KEY = "maison-reflet:luma-pill"; // « off » quand le visiteur l'a fermée pour la session
   const VOICE_KEY = "maison-reflet:luma-voice"; // « on » quand le visiteur écoute Luma
+  // La voix du chat (une synthèse par réponse) est éteinte depuis le 11 septembre 2026 : les
+  // portraits pré-générés couvrent l'écoute sans crédit. Remettre à true pour la rallumer —
+  // le serveur (outil speak, route /api/luma/speak, budgets) est resté en place.
+  const CHAT_VOICE_ENABLED = false;
   // Les phrases fixes de Luma sont pré-générées (scripts/luma-voice-static.mjs) : zéro crédit à l'usage.
   type StaticPhrase = "opening" | "unavailable" | "fallback" | "emailDone";
   const PILL_SCROLL_PX = 320;
@@ -347,10 +351,11 @@ const t = useTranslations(lang);
     const voiceLabel = root.querySelector<HTMLElement>("[data-luma-voice-label]");
     let voiceOn = false;
     try {
-      voiceOn = sessionStorage.getItem(VOICE_KEY) === "on";
+      voiceOn = CHAT_VOICE_ENABLED && sessionStorage.getItem(VOICE_KEY) === "on";
     } catch {
       /* la voix repart éteinte à chaque page */
     }
+    if (voiceButton && !CHAT_VOICE_ENABLED) voiceButton.hidden = true;
     const audio = new Audio();
     audio.preload = "auto";
     const speechUrl = (sp: Speech) => `/api/luma/speak?s=${sp.s}&t=${sp.t}&l=${encodeURIComponent(sp.l)}`;
