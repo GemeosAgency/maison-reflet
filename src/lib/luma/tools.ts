@@ -283,10 +283,8 @@ export function normalizeReplies(actions: LumaAction[], knowledge: Knowledge): L
     if (a.type !== "suggest_replies") return a;
     // Luma demande de choisir un Reflet : les six, tous.
     if (a.replies.filter(isName).length >= 2) return { ...a, replies: names };
-    // Luma demande ce qu'on porte : les origines, et la porte de sortie en dernier.
-    if (a.replies.filter(isOrigin).length >= 3 && !a.replies.some((r) => r.trim().toLowerCase() === escape.toLowerCase())) {
-      return { ...a, replies: [...a.replies.filter(isOrigin), escape] };
-    }
+    // Luma demande ce qu'on porte : les six origines, toutes, et la porte de sortie en dernier.
+    if (a.replies.filter(isOrigin).length >= 3) return { ...a, replies: [...ORIGINS, escape] };
     return a;
   });
 }
