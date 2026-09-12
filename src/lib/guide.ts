@@ -159,75 +159,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
 };
 
 /** « Si vous portez… » : la grille de correspondance de Luma, dans l'ordre des six références. */
-export type GuideOrigin = {
-  origin: string;
-  recommend: string;
-  alternative: string;
-  why: L10n;
-};
 
-export const GUIDE_ORIGINS: GuideOrigin[] = [
-  {
-    origin: "Baccarat Rouge 540",
-    recommend: "melting-mango",
-    alternative: "bois-alert",
-    why: {
-      fr: "La même famille safran-ambrée, avec une ouverture juteuse. Bois Alert si vous la voulez plus boisée.",
-      en: "The same saffron-amber family, with a juicy opening. Bois Alert if you want it woodier.",
-      ar: "نفس عائلة الزعفران والعنبر، مع افتتاحية عصيرة. بوا ألِرت إن أردتموها أكثر خشبية.",
-    },
-  },
-  {
-    origin: "Bois Impérial",
-    recommend: "bois-alert",
-    alternative: "ultra-cuir",
-    why: {
-      fr: "Le boisé net, avec de la présence. Ultra Cuir pour le soir.",
-      en: "The clean woody signature, with presence. Ultra Cuir for the evening.",
-      ar: "التوقيع الخشبي النقي، بحضور. أولترا كوير للمساء.",
-    },
-  },
-  {
-    origin: "Tuscan Leather",
-    recommend: "ultra-cuir",
-    alternative: "bois-alert",
-    why: {
-      fr: "Le cuir assumé, adouci par l'iris. Bois Alert si vous le voulez moins sombre.",
-      en: "Leather, fully assumed, softened by orris. Bois Alert if you want it less dark.",
-      ar: "جلدٌ صريح يلطّفه السوسن. بوا ألِرت إن أردتموه أقل قتامة.",
-    },
-  },
-  {
-    origin: "Althaïr",
-    recommend: "minuit-bourbon",
-    alternative: "fifth-season",
-    why: {
-      fr: "La gourmandise tenue par le cuir. Fifth Season pour la version solaire.",
-      en: "Indulgence held by leather. Fifth Season for the sunnier version.",
-      ar: "شهوة يشدّها الجلد. فيفث سيزن للنسخة الأكثر شمسًا.",
-    },
-  },
-  {
-    origin: "Erba Pura",
-    recommend: "fifth-season",
-    alternative: "melting-mango",
-    why: {
-      fr: "Le fruité solaire, plus fondu. Melting Mango pour plus d'ambre.",
-      en: "The sunny fruit, more seamless. Melting Mango for more amber.",
-      ar: "الفاكهية الشمسية، أكثر انسجامًا. ميلتينغ مانغو لمزيد من العنبر.",
-    },
-  },
-  {
-    origin: "Oud Maracuja",
-    recommend: "new-oud",
-    alternative: "ultra-cuir",
-    why: {
-      fr: "L'oud moderne, fruité en ouverture. Ultra Cuir si vous préférez le cuir.",
-      en: "The modern oud, fruity at the opening. Ultra Cuir if you prefer leather.",
-      ar: "العود العصري، فاكهي في افتتاحيته. أولترا كوير إن كنتم تفضّلون الجلد.",
-    },
-  },
-];
 
 /** « Le twist, notre manière » : le manifeste, trois paragraphes. */
 export const GUIDE_MANIFESTO: L10n[] = [
