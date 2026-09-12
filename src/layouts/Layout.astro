@@ -754,6 +754,26 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
       // que soit la page) — voir cart.ts pour la raison de la délégation unique.
       initAddToCartButtons();
 
+      /*
+       * Touches multimédia (clavier, AirPods) : par défaut le navigateur relance
+       * le dernier <audio> de la page depuis le début — c'est ainsi qu'un
+       * portrait démarrait « tout seul » (Sandro, 11-12 sept.). On ne reprend
+       * qu'une lecture réellement en pause au milieu ; sinon la touche ne fait
+       * rien ici. La pause reste au comportement natif.
+       */
+      if ("mediaSession" in navigator) {
+        try {
+          navigator.mediaSession.setActionHandler("play", () => {
+            const paused = Array.from(document.querySelectorAll("audio")).find(
+              (a) => a.paused && a.currentTime > 0 && !a.ended && a.getAttribute("src")
+            );
+            paused?.play().catch(() => {});
+          });
+        } catch {
+          /* navigateur sans Media Session : rien à faire */
+        }
+      }
+
       // Icône panier du header : ouvre la modale (voir CartDrawer.astro) au
       // lieu de naviguer — href gardé en repli si le JS ne s'exécute pas.
       document.querySelectorAll<HTMLAnchorElement>("[data-cart-open-trigger]").forEach((link) => {

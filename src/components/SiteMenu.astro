@@ -148,9 +148,9 @@ const maisonHref = localePath(lang, "/maison");
                 <span class="mega-item-name">{r.name}</span>
                 {r.bestSeller && <span class="mega-pill mega-pill-best">{t("product.bestSeller")}</span>}
                 {r.nouveau && <span class="mega-pill mega-pill-new">{t("menu.new")}</span>}
+                {/* L'onde qui bat pendant l'écoute du portrait : la ligne « parle ». */}
+                <span class="mega-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
               </a>
-              {/* Le trait de progression relie la ligne au portrait en cours d'écoute (bouton sous le visuel). */}
-              <span class="mega-listen-track" aria-hidden="true"><span class="mega-listen-progress" data-menu-progress={r.handle}></span></span>
             </li>
           ))
         }
@@ -177,6 +177,12 @@ const maisonHref = localePath(lang, "/maison");
                 )
               }
             </a>
+            {r.slides.length > 1 && (
+              // Un segment par photo, façon stories : le segment courant se remplit au rythme du défilement.
+              <span class="mega-fig-dots" aria-hidden="true">
+                {r.slides.map(() => <i></i>)}
+              </span>
+            )}
             <div class="mega-fig-caption">
               {r.universe && <span class="mega-fig-universe">{r.universe}</span>}
               <a class="mega-fig-title" href={r.href} tabindex="-1">
@@ -197,6 +203,7 @@ const maisonHref = localePath(lang, "/maison");
                   <span class="mega-listen-icon" aria-hidden="true">
                     <svg class="mega-listen-play" width="12" height="12" viewBox="0 0 12 12"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
                     <svg class="mega-listen-pause" width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
+                    <span class="mega-eq"><i></i><i></i><i></i></span>
                   </span>
                   <span class="mega-listen-label">{t("menu.listenPortrait")}</span>
                   <span class="mega-listen-time" data-menu-time={r.handle}></span>
@@ -354,11 +361,13 @@ const maisonHref = localePath(lang, "/maison");
    */
   const figures = panel?.querySelectorAll<HTMLElement>("[data-menu-figure]") ?? [];
   const entries = panel?.querySelectorAll<HTMLElement>("[data-menu-entry]") ?? [];
-  const FIRST_SLIDE_MS = 1800;
-  const SLIDE_MS = 2600;
+  const SLIDE_MS = 3000;
   let slideTimer: number | undefined;
   let slideHandle = "";
   let slideIndex = 0;
+  let slideStartedAt = 0;
+  let slideRemaining = SLIDE_MS;
+  let slidePaused = false;
   function hydrateSlides(fig: HTMLElement) {
     for (const img of fig.querySelectorAll<HTMLImageElement>("img[data-src]")) {
       img.src = img.dataset.src ?? "";
@@ -367,18 +376,44 @@ const maisonHref = localePath(lang, "/maison");
       img.removeAttribute("data-srcset");
     }
   }
-  function showSlide(fig: HTMLElement, index: number) {
+  /** Affiche une photo ; `running` anime le segment courant (sinon les segments sont au repos). */
+  function showSlide(fig: HTMLElement, index: number, running: boolean) {
     const imgs = fig.querySelectorAll<HTMLImageElement>(".mega-fig-img");
     imgs.forEach((im, i) => im.classList.toggle("is-shown", i === index));
+    const dots = fig.querySelectorAll<HTMLElement>(".mega-fig-dots i");
+    dots.forEach((dot, i) => {
+      dot.classList.remove("is-current", "is-done");
+      if (i < index) dot.classList.add("is-done");
+      if (i === index && running) {
+        // Relancer l'animation de remplissage depuis zéro.
+        void dot.offsetWidth;
+        dot.style.animationDuration = `${SLIDE_MS}ms`;
+        dot.classList.add("is-current");
+      }
+    });
+  }
+  function scheduleNext(fig: HTMLElement, count: number, delay: number) {
+    window.clearTimeout(slideTimer);
+    slideStartedAt = performance.now();
+    slideRemaining = delay;
+    slideTimer = window.setTimeout(() => {
+      slideIndex = (slideIndex + 1) % count;
+      showSlide(fig, slideIndex, true);
+      scheduleNext(fig, count, SLIDE_MS);
+    }, delay);
   }
   function stopSlides() {
     window.clearTimeout(slideTimer);
     if (slideHandle) {
       const fig = panel?.querySelector<HTMLElement>(`[data-menu-figure="${slideHandle}"]`);
-      if (fig) showSlide(fig, 0);
+      if (fig) {
+        fig.classList.remove("is-paused");
+        showSlide(fig, 0, false);
+      }
     }
     slideHandle = "";
     slideIndex = 0;
+    slidePaused = false;
   }
   function startSlides(handle: string) {
     stopSlides();
@@ -388,12 +423,27 @@ const maisonHref = localePath(lang, "/maison");
     const count = fig.querySelectorAll(".mega-fig-img").length;
     if (count < 2 || reducedMotion.matches) return;
     slideHandle = handle;
-    const step = () => {
-      slideIndex = (slideIndex + 1) % count;
-      showSlide(fig, slideIndex);
-      slideTimer = window.setTimeout(step, SLIDE_MS);
-    };
-    slideTimer = window.setTimeout(step, FIRST_SLIDE_MS);
+    slideIndex = 0;
+    showSlide(fig, 0, true);
+    scheduleNext(fig, count, SLIDE_MS);
+  }
+  // Le survol de l'image suspend le défilement : le visiteur regarde, on attend.
+  for (const media of panel?.querySelectorAll<HTMLElement>(".mega-fig-media") ?? []) {
+    media.addEventListener("mouseenter", () => {
+      const fig = media.closest<HTMLElement>("[data-menu-figure]");
+      if (!fig || fig.dataset.menuFigure !== slideHandle || slidePaused) return;
+      slidePaused = true;
+      window.clearTimeout(slideTimer);
+      slideRemaining = Math.max(200, slideRemaining - (performance.now() - slideStartedAt));
+      fig.classList.add("is-paused");
+    });
+    media.addEventListener("mouseleave", () => {
+      const fig = media.closest<HTMLElement>("[data-menu-figure]");
+      if (!fig || fig.dataset.menuFigure !== slideHandle || !slidePaused) return;
+      slidePaused = false;
+      fig.classList.remove("is-paused");
+      scheduleNext(fig, fig.querySelectorAll(".mega-fig-img").length, slideRemaining);
+    });
   }
   function activate(handle: string) {
     for (const f of figures) f.classList.toggle("is-active", f.dataset.menuFigure === handle);
@@ -496,6 +546,21 @@ const maisonHref = localePath(lang, "/maison");
    */
   const listenButtons = document.querySelectorAll<HTMLButtonElement>("[data-menu-listen]");
   const players = new Map<string, HTMLAudioElement>();
+  // Durées mémorisées : après l'écoute, le lecteur est vidé (voir release) et
+  // ne connaît plus sa durée, mais le libellé doit continuer de l'afficher.
+  const durations = new Map<string, number>();
+  const sources = new Map<string, string>();
+  /**
+   * Vider le lecteur une fois le portrait fini ou arrêté : un <audio> qui
+   * garde sa source reste la « session média » de l'onglet, et une touche
+   * lecture du clavier ou des écouteurs le relance depuis le début — c'est
+   * la voix fantôme entendue par Sandro (« Bois Alert… » sans rien demander).
+   */
+  function release(a: HTMLAudioElement) {
+    a.pause();
+    a.removeAttribute("src");
+    a.load();
+  }
   const fmt = (s: number) =>
     Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "";
   let current = "";
@@ -515,9 +580,14 @@ const maisonHref = localePath(lang, "/maison");
     a.dataset.menuPlayer = handle;
     (panel ?? document.body).appendChild(a);
     players.set(handle, a);
+    sources.set(handle, src);
+    a.addEventListener("loadedmetadata", () => {
+      if (a!.duration) durations.set(handle, a!.duration);
+    });
     for (const ev of ["play", "pause", "ended", "timeupdate", "loadedmetadata"]) a.addEventListener(ev, renderListening);
     a.addEventListener("ended", () => {
-      a!.currentTime = 0;
+      if (current === handle) current = "";
+      release(a!);
       renderListening();
     });
     return a;
@@ -538,8 +608,7 @@ const maisonHref = localePath(lang, "/maison");
       b.setAttribute("aria-pressed", String(mine && playing));
     }
     for (const entry of document.querySelectorAll<HTMLElement>("[data-menu-entry]")) {
-      const a = players.get(entry.dataset.menuEntry ?? "");
-      entry.classList.toggle("is-listening", entry.dataset.menuEntry === current && Boolean(a) && (playing || a!.currentTime > 0));
+      entry.classList.toggle("is-listening", entry.dataset.menuEntry === current && playing);
     }
     for (const bar of document.querySelectorAll<HTMLElement>("[data-menu-progress]")) {
       const a = players.get(bar.dataset.menuProgress ?? "");
@@ -549,19 +618,19 @@ const maisonHref = localePath(lang, "/maison");
     for (const time of document.querySelectorAll<HTMLElement>("[data-menu-time]")) {
       const handle = time.dataset.menuTime ?? "";
       const a = players.get(handle);
-      if (!a || !a.duration) {
+      const duration = durations.get(handle) ?? a?.duration ?? 0;
+      if (!duration) {
         time.textContent = "";
         continue;
       }
-      const active = handle === current && (playing || a.currentTime > 0);
-      time.textContent = active ? `${fmt(a.currentTime)} / ${fmt(a.duration)}` : fmt(a.duration);
+      const active = handle === current && Boolean(a) && (playing || a!.currentTime > 0);
+      time.textContent = active ? `${fmt(a!.currentTime)} / ${fmt(duration)}` : fmt(duration);
     }
   }
   function stopListening() {
     const a = currentPlayer();
     if (!a) return;
-    a.pause();
-    a.currentTime = 0;
+    release(a);
     current = "";
     renderListening();
   }
@@ -580,12 +649,11 @@ const maisonHref = localePath(lang, "/maison");
         a.pause();
         return;
       }
+      // Lecteur vidé après une écoute précédente : on lui redonne sa source.
+      if (!a.getAttribute("src")) a.src = sources.get(handle) ?? src;
       if (current !== handle) {
         const previous = currentPlayer();
-        if (previous) {
-          previous.pause();
-          previous.currentTime = 0;
-        }
+        if (previous) release(previous);
         current = handle;
         // Le visuel suit la voix.
         activate(handle);
@@ -794,18 +862,34 @@ const maisonHref = localePath(lang, "/maison");
   .mega-listen-time:empty { display: none; }
   .mega-listen-pause { display: none; }
   .mega-listen.is-playing .mega-listen-play { display: none; }
-  .mega-listen.is-playing .mega-listen-pause { display: inline; }
-  /* La progression : un trait au ras du bas de la ligne, seulement à l'écoute. */
-  .mega-listen-track {
-    position: absolute;
-    inset-inline: 16px;
-    bottom: 4px;
-    height: 1px;
-    background: rgba(21, 14, 10, 0.12);
-    opacity: 0;
-    transition: opacity 0.25s ease;
+  .mega-listen.is-playing .mega-listen-icon .mega-eq { display: inline-flex; height: 10px; }
+  .mega-listen.is-playing:hover .mega-listen-icon .mega-eq { display: none; }
+  .mega-listen.is-playing:hover .mega-listen-pause { display: inline; }
+  /*
+   * L'onde sonore : quatre traits qui battent tant que le portrait parle
+   * (Sandro : « comme certains podcasts »). Au bout de la ligne du Reflet
+   * écouté, et dans le rond du bouton à la place du glyphe pause, qui revient
+   * au survol pour dire le geste.
+   */
+  .mega-eq { display: none; align-items: flex-end; gap: 2px; height: 12px; }
+  .mega-eq i {
+    display: block;
+    width: 2px;
+    height: 35%;
+    border-radius: 1px;
+    background: currentColor;
+    animation: mega-eq 0.9s ease-in-out infinite;
   }
-  .mega-entry.is-listening > .mega-listen-track { opacity: 1; }
+  .mega-eq i:nth-child(2) { animation-delay: -0.45s; }
+  .mega-eq i:nth-child(3) { animation-delay: -0.2s; }
+  .mega-eq i:nth-child(4) { animation-delay: -0.65s; }
+  @keyframes mega-eq {
+    0%, 100% { height: 35%; }
+    50% { height: 100%; }
+  }
+  .mega-item .mega-eq { margin-inline-start: auto; color: var(--ink); }
+  .mega-entry.is-listening .mega-item .mega-eq { display: inline-flex; }
+  .mega-listen-track { position: absolute; }
   .mega-listen-progress { position: absolute; inset-block: 0; inset-inline-start: 0; width: 0%; background: var(--ink); transition: width 0.25s linear; }
   /* Poussé au bas de la colonne, aligné sur le bouton d'écoute du visuel et le
      prix du second coffret (la règle générique .mega-all plus bas pose 28px). */
@@ -852,9 +936,51 @@ const maisonHref = localePath(lang, "/maison");
   }
   .mega-fig.is-active { opacity: 1; pointer-events: auto; }
   .mega-fig-media { position: relative; display: block; flex: 1 1 auto; min-height: 0; overflow: hidden; }
-  /* Les photos du Reflet, empilées : la diapositive visible porte .is-shown, le passage se fait en fondu. */
-  .mega-fig-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.8s ease; }
-  .mega-fig-img.is-shown { opacity: 1; }
+  /* Les photos du Reflet, empilées : la diapositive visible porte .is-shown —
+     fondu croisé, et un zoom très lent tant qu'elle est à l'écran (l'image
+     respire). Le survol de l'image fige tout (.is-paused). */
+  .mega-fig-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transform: scale(1);
+    transition: opacity 0.9s ease;
+  }
+  .mega-fig-img.is-shown { opacity: 1; animation: mega-kenburns 4s ease-out forwards; }
+  @keyframes mega-kenburns {
+    from { transform: scale(1); }
+    to { transform: scale(1.06); }
+  }
+  /* Les segments façon stories : un par photo, le courant se remplit au rythme du défilement. */
+  .mega-fig-dots { display: flex; gap: 4px; height: 2px; margin-top: -2px; }
+  .mega-fig-dots i {
+    position: relative;
+    flex: 1 1 0;
+    display: block;
+    height: 100%;
+    overflow: hidden;
+    background: rgba(21, 14, 10, 0.14);
+  }
+  .mega-fig-dots i::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--ink);
+    transform: scaleX(0);
+    transform-origin: 0 50%;
+  }
+  [dir="rtl"] .mega-fig-dots i::after { transform-origin: 100% 50%; }
+  .mega-fig-dots i.is-done::after { transform: scaleX(1); }
+  .mega-fig-dots i.is-current::after { animation: mega-dot 3000ms linear forwards; }
+  @keyframes mega-dot {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  .mega-fig.is-paused .mega-fig-img,
+  .mega-fig.is-paused .mega-fig-dots i::after { animation-play-state: paused; }
   .mega-fig-caption { flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
   /* L'univers du Reflet affiché, en chapeau de la légende : rose, capitales espacées. */
   .mega-fig-universe {
@@ -1016,5 +1142,8 @@ const maisonHref = localePath(lang, "/maison");
     .mega-fig-img,
     .mega-item,
     .msheet { transition: none; }
+    .mega-eq i { animation: none; height: 60%; }
+    .mega-fig-img.is-shown,
+    .mega-fig-dots i.is-current::after { animation: none; }
   }
 </style>
