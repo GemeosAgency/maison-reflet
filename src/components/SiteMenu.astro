@@ -24,7 +24,7 @@ import {
   getDisplayPrice,
   getPrimaryVariant,
   isCoffret,
-  secondaryImage,
+  isSampleVariantTitle,
   shopifyImage,
 } from "../lib/shopify";
 import { getCoffrets, getMenuParfums, getRecoImages, responsiveImage, type ResponsiveImage } from "../lib/sanity";
@@ -61,15 +61,21 @@ const reflets = products
   .map((p) => {
     const doc = docByHandle[p.handle];
     const source = recoImages[p.handle]?.main ?? null;
-    // Seconde photo au survol du visuel — la même que les tuiles du
-    // catalogue : la version curée dans Sanity, sinon la deuxième photo Shopify.
-    const hoverSource = recoImages[p.handle]?.hover ?? null;
-    const secondary = secondaryImage(p);
-    const hoverVisual: Picture = hoverSource
-      ? responsiveImage(hoverSource as any, { widths: VISUAL_WIDTHS, aspect: 3 / 4 })
-      : secondary
-        ? shopifyImage(secondary, VISUAL_WIDTHS)
-        : null;
+    // Les diapositives du visuel : la photo curée Sanity si elle existe, puis
+    // les photos produit Shopify (sans les vignettes d'échantillon, sans
+    // doublon), quatre au plus. Elles défilent d'elles-mêmes quand le Reflet
+    // est mis en avant (Sandro) ; seule la première est chargée avec la page.
+    const sampleUrls = new Set(
+      p.variants.nodes.filter((v) => isSampleVariantTitle(v.title)).map((v) => v.image?.url).filter(Boolean)
+    );
+    const shopifyShots = [p.featuredImage, ...p.images.nodes]
+      .filter((im) => im && !sampleUrls.has(im.url))
+      .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i)
+      .map((im) => shopifyImage(im!, VISUAL_WIDTHS));
+    const slides: ResponsiveImage[] = [
+      ...(source ? [responsiveImage(source as any, { widths: VISUAL_WIDTHS, aspect: 3 / 4 })] : []),
+      ...shopifyShots,
+    ].slice(0, 4);
     const variant = getPrimaryVariant(p);
     const price = getDisplayPrice(p);
     // Même visuel que la tuile du catalogue : la photo curée dans Sanity
@@ -92,8 +98,7 @@ const reflets = products
       listenLabel: t("luma.discover").replace("{name}", p.title),
       price: formatPrice(price.amount, price.currencyCode),
       variantId: variant.id,
-      visual: picture(VISUAL_WIDTHS, 3 / 4),
-      hoverVisual,
+      slides,
       thumb: picture(THUMB_WIDTHS, 4 / 5),
     };
   });
@@ -161,28 +166,16 @@ const maisonHref = localePath(lang, "/maison");
         reflets.map((r) => (
           <div class:list={["mega-fig", { "is-active": r.handle === initialHandle }]} data-menu-figure={r.handle}>
             <a class="mega-fig-media" href={r.href} tabindex="-1" aria-label={r.name}>
-              {r.visual && (
-                <img
-                  class="mega-fig-img"
-                  src={r.visual.src}
-                  srcset={r.visual.srcset}
-                  sizes="360px"
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                />
-              )}
-              {r.hoverVisual && (
-                <img
-                  class="mega-fig-img mega-fig-img-hover"
-                  src={r.hoverVisual.src}
-                  srcset={r.hoverVisual.srcset}
-                  sizes="360px"
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                />
-              )}
+              {
+                r.slides.map((slide, i) =>
+                  i === 0 ? (
+                    <img class="mega-fig-img is-shown" src={slide.src} srcset={slide.srcset} sizes="360px" alt="" loading="lazy" decoding="async" />
+                  ) : (
+                    // Pas de src : la photo ne se charge qu'à l'ouverture du panneau (voir hydrateSlides).
+                    <img class="mega-fig-img" data-src={slide.src} data-srcset={slide.srcset} sizes="360px" alt="" decoding="async" />
+                  )
+                )
+              }
             </a>
             <div class="mega-fig-caption">
               {r.universe && <span class="mega-fig-universe">{r.universe}</span>}
@@ -351,6 +344,63 @@ const maisonHref = localePath(lang, "/maison");
   const panel = document.querySelector<HTMLElement>("[data-menu-panel]");
   const veil = document.querySelector<HTMLElement>("[data-menu-veil]");
   const hoverable = window.matchMedia("(hover: hover)");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  /*
+   * Le Reflet mis en avant : sa ligne, sa figure — et ses photos qui défilent
+   * toutes seules (Sandro : « sans que j'aie à me mettre au survol de l'image »).
+   * Les diapositives au-delà de la première n'ont pas de src dans le HTML :
+   * elles ne se chargent qu'ici, à l'ouverture, pour ne rien coûter à la page.
+   */
+  const figures = panel?.querySelectorAll<HTMLElement>("[data-menu-figure]") ?? [];
+  const entries = panel?.querySelectorAll<HTMLElement>("[data-menu-entry]") ?? [];
+  const FIRST_SLIDE_MS = 1800;
+  const SLIDE_MS = 2600;
+  let slideTimer: number | undefined;
+  let slideHandle = "";
+  let slideIndex = 0;
+  function hydrateSlides(fig: HTMLElement) {
+    for (const img of fig.querySelectorAll<HTMLImageElement>("img[data-src]")) {
+      img.src = img.dataset.src ?? "";
+      if (img.dataset.srcset) img.srcset = img.dataset.srcset;
+      img.removeAttribute("data-src");
+      img.removeAttribute("data-srcset");
+    }
+  }
+  function showSlide(fig: HTMLElement, index: number) {
+    const imgs = fig.querySelectorAll<HTMLImageElement>(".mega-fig-img");
+    imgs.forEach((im, i) => im.classList.toggle("is-shown", i === index));
+  }
+  function stopSlides() {
+    window.clearTimeout(slideTimer);
+    if (slideHandle) {
+      const fig = panel?.querySelector<HTMLElement>(`[data-menu-figure="${slideHandle}"]`);
+      if (fig) showSlide(fig, 0);
+    }
+    slideHandle = "";
+    slideIndex = 0;
+  }
+  function startSlides(handle: string) {
+    stopSlides();
+    const fig = panel?.querySelector<HTMLElement>(`[data-menu-figure="${handle}"]`);
+    if (!fig) return;
+    hydrateSlides(fig);
+    const count = fig.querySelectorAll(".mega-fig-img").length;
+    if (count < 2 || reducedMotion.matches) return;
+    slideHandle = handle;
+    const step = () => {
+      slideIndex = (slideIndex + 1) % count;
+      showSlide(fig, slideIndex);
+      slideTimer = window.setTimeout(step, SLIDE_MS);
+    };
+    slideTimer = window.setTimeout(step, FIRST_SLIDE_MS);
+  }
+  function activate(handle: string) {
+    for (const f of figures) f.classList.toggle("is-active", f.dataset.menuFigure === handle);
+    for (const e of entries) e.classList.toggle("is-active", e.dataset.menuEntry === handle);
+    if (slideHandle !== handle) startSlides(handle);
+  }
+  const activeHandle = () => panel?.querySelector<HTMLElement>(".mega-fig.is-active")?.dataset.menuFigure ?? "";
 
   let openTimer: number | undefined;
   let closeTimer: number | undefined;
@@ -363,6 +413,7 @@ const maisonHref = localePath(lang, "/maison");
     primeDurations();
     document.body.classList.add("menu-open");
     panel.classList.add("is-open");
+    startSlides(activeHandle());
     veil?.classList.add("is-open");
     trigger?.setAttribute("aria-expanded", "true");
   }
@@ -370,6 +421,7 @@ const maisonHref = localePath(lang, "/maison");
     window.clearTimeout(openTimer);
     if (!panel || !isOpen) return;
     stopListening();
+    stopSlides();
     isOpen = false;
     document.body.classList.remove("menu-open");
     panel.classList.remove("is-open");
@@ -426,20 +478,12 @@ const maisonHref = localePath(lang, "/maison");
     });
 
     // Survoler un nom change le visuel : chaque Reflet a sa figure empilée,
-    // on n'active que la sienne (fondu en CSS).
-    const figures = panel.querySelectorAll<HTMLElement>("[data-menu-figure]");
-    const items = panel.querySelectorAll<HTMLElement>("[data-menu-item]");
-    const entries = panel.querySelectorAll<HTMLElement>("[data-menu-entry]");
-    function activate(handle: string) {
-      for (const f of figures) f.classList.toggle("is-active", f.dataset.menuFigure === handle);
-      for (const e of entries) e.classList.toggle("is-active", e.dataset.menuEntry === handle);
-    }
+    // on n'active que la sienne (fondu en CSS) et ses photos se mettent à défiler.
     for (const entry of entries) {
       const show = () => activate(entry.dataset.menuEntry ?? "");
       entry.addEventListener("mouseenter", show);
       entry.addEventListener("focusin", show);
     }
-    void items;
   }
 
   /* ---------------- Portraits audio ----------------
@@ -544,8 +588,7 @@ const maisonHref = localePath(lang, "/maison");
         }
         current = handle;
         // Le visuel suit la voix.
-        for (const f of panel?.querySelectorAll<HTMLElement>("[data-menu-figure]") ?? []) f.classList.toggle("is-active", f.dataset.menuFigure === handle);
-        for (const i of panel?.querySelectorAll<HTMLElement>("[data-menu-entry]") ?? []) i.classList.toggle("is-active", i.dataset.menuEntry === handle);
+        activate(handle);
       }
       for (const other of document.querySelectorAll<HTMLAudioElement>("[data-listen-audio]")) if (other !== a) other.pause();
       a.play().catch(() => {});
@@ -809,10 +852,9 @@ const maisonHref = localePath(lang, "/maison");
   }
   .mega-fig.is-active { opacity: 1; pointer-events: auto; }
   .mega-fig-media { position: relative; display: block; flex: 1 1 auto; min-height: 0; overflow: hidden; }
-  .mega-fig-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  /* Au survol du visuel : fondu vers la seconde photo, comme sur les tuiles. */
-  .mega-fig-img-hover { opacity: 0; transition: opacity 0.45s ease; }
-  .mega-fig-media:hover .mega-fig-img-hover { opacity: 1; }
+  /* Les photos du Reflet, empilées : la diapositive visible porte .is-shown, le passage se fait en fondu. */
+  .mega-fig-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.8s ease; }
+  .mega-fig-img.is-shown { opacity: 1; }
   .mega-fig-caption { flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
   /* L'univers du Reflet affiché, en chapeau de la légende : rose, capitales espacées. */
   .mega-fig-universe {
@@ -971,6 +1013,7 @@ const maisonHref = localePath(lang, "/maison");
     .mega,
     .mega-veil,
     .mega-fig,
+    .mega-fig-img,
     .mega-item,
     .msheet { transition: none; }
   }
