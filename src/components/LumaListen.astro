@@ -76,6 +76,7 @@ const label = t("luma.discover").replace("{name}", name);
       if (audio.paused) {
         // Un seul portrait à la fois sur la page.
         for (const other of document.querySelectorAll<HTMLAudioElement>("[data-listen-audio]")) if (other !== audio) other.pause();
+        audio.dataset.userPlay = "1"; // jeton lu par la garde globale (Layout) : lecture voulue
         audio.play().catch(() => {});
       } else audio.pause();
     });

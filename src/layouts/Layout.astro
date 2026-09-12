@@ -761,13 +761,38 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
        * qu'une lecture réellement en pause au milieu ; sinon la touche ne fait
        * rien ici. La pause reste au comportement natif.
        */
+      /*
+       * Deuxième verrou, plus dur : toute lecture audio qui ne vient pas d'un
+       * clic sur un bouton du site est coupée à l'instant où elle démarre.
+       * Nos boutons posent `data-user-play="1"` sur le lecteur juste avant
+       * `play()` ; sans ce jeton (écouteurs qui se reconnectent, touche du
+       * clavier, extension…), le lecteur est remis en pause. Les événements
+       * médias ne remontent pas, d'où l'écoute en phase de capture.
+       */
+      document.addEventListener(
+        "play",
+        (e) => {
+          const media = e.target as HTMLMediaElement | null;
+          if (!media || typeof media.pause !== "function") return;
+          if (media.dataset.userPlay === "1") {
+            delete media.dataset.userPlay;
+            return;
+          }
+          media.pause();
+        },
+        true
+      );
+
       if ("mediaSession" in navigator) {
         try {
           navigator.mediaSession.setActionHandler("play", () => {
             const paused = Array.from(document.querySelectorAll("audio")).find(
               (a) => a.paused && a.currentTime > 0 && !a.ended && a.getAttribute("src")
             );
-            paused?.play().catch(() => {});
+            if (paused) {
+              paused.dataset.userPlay = "1";
+              paused.play().catch(() => {});
+            }
           });
         } catch {
           /* navigateur sans Media Session : rien à faire */
