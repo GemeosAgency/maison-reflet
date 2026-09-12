@@ -63,8 +63,9 @@ const reflets = products
     const source = recoImages[p.handle]?.main ?? null;
     // Les diapositives du visuel : la photo curée Sanity si elle existe, puis
     // les photos produit Shopify (sans les vignettes d'échantillon, sans
-    // doublon), quatre au plus. Elles défilent d'elles-mêmes quand le Reflet
-    // est mis en avant (Sandro) ; seule la première est chargée avec la page.
+    // doublon), six au plus — toute la galerie, puisque les segments se
+    // cliquent. Elles défilent d'elles-mêmes quand le Reflet est mis en avant
+    // (Sandro) ; seule la première est chargée avec la page.
     const sampleUrls = new Set(
       p.variants.nodes.filter((v) => isSampleVariantTitle(v.title)).map((v) => v.image?.url).filter(Boolean)
     );
@@ -75,7 +76,7 @@ const reflets = products
     const slides: ResponsiveImage[] = [
       ...(source ? [responsiveImage(source as any, { widths: VISUAL_WIDTHS, aspect: 3 / 4 })] : []),
       ...shopifyShots,
-    ].slice(0, 4);
+    ].slice(0, 6);
     const variant = getPrimaryVariant(p);
     const price = getDisplayPrice(p);
     // Même visuel que la tuile du catalogue : la photo curée dans Sanity
@@ -176,10 +177,13 @@ const maisonHref = localePath(lang, "/maison");
               }
             </a>
             {r.slides.length > 1 && (
-              // Un segment par photo, façon stories : le segment courant se remplit au rythme du défilement.
-              <span class="mega-fig-dots" aria-hidden="true">
-                {r.slides.map(() => <i></i>)}
-              </span>
+              // Un segment par photo, façon stories : le courant se remplit au rythme du
+              // défilement, et chaque segment se clique pour aller à sa photo (Sandro).
+              <div class="mega-fig-dots">
+                {r.slides.map((_, i) => (
+                  <button type="button" class="mega-fig-dot" data-menu-dot={i} tabindex="-1" aria-label={`${r.name} ${i + 1}/${r.slides.length}`}></button>
+                ))}
+              </div>
             )}
             <div class="mega-fig-caption">
               {r.universe && <span class="mega-fig-universe">{r.universe}</span>}
@@ -359,7 +363,8 @@ const maisonHref = localePath(lang, "/maison");
    */
   const figures = panel?.querySelectorAll<HTMLElement>("[data-menu-figure]") ?? [];
   const entries = panel?.querySelectorAll<HTMLElement>("[data-menu-entry]") ?? [];
-  const SLIDE_MS = 3000;
+  // Rythme vif (Sandro : « trop lent ») : 1,8 s par photo, fondu court.
+  const SLIDE_MS = 1800;
   let slideTimer: number | undefined;
   let slideHandle = "";
   let slideIndex = 0;
@@ -378,7 +383,7 @@ const maisonHref = localePath(lang, "/maison");
   function showSlide(fig: HTMLElement, index: number, running: boolean) {
     const imgs = fig.querySelectorAll<HTMLImageElement>(".mega-fig-img");
     imgs.forEach((im, i) => im.classList.toggle("is-shown", i === index));
-    const dots = fig.querySelectorAll<HTMLElement>(".mega-fig-dots i");
+    const dots = fig.querySelectorAll<HTMLElement>(".mega-fig-dot");
     dots.forEach((dot, i) => {
       dot.classList.remove("is-current", "is-done");
       if (i < index) dot.classList.add("is-done");
@@ -424,6 +429,28 @@ const maisonHref = localePath(lang, "/maison");
     slideIndex = 0;
     showSlide(fig, 0, true);
     scheduleNext(fig, count, SLIDE_MS);
+  }
+  // Un clic sur un segment va à sa photo et relance le rythme depuis là.
+  for (const dot of panel?.querySelectorAll<HTMLButtonElement>("[data-menu-dot]") ?? []) {
+    dot.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const fig = dot.closest<HTMLElement>("[data-menu-figure]");
+      const handle = fig?.dataset.menuFigure ?? "";
+      const index = Number(dot.dataset.menuDot ?? 0);
+      if (!fig || !handle) return;
+      hydrateSlides(fig);
+      const count = fig.querySelectorAll(".mega-fig-img").length;
+      if (slideHandle !== handle) {
+        stopSlides();
+        slideHandle = handle;
+      }
+      slidePaused = false;
+      fig.classList.remove("is-paused");
+      slideIndex = index;
+      showSlide(fig, index, !reducedMotion.matches);
+      if (!reducedMotion.matches) scheduleNext(fig, count, SLIDE_MS);
+    });
   }
   // Le survol de l'image suspend le défilement : le visiteur regarde, on attend.
   for (const media of panel?.querySelectorAll<HTMLElement>(".mega-fig-media") ?? []) {
@@ -944,40 +971,45 @@ const maisonHref = localePath(lang, "/maison");
     object-fit: cover;
     opacity: 0;
     transform: scale(1);
-    transition: opacity 0.9s ease;
+    transition: opacity 0.5s ease;
   }
-  .mega-fig-img.is-shown { opacity: 1; animation: mega-kenburns 4s ease-out forwards; }
+  .mega-fig-img.is-shown { opacity: 1; animation: mega-kenburns 2.6s ease-out forwards; }
   @keyframes mega-kenburns {
     from { transform: scale(1); }
     to { transform: scale(1.06); }
   }
-  /* Les segments façon stories : un par photo, le courant se remplit au rythme du défilement. */
-  .mega-fig-dots { display: flex; gap: 4px; height: 2px; margin-top: -2px; }
-  .mega-fig-dots i {
+  /* Les segments façon stories : un par photo, le courant se remplit au rythme du
+     défilement ; chacun est un bouton (zone de 14 px, trait de 2 px) qui saute à sa photo. */
+  .mega-fig-dots { display: flex; gap: 4px; height: 14px; margin: -8px 0 -6px; }
+  .mega-fig-dot {
     position: relative;
     flex: 1 1 0;
-    display: block;
     height: 100%;
-    overflow: hidden;
-    background: rgba(21, 14, 10, 0.14);
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
   }
-  .mega-fig-dots i::after {
+  .mega-fig-dot::before,
+  .mega-fig-dot::after {
     content: "";
     position: absolute;
-    inset: 0;
-    background: var(--ink);
-    transform: scaleX(0);
-    transform-origin: 0 50%;
+    inset-inline: 0;
+    top: 6px;
+    height: 2px;
   }
-  [dir="rtl"] .mega-fig-dots i::after { transform-origin: 100% 50%; }
-  .mega-fig-dots i.is-done::after { transform: scaleX(1); }
-  .mega-fig-dots i.is-current::after { animation: mega-dot 3000ms linear forwards; }
+  .mega-fig-dot::before { background: rgba(21, 14, 10, 0.14); transition: background-color 0.2s ease; }
+  .mega-fig-dot:hover::before { background: rgba(21, 14, 10, 0.3); }
+  .mega-fig-dot::after { background: var(--ink); transform: scaleX(0); transform-origin: 0 50%; }
+  [dir="rtl"] .mega-fig-dot::after { transform-origin: 100% 50%; }
+  .mega-fig-dot.is-done::after { transform: scaleX(1); }
+  .mega-fig-dot.is-current::after { animation: mega-dot 1800ms linear forwards; }
   @keyframes mega-dot {
     from { transform: scaleX(0); }
     to { transform: scaleX(1); }
   }
   .mega-fig.is-paused .mega-fig-img,
-  .mega-fig.is-paused .mega-fig-dots i::after { animation-play-state: paused; }
+  .mega-fig.is-paused .mega-fig-dot::after { animation-play-state: paused; }
   .mega-fig-caption { flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
   /* L'univers du Reflet affiché, en chapeau de la légende : rose, capitales espacées. */
   .mega-fig-universe {
@@ -1141,6 +1173,6 @@ const maisonHref = localePath(lang, "/maison");
     .msheet { transition: none; }
     .mega-eq i { animation: none; height: 60%; }
     .mega-fig-img.is-shown,
-    .mega-fig-dots i.is-current::after { animation: none; }
+    .mega-fig-dot.is-current::after { animation: none; }
   }
 </style>

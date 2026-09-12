@@ -1,8 +1,15 @@
 ---
 /**
- * Galerie de la fiche produit : images empilées verticalement (desktop),
- * carrousel horizontal à snap sur mobile. Les images sont les photos produit
- * Shopify (la galerie ne vit que là — voir la page).
+ * Galerie de la fiche produit : une MOSAÏQUE sur ordinateur (Sandro, 12 sept.
+ * 2026 : six photos empilées faisaient un long défilement), un carrousel
+ * horizontal à snap sur mobile. Les images sont les photos produit Shopify
+ * (la galerie ne vit que là — voir la page), dans l'ordre de Shopify.
+ *
+ * Le rythme de la mosaïque : la première photo pleine largeur, puis deux
+ * détails côte à côte, une pleine largeur, deux côte à côte… Une photo qui
+ * resterait seule sur une rangée de paire passe en pleine largeur. Avec les
+ * six photos d'Ultra Cuir : flacon · framboises + étiquette · main · bouchon
+ * + boîte — quatre rangées au lieu de six.
  */
 import type { ResponsiveImage } from "../../lib/sanity";
 
@@ -16,16 +23,25 @@ interface Props {
 }
 
 const { images, ratio = "720 / 896" } = Astro.props;
+
+/** Pleine largeur ou moitié : la première, puis un cycle « paire, paire, pleine ». */
+function isFull(i: number, count: number): boolean {
+  if (i === 0) return true;
+  const pos = (i - 1) % 3; // 0 et 1 : la paire ; 2 : la pleine largeur
+  if (pos === 2) return true;
+  // Début de paire sans partenaire (dernière photo) : pleine largeur.
+  return pos === 0 && i === count - 1;
+}
 ---
 
 <div class="pgallery" style={`--pgallery-ratio: ${ratio}`}>
   {
     images.map((im, i) => (
-      <div class="pgallery-shot">
+      <div class:list={["pgallery-shot", { "is-full": isFull(i, images.length) }]}>
         <img
           src={im.src}
           srcset={im.srcset}
-          sizes="(max-width: 900px) 100vw, 50vw"
+          sizes={isFull(i, images.length) ? "(max-width: 900px) 100vw, 50vw" : "(max-width: 900px) 100vw, 25vw"}
           alt={im.alt}
           loading={i === 0 ? "eager" : "lazy"}
           fetchpriority={i === 0 ? "high" : undefined}
@@ -38,8 +54,8 @@ const { images, ratio = "720 / 896" } = Astro.props;
 
 <style>
   .pgallery {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 2px;
   }
   .pgallery-shot {
@@ -47,6 +63,7 @@ const { images, ratio = "720 / 896" } = Astro.props;
     background: var(--sand);
     overflow: hidden;
   }
+  .pgallery-shot.is-full { grid-column: 1 / -1; }
   .pgallery-shot img {
     width: 100%;
     height: 100%;
@@ -55,6 +72,7 @@ const { images, ratio = "720 / 896" } = Astro.props;
 
   @media (max-width: 900px) {
     .pgallery {
+      display: flex;
       flex-direction: row;
       overflow-x: auto;
       scroll-snap-type: x mandatory;
