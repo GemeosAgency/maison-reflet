@@ -607,11 +607,12 @@ const duos = LAYERING.map((d) => ({
   .guide-link:hover { text-decoration-color: currentColor; }
 
   /* ---- La carte des six ---- */
-  .guide-map { padding: 16px var(--gutter-x) 96px; display: flex; flex-direction: column; gap: 40px; }
-  .guide-map-grid { display: grid; grid-template-columns: minmax(340px, 1.15fr) minmax(280px, 0.85fr); gap: 56px; align-items: center; }
+  .guide-map { padding: 8px var(--gutter-x) 72px; display: flex; flex-direction: column; gap: 28px; }
+  .guide-map-grid { display: grid; grid-template-columns: minmax(340px, 1.1fr) minmax(280px, 0.9fr); gap: 48px; align-items: center; }
+  /* Un rectangle, pas un carré : Sandro trouvait que la carte prenait trop de place. Le carré ne revient que sur mobile, où les noms se chevaucheraient. */
   .guide-map-plane {
     position: relative;
-    aspect-ratio: 1;
+    aspect-ratio: 16 / 10;
     background: rgba(255, 255, 255, 0.45);
     border: 1px solid rgba(21, 14, 10, 0.12);
     isolation: isolate;
@@ -886,9 +887,12 @@ const duos = LAYERING.map((d) => ({
     .guide-twist { grid-template-columns: 1fr; gap: 48px; }
     .guide-duos { gap: 32px 24px; }
   }
+  @media (max-width: 600px) {
+    .guide-map-plane { aspect-ratio: 1; }
+  }
   @media (max-width: 900px) {
     .guide-hero { padding: 40px var(--gutter-x) 24px; }
-    .guide-map { padding-bottom: 64px; gap: 24px; }
+    .guide-map { padding-bottom: 56px; gap: 20px; }
     .guide-dot { padding: 4px; gap: 6px; transform: translate(-9px, -50%); }
     .guide-dot.is-left { transform: translate(calc(-100% + 9px), -50%); }
     .guide-dot-name { font-size: 11px; }
