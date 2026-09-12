@@ -22,6 +22,7 @@ import TwistSection from "../../../components/product/TwistSection.astro";
 import PerfumerWord from "../../../components/product/PerfumerWord.astro";
 import TwistLine from "../../../components/product/TwistLine.astro";
 import LayeringRow from "../../../components/product/LayeringRow.astro";
+import LayeringDrawer from "../../../components/product/LayeringDrawer.astro";
 import {
   formatPrice,
   getAllProducts,
@@ -486,6 +487,8 @@ const productJsonLd = {
     ingredientsLabel={t("product.ingredientsLabel")}
     closeLabel={t("product.close")}
   />
+  {/* Le bandeau « Se marie avec », même mécanique que la pyramide, ouvert par la rangée du panneau. */}
+  <LayeringDrawer lang={lang} handle={product.handle} products={products} closeLabel={t("product.close")} />
 
   <Faq items={parfum?.faqs ?? []} title={t("product.faqTitle")} />
 </Layout>

@@ -746,12 +746,15 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       }
     }
 
-    // Suggestions : les parfums qui ne sont pas déjà dans le panier, ni celui
-    // que l'accord propose déjà juste au-dessus. Masquées quand le panier est
-    // vide — il n'y a alors rien à compléter.
+    // Suggestions : les parfums qui ne sont pas déjà dans le panier. Masquées
+    // quand le panier est vide (rien à compléter) et quand l'accord du
+    // parfumeur est affiché — une Maison recommande, elle n'étale pas un rayon
+    // (Sandro, 12 sept. : « too much en plus de l'accord »). Elles ne
+    // reviennent que sans accord : coffret seul, ou les deux flacons d'un
+    // accord déjà dans le sac.
     const inCart = new Set((cart?.lines.nodes ?? []).map((l) => l.merchandise.product.handle));
-    const suggestions = upsellCatalog.filter((p) => !inCart.has(p.handle) && p.handle !== accordPick?.partner.handle);
-    const showUpsell = grouped.length > 0 && suggestions.length > 0;
+    const suggestions = upsellCatalog.filter((p) => !inCart.has(p.handle));
+    const showUpsell = grouped.length > 0 && suggestions.length > 0 && !accordPick;
     upsellDivider?.toggleAttribute("hidden", !showUpsell);
     upsellSection?.toggleAttribute("hidden", !showUpsell);
     if (showUpsell && upsellList) {
