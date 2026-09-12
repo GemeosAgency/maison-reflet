@@ -172,7 +172,8 @@ const duos = LAYERING.map((d) => ({
       <p>{t("guide.mapLead")}</p>
     </div>
     <div class="guide-map-grid">
-      <div class="guide-map-plane" role="group" aria-label={t("guide.mapTitle")}>
+      {/* Les libellés d'axes vivent autour du plan, pas sur les filets (Sandro : « on voit pas bien jour nuit frais chaud sur le trait »). */}
+      <div class="guide-map-figure">
         <span class="guide-axis guide-axis-day">
           <svg class="guide-glyph" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
             <circle cx="6" cy="6" r="2.3" fill="none" stroke="currentColor" stroke-width="1.1" />
@@ -188,6 +189,7 @@ const duos = LAYERING.map((d) => ({
         </span>
         <span class="guide-axis guide-axis-fresh">{t("guide.axisFresh")}</span>
         <span class="guide-axis guide-axis-warm">{t("guide.axisWarm")}</span>
+      <div class="guide-map-plane" role="group" aria-label={t("guide.mapTitle")}>
         <svg class="guide-map-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           {mapLines.map((l) => <line data-map-line={l.id} data-pair={l.pair.join(" ")} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} pathLength="1" vector-effect="non-scaling-stroke" />)}
         </svg>
@@ -209,6 +211,7 @@ const duos = LAYERING.map((d) => ({
             </button>
           ))
         }
+      </div>
       </div>
       <div class="guide-map-cards">
         {
@@ -425,17 +428,49 @@ const duos = LAYERING.map((d) => ({
       const dots = Array.from(map.querySelectorAll<HTMLButtonElement>("[data-map-dot]"));
       const cards = Array.from(map.querySelectorAll<HTMLElement>("[data-map-card]"));
       const lines = Array.from(map.querySelectorAll<SVGLineElement>("[data-map-line]"));
+      // La position d'un Reflet, lue sur sa vignette (left/top en %).
+      const at = (handle: string) => {
+        const d = dots.find((x) => x.dataset.mapDot === handle);
+        return d ? { x: parseFloat(d.style.left), y: parseFloat(d.style.top) } : null;
+      };
+      let current = "";
+      let ready = false; // la carte est à l'écran : on peut tracer
+      /*
+       * Le trait de l'accord (Sandro : « uniquement celui sélectionné, avec une
+       * petite animation de la ligne qui rejoint l'autre ») : orienté depuis le
+       * Reflet choisi vers son partenaire, puis tracé — la transition part de
+       * stroke-dashoffset 1 (rien) vers 0 (tout), et l'anneau du partenaire
+       * s'allume à l'arrivée (délai côté CSS).
+       */
+      const draw = (handle: string, partner: string, line: SVGLineElement) => {
+        const from = at(handle);
+        const to = at(partner);
+        if (!from || !to) return;
+        line.classList.remove("is-lit");
+        line.style.transition = "none";
+        line.style.strokeDashoffset = "1";
+        line.setAttribute("x1", String(from.x));
+        line.setAttribute("y1", String(from.y));
+        line.setAttribute("x2", String(to.x));
+        line.setAttribute("y2", String(to.y));
+        void line.getBoundingClientRect();
+        line.style.transition = "";
+        line.style.strokeDashoffset = "";
+        line.classList.add("is-lit");
+      };
       const select = (handle: string) => {
+        current = handle;
         const accord = dots.find((d) => d.dataset.mapDot === handle)?.dataset.accord ?? "";
         const line = accord ? lines.find((l) => l.dataset.mapLine === accord) : undefined;
         const partner = (line?.dataset.pair ?? "").split(" ").find((h) => h && h !== handle) ?? "";
         for (const d of dots) {
           const h = d.dataset.mapDot ?? "";
           d.classList.toggle("is-active", h === handle);
-          d.classList.toggle("is-partner", h === partner);
+          d.classList.toggle("is-partner", ready && h === partner);
           d.setAttribute("aria-pressed", String(h === handle));
         }
-        for (const l of lines) l.classList.toggle("is-lit", l === line);
+        for (const l of lines) if (l !== line) l.classList.remove("is-lit");
+        if (line && ready) draw(handle, partner, line);
         for (const c of cards) c.hidden = c.dataset.mapCard !== handle;
       };
       for (const d of dots) {
@@ -446,20 +481,42 @@ const duos = LAYERING.map((d) => ({
       }
       const first = dots.find((d) => d.classList.contains("is-active"))?.dataset.mapDot;
       if (first) select(first);
-      // L'entrée : les vignettes se posent l'une après l'autre et les traits se tracent, une fois, quand la carte arrive à l'écran.
+      // L'entrée : les vignettes se posent l'une après l'autre quand la carte arrive à l'écran ; puis le trait du Reflet ouvert rejoint son accord.
       const plane = map.querySelector<HTMLElement>(".guide-map-plane");
+      const arrive = () => {
+        plane?.classList.add("is-in");
+        window.setTimeout(() => {
+          ready = true;
+          if (current) select(current);
+        }, 800);
+      };
+      let arrived = false;
+      const arriveOnce = () => {
+        if (arrived) return;
+        arrived = true;
+        arrive();
+        window.removeEventListener("scroll", checkInView);
+      };
+      // Secours géométrique (onglet en arrière-plan, navigateur sans observateur) : le plan est-il dans la fenêtre ?
+      const checkInView = () => {
+        if (!plane) return;
+        const r = plane.getBoundingClientRect();
+        if (r.top < window.innerHeight * 0.8 && r.bottom > window.innerHeight * 0.2) arriveOnce();
+      };
       if (plane && "IntersectionObserver" in window) {
         const io = new IntersectionObserver(
           (entries) => {
             if (entries.some((e) => e.isIntersecting)) {
-              plane.classList.add("is-in");
+              arriveOnce();
               io.disconnect();
             }
           },
           { threshold: 0.35 }
         );
         io.observe(plane);
-      } else plane?.classList.add("is-in");
+      }
+      window.addEventListener("scroll", checkInView, { passive: true });
+      checkInView();
     }
   </script>
 
@@ -656,8 +713,19 @@ const duos = LAYERING.map((d) => ({
    * rosé côté chaud — et deux filets d'axes à peine là. Rectangle 16/10
    * (Sandro : « ça prend trop de place ») ; carré sur mobile seulement.
    */
+  .guide-map-figure {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+    gap: 12px 14px;
+    align-items: center;
+    justify-items: center;
+  }
   .guide-map-plane {
     position: relative;
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
     aspect-ratio: 16 / 10;
     background:
       radial-gradient(ellipse at 100% 100%, rgba(122, 34, 53, 0.12), transparent 62%),
@@ -665,27 +733,25 @@ const duos = LAYERING.map((d) => ({
       var(--sand);
     isolation: isolate;
   }
-  .guide-map-plane::before, .guide-map-plane::after { content: ""; position: absolute; background: rgba(21, 14, 10, 0.1); }
+  .guide-map-plane::before, .guide-map-plane::after { content: ""; position: absolute; background: rgba(21, 14, 10, 0.14); }
   .guide-map-plane::before { left: 50%; top: 0; bottom: 0; width: 1px; }
   .guide-map-plane::after { top: 50%; left: 0; right: 0; height: 1px; }
-  .guide-axis { position: absolute; display: inline-flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.55; pointer-events: none; }
-  .guide-axis-day { top: 14px; left: 50%; transform: translateX(-50%); }
-  .guide-axis-evening { bottom: 14px; left: 50%; transform: translateX(-50%); }
-  .guide-axis-fresh { left: 14px; top: 50%; transform: translateY(-50%); }
-  .guide-axis-warm { right: 14px; top: 50%; transform: translateY(-50%); }
-  /* Les accords : des filets pleins, le trait de l'accord survolé s'affirme. */
-  .guide-map-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .guide-axis { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; line-height: 1; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.75; white-space: nowrap; }
+  .guide-axis-day { grid-column: 2; grid-row: 1; }
+  .guide-axis-evening { grid-column: 2; grid-row: 3; }
+  .guide-axis-fresh { grid-column: 1; grid-row: 2; }
+  .guide-axis-warm { grid-column: 3; grid-row: 2; }
+  /* L'accord : un seul trait, celui du Reflet choisi, qui part de lui et rejoint l'autre (pathLength=1 → dashoffset 1 = rien, 0 = tout). */
+  .guide-map-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
   .guide-map-lines line {
     stroke: var(--rose);
-    stroke-width: 1;
-    opacity: 0.4;
+    stroke-width: 1.25;
+    opacity: 0;
     stroke-dasharray: 1;
     stroke-dashoffset: 1;
-    transition: opacity 0.3s ease, stroke-width 0.3s ease;
+    transition: stroke-dashoffset 0.7s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.2s ease;
   }
-  .is-in .guide-map-lines line { animation: guide-line-draw 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) 0.5s forwards; }
-  .guide-map-lines line.is-lit { opacity: 1; stroke-width: 1.5; }
-  @keyframes guide-line-draw { to { stroke-dashoffset: 0; } }
+  .guide-map-lines line.is-lit { opacity: 1; stroke-dashoffset: 0; }
   /* Un Reflet = un bouton : la vignette ronde est posée sur (x, y), le nom à côté. */
   .guide-dot {
     position: absolute;
@@ -719,7 +785,8 @@ const duos = LAYERING.map((d) => ({
   .guide-dot-name { font-size: 13px; line-height: 1; white-space: nowrap; transition: font-weight 0.2s; }
   .guide-dot:hover .guide-dot-mark, .guide-dot.is-active .guide-dot-mark { transform: scale(1.12); box-shadow: 0 0 0 1.5px var(--rose), 0 0 0 5px var(--bg); }
   .guide-dot.is-active .guide-dot-name { font-weight: 500; }
-  .guide-dot.is-partner .guide-dot-mark { box-shadow: 0 0 0 1.5px var(--rose), 0 0 0 4px var(--bg); }
+  /* L'anneau du partenaire s'allume quand le trait l'atteint. */
+  .guide-dot.is-partner .guide-dot-mark { box-shadow: 0 0 0 1.5px var(--rose), 0 0 0 4px var(--bg); transition-delay: 0.55s; }
   .guide-dot:focus { outline: none; }
   .guide-dot:focus-visible .guide-dot-mark { box-shadow: 0 0 0 1.5px var(--ink), 0 0 0 5px var(--bg); }
   /* La fiche du Reflet choisi, à côté : elle se fond quand on change. */
@@ -738,7 +805,8 @@ const duos = LAYERING.map((d) => ({
   .guide-inline-k { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); margin-inline-end: 4px; }
   @media (prefers-reduced-motion: reduce) {
     .guide-dot, .is-in .guide-dot { opacity: 1; animation: none; }
-    .guide-map-lines line, .is-in .guide-map-lines line { stroke-dashoffset: 0; animation: none; }
+    .guide-map-lines line { transition: none; }
+    .guide-dot.is-partner .guide-dot-mark { transition-delay: 0s; }
     .guide-map-card { animation: none; }
   }
 
@@ -955,7 +1023,7 @@ const duos = LAYERING.map((d) => ({
     .guide-six-row::-webkit-scrollbar { display: none; }
     /* Une colonne : le plan garde une largeur bornée, sinon il s'étire sur toute la page. */
     .guide-map-grid { grid-template-columns: 1fr; gap: 28px; }
-    .guide-map-plane, .guide-map-card { max-width: 640px; }
+    .guide-map-figure, .guide-map-card { max-width: 700px; }
     .guide-col { flex: 0 0 min(70vw, 320px); scroll-snap-align: start; display: flex; flex-direction: column; gap: 10px; }
     .guide-col::before { display: none; }
     .guide-col.is-dim { display: none; }
