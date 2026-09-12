@@ -363,8 +363,8 @@ const maisonHref = localePath(lang, "/maison");
    */
   const figures = panel?.querySelectorAll<HTMLElement>("[data-menu-figure]") ?? [];
   const entries = panel?.querySelectorAll<HTMLElement>("[data-menu-entry]") ?? [];
-  // Rythme vif (Sandro : « trop lent ») : 1,8 s par photo, fondu court.
-  const SLIDE_MS = 1800;
+  // Rythme : 3 s c'était « trop lent », 1,8 s « un peu rapide » (Sandro) — 2,3 s.
+  const SLIDE_MS = 2300;
   let slideTimer: number | undefined;
   let slideHandle = "";
   let slideIndex = 0;
@@ -971,9 +971,9 @@ const maisonHref = localePath(lang, "/maison");
     object-fit: cover;
     opacity: 0;
     transform: scale(1);
-    transition: opacity 0.5s ease;
+    transition: opacity 0.6s ease;
   }
-  .mega-fig-img.is-shown { opacity: 1; animation: mega-kenburns 2.6s ease-out forwards; }
+  .mega-fig-img.is-shown { opacity: 1; animation: mega-kenburns 3.1s ease-out forwards; }
   @keyframes mega-kenburns {
     from { transform: scale(1); }
     to { transform: scale(1.06); }
@@ -1003,7 +1003,7 @@ const maisonHref = localePath(lang, "/maison");
   .mega-fig-dot::after { background: var(--ink); transform: scaleX(0); transform-origin: 0 50%; }
   [dir="rtl"] .mega-fig-dot::after { transform-origin: 100% 50%; }
   .mega-fig-dot.is-done::after { transform: scaleX(1); }
-  .mega-fig-dot.is-current::after { animation: mega-dot 1800ms linear forwards; }
+  .mega-fig-dot.is-current::after { animation: mega-dot 2300ms linear forwards; }
   @keyframes mega-dot {
     from { transform: scaleX(0); }
     to { transform: scaleX(1); }
