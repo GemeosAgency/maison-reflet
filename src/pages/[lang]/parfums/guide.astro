@@ -2,7 +2,8 @@
 /**
  * « Les six Reflets, côte à côte » — la page guide (Sandro, 12 septembre 2026).
  * Éditoriale, pas un tableau à coches (code du mass market) : les six en rang
- * avec la même structure de colonne, « Si vous portez… » (la grille de Luma),
+ * avec la même structure de colonne (pas les trois portes Luma : Sandro les a
+ * retirées d'ici, elles restent sur /parfums), « Si vous portez… » (la grille de Luma),
  * le manifeste du twist et les six twists, les accords de layering, puis deux
  * sorties — le Coffret découverte et Luma.
  *
@@ -11,7 +12,6 @@
  * lib/layering.ts (duos). Les portraits audio par LumaListen.
  */
 import Layout from "../../../layouts/Layout.astro";
-import LumaDoors from "../../../components/LumaDoors.astro";
 import LumaListen from "../../../components/LumaListen.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import { formatPrice, getAllProducts, getDisplayPrice, getPrimaryVariant, isCoffret, shopifyImage } from "../../../lib/shopify";
@@ -98,8 +98,6 @@ const duos = LAYERING.map((d) => ({
     <h1>{t("guide.title")}</h1>
     <p>{t("guide.lead")}</p>
   </section>
-
-  <LumaDoors lang={lang} />
 
   {/* Les six en rang : même structure de colonne, on compare d'un regard. */}
   <section class="guide-six" aria-label={t("guide.title")}>
