@@ -142,16 +142,19 @@ type VariantPrice = { id: string; price: { amount: string; currencyCode: string 
 /**
  * Relit le prix des variantes marquées dans le DOM et réécrit leur libellé.
  *
- * Les noeuds portent `data-money="<gid de la variante>"` ; le libellé cuit au
- * build sert de repli et reste affiché si l'appel échoue (hors ligne, quota
- * Storefront) — on ne vide jamais un prix.
+ * Les noeuds portent `data-money="<gid de la variante>"` — ou plusieurs gids
+ * séparés par des virgules, et le libellé devient leur somme (« Ajouter les
+ * deux » d'un accord). Le libellé cuit au build sert de repli et reste
+ * affiché si l'appel échoue (hors ligne, quota Storefront) — on ne vide
+ * jamais un prix.
  *
  * Tant que les marchés Shopify ne sont pas créés, l'API renvoie de l'AED : la
  * fonction réécrit alors la même valeur, sans effet visible.
  */
 export async function hydratePrices(root: ParentNode = document): Promise<void> {
   const nodes = Array.from(root.querySelectorAll<HTMLElement>("[data-money]"));
-  const ids = Array.from(new Set(nodes.map((n) => n.dataset.money).filter(Boolean) as string[]));
+  const idsOf = (node: HTMLElement) => (node.dataset.money ?? "").split(",").map((id) => id.trim()).filter(Boolean);
+  const ids = Array.from(new Set(nodes.flatMap(idsOf)));
   if (!ids.length) return;
 
   const query = /* GraphQL */ `
@@ -180,8 +183,11 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
 
   const locale = intlLocale(pageLocale());
   for (const node of nodes) {
-    const price = node.dataset.money ? prices.get(node.dataset.money) : undefined;
-    if (price) node.textContent = formatPrice(price.amount, price.currencyCode, locale);
+    const found = idsOf(node).map((id) => prices.get(id));
+    if (!found.length || found.some((p) => !p)) continue;
+    const parts = found as VariantPrice["price"][];
+    const total = parts.reduce((sum, p) => sum + Number(p.amount), 0);
+    node.textContent = formatPrice(String(total), parts[0].currencyCode, locale);
   }
 }
 

@@ -19,6 +19,7 @@ import { getCoffrets, getInspiredByMap, getParfumContent, responsiveImage } from
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 import { REFLET_UNIVERSE, UNIVERSE_LABELS, universeLabel, type UniverseKey } from "../../../lib/universes";
 import { GUIDE_MANIFESTO, GUIDE_ORIGINS, GUIDE_REFLETS } from "../../../lib/guide";
+import { freeShippingThreshold } from "../../../lib/markets";
 import { LAYERING, accordAudioPath, duosFor, stripVoiceTags } from "../../../lib/layering";
 
 export function getStaticPaths() {
@@ -73,6 +74,8 @@ const reflets = perfumeProducts.map((p, i) => {
     twistLine: guide?.twistLine[lang] ?? null,
     twistShort: guide?.twistShort[lang] ?? null,
     price: formatPrice(price.amount, price.currencyCode),
+    priceAmount: Number(price.amount),
+    currency: price.currencyCode,
     variantId: variant.id,
     img: p.featuredImage ? shopifyImage(p.featuredImage, [320, 480, 640]) : null,
   };
@@ -128,11 +131,17 @@ const discovery = (() => {
   return candidates.find((c) => /sample|discovery|decouverte|découverte/i.test(c.handle)) ?? candidates[0] ?? null;
 })();
 
+// Les deux flacons d'un accord : le total, et la livraison offerte s'il passe le seuil (deux 75 ml le passent partout).
 const duos = LAYERING.map((d) => ({
   duo: d,
   first: byHandle[d.pair[0]],
   second: byHandle[d.pair[1]],
-})).filter((d) => d.first && d.second);
+}))
+  .filter((d) => d.first && d.second)
+  .map((d) => {
+    const total = d.first.priceAmount + d.second.priceAmount;
+    return { ...d, total: formatPrice(String(total), d.first.currency), freeShipping: total >= freeShippingThreshold(d.first.currency) };
+  });
 ---
 
 <Layout
@@ -518,7 +527,7 @@ const duos = LAYERING.map((d) => ({
           <p>{t("guide.layeringLead")}</p>
         </div>
         <ul class="guide-duos">
-          {duos.map(({ duo, first, second }) => (
+          {duos.map(({ duo, first, second, total, freeShipping }) => (
             <li class="guide-duo" id={`accord-${duo.id}`}>
               <div class="guide-duo-pair">
                 <a class="guide-duo-media" href={first.href} aria-label={first.name}>
@@ -545,7 +554,7 @@ const duos = LAYERING.map((d) => ({
                   label={t("layering.recommendation")}
                   moreLabel={t("layering.readRecommendation")}
                 />
-                {/* Les six Reflets sont au même prix : « 2 × » sur la variante du premier suffit, data-money le convertit. */}
+                {/* Le prix des deux dans le bouton, comme le bouton principal de la fiche ; data-money somme les deux variantes. */}
                 <div class="guide-duo-actions">
                   <button
                     type="button"
@@ -556,8 +565,14 @@ const duos = LAYERING.map((d) => ({
                     data-error-label={t("product.error")}
                   >
                     <span data-layering-label>{t("layering.addBoth")}</span>
+                    <span data-money={`${first.variantId},${second.variantId}`}>{total}</span>
                   </button>
-                  <span class="guide-duo-price">2 × <span data-money={first.variantId}>{first.price}</span></span>
+                  {freeShipping && (
+                    <p class="guide-duo-ship">
+                      <img src="/brand/reassurance-livraison.svg" alt="" width="18" height="18" />
+                      {t("cart.freeShippingLabel")}
+                    </p>
+                  )}
                 </div>
               </div>
             </li>
@@ -878,9 +893,14 @@ const duos = LAYERING.map((d) => ({
   .guide-duo-story { margin: 0; font-size: 15px; line-height: 1.4; }
   .guide-duo-gesture { margin: 0; font-size: 14px; line-height: 1.4; opacity: 0.75; }
   .guide-duo-gesture strong { font-weight: 500; }
-  .guide-duo-actions { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
+  .guide-duo-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
   .guide-duo-add {
-    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    padding: 14px 20px;
     border: 0;
     border-radius: 2px;
     background: var(--rose);
@@ -895,7 +915,8 @@ const duos = LAYERING.map((d) => ({
   }
   .guide-duo-add:hover { opacity: 0.88; }
   .guide-duo-add:disabled { opacity: 0.6; cursor: wait; }
-  .guide-duo-price { font-size: 14px; opacity: 0.6; white-space: nowrap; }
+  .guide-duo-ship { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; opacity: 0.8; }
+  .guide-duo-ship img { flex-shrink: 0; }
 
   /* ---- Luma ---- */
   .guide-luma { padding: 96px var(--gutter-x) 120px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
