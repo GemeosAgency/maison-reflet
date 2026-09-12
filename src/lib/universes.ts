@@ -20,7 +20,9 @@ export const UNIVERSE_LABELS: Record<UniverseKey, Record<Locale, string>> = {
   boise: { fr: "Boisé et net", en: "Woody and clean", ar: "خشبي ونقي" },
   cuir: { fr: "Cuir et soir", en: "Leather and evening", ar: "جلد ومساء" },
   frais: { fr: "Frais et fruité", en: "Fresh and fruity", ar: "منعش وفاكهي" },
-  oud: { fr: "Oud", en: "Oud", ar: "عود" },
+  // « Oud » seul était trop court à côté des autres (Sandro) : la rose de Taïf,
+  // au cœur de New Oud, dit le moderne et parle au Golfe — même patron « X et Y ».
+  oud: { fr: "Oud et rose", en: "Oud and rose", ar: "عود وورد" },
 };
 
 /** Handle Shopify → univers. Un Reflet absent d'ici n'a simplement pas de ligne d'univers. */
