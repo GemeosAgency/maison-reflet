@@ -18,6 +18,7 @@
  */
 import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle, shopifyImage } from "../lib/shopify";
 import { getInspiredByMap } from "../lib/sanity";
+import { LAYERING, accordAudioPath } from "../lib/layering";
 import { type Locale, localePath, useTranslations } from "../i18n";
 import { DEFAULT_COUNTRY, freeShippingThreshold, getCountry, intlLocale } from "../lib/markets";
 
@@ -54,6 +55,21 @@ const upsellCatalog = allProducts
       currency: variant.price.currencyCode,
     };
   });
+
+/*
+ * L'accord du parfumeur (lib/layering.ts) : quand un Reflet est dans le panier
+ * et pas son partenaire, le tiroir propose le partenaire avec la
+ * recommandation audio du parfumeur — le geste qui fait passer d'un flacon à
+ * deux. Les données du partenaire (prix, image, variante) viennent de
+ * upsellCatalog ; ici seulement le duo, son histoire et son audio.
+ */
+const accords = LAYERING.map((d) => ({
+  id: d.id,
+  pair: d.pair,
+  name: d.name[lang],
+  story: d.story[lang],
+  audio: accordAudioPath(lang, d.id),
+}));
 
 // Détection des variantes "échantillon" sur l'ensemble du catalogue.
 const sampleOptions = allProducts.flatMap((p) =>
@@ -132,6 +148,13 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         <ul class="cart-sample-options" data-cart-sample-options hidden></ul>
       </div>
 
+      {/* L'accord du parfumeur : le Reflet qui se marie avec celui du panier, sa recommandation à écouter, un geste pour l'ajouter. */}
+      <div class="cart-drawer-divider" data-cart-accord-divider hidden></div>
+      <div class="cart-accord" data-cart-accord-section hidden>
+        <p class="cart-upsell-title">{t("cart.accordTitle")}</p>
+        <div data-cart-accord-body></div>
+      </div>
+
       {/*
         Suggestions du panier. C'était la mécanique « 2 achetés, le 3e
         offert » (barre de progression, décompte, pastille OFFERT), retirée
@@ -163,6 +186,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
 <script type="application/json" id="cart-upsell-catalog" is:inline set:html={JSON.stringify(upsellCatalog)} />
 <script type="application/json" id="cart-sample-options" is:inline set:html={JSON.stringify(sampleOptions)} />
 <script type="application/json" id="cart-product-paths" is:inline set:html={JSON.stringify(productPaths)} />
+<script type="application/json" id="cart-accords" is:inline set:html={JSON.stringify(accords)} />
 <script
   type="application/json"
   id="cart-drawer-i18n"
@@ -179,6 +203,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     empty: t("cart.empty"),
     error: t("cart.error"),
     inspiredBy: t("product.inspiredBy"),
+    accordWith: t("cart.accordWith"),
+    accordListen: t("layering.recommendation"),
     threshold: FREE_SHIPPING_THRESHOLD,
     thumbWidth: THUMB_WIDTH,
   })}
@@ -208,6 +234,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     price: number;
     currency: string;
   };
+  type Accord = { id: string; pair: [string, string]; name: string; story: string; audio: string | null };
   type SampleOption = {
     productHandle: string;
     productTitle: string;
@@ -227,6 +254,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   const sampleOptions: SampleOption[] = JSON.parse(
     document.getElementById("cart-sample-options")?.textContent ?? "[]"
   );
+  const accords: Accord[] = JSON.parse(document.getElementById("cart-accords")?.textContent ?? "[]");
   const I18N = JSON.parse(document.getElementById("cart-drawer-i18n")?.textContent ?? "{}");
   /**
    * Seuil applicable à la devise du panier. Le panier peut basculer de devise
@@ -251,6 +279,9 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   const sampleLabel = drawer?.querySelector<HTMLElement>("[data-cart-sample-label]");
   const sampleToggle = drawer?.querySelector<HTMLButtonElement>("[data-cart-sample-toggle]");
   const sampleOptionsList = drawer?.querySelector<HTMLElement>("[data-cart-sample-options]");
+  const accordDivider = drawer?.querySelector<HTMLElement>("[data-cart-accord-divider]");
+  const accordSection = drawer?.querySelector<HTMLElement>("[data-cart-accord-section]");
+  const accordBody = drawer?.querySelector<HTMLElement>("[data-cart-accord-body]");
   const upsellDivider = drawer?.querySelector<HTMLElement>("[data-cart-upsell-divider]");
   const upsellSection = drawer?.querySelector<HTMLElement>("[data-cart-upsell-section]");
   const upsellList = drawer?.querySelector<HTMLElement>("[data-cart-upsell-list]");
@@ -272,6 +303,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     document.body.style.overflow = "hidden";
   }
   function closeDrawer() {
+    stopAccordAudio();
     drawer?.classList.remove("is-open");
     drawer?.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
@@ -411,6 +443,117 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         </div>
       </div>`;
   }
+
+  /* ------------------------------------------------ l'accord du parfumeur */
+
+  function accordHtml(a: Accord, mine: UpsellItem, partner: UpsellItem): string {
+    const href = productHref(partner.handle);
+    const price = `<span class="cart-upsell-price" data-money="${partner.variantId}">${formatPrice(String(partner.price), partner.currency, intlLocale(pageLocale()))}</span>`;
+    const vignette = partner.img ? `<img src="${partner.img}" alt="${partner.title}" width="120" height="120" />` : "";
+    // Même ligne d'écoute que les portraits (LumaListen) : bouton rond, libellé, durée, onde en lecture.
+    const listen = a.audio
+      ? `
+        <div class="cart-accord-listen" data-accord-listen data-src="${a.audio}">
+          <button type="button" class="cart-accord-play" data-accord-play aria-label="${I18N.accordListen}" aria-pressed="false">
+            <svg class="cart-accord-ico-play" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1.5v9l8-4.5z" fill="currentColor"/></svg>
+            <svg class="cart-accord-ico-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor"/></svg>
+            <span class="cart-accord-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+          </button>
+          <span class="cart-accord-listen-label">${I18N.accordListen}</span>
+          <span class="cart-accord-time" data-accord-time aria-hidden="true">–:––</span>
+        </div>`
+      : "";
+    return `
+      <div class="cart-accord-card">
+        ${vignette && href ? `<a class="cart-upsell-card-img-link" href="${href}" tabindex="-1" aria-hidden="true">${vignette}</a>` : vignette}
+        <div class="cart-accord-body">
+          <p class="cart-accord-kicker">${a.name} · ${I18N.accordWith.replace("{name}", mine.title)}</p>
+          ${href ? `<a class="cart-upsell-card-name" href="${href}">${partner.title}</a>` : `<p class="cart-upsell-card-name">${partner.title}</p>`}
+          <p class="cart-accord-story">${a.story}</p>
+          ${listen}
+          <div class="cart-upsell-cta">
+            <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id="${partner.variantId}">
+              <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <span data-reco-add-label>${I18N.add}</span>
+            </button>
+            ${price}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /*
+   * Un seul lecteur pour la recommandation, créé au premier besoin. Il porte
+   * data-listen-audio pour que les autres lecteurs de la page (portraits) le
+   * mettent en pause quand ils démarrent, et le jeton data-user-play attendu
+   * par la garde globale de Layout (aucune lecture sans geste). Après la fin
+   * ou la fermeture du tiroir, la source est relâchée : rien à reprendre pour
+   * une touche média ou un casque (le « fantôme » audio de septembre).
+   */
+  let accordAudio: HTMLAudioElement | null = null;
+  const accordDurations = new Map<string, number>();
+  const fmtTime = (sec: number) => (Number.isFinite(sec) ? `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}` : "–:––");
+
+  function accordPlayer(): HTMLAudioElement {
+    if (accordAudio) return accordAudio;
+    const a = document.createElement("audio");
+    a.preload = "metadata";
+    a.hidden = true;
+    a.setAttribute("data-listen-audio", "");
+    drawer?.append(a);
+    for (const ev of ["play", "pause", "timeupdate", "loadedmetadata", "durationchange"]) a.addEventListener(ev, renderAccordPlayer);
+    a.addEventListener("loadedmetadata", () => {
+      const src = a.getAttribute("src");
+      if (src && Number.isFinite(a.duration)) accordDurations.set(src, a.duration);
+    });
+    a.addEventListener("ended", () => {
+      releaseAccordAudio();
+      renderAccordPlayer();
+    });
+    accordAudio = a;
+    return a;
+  }
+  function releaseAccordAudio() {
+    if (!accordAudio) return;
+    accordAudio.pause();
+    accordAudio.removeAttribute("src");
+    accordAudio.load();
+  }
+  function stopAccordAudio() {
+    releaseAccordAudio();
+    renderAccordPlayer();
+  }
+  function renderAccordPlayer() {
+    const wrap = accordBody?.querySelector<HTMLElement>("[data-accord-listen]");
+    if (!wrap) return;
+    const src = wrap.dataset.src ?? "";
+    const a = accordAudio;
+    const same = !!a && a.getAttribute("src") === src;
+    const playing = same && !a!.paused && !a!.ended;
+    wrap.classList.toggle("is-playing", playing);
+    wrap.querySelector("[data-accord-play]")?.setAttribute("aria-pressed", String(playing));
+    const time = wrap.querySelector<HTMLElement>("[data-accord-time]");
+    if (time) {
+      const known = accordDurations.get(src);
+      time.textContent = same && (playing || a!.currentTime > 0) ? fmtTime(a!.currentTime) : fmtTime(known ?? (same ? a!.duration : NaN));
+    }
+  }
+  drawer?.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement | null)?.closest<HTMLButtonElement>("[data-accord-play]");
+    if (!btn || !e.isTrusted) return;
+    const src = btn.closest<HTMLElement>("[data-accord-listen]")?.dataset.src;
+    if (!src) return;
+    const a = accordPlayer();
+    if (a.getAttribute("src") !== src) {
+      a.setAttribute("src", src);
+      a.load();
+    }
+    if (a.paused) {
+      for (const other of document.querySelectorAll<HTMLAudioElement>("[data-listen-audio]")) if (other !== a) other.pause();
+      a.dataset.userPlay = "1";
+      a.play().catch(() => {});
+    } else a.pause();
+  });
 
   /*
    * Réconciliation de l'échantillon offert.
@@ -567,10 +710,49 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       }
     }
 
-    // Suggestions : les parfums qui ne sont pas déjà dans le panier. Masquées
-    // quand le panier est vide — il n'y a alors rien à compléter.
+    // L'accord du parfumeur : le premier flacon (pas l'échantillon) du panier
+    // dont le partenaire d'accord manque. Un seul à la fois — c'est une
+    // recommandation, pas un rayon.
+    const fullBottles = grouped.filter((l) => !sampleOptions.some((s) => s.variantId === l.variantId)).map((l) => l.handle);
+    const bottlesInCart = new Set(fullBottles);
+    let accordPick: { a: Accord; mine: UpsellItem; partner: UpsellItem } | null = null;
+    for (const handle of fullBottles) {
+      const a = accords.find((d) => d.pair.includes(handle));
+      if (!a) continue;
+      const partnerHandle = a.pair[0] === handle ? a.pair[1] : a.pair[0];
+      if (bottlesInCart.has(partnerHandle)) continue;
+      const mine = upsellCatalog.find((p) => p.handle === handle);
+      const partner = upsellCatalog.find((p) => p.handle === partnerHandle);
+      if (mine && partner) {
+        accordPick = { a, mine, partner };
+        break;
+      }
+    }
+    accordDivider?.toggleAttribute("hidden", !accordPick);
+    accordSection?.toggleAttribute("hidden", !accordPick);
+    if (accordBody) {
+      const currentSrc = accordBody.querySelector<HTMLElement>("[data-accord-listen]")?.dataset.src ?? null;
+      if (!accordPick || accordPick.a.audio !== currentSrc) stopAccordAudio();
+      accordBody.innerHTML = accordPick ? accordHtml(accordPick.a, accordPick.mine, accordPick.partner) : "";
+      if (accordPick) {
+        void hydratePrices(accordBody);
+        // La durée s'affiche avant la lecture : on charge les métadonnées du fichier (quelques ko).
+        if (accordPick.a.audio && !accordDurations.has(accordPick.a.audio)) {
+          const a = accordPlayer();
+          if (a.getAttribute("src") !== accordPick.a.audio) {
+            a.setAttribute("src", accordPick.a.audio);
+            a.load();
+          }
+        }
+        renderAccordPlayer();
+      }
+    }
+
+    // Suggestions : les parfums qui ne sont pas déjà dans le panier, ni celui
+    // que l'accord propose déjà juste au-dessus. Masquées quand le panier est
+    // vide — il n'y a alors rien à compléter.
     const inCart = new Set((cart?.lines.nodes ?? []).map((l) => l.merchandise.product.handle));
-    const suggestions = upsellCatalog.filter((p) => !inCart.has(p.handle));
+    const suggestions = upsellCatalog.filter((p) => !inCart.has(p.handle) && p.handle !== accordPick?.partner.handle);
     const showUpsell = grouped.length > 0 && suggestions.length > 0;
     upsellDivider?.toggleAttribute("hidden", !showUpsell);
     upsellSection?.toggleAttribute("hidden", !showUpsell);
@@ -813,6 +995,33 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-sample-option:hover { opacity: 0.8; }
   .cart-sample-option img { width: 32px; height: 32px; object-fit: cover; }
 
+  /* L'accord du parfumeur : la carte du partenaire, l'histoire, l'écoute, le geste. */
+  .cart-accord { display: flex; flex-direction: column; gap: 12px; }
+  .cart-accord-card { display: flex; gap: 20px; align-items: flex-start; background: var(--cream); padding-inline-end: 20px; }
+  .cart-accord-card img { width: 120px; height: 120px; flex-shrink: 0; object-fit: cover; }
+  .cart-accord-body { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; min-width: 0; }
+  .cart-accord-kicker { margin: 0; font-size: 11px; line-height: 1.3; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); }
+  .cart-accord-story { margin: 0; font-size: 13px; line-height: 1.4; color: var(--ink); opacity: 0.8; }
+  .cart-accord-listen { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 2px; }
+  .cart-accord-play {
+    width: 28px; height: 28px; padding: 0;
+    border: 1px solid var(--ink); border-radius: 50%;
+    background: transparent; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background 0.2s, color 0.2s;
+  }
+  .cart-accord-play:hover, .cart-accord-listen.is-playing .cart-accord-play { background: var(--ink); color: var(--bg); }
+  .cart-accord-ico-pause, .cart-accord-eq { display: none; }
+  .cart-accord-listen.is-playing .cart-accord-ico-play { display: none; }
+  .cart-accord-listen.is-playing .cart-accord-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 10px; }
+  .cart-accord-listen.is-playing .cart-accord-play:hover .cart-accord-eq { display: none; }
+  .cart-accord-listen.is-playing .cart-accord-play:hover .cart-accord-ico-pause { display: block; }
+  .cart-accord-eq i { display: block; width: 2px; height: 35%; border-radius: 1px; background: currentColor; animation: cart-accord-eq 0.9s ease-in-out infinite; }
+  .cart-accord-eq i:nth-child(2) { animation-delay: -0.45s; }
+  .cart-accord-eq i:nth-child(3) { animation-delay: -0.2s; }
+  @keyframes cart-accord-eq { 0%, 100% { height: 35%; } 50% { height: 100%; } }
+  .cart-accord-listen-label { font-size: 13px; line-height: 1.3; color: var(--ink); }
+  .cart-accord-time { font-size: 12px; opacity: 0.55; font-variant-numeric: tabular-nums; color: var(--ink); }
   .cart-upsell { display: flex; flex-direction: column; gap: 12px; }
   .cart-upsell-title { margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; color: var(--ink); }
   .cart-upsell-scroll { display: flex; gap: 4px; overflow-x: auto; }

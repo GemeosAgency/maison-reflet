@@ -13,15 +13,22 @@ import { portraitAudioPath, portraitText } from "../lib/luma/portraits";
 
 interface Props {
   lang: Locale;
-  handle: string;
-  name: string;
+  /** Le Reflet dont on lit le portrait (source et texte déduits de portraits.ts)… */
+  handle?: string;
+  name?: string;
+  /** …ou n'importe quel audio statique : la recommandation du parfumeur sur un accord, par exemple. */
+  src?: string | null;
+  text?: string | null;
+  label?: string;
+  moreLabel?: string;
 }
 
 const { lang, handle, name } = Astro.props;
 const t = useTranslations(lang);
-const src = portraitAudioPath(lang, handle);
-const text = portraitText(lang, handle);
-const label = t("luma.discover").replace("{name}", name);
+const src = Astro.props.src ?? (handle ? portraitAudioPath(lang, handle) : null);
+const text = Astro.props.text ?? (handle ? portraitText(lang, handle) : null);
+const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? "");
+const moreLabel = Astro.props.moreLabel ?? t("luma.listenText");
 ---
 
 {
@@ -42,7 +49,7 @@ const label = t("luma.discover").replace("{name}", name);
       {text && (
         <div class="listen-text">
           <button type="button" class="listen-more" data-listen-more aria-expanded="false">
-            <span>{t("luma.listenText")}</span>
+            <span>{moreLabel}</span>
             <svg class="listen-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
           </button>
           {/* Révélation en douceur : une grille dont la rangée passe de 0fr à 1fr (un <details> s'ouvre d'un bloc). */}

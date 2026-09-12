@@ -36,8 +36,9 @@ ${rows.join("\n")}`;
 }
 
 /**
- * Le layering (12 septembre 2026) : seuls les duos de lib/layering.ts existent.
- * Tant qu'ils sont candidats, Luma le dit ; elle n'en invente jamais d'autres.
+ * Le layering (12 septembre 2026) : seuls les duos de lib/layering.ts existent —
+ * validés par le parfumeur ce jour-là. Un duo encore candidat, Luma le dit ;
+ * elle n'en invente jamais d'autres.
  */
 function renderLayering(): string {
   const name = (handle: string) => knownProduct(handle)?.name ?? handle;
@@ -46,7 +47,7 @@ function renderLayering(): string {
     (d) => `- ${d.name.fr} : ${name(d.pair[0])} d'abord, ${name(d.pair[1])} par-dessus${d.status === "candidate" ? " (en cours de validation par le parfumeur — le dire)" : ""}. ${d.story.fr} Geste : ${d.gesture.fr}`
   );
   return `# Layering — porter deux Reflets ensemble
-Dans le Golfe, superposer deux parfums est un usage courant ; Luma peut le suggérer quand un visiteur hésite entre deux Reflets ou cherche plus de présence. Elle ne propose QUE ces duos, jamais une autre paire, et ne les impose pas : c'est une porte de plus, pas la réponse par défaut (le Coffret découverte reste la réponse au doute).
+Dans le Golfe, superposer deux parfums est un usage courant ; Luma peut le suggérer quand un visiteur hésite entre deux Reflets ou cherche plus de présence. Ces accords sont ceux de notre parfumeur (il les a validés) ; Luma ne propose QUE ces duos, jamais une autre paire, et ne les impose pas : c'est une porte de plus, pas la réponse par défaut (le Coffret découverte reste la réponse au doute). Chaque accord a « La recommandation du parfumeur » à écouter sur la page Comparer les six (/parfums/guide) et sur la fiche des deux Reflets ; les deux flacons s'ajoutent d'un geste (« Ajouter les deux »).
 ${rows.join("\n")}`;
 }
 

@@ -2,12 +2,14 @@
 /**
  * « Se marie avec » : les duos de layering qui incluent ce Reflet — la carte du
  * partenaire, l'histoire du duo, le geste (lequel en premier, où) et un bouton
- * qui ajoute les deux flacons. Les duos viennent de lib/layering.ts ; ceux en
- * `candidate` portent un repère « à valider » tant que le nez n'a pas tranché.
- * Rien ne s'affiche si le Reflet n'est dans aucun duo.
+ * qui ajoute les deux flacons, et « La recommandation du parfumeur » à écouter
+ * (fichier statique, voix des portraits). Les duos viennent de lib/layering.ts ;
+ * un duo encore `candidate` porte un repère « à valider » tant que le nez n'a
+ * pas tranché. Rien ne s'affiche si le Reflet n'est dans aucun duo.
  */
 import { useTranslations, localePath, type Locale } from "../../i18n";
-import { duosFor } from "../../lib/layering";
+import LumaListen from "../LumaListen.astro";
+import { accordAudioPath, duosFor, stripVoiceTags } from "../../lib/layering";
 import { universeLabel } from "../../lib/universes";
 import { formatPrice, getDisplayPrice, getPrimaryVariant, shopifyImage, type ShopifyProduct } from "../../lib/shopify";
 
@@ -73,6 +75,13 @@ const duos = duosFor(handle)
               <p class="layering-gesture">
                 <strong>{t("layering.gesture")}</strong> {duo.gesture[lang]}
               </p>
+              <LumaListen
+                lang={lang}
+                src={accordAudioPath(lang, duo.id)}
+                text={stripVoiceTags(duo.recommendation[lang])}
+                label={t("layering.recommendation")}
+                moreLabel={t("layering.readRecommendation")}
+              />
               <div class="layering-actions">
                 <button
                   type="button"
@@ -97,27 +106,8 @@ const duos = duosFor(handle)
 }
 
 <script>
-  import { addManyToCart } from "../../lib/cart";
-  for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-layering-add]")) {
-    btn.addEventListener("click", async () => {
-      const ids = (btn.dataset.variants ?? "").split(",").filter(Boolean);
-      const label = btn.querySelector<HTMLElement>("[data-layering-label]");
-      const initial = label?.textContent ?? "";
-      if (!ids.length) return;
-      btn.disabled = true;
-      try {
-        await addManyToCart(ids.map((variantId) => ({ variantId, quantity: 1 })));
-        if (label) label.textContent = btn.dataset.addedLabel ?? initial;
-      } catch {
-        if (label) label.textContent = btn.dataset.errorLabel ?? initial;
-      } finally {
-        btn.disabled = false;
-        window.setTimeout(() => {
-          if (label) label.textContent = initial;
-        }, 1800);
-      }
-    });
-  }
+  import { bindLayeringAdds } from "../../lib/layering-client";
+  bindLayeringAdds();
 </script>
 
 <style>
@@ -177,7 +167,7 @@ const duos = duosFor(handle)
   .layering-story { margin: 0; font-size: 18px; line-height: 1.28; letter-spacing: 0.06em; }
   .layering-gesture { margin: 0; font-size: 15px; line-height: 1.4; opacity: 0.8; }
   .layering-gesture strong { font-weight: 500; opacity: 1; }
-  .layering-actions { display: flex; align-items: center; gap: 20px; margin-top: 8px; }
+  .layering-actions { display: flex; align-items: center; gap: 20px; margin-top: 12px; }
   .layering-add {
     padding: 14px 28px;
     border: 0;

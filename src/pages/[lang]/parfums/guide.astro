@@ -19,7 +19,7 @@ import { getCoffrets, getInspiredByMap, responsiveImage } from "../../../lib/san
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 import { universeLabel } from "../../../lib/universes";
 import { GUIDE_MANIFESTO, GUIDE_ORIGINS, GUIDE_REFLETS } from "../../../lib/guide";
-import { LAYERING } from "../../../lib/layering";
+import { LAYERING, accordAudioPath, stripVoiceTags } from "../../../lib/layering";
 
 export function getStaticPaths() {
   return locales.map((lang) => ({ params: { lang } }));
@@ -222,6 +222,27 @@ const duos = LAYERING.map((d) => ({
                 </h3>
                 <p class="guide-duo-story">{duo.story[lang]}</p>
                 <p class="guide-duo-gesture"><strong>{t("layering.gesture")}</strong> {duo.gesture[lang]}</p>
+                <LumaListen
+                  lang={lang}
+                  src={accordAudioPath(lang, duo.id)}
+                  text={stripVoiceTags(duo.recommendation[lang])}
+                  label={t("layering.recommendation")}
+                  moreLabel={t("layering.readRecommendation")}
+                />
+                {/* Les six Reflets sont au même prix : « 2 × » sur la variante du premier suffit, data-money le convertit. */}
+                <div class="guide-duo-actions">
+                  <button
+                    type="button"
+                    class="guide-duo-add"
+                    data-layering-add
+                    data-variants={`${first.variantId},${second.variantId}`}
+                    data-added-label={t("cart.added")}
+                    data-error-label={t("product.error")}
+                  >
+                    <span data-layering-label>{t("layering.addBoth")}</span>
+                  </button>
+                  <span class="guide-duo-price">2 × <span data-money={first.variantId}>{first.price}</span></span>
+                </div>
               </div>
             </li>
           ))}
@@ -243,6 +264,11 @@ const duos = LAYERING.map((d) => ({
       />
     )
   }
+
+  <script>
+    import { bindLayeringAdds } from "../../../lib/layering-client";
+    bindLayeringAdds();
+  </script>
 
   <section class="guide-luma">
     <h2>{t("guide.lumaTitle")}</h2>
@@ -369,6 +395,24 @@ const duos = LAYERING.map((d) => ({
   .guide-duo-story { margin: 0; font-size: 15px; line-height: 1.4; }
   .guide-duo-gesture { margin: 0; font-size: 14px; line-height: 1.4; opacity: 0.75; }
   .guide-duo-gesture strong { font-weight: 500; }
+  .guide-duo-actions { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
+  .guide-duo-add {
+    padding: 14px 24px;
+    border: 0;
+    border-radius: 2px;
+    background: var(--rose);
+    color: var(--paper);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+  }
+  .guide-duo-add:hover { opacity: 0.88; }
+  .guide-duo-add:disabled { opacity: 0.6; cursor: wait; }
+  .guide-duo-price { font-size: 14px; opacity: 0.6; white-space: nowrap; }
 
   /* ---- Luma ---- */
   .guide-luma { padding: 96px var(--gutter-x) 120px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
