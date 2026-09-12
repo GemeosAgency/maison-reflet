@@ -64,7 +64,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     ],
     moment: { fr: "Le soir, les grandes occasions", en: "Evenings and grand occasions", ar: "المساء والمناسبات الكبيرة" },
     when: ["evening"],
-    map: { x: 66, y: 84 },
+    map: { x: 58, y: 88 }, // un peu à gauche : le trait vers Melting Mango passe à côté de Bois Alert, pas dessus
     twistLine: {
       fr: "Oud Maracuja a ouvert l'oud au fruit. New Oud y met la rose de Taïf, un santal crémeux et des fleurs blanches : un oud qui respire.",
       en: "Oud Maracuja opened oud to fruit. New Oud brings Taif rose, creamy sandalwood and white florals: an oud that breathes.",

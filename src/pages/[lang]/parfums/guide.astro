@@ -452,12 +452,27 @@ const duos = LAYERING.map((d) => ({
       const placeTag = (line: SVGLineElement, x1: number, y1: number, x2: number, y2: number, animate: boolean) => {
         if (!tag || !plane) return;
         tag.textContent = line.dataset.name ?? "";
-        // À mi-chemin, dans l'axe du trait (le texte reste lisible : jamais tête en bas), décalé d'un côté.
-        let angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+        // Dans l'axe du trait (jamais tête en bas), aux deux tiers du chemin vers le partenaire — pas au
+        // milieu, où un autre Reflet peut se trouver — et décalé du côté opposé au centre du plan.
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.hypot(dx, dy) || 1;
+        const t = 0.62;
+        const px = x1 + dx * t;
+        const py = y1 + dy * t;
+        let nx = -dy / len;
+        let ny = dx / len;
+        const cx = plane.clientWidth / 2;
+        const cy = plane.clientHeight / 2;
+        if ((px + nx * 12 - cx) ** 2 + (py + ny * 12 - cy) ** 2 < (px - nx * 12 - cx) ** 2 + (py - ny * 12 - cy) ** 2) {
+          nx = -nx;
+          ny = -ny;
+        }
+        let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
         if (angle > 90 || angle < -90) angle += 180;
-        tag.style.left = `${(x1 + x2) / 2}px`;
-        tag.style.top = `${(y1 + y2) / 2}px`;
-        tag.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translateY(-11px)`;
+        tag.style.left = `${px + nx * 12}px`;
+        tag.style.top = `${py + ny * 12}px`;
+        tag.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
         tag.hidden = false;
         if (animate) {
           tag.classList.remove("is-in");
