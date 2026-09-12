@@ -15,9 +15,9 @@ import Layout from "../../../layouts/Layout.astro";
 import LumaListen from "../../../components/LumaListen.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import { formatPrice, getAllProducts, getDisplayPrice, getPrimaryVariant, isCoffret, shopifyImage } from "../../../lib/shopify";
-import { getCoffrets, getInspiredByMap, responsiveImage } from "../../../lib/sanity";
+import { getCoffrets, getInspiredByMap, getParfumContent, responsiveImage } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
-import { universeLabel } from "../../../lib/universes";
+import { REFLET_UNIVERSE, UNIVERSE_LABELS, universeLabel, type UniverseKey } from "../../../lib/universes";
 import { GUIDE_MANIFESTO, GUIDE_ORIGINS, GUIDE_REFLETS } from "../../../lib/guide";
 import { LAYERING, accordAudioPath, stripVoiceTags } from "../../../lib/layering";
 
@@ -30,26 +30,57 @@ const t = useTranslations(lang);
 
 const [allProducts, inspiredMap, coffretContent] = await Promise.all([getAllProducts(), getInspiredByMap(), getCoffrets(lang)]);
 
-const reflets = allProducts
-  .filter((p) => !isCoffret(p))
-  .map((p) => {
-    const variant = getPrimaryVariant(p);
-    const price = getDisplayPrice(p);
-    const guide = GUIDE_REFLETS[p.handle];
-    return {
-      handle: p.handle,
-      name: p.title,
-      href: localePath(lang, `/parfums/${p.handle}`),
-      universe: universeLabel(p.handle, lang),
-      inspiredBy: inspiredMap[p.handle] ?? null,
-      materials: guide?.materials.map((m) => m[lang]) ?? [],
-      moment: guide?.moment[lang] ?? null,
-      twistLine: guide?.twistLine[lang] ?? null,
-      price: formatPrice(price.amount, price.currencyCode),
-      variantId: variant.id,
-      img: p.featuredImage ? shopifyImage(p.featuredImage, [320, 480, 640]) : null,
-    };
-  });
+/*
+ * Les filtres du guide agissent sur les six sans requête : le moment et
+ * l'univers viennent de lib/guide.ts et lib/universes.ts ; les matières sont
+ * les huit des portes de Luma, retrouvées dans les pyramides Sanity (noms FR,
+ * quelle que soit la langue de la page) et dans les matières signature.
+ */
+const MATERIALS = ["vanilla", "oud", "leather", "mango", "saffron", "musk", "rose", "praline"] as const;
+type MaterialKey = (typeof MATERIALS)[number];
+const MATERIAL_MATCH: Record<MaterialKey, RegExp> = {
+  vanilla: /vanill/i,
+  oud: /\boud\b|agar/i,
+  leather: /cuir|daim|leather/i,
+  mango: /mangue|mango/i,
+  saffron: /safran|saffron/i,
+  musk: /musc|musk/i,
+  rose: /(?<!bois de )rose/i,
+  praline: /pralin/i,
+};
+
+const perfumeProducts = allProducts.filter((p) => !isCoffret(p));
+const pyramids = await Promise.all(perfumeProducts.map((p) => getParfumContent(p.handle, "fr")));
+
+const reflets = perfumeProducts.map((p, i) => {
+  const variant = getPrimaryVariant(p);
+  const price = getDisplayPrice(p);
+  const guide = GUIDE_REFLETS[p.handle];
+  const notes = pyramids[i]?.notes;
+  const noteNames = [...(notes?.tete ?? []), ...(notes?.coeur ?? []), ...(notes?.fond ?? [])].map((n) => n.nom ?? "");
+  const haystack = [...noteNames, ...(guide?.materials.map((m) => m.fr) ?? [])].join(" · ");
+  return {
+    handle: p.handle,
+    name: p.title,
+    href: localePath(lang, `/parfums/${p.handle}`),
+    universe: universeLabel(p.handle, lang),
+    universeKey: REFLET_UNIVERSE[p.handle] ?? null,
+    inspiredBy: inspiredMap[p.handle] ?? null,
+    materials: guide?.materials.map((m) => m[lang]) ?? [],
+    materialKeys: MATERIALS.filter((m) => MATERIAL_MATCH[m].test(haystack)),
+    moment: guide?.moment[lang] ?? null,
+    when: guide?.when ?? [],
+    twistLine: guide?.twistLine[lang] ?? null,
+    twistShort: guide?.twistShort[lang] ?? null,
+    price: formatPrice(price.amount, price.currencyCode),
+    variantId: variant.id,
+    img: p.featuredImage ? shopifyImage(p.featuredImage, [320, 480, 640]) : null,
+  };
+});
+const universeChips = (Object.keys(UNIVERSE_LABELS) as UniverseKey[])
+  .filter((k) => reflets.some((r) => r.universeKey === k))
+  .map((k) => ({ key: k, label: UNIVERSE_LABELS[k][lang] }));
+const materialChips = MATERIALS.filter((m) => reflets.some((r) => r.materialKeys.includes(m))).map((m) => ({ key: m, label: t(`luma.doors.m.${m}`) }));
 const byHandle = Object.fromEntries(reflets.map((r) => [r.handle, r]));
 
 // Le Coffret découverte, comme sur le catalogue.
@@ -99,32 +130,83 @@ const duos = LAYERING.map((d) => ({
     <p>{t("guide.lead")}</p>
   </section>
 
-  {/* Les six en rang : même structure de colonne, on compare d'un regard. */}
-  <section class="guide-six" aria-label={t("guide.title")}>
-    <div class="guide-six-row">
+  {/*
+    Les six en rang (refonte UX du 12 sept., validée par Sandro) : des filtres
+    qui estompent les colonnes qui ne correspondent pas, les étiquettes une
+    seule fois à gauche (les colonnes partagent leurs rangées : subgrid), le
+    twist dans la colonne, et la colonne entière cliquable au survol.
+  */}
+  <section class="guide-six" aria-label={t("guide.title")} data-guide-six>
+    <div class="guide-filters">
+      <div class="guide-filter-group">
+        <span class="guide-filter-label">{t("guide.filterWhen")}</span>
+        <div class="guide-chips">
+          <button type="button" class="guide-chip" data-filter="when" data-value="day" aria-pressed="false">{t("guide.day")}</button>
+          <button type="button" class="guide-chip" data-filter="when" data-value="evening" aria-pressed="false">{t("guide.evening")}</button>
+        </div>
+      </div>
+      <div class="guide-filter-group">
+        <span class="guide-filter-label">{t("guide.filterUniverse")}</span>
+        <div class="guide-chips">
+          {universeChips.map((c) => <button type="button" class="guide-chip" data-filter="universe" data-value={c.key} aria-pressed="false">{c.label}</button>)}
+        </div>
+      </div>
+      {
+        materialChips.length > 0 && (
+          <div class="guide-filter-group">
+            <span class="guide-filter-label">{t("guide.filterMaterial")}</span>
+            <div class="guide-chips">
+              {materialChips.map((c) => <button type="button" class="guide-chip" data-filter="materials" data-value={c.key} aria-pressed="false">{c.label}</button>)}
+            </div>
+          </div>
+        )
+      }
+      <p class="guide-filter-status" data-guide-status data-one={t("guide.countOne")} data-many={t("guide.countMany")} hidden>
+        <span data-guide-count></span>
+        <button type="button" class="guide-filter-reset" data-guide-reset>{t("guide.all")}</button>
+      </p>
+    </div>
+
+    <div class="guide-six-row" data-guide-row>
+      <div class="guide-labels" aria-hidden="true">
+        <span class="guide-label guide-label-materials">{t("guide.materials")}</span>
+        <span class="guide-label guide-label-moment">{t("guide.moment")}</span>
+        <span class="guide-label guide-label-twist">{t("guide.twistLabel")}</span>
+      </div>
       {
         reflets.map((r) => (
-          <article class="guide-col">
-            <a class="guide-col-media" href={r.href} aria-label={r.name}>
-              {r.img && <img src={r.img.src} srcset={r.img.srcset} sizes="(max-width: 900px) 70vw, 16vw" alt="" loading="lazy" decoding="async" />}
+          <article
+            class="guide-col"
+            data-guide-col
+            data-href={r.href}
+            data-when={r.when.join(" ")}
+            data-universe={r.universeKey ?? ""}
+            data-materials={r.materialKeys.join(" ")}
+          >
+            <a class="guide-col-media" href={r.href} aria-label={r.name} tabindex="-1">
+              {r.img && <img src={r.img.src} srcset={r.img.srcset} sizes="(max-width: 1100px) 70vw, 15vw" alt="" loading="lazy" decoding="async" />}
             </a>
-            {r.universe && <p class="guide-kicker">{r.universe}</p>}
-            <h2 class="guide-col-name"><a href={r.href}>{r.name}</a></h2>
-            {r.inspiredBy && (
-              <p class="guide-col-inspired">
-                {t("product.inspiredBy")} {r.inspiredBy}
-              </p>
-            )}
-            <dl class="guide-col-facts">
-              <dt>{t("guide.materials")}</dt>
-              <dd>{r.materials.join(" · ")}</dd>
-              {r.moment && (
-                <>
-                  <dt>{t("guide.moment")}</dt>
-                  <dd>{r.moment}</dd>
-                </>
+            <div class="guide-col-head">
+              {r.universe && <p class="guide-kicker">{r.universe}</p>}
+              <h2 class="guide-col-name"><a href={r.href}>{r.name}</a></h2>
+              {r.inspiredBy && (
+                <p class="guide-col-inspired">
+                  {t("product.inspiredBy")} {r.inspiredBy}
+                </p>
               )}
-            </dl>
+            </div>
+            <div class="guide-col-fact">
+              <span class="guide-col-dt">{t("guide.materials")}</span>
+              <p>{r.materials.join(" · ")}</p>
+            </div>
+            <div class="guide-col-fact">
+              <span class="guide-col-dt">{t("guide.moment")}</span>
+              <p>{r.moment}</p>
+            </div>
+            <div class="guide-col-fact guide-col-twist">
+              <span class="guide-col-dt">{t("guide.twistLabel")}</span>
+              <p>{r.twistShort}</p>
+            </div>
             <div class="guide-col-listen">
               <LumaListen lang={lang} handle={r.handle} name={r.name} />
             </div>
@@ -136,7 +218,67 @@ const duos = LAYERING.map((d) => ({
         ))
       }
     </div>
+    <p class="guide-none" data-guide-none hidden>
+      {t("guide.noMatch")}
+      <button type="button" class="guide-none-cta" data-luma-open data-luma-source="guide">{t("guide.noMatchCta")}</button>
+    </p>
   </section>
+
+  <script>
+    /*
+     * Filtres : une valeur active par groupe, les groupes se cumulent. Une
+     * colonne qui ne correspond pas s'estompe (et disparaît en cartes, pour
+     * raccourcir le défilement). La colonne entière mène à la fiche, sauf
+     * quand on clique un bouton ou un lien qu'elle contient.
+     */
+    const six = document.querySelector<HTMLElement>("[data-guide-six]");
+    if (six) {
+      const cols = Array.from(six.querySelectorAll<HTMLElement>("[data-guide-col]"));
+      const chips = Array.from(six.querySelectorAll<HTMLButtonElement>("[data-filter]"));
+      const row = six.querySelector<HTMLElement>("[data-guide-row]");
+      const status = six.querySelector<HTMLElement>("[data-guide-status]");
+      const count = six.querySelector<HTMLElement>("[data-guide-count]");
+      const none = six.querySelector<HTMLElement>("[data-guide-none]");
+      const active: Record<string, string | null> = { when: null, universe: null, materials: null };
+
+      const apply = () => {
+        let shown = 0;
+        for (const col of cols) {
+          const ok = Object.entries(active).every(([k, v]) => !v || (col.dataset[k] ?? "").split(" ").includes(v));
+          col.classList.toggle("is-dim", !ok);
+          if (ok) shown++;
+        }
+        const any = Object.values(active).some(Boolean);
+        for (const chip of chips) chip.setAttribute("aria-pressed", String(active[chip.dataset.filter ?? ""] === chip.dataset.value));
+        if (status && count) {
+          status.hidden = !any;
+          const tpl = (shown === 1 ? status.dataset.one : status.dataset.many) ?? "";
+          count.textContent = tpl.replace("{n}", String(shown));
+        }
+        if (none) none.hidden = !(any && shown === 0);
+        if (any) row?.scrollTo({ left: 0, behavior: "smooth" });
+      };
+      for (const chip of chips) {
+        chip.addEventListener("click", () => {
+          const k = chip.dataset.filter ?? "";
+          const v = chip.dataset.value ?? "";
+          active[k] = active[k] === v ? null : v;
+          apply();
+        });
+      }
+      six.querySelector<HTMLButtonElement>("[data-guide-reset]")?.addEventListener("click", () => {
+        for (const k of Object.keys(active)) active[k] = null;
+        apply();
+      });
+      for (const col of cols) {
+        col.addEventListener("click", (e) => {
+          if ((e.target as HTMLElement).closest("a, button")) return;
+          const href = col.dataset.href;
+          if (href) window.location.href = href;
+        });
+      }
+    }
+  </script>
 
   {/* Si vous portez… : la grille de correspondance de Luma. */}
   <section class="guide-wearing">
@@ -318,28 +460,102 @@ const duos = LAYERING.map((d) => ({
   .guide-link:hover { text-decoration-color: currentColor; }
 
   /* ---- Les six en rang ---- */
-  .guide-six { padding: 72px var(--gutter-x) 96px; }
+  .guide-six { padding: 72px var(--gutter-x) 96px; display: flex; flex-direction: column; gap: 40px; }
+
+  /* Les filtres : trois groupes, des pastilles ; l'active passe en encre. */
+  .guide-filters { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px 40px; }
+  .guide-filter-group { display: flex; flex-direction: column; gap: 10px; }
+  .guide-filter-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.5; }
+  .guide-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .guide-chip {
+    padding: 8px 14px;
+    border: 1px solid rgba(21, 14, 10, 0.28);
+    border-radius: 100px;
+    background: none;
+    font: inherit;
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  }
+  .guide-chip:hover { border-color: var(--ink); }
+  .guide-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .guide-chip:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
+  .guide-filter-status { margin: 0; flex-basis: 100%; display: flex; align-items: baseline; gap: 12px; font-size: 13px; opacity: 0.8; }
+  .guide-filter-status[hidden] { display: none; }
+  .guide-filter-reset {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-color: rgba(21, 14, 10, 0.3);
+    cursor: pointer;
+  }
+  .guide-filter-reset:hover { text-decoration-color: currentColor; }
+
+  /* La rangée : une colonne d'étiquettes puis les six, qui partagent leurs rangées (subgrid). */
   .guide-six-row {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 24px;
+    grid-template-columns: 92px repeat(6, minmax(0, 1fr));
+    grid-template-rows: repeat(7, auto);
+    column-gap: 20px;
+    row-gap: 12px;
+    align-items: start;
+    isolation: isolate;
   }
-  .guide-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-  .guide-col-media { display: block; aspect-ratio: 3 / 4; background: var(--sand); overflow: hidden; margin-bottom: 8px; }
+  .guide-labels { display: grid; grid-template-rows: subgrid; grid-row: 1 / span 7; grid-column: 1; }
+  .guide-label { font-size: 10px; line-height: 1.4; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.5; padding-top: 2px; }
+  .guide-label-materials { grid-row: 3; }
+  .guide-label-moment { grid-row: 4; }
+  .guide-label-twist { grid-row: 5; }
+  .guide-col {
+    position: relative;
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 1 / span 7;
+    min-width: 0;
+    cursor: pointer;
+    transition: opacity 0.35s ease;
+  }
+  /* Le survol : le rectangle blanc du menu, derrière toute la colonne. */
+  .guide-col::before {
+    content: "";
+    position: absolute;
+    inset: -12px -10px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.55);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+  }
+  .guide-col:hover::before { opacity: 1; }
+  .guide-col.is-dim { opacity: 0.28; }
+  .guide-col.is-dim::before { display: none; }
+  .guide-col-media { display: block; aspect-ratio: 3 / 4; background: var(--sand); overflow: hidden; }
   .guide-col-media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.6s ease; }
-  .guide-col-media:hover img { transform: scale(1.03); }
+  .guide-col:hover .guide-col-media img { transform: scale(1.03); }
+  .guide-col-head { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
   .guide-col-name { margin: 0; font-size: 22px; font-weight: 400; line-height: 1.1; }
+  .guide-col-name a { text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color 0.25s ease; }
+  .guide-col:hover .guide-col-name a { text-decoration-color: rgba(21, 14, 10, 0.4); }
   .guide-col-inspired { margin: 0; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; }
-  .guide-col-facts { margin: 6px 0 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.4; }
-  .guide-col-facts dt { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.5; margin-top: 8px; }
-  .guide-col-facts dd { margin: 0; }
-  .guide-col-listen { margin-top: 4px; }
+  .guide-col-fact p { margin: 0; font-size: 13px; line-height: 1.4; }
+  /* twistShort est écrit pour suivre « Notre twist : » ; sous son étiquette, il prend une majuscule. */
+  .guide-col-twist p { opacity: 0.85; }
+  .guide-col-twist p::first-letter { text-transform: uppercase; }
+  .guide-col-dt { display: none; }
   /* Le lecteur de la fiche est pensé pour une colonne large : ici il se resserre. */
   .guide-col-listen :global(.listen) { margin-top: 0; }
   .guide-col-listen :global(.listen-label) { font-size: 13px; }
   .guide-col-listen :global(.listen-text) { display: none; }
-  .guide-col-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(21, 14, 10, 0.12); font-size: 14px; }
+  .guide-col-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid rgba(21, 14, 10, 0.12); font-size: 14px; }
   .guide-col-price { opacity: 0.7; }
+  .guide-none { margin: 0; font-size: 16px; line-height: 1.4; }
+  .guide-none[hidden] { display: none; }
+  .guide-none-cta { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 
   /* ---- Si vous portez… ---- */
   .guide-section-head { display: flex; flex-direction: column; gap: 12px; max-width: 720px; }
@@ -437,24 +653,31 @@ const duos = LAYERING.map((d) => ({
   .guide-luma-name { font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
 
   @media (max-width: 1100px) {
-    .guide-six-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px 24px; }
-    .guide-twist { grid-template-columns: 1fr; gap: 48px; }
-    .guide-duos { gap: 32px 24px; }
-  }
-  @media (max-width: 900px) {
-    .guide-hero { padding: 40px var(--gutter-x) 24px; }
-    .guide-six { padding: 40px 0 64px; }
+    .guide-six { padding-inline: 0; gap: 32px; }
+    .guide-filters, .guide-none { padding-inline: var(--gutter-x); }
     .guide-six-row {
       display: flex;
       overflow-x: auto;
       scroll-snap-type: x mandatory;
       scroll-padding-inline: var(--gutter-x);
       gap: 16px;
-      padding: 0 var(--gutter-x);
+      padding: 12px var(--gutter-x) 0;
       scrollbar-width: none;
     }
     .guide-six-row::-webkit-scrollbar { display: none; }
-    .guide-col { flex: 0 0 70vw; scroll-snap-align: start; }
+    .guide-labels { display: none; }
+    .guide-col { flex: 0 0 min(70vw, 320px); scroll-snap-align: start; display: flex; flex-direction: column; gap: 10px; }
+    .guide-col::before { display: none; }
+    .guide-col.is-dim { display: none; }
+    .guide-col-dt { display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.5; margin-bottom: 3px; }
+    .guide-col-foot { margin-top: auto; }
+    .guide-twist { grid-template-columns: 1fr; gap: 48px; }
+    .guide-duos { gap: 32px 24px; }
+  }
+  @media (max-width: 900px) {
+    .guide-hero { padding: 40px var(--gutter-x) 24px; }
+    .guide-six { padding: 40px 0 64px; gap: 24px; }
+    .guide-filters { gap: 16px 24px; }
     .guide-wearing { padding-bottom: 64px; gap: 24px; }
     .guide-section-head h2 { font-size: 26px; }
     .guide-wearing-row { grid-template-columns: 1fr; gap: 8px; padding: 18px 0; }

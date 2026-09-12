@@ -1,0 +1,175 @@
+---
+/**
+ * « Se marie avec » dans le panneau d'achat — une rangée légère, dans le
+ * dessin des rangées « Famille olfactive » / « Pyramide olfactive », qui se
+ * déplie sur le partenaire d'accord : vignette, l'histoire du duo, le geste,
+ * « La recommandation du parfumeur » à écouter, « Ajouter les deux ».
+ * Remplace l'ancienne section pleine largeur (Sandro, 12 septembre 2026 :
+ * « quelque chose de plus léger, ici », en référence à Doré & Rose).
+ * Rien ne s'affiche si le Reflet n'est dans aucun accord (lib/layering.ts).
+ */
+import { useTranslations, localePath, type Locale } from "../../i18n";
+import LumaListen from "../LumaListen.astro";
+import { accordAudioPath, duosFor, stripVoiceTags } from "../../lib/layering";
+import { universeLabel } from "../../lib/universes";
+import { formatPrice, getDisplayPrice, getPrimaryVariant, shopifyImage, type ShopifyProduct } from "../../lib/shopify";
+
+interface Props {
+  lang: Locale;
+  handle: string;
+  products: ShopifyProduct[];
+}
+
+const { lang, handle, products } = Astro.props;
+const t = useTranslations(lang);
+
+const me = products.find((p) => p.handle === handle);
+const first = duosFor(handle)[0];
+const partnerProduct = first ? products.find((p) => p.handle === first.partner) : undefined;
+const accord =
+  first && me && partnerProduct
+    ? (() => {
+        const variant = getPrimaryVariant(partnerProduct);
+        const price = getDisplayPrice(partnerProduct);
+        return {
+          duo: first.duo,
+          iAmFirst: first.first,
+          myVariantId: getPrimaryVariant(me).id,
+          partner: {
+            name: partnerProduct.title,
+            href: localePath(lang, `/parfums/${partnerProduct.handle}`),
+            universe: universeLabel(partnerProduct.handle, lang),
+            price: formatPrice(price.amount, price.currencyCode),
+            variantId: variant.id,
+            img: partnerProduct.featuredImage ? shopifyImage(partnerProduct.featuredImage, [160, 320]) : null,
+          },
+        };
+      })()
+    : null;
+---
+
+{
+  accord && (
+    <div class="lrow" data-layering-row>
+      <button type="button" class="lrow-toggle" data-lrow-toggle aria-expanded="false">
+        <span class="lrow-label">{t("layering.title")}</span>
+        <span class="lrow-partner">{accord.partner.name}</span>
+        <svg class="lrow-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </button>
+      {/* Même révélation en douceur que « Lire le portrait » : une grille dont la rangée passe de 0fr à 1fr. */}
+      <div class="lrow-reveal">
+        <div class="lrow-inner">
+          <div class="lrow-card">
+            <a class="lrow-thumb" href={accord.partner.href} tabindex="-1" aria-hidden="true">
+              {accord.partner.img && <img src={accord.partner.img.src} srcset={accord.partner.img.srcset} sizes="72px" alt="" loading="lazy" decoding="async" />}
+            </a>
+            <div class="lrow-body">
+              <p class="lrow-kicker">
+                <span>{accord.duo.name[lang]}</span>
+                {accord.duo.status === "candidate" && <span class="lrow-candidate">{t("layering.candidate")}</span>}
+              </p>
+              <p class="lrow-story">{accord.duo.story[lang]}</p>
+              <p class="lrow-gesture"><strong>{t("layering.gesture")}</strong> {accord.duo.gesture[lang]}</p>
+              <LumaListen
+                lang={lang}
+                src={accordAudioPath(lang, accord.duo.id)}
+                text={stripVoiceTags(accord.duo.recommendation[lang])}
+                label={t("layering.recommendation")}
+                moreLabel={t("layering.readRecommendation")}
+              />
+              <div class="lrow-actions">
+                <button
+                  type="button"
+                  class="lrow-add"
+                  data-layering-add
+                  data-variants={accord.iAmFirst ? `${accord.myVariantId},${accord.partner.variantId}` : `${accord.partner.variantId},${accord.myVariantId}`}
+                  data-added-label={t("cart.added")}
+                  data-error-label={t("product.error")}
+                >
+                  <span data-layering-label>{t("layering.addBoth")}</span>
+                </button>
+                <span class="lrow-price">+ <span data-money={accord.partner.variantId}>{accord.partner.price}</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+<script>
+  import { bindLayeringAdds } from "../../lib/layering-client";
+  bindLayeringAdds();
+  for (const row of document.querySelectorAll<HTMLElement>("[data-layering-row]")) {
+    const toggle = row.querySelector<HTMLButtonElement>("[data-lrow-toggle]");
+    toggle?.addEventListener("click", () => {
+      const open = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", String(open));
+      row.classList.toggle("is-open", open);
+    });
+  }
+</script>
+
+<style>
+  /* La rangée : même dessin que les rangées du panneau (14px de haut et de bas, filet au-dessus). */
+  .lrow-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 0;
+    border: 0;
+    border-top: 1px solid rgba(21, 14, 10, 0.12);
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .lrow-toggle:focus { outline: none; }
+  .lrow-toggle:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
+  .lrow-label { font-size: 14px; font-weight: 500; text-transform: uppercase; }
+  .lrow-partner { margin-inline-start: auto; font-size: 16px; font-weight: 500; letter-spacing: 0.96px; }
+  .lrow-chevron { flex-shrink: 0; opacity: 0.7; transition: transform 0.35s ease; }
+  .is-open .lrow-chevron { transform: rotate(180deg); }
+  .lrow-reveal {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.35s ease;
+  }
+  .is-open .lrow-reveal { grid-template-rows: 1fr; opacity: 1; transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.4s ease 0.1s; }
+  .lrow-inner { min-height: 0; overflow: hidden; }
+  .lrow-card { display: flex; gap: 16px; align-items: flex-start; padding: 2px 0 18px; }
+  .lrow-thumb { display: block; flex: 0 0 72px; aspect-ratio: 4 / 5; background: var(--sand); overflow: hidden; }
+  .lrow-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .lrow-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .lrow-kicker { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rose); }
+  .lrow-candidate { padding: 3px 9px 2px; border: 1px solid currentColor; border-radius: 100px; font-size: 10px; letter-spacing: 0.1em; }
+  .lrow-story { margin: 0; font-size: 15px; line-height: 1.4; }
+  .lrow-gesture { margin: 0; font-size: 13px; line-height: 1.4; opacity: 0.75; }
+  .lrow-gesture strong { font-weight: 500; opacity: 1; }
+  .lrow-body :global(.listen) { margin-top: 6px; }
+  .lrow-actions { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+  .lrow-add {
+    padding: 11px 18px;
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  .lrow-add:hover { background: var(--ink); color: var(--bg); }
+  .lrow-add:disabled { opacity: 0.6; cursor: wait; }
+  .lrow-price { font-size: 13px; opacity: 0.6; white-space: nowrap; }
+  @media (prefers-reduced-motion: reduce) {
+    .lrow-reveal, .lrow-chevron { transition: none; }
+  }
+</style>
