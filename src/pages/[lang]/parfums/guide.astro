@@ -86,11 +86,11 @@ const materialChips = MATERIALS.filter((m) => reflets.some((r) => r.materialKeys
 const byHandle = Object.fromEntries(reflets.map((r) => [r.handle, r]));
 
 // L'accord de chaque Reflet (un seul par Reflet aujourd'hui) : le partenaire, et l'ancre vers « Les accords ».
-const accordOf: Record<string, { id: string; partner: string } | null> = Object.fromEntries(
+const accordOf: Record<string, { id: string; partner: string; partnerHandle: string } | null> = Object.fromEntries(
   reflets.map((r) => {
     const a = duosFor(r.handle)[0];
     const partner = a ? byHandle[a.partner]?.name : undefined;
-    return [r.handle, a && partner ? { id: a.duo.id, partner } : null];
+    return [r.handle, a && partner ? { id: a.duo.id, partner, partnerHandle: a.partner } : null];
   })
 );
 // twistShort est écrit pour suivre « Notre twist : » ; en tête de ligne, il prend une majuscule.
@@ -99,11 +99,6 @@ const cap = (txt: string | null) => (txt ? txt.charAt(0).toUpperCase() + txt.sli
 // La carte des six : positions dans lib/guide.ts ; Bois Alert (le best-seller) est ouvert par défaut.
 const mapPoints = reflets.map((r) => ({ ...r, map: GUIDE_REFLETS[r.handle]?.map ?? { x: 50, y: 50 } }));
 const mapDefault = mapPoints.find((r) => r.handle === "bois-alert")?.handle ?? mapPoints[0]?.handle ?? null;
-const mapLines = LAYERING.filter((d) => d.pair.every((h) => mapPoints.some((r) => r.handle === h))).map((d) => ({
-  id: d.id,
-  pair: d.pair,
-  name: d.name[lang],
-}));
 
 // Le Coffret découverte, comme sur le catalogue.
 const coffretProducts = allProducts.filter(isCoffret);
@@ -158,9 +153,10 @@ const duos = LAYERING.map((d) => ({
   {/*
     La carte des six (le « point 5 », Sandro : « très bien, j'aime beaucoup ») :
     les Reflets posés sur deux axes, frais ↔ chaud et jour ↔ soir (positions
-    dans lib/guide.ts, à déplacer là), les accords du parfumeur en traits entre
-    les points. Survoler ou toucher un point ouvre sa carte à côté, portrait
-    audio compris.
+    dans lib/guide.ts, à déplacer là). Survoler ou toucher un point ouvre sa
+    carte à côté, portrait audio compris. Plus de traits entre les points
+    (Sandro) : un bouton « Avec quoi le porter ? » en bas à gauche met le
+    partenaire d'accord en avant et estompe les autres, comme le filtre des six.
   */}
   <section class="guide-map" data-guide-map>
     <div class="guide-section-head">
@@ -186,19 +182,13 @@ const duos = LAYERING.map((d) => ({
         </span>
         <span class="guide-axis guide-axis-fresh">{t("guide.axisFresh")}</span>
         <span class="guide-axis guide-axis-warm">{t("guide.axisWarm")}</span>
-        {/* Les traits d'accord : coordonnées posées en pixels par le script (le dessin progressif a besoin de la vraie longueur). */}
-        <svg class="guide-map-lines" aria-hidden="true">
-          {mapLines.map((l) => <line data-map-line={l.id} data-pair={l.pair.join(" ")} data-name={l.name} />)}
-        </svg>
-        {/* La légende du trait : le nom de l'accord, posé le long de la ligne et incliné avec elle, comme sur une carte (Sandro : la pilule faisait cheap). */}
-        <span class="guide-map-tag" data-map-tag hidden></span>
         {
           mapPoints.map((r, i) => (
             <button
               type="button"
               class:list={["guide-dot", { "is-left": r.map.x > 68, "is-active": r.handle === mapDefault }]}
               data-map-dot={r.handle}
-              data-accord={accordOf[r.handle]?.id ?? ""}
+              data-partner={accordOf[r.handle]?.partnerHandle ?? ""}
               style={`left:${r.map.x}%;top:${r.map.y}%;--i:${i}`}
               aria-pressed={r.handle === mapDefault ? "true" : "false"}
             >
@@ -210,6 +200,10 @@ const duos = LAYERING.map((d) => ({
             </button>
           ))
         }
+        {/* « Avec quoi le porter ? » : le partenaire d'accord du Reflet choisi passe en avant, les autres s'estompent. */}
+        <button type="button" class="guide-map-pair" data-map-pair data-label-pair={t("guide.mapPairCta")} data-label-all={t("guide.all")} aria-pressed="false" hidden>
+          <span data-map-pair-label>{t("guide.mapPairCta")}</span>
+        </button>
       </div>
       </div>
       <div class="guide-map-cards">
@@ -424,137 +418,68 @@ const duos = LAYERING.map((d) => ({
     }
 
     /*
-     * La carte : survoler, viser au clavier ou toucher un point ouvre sa carte
-     * et allume le trait de son accord et le point du partenaire. La sélection
-     * reste quand la souris repart — rien ne clignote.
+     * La carte : survoler, viser au clavier ou toucher un point ouvre sa carte.
+     * « Avec quoi le porter ? » (bas gauche) passe en mode accord : le partenaire
+     * du Reflet choisi reste net avec un anneau rose, les autres s'estompent ;
+     * dans ce mode le survol ne change plus la sélection (on irait vers le
+     * partenaire en la perdant), seul un clic le fait et sort du mode.
      */
     const map = document.querySelector<HTMLElement>("[data-guide-map]");
     if (map) {
+      const plane = map.querySelector<HTMLElement>(".guide-map-plane");
       const dots = Array.from(map.querySelectorAll<HTMLButtonElement>("[data-map-dot]"));
       const cards = Array.from(map.querySelectorAll<HTMLElement>("[data-map-card]"));
-      const lines = Array.from(map.querySelectorAll<SVGLineElement>("[data-map-line]"));
-      // La position d'un Reflet, lue sur sa vignette (left/top en %).
-      const at = (handle: string) => {
-        const d = dots.find((x) => x.dataset.mapDot === handle);
-        return d ? { x: parseFloat(d.style.left), y: parseFloat(d.style.top) } : null;
-      };
+      const pairBtn = map.querySelector<HTMLButtonElement>("[data-map-pair]");
+      const pairLabel = pairBtn?.querySelector<HTMLElement>("[data-map-pair-label]");
       let current = "";
-      let ready = false; // la carte est à l'écran : on peut tracer
-      /*
-       * Le trait de l'accord (Sandro : « uniquement celui sélectionné, avec une
-       * petite animation de la ligne qui rejoint l'autre ») : orienté depuis le
-       * Reflet choisi vers son partenaire, puis tracé — la transition part de
-       * stroke-dashoffset 1 (rien) vers 0 (tout), et l'anneau du partenaire
-       * s'allume à l'arrivée (délai côté CSS).
-       */
-      const plane = map.querySelector<HTMLElement>(".guide-map-plane");
-      const tag = map.querySelector<HTMLElement>("[data-map-tag]");
-      const placeTag = (line: SVGLineElement, x1: number, y1: number, x2: number, y2: number, animate: boolean) => {
-        if (!tag || !plane) return;
-        tag.textContent = line.dataset.name ?? "";
-        // Dans l'axe du trait (jamais tête en bas), aux deux tiers du chemin vers le partenaire — pas au
-        // milieu, où un autre Reflet peut se trouver — et décalé du côté opposé au centre du plan.
-        const dx = x2 - x1;
-        const dy = y2 - y1;
-        const len = Math.hypot(dx, dy) || 1;
-        const t = 0.62;
-        const px = x1 + dx * t;
-        const py = y1 + dy * t;
-        let nx = -dy / len;
-        let ny = dx / len;
-        const cx = plane.clientWidth / 2;
-        const cy = plane.clientHeight / 2;
-        if ((px + nx * 12 - cx) ** 2 + (py + ny * 12 - cy) ** 2 < (px - nx * 12 - cx) ** 2 + (py - ny * 12 - cy) ** 2) {
-          nx = -nx;
-          ny = -ny;
+      let pairing = false;
+      const partnerOf = (handle: string) => dots.find((d) => d.dataset.mapDot === handle)?.dataset.partner ?? "";
+      const applyPairing = () => {
+        const partner = pairing ? partnerOf(current) : "";
+        plane?.classList.toggle("is-pairing", pairing);
+        for (const d of dots) d.classList.toggle("is-partner", !!partner && d.dataset.mapDot === partner);
+        if (pairBtn) {
+          pairBtn.setAttribute("aria-pressed", String(pairing));
+          pairBtn.hidden = !partnerOf(current);
+          if (pairLabel) pairLabel.textContent = (pairing ? pairBtn.dataset.labelAll : pairBtn.dataset.labelPair) ?? "";
         }
-        let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-        if (angle > 90 || angle < -90) angle += 180;
-        tag.style.left = `${px + nx * 12}px`;
-        tag.style.top = `${py + ny * 12}px`;
-        tag.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
-        tag.hidden = false;
-        if (animate) {
-          tag.classList.remove("is-in");
-          void tag.getBoundingClientRect();
-        }
-        tag.classList.add("is-in");
       };
-      const draw = (handle: string, partner: string, line: SVGLineElement, animate = true) => {
-        const from = at(handle);
-        const to = at(partner);
-        if (!from || !to || !plane) return;
-        // En pixels, dans le repère du plan : la longueur réelle pilote le dessin (dasharray = dashoffset = longueur, puis 0).
-        const w = plane.clientWidth;
-        const h = plane.clientHeight;
-        const x1 = (from.x / 100) * w, y1 = (from.y / 100) * h, x2 = (to.x / 100) * w, y2 = (to.y / 100) * h;
-        const len = Math.hypot(x2 - x1, y2 - y1);
-        line.setAttribute("x1", x1.toFixed(1));
-        line.setAttribute("y1", y1.toFixed(1));
-        line.setAttribute("x2", x2.toFixed(1));
-        line.setAttribute("y2", y2.toFixed(1));
-        line.style.strokeDasharray = String(len);
-        placeTag(line, x1, y1, x2, y2, animate);
-        if (!animate) {
-          line.style.strokeDashoffset = "0";
-          line.classList.add("is-lit");
-          return;
-        }
-        line.classList.remove("is-lit");
-        line.style.transition = "none";
-        line.style.strokeDashoffset = String(len);
-        void line.getBoundingClientRect();
-        line.style.transition = "";
-        line.classList.add("is-lit");
-        line.style.strokeDashoffset = "0";
-      };
-      // Le plan change de taille : le trait allumé est reposé, sans rejouer le dessin.
-      window.addEventListener("resize", () => {
-        const lit = lines.find((l) => l.classList.contains("is-lit"));
-        if (!lit || !current) return;
-        const partner = (lit.dataset.pair ?? "").split(" ").find((h) => h && h !== current) ?? "";
-        draw(current, partner, lit, false);
-      });
       const select = (handle: string) => {
         current = handle;
-        const accord = dots.find((d) => d.dataset.mapDot === handle)?.dataset.accord ?? "";
-        const line = accord ? lines.find((l) => l.dataset.mapLine === accord) : undefined;
-        const partner = (line?.dataset.pair ?? "").split(" ").find((h) => h && h !== handle) ?? "";
+        pairing = false;
         for (const d of dots) {
           const h = d.dataset.mapDot ?? "";
           d.classList.toggle("is-active", h === handle);
-          d.classList.toggle("is-partner", ready && h === partner);
           d.setAttribute("aria-pressed", String(h === handle));
         }
-        for (const l of lines) if (l !== line) l.classList.remove("is-lit");
-        if (line && ready) draw(handle, partner, line);
-        else if (tag) {
-          tag.hidden = true;
-          tag.classList.remove("is-in");
-        }
         for (const c of cards) c.hidden = c.dataset.mapCard !== handle;
+        applyPairing();
       };
       for (const d of dots) {
         const h = d.dataset.mapDot ?? "";
-        d.addEventListener("mouseenter", () => select(h));
-        d.addEventListener("focus", () => select(h));
+        d.addEventListener("mouseenter", () => {
+          if (!pairing) select(h);
+        });
+        d.addEventListener("focus", () => {
+          if (!pairing) select(h);
+        });
         d.addEventListener("click", () => select(h));
       }
+      pairBtn?.addEventListener("click", () => {
+        pairing = !pairing;
+        applyPairing();
+      });
       const first = dots.find((d) => d.classList.contains("is-active"))?.dataset.mapDot;
       if (first) select(first);
-      // L'entrée : les vignettes se posent l'une après l'autre quand la carte arrive à l'écran ; puis le trait du Reflet ouvert rejoint son accord.
-      const arrive = () => {
-        plane?.classList.add("is-in");
-        window.setTimeout(() => {
-          ready = true;
-          if (current) select(current);
-        }, 800);
-      };
+
+      // L'entrée : les vignettes se posent l'une après l'autre quand la carte arrive à l'écran ;
+      // une fois posées (is-settled), l'animation lâche la main pour que l'estompe puisse agir.
       let arrived = false;
       const arriveOnce = () => {
         if (arrived) return;
         arrived = true;
-        arrive();
+        plane?.classList.add("is-in");
+        window.setTimeout(() => plane?.classList.add("is-settled"), 1300);
         window.removeEventListener("scroll", checkInView);
       };
       // Secours géométrique (onglet en arrière-plan, navigateur sans observateur) : le plan est-il dans la fenêtre ?
@@ -756,31 +681,26 @@ const duos = LAYERING.map((d) => ({
   .guide-axis-evening { bottom: 14px; left: 50%; transform: translateX(-50%); }
   .guide-axis-fresh { left: 14px; top: 50%; transform: translateY(-50%); }
   .guide-axis-warm { right: 14px; top: 50%; transform: translateY(-50%); }
-  /* L'accord : un seul trait, celui du Reflet choisi, qui part de lui et rejoint l'autre (pathLength=1 → dashoffset 1 = rien, 0 = tout). */
-  .guide-map-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-  .guide-map-lines line {
-    stroke: var(--rose);
-    stroke-width: 1.25;
-    opacity: 0;
-    transition: stroke-dashoffset 0.7s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.2s ease;
-  }
-  .guide-map-lines line.is-lit { opacity: 1; }
-  .guide-map-tag {
+  /* « Avec quoi le porter ? » en bas à gauche du plan : une pastille, pleine quand le mode accord est actif. */
+  .guide-map-pair {
     position: absolute;
+    left: 14px;
+    bottom: 14px;
     z-index: 2;
-    transform-origin: center;
-    font-size: 10px;
-    line-height: 1;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--rose);
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s ease 0.55s;
+    padding: 9px 14px;
+    border: 1px solid rgba(21, 14, 10, 0.28);
+    border-radius: 100px;
+    background: var(--bg);
+    font: inherit;
+    font-size: 12px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
   }
-  .guide-map-tag.is-in { opacity: 1; }
-  .guide-map-tag[hidden] { display: none; }
+  .guide-map-pair:hover { border-color: var(--ink); }
+  .guide-map-pair[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .guide-map-pair:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
+  .guide-map-pair[hidden] { display: none; }
   /* Un Reflet = un bouton : la vignette ronde est posée sur (x, y), le nom à côté. */
   .guide-dot {
     position: absolute;
@@ -798,6 +718,9 @@ const duos = LAYERING.map((d) => ({
     opacity: 0;
   }
   .is-in .guide-dot { animation: guide-dot-in 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) calc(var(--i) * 90ms) forwards; }
+  /* Posées : l'animation lâche la main (son fill-mode l'emporterait sur l'opacité), l'estompe du mode accord peut agir. */
+  .is-settled .guide-dot { animation: none; opacity: 1; transition: opacity 0.35s ease; }
+  .is-pairing .guide-dot:not(.is-active):not(.is-partner) { opacity: 0.28; }
   @keyframes guide-dot-in { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
   .guide-dot.is-left { flex-direction: row-reverse; transform: translate(calc(-100% + 26px), -50%); }
   .guide-dot-mark {
@@ -814,8 +737,8 @@ const duos = LAYERING.map((d) => ({
   .guide-dot-name { font-size: 13px; line-height: 1; white-space: nowrap; transition: font-weight 0.2s; }
   .guide-dot:hover .guide-dot-mark, .guide-dot.is-active .guide-dot-mark { transform: scale(1.12); box-shadow: 0 0 0 1.5px var(--rose), 0 0 0 5px var(--bg); }
   .guide-dot.is-active .guide-dot-name { font-weight: 500; }
-  /* L'anneau du partenaire s'allume quand le trait l'atteint. */
-  .guide-dot.is-partner .guide-dot-mark { box-shadow: 0 0 0 1.5px var(--rose), 0 0 0 4px var(--bg); transition-delay: 0.55s; }
+  .guide-dot.is-partner .guide-dot-mark { box-shadow: 0 0 0 1.5px var(--rose), 0 0 0 4px var(--bg); transform: scale(1.12); }
+  .guide-dot.is-partner .guide-dot-name { font-weight: 500; }
   .guide-dot:focus { outline: none; }
   .guide-dot:focus-visible .guide-dot-mark { box-shadow: 0 0 0 1.5px var(--ink), 0 0 0 5px var(--bg); }
   /* La fiche du Reflet choisi, à côté : elle se fond quand on change. */
@@ -833,9 +756,7 @@ const duos = LAYERING.map((d) => ({
   .guide-inline-k { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); margin-inline-end: 4px; }
   @media (prefers-reduced-motion: reduce) {
     .guide-dot, .is-in .guide-dot { opacity: 1; animation: none; }
-    .guide-map-lines line { transition: none; }
-    .guide-dot.is-partner .guide-dot-mark { transition-delay: 0s; }
-    .guide-map-tag { transition: none; }
+    .is-settled .guide-dot { transition: none; }
     .guide-map-card { animation: none; }
   }
 
