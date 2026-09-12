@@ -22,8 +22,8 @@ const { title, text, img } = Astro.props;
   </div>
   {
     img && (
-      <div class="twist-img media-band">
-        {/* La bande occupe le container, jamais plus. */}
+      <div class="twist-img">
+        {/* L'image suit la même gouttière que le texte et que la section du parfumeur (Sandro : « même grille »). */}
         <img
           src={img.src}
           srcset={img.srcset}
@@ -39,10 +39,8 @@ const { title, text, img } = Astro.props;
 
 <style>
   /*
-   * La gouttière est portée par le bloc de texte, pas par la section : l'image
-   * est une bande de médias qui occupe tout le container --page-max, comme
-   * Scent Notes, les piliers et « You may also like ». Le texte reste rentré
-   * de --gutter-x, comme les titres de ces mêmes sections.
+   * Texte et image partagent la même gouttière (--gutter-x) : c'est la grille
+   * de la maquette, et celle de « Le mot du parfumeur » juste en dessous.
    */
   .twist {
     display: flex;
@@ -73,6 +71,10 @@ const { title, text, img } = Astro.props;
     white-space: pre-line;
   }
   .twist-img {
+    /* Alignée sur la gouttière, comme le texte au-dessus et la photo du
+       parfumeur en dessous — la maquette pose l'image dans les 72 px de marge,
+       pas en pleine largeur de container. */
+    margin-inline: var(--gutter-x);
     /* Ratio de la maquette (1296 x 560) plutôt qu'une hauteur figée : avec
        560px fixes et une largeur fluide, l'image était étirée dès qu'on
        quittait 1440px de viewport. */
