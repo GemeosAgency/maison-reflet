@@ -341,7 +341,8 @@ const duos = LAYERING.map((d) => ({
               )}
             </p>
             <div class="guide-col-listen">
-              <LumaListen lang={lang} handle={r.handle} name={r.name} />
+              {/* Colonne étroite : le libellé court du menu, sans la durée. */}
+              <LumaListen lang={lang} handle={r.handle} name={r.name} label={t("menu.listenPortrait")} />
             </div>
             <div class="guide-col-foot">
               <span class="guide-col-price" data-money={r.variantId}>{r.price}</span>
@@ -752,7 +753,7 @@ const duos = LAYERING.map((d) => ({
   .guide-map-card-line { margin: 0; font-size: 14px; line-height: 1.4; }
   .guide-map-card-line a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(21, 14, 10, 0.3); }
   .guide-map-card-line a:hover { text-decoration-color: currentColor; }
-  .guide-map-card-body :global(.listen) { margin-top: 4px; }
+  .guide-map-card-body :global(.listen-wrap) { margin-top: 4px; }
   .guide-inline-k { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); margin-inline-end: 4px; }
   @media (prefers-reduced-motion: reduce) {
     .guide-dot, .is-in .guide-dot { opacity: 1; animation: none; }
@@ -847,9 +848,11 @@ const duos = LAYERING.map((d) => ({
   .guide-col-twist { opacity: 0.9; }
   .guide-col-accord a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(21, 14, 10, 0.3); }
   .guide-col-accord a:hover { text-decoration-color: currentColor; }
-  /* Le lecteur de la fiche est pensé pour une colonne large : ici il se resserre. */
-  .guide-col-listen :global(.listen) { margin-top: 0; }
-  .guide-col-listen :global(.listen-label) { font-size: 13px; }
+  /* La pilule d'écoute dans une colonne étroite : plus petite, sans la durée. */
+  .guide-col-listen :global(.listen-wrap) { margin-top: 0; max-width: none; }
+  .guide-col-listen :global(.listen) { gap: 10px; padding: 8px 12px; font-size: 12px; }
+  .guide-col-listen :global(.listen-icon) { width: 22px; height: 22px; }
+  .guide-col-listen :global(.listen-time) { display: none; }
   .guide-col-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid rgba(21, 14, 10, 0.12); font-size: 14px; }
   .guide-col-price { opacity: 0.7; }
   .guide-none { margin: 0; font-size: 16px; line-height: 1.4; }
@@ -888,7 +891,7 @@ const duos = LAYERING.map((d) => ({
   .guide-duo-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .guide-duo-body { display: flex; flex-direction: column; gap: 10px; flex: 1; }
   .guide-duo-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; padding-top: 6px; }
-  .guide-duo-foot :global(.listen) { margin-top: 0; }
+  .guide-duo-foot :global(.listen-wrap) { margin-top: 0; }
   .guide-candidate { padding: 3px 9px 2px; border: 1px solid currentColor; border-radius: 100px; font-size: 10px; letter-spacing: 0.1em; }
   .guide-duo-body h3 { margin: 0; font-size: 22px; font-weight: 400; line-height: 1.15; }
   .guide-duo-plus { opacity: 0.5; margin: 0 4px; }

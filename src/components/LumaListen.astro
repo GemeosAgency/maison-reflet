@@ -3,10 +3,14 @@
  * Le portrait audio d'un Reflet, sur sa fiche : « Découvrir Melting Mango »
  * (le verbe de Luma, sans mention de qui parle — la voix arabe est celle de
  * la Maison). Un fichier statique pré-généré (portraits.ts), donc zéro
- * crédit à l'écoute. Une seule ligne dans la charte (Sandro voulait « moins de
- * place ») : un petit bouton rond, le libellé, la durée ; la progression est
- * une ligne fine qui n'apparaît qu'en lecture. Plus de « Lire le portrait »
- * (Sandro, 12 septembre 2026) : la description est toujours juste au-dessus.
+ * crédit à l'écoute. Le dessin est celui de la pilule d'écoute du menu
+ * (Sandro, 12 septembre 2026 : « le même design partout si ça passe ») : une
+ * pilule cerclée, toute cliquable, la pastille ronde avec le glyphe, le
+ * libellé, la durée à droite ; au survol et en lecture le contour s'affirme
+ * et seule la pastille se remplit (l'onde y bat pendant la lecture) ; la
+ * progression est un filet au bas de la pilule. Largeur bornée à celle du
+ * menu (320 px), pas pleine largeur. Plus de « Lire le portrait » : la
+ * description est toujours juste au-dessus.
  */
 import { useTranslations, type Locale } from "../i18n";
 import { portraitAudioPath } from "../lib/luma/portraits";
@@ -29,18 +33,18 @@ const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? 
 
 {
   src && (
-    <div class="listen" data-luma-listen>
-      <button type="button" class="listen-btn" data-listen-toggle aria-label={label} aria-pressed="false">
-        <svg class="listen-play" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
-        <svg class="listen-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
-        {/* L'onde qui bat pendant la lecture, comme dans le menu ; le glyphe pause revient au survol. */}
-        <span class="listen-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+    <div class="listen-wrap" data-luma-listen>
+      <button type="button" class="listen" data-listen-toggle aria-pressed="false">
+        <span class="listen-icon" aria-hidden="true">
+          <svg class="listen-play" width="12" height="12" viewBox="0 0 12 12"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
+          <svg class="listen-pause" width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
+          {/* L'onde qui bat pendant la lecture, comme dans le menu ; le glyphe pause revient au survol. */}
+          <span class="listen-eq"><i></i><i></i><i></i></span>
+        </span>
+        <span class="listen-label">{label}</span>
+        <span class="listen-time" data-listen-time aria-hidden="true">–:––</span>
+        <span class="listen-track" aria-hidden="true"><span class="listen-progress" data-listen-progress></span></span>
       </button>
-      <div class="listen-body">
-        <p class="listen-label">{label}</p>
-        <div class="listen-track" aria-hidden="true"><span class="listen-progress" data-listen-progress></span></div>
-      </div>
-      <span class="listen-time" data-listen-time aria-hidden="true">–:––</span>
       <audio preload="metadata" src={src} data-listen-audio></audio>
     </div>
   )
@@ -74,37 +78,52 @@ const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? 
 </script>
 
 <style>
-  /* Une ligne, pas un bloc : le bouton, le libellé, la durée ; la progression est la fine
-     ligne sous le libellé, visible seulement en lecture. */
+  .listen-wrap { margin-top: 14px; width: 100%; max-width: 320px; }
+  /* La pilule du menu : cerclée, toute cliquable ; le libellé à gauche de la durée. */
   .listen {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
+    position: relative;
+    display: flex;
     align-items: center;
-    gap: 2px 10px;
-    margin-top: 14px;
-  }
-  .listen-btn {
-    width: 28px;
-    height: 28px;
-    border: 1px solid var(--ink);
-    border-radius: 50%;
-    background: transparent;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid rgba(21, 14, 10, 0.3);
+    border-radius: 100px;
+    background: none;
     color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    line-height: 1;
+    text-align: start;
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.25s ease;
+  }
+  .listen:hover, .is-playing .listen { border-color: var(--ink); }
+  .listen:focus { outline: none; }
+  .listen:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+  .listen-icon {
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
+    width: 24px;
+    height: 24px;
+    border: 1px solid rgba(21, 14, 10, 0.4);
+    border-radius: 50%;
+    transition: border-color 0.25s ease, background-color 0.25s ease, color 0.25s ease;
   }
-  .listen-btn:hover, .is-playing .listen-btn { background: var(--ink); color: var(--bg); }
-  .listen-btn:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
-  .listen-pause { display: none; }
+  /* Survol et lecture : seule la pastille se remplit — le plein noir sur toute la pilule faisait « cheap ». */
+  .listen:hover .listen-icon, .is-playing .listen-icon { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .listen-label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .listen-time { margin-inline-start: auto; flex-shrink: 0; font-size: 13px; opacity: 0.55; font-variant-numeric: tabular-nums; }
+  .listen-pause, .listen-eq { display: none; }
   .is-playing .listen-play { display: none; }
-  .is-playing .listen-btn .listen-eq { display: inline-flex; }
-  .is-playing .listen-btn:hover .listen-eq { display: none; }
-  .is-playing .listen-btn:hover .listen-pause { display: block; }
-  /* L'onde sonore : trois traits qui battent tant que le portrait parle (même motif que le menu). */
-  .listen-eq { display: none; align-items: flex-end; gap: 2px; height: 10px; }
+  .is-playing .listen-icon .listen-eq { display: inline-flex; }
+  .is-playing .listen:hover .listen-icon .listen-eq { display: none; }
+  .is-playing .listen:hover .listen-pause { display: block; }
+  .listen-eq { align-items: flex-end; gap: 2px; height: 10px; }
   .listen-eq i { display: block; width: 2px; height: 35%; border-radius: 1px; background: currentColor; animation: listen-eq 0.9s ease-in-out infinite; }
   .listen-eq i:nth-child(2) { animation-delay: -0.45s; }
   .listen-eq i:nth-child(3) { animation-delay: -0.2s; }
@@ -112,16 +131,11 @@ const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? 
     0%, 100% { height: 35%; }
     50% { height: 100%; }
   }
-  /* Le libellé seul donne la hauteur du bloc : le bouton rond se centre dessus. La ligne de
-     progression est posée dessous en absolu, elle ne compte plus dans la hauteur. */
-  .listen-body { position: relative; min-width: 0; }
-  .listen-label { margin: 0; font-size: 14px; line-height: 1.3; }
-  .listen-track { position: absolute; left: 0; right: 0; bottom: -6px; height: 1px; background: rgba(21, 14, 10, 0.12); overflow: hidden; opacity: 0; transition: opacity 0.2s; }
-  .is-playing .listen-track { opacity: 1; }
-  .listen-progress { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.25s linear; }
-  .listen-time { font-size: 13px; opacity: 0.55; font-variant-numeric: tabular-nums; }
+  /* La progression : un filet au bas de la pilule, entre les deux marges, visible en lecture. */
+  .listen-track { position: absolute; inset-inline: 14px; bottom: 0; height: 1px; }
+  .listen-progress { position: absolute; inset-block: 0; inset-inline-start: 0; width: 0; background: var(--ink); transition: width 0.25s linear; }
   @media (prefers-reduced-motion: reduce) {
-    .listen-progress, .listen-track, .listen-btn { transition: none; }
+    .listen, .listen-icon, .listen-progress { transition: none; }
     .listen-eq i { animation: none; height: 60%; }
   }
 </style>
