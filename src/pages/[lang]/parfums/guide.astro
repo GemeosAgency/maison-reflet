@@ -169,7 +169,7 @@ const duos = LAYERING.map((d) => ({
     </div>
     <div class="guide-map-grid">
       <div class="guide-map-figure">
-      <div class="guide-map-plane" role="group" aria-label={t("guide.mapTitle")} data-accord-label={t("guide.mapAccord")}>
+      <div class="guide-map-plane" role="group" aria-label={t("guide.mapTitle")}>
         {/* Les libellés aux bouts des axes, sur le schéma ; les filets s'arrêtent avant les mots (Sandro). */}
         <span class="guide-axis guide-axis-day">
           <svg class="guide-glyph" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
@@ -190,7 +190,7 @@ const duos = LAYERING.map((d) => ({
         <svg class="guide-map-lines" aria-hidden="true">
           {mapLines.map((l) => <line data-map-line={l.id} data-pair={l.pair.join(" ")} data-name={l.name} />)}
         </svg>
-        {/* L'étiquette du trait — « Accord du parfumeur · Cuir gourmand » — posée à mi-chemin une fois la ligne arrivée (Sandro : « on comprend pas que le trait c'est l'accord »). */}
+        {/* La légende du trait : le nom de l'accord, posé le long de la ligne et incliné avec elle, comme sur une carte (Sandro : la pilule faisait cheap). */}
         <span class="guide-map-tag" data-map-tag hidden></span>
         {
           mapPoints.map((r, i) => (
@@ -451,9 +451,13 @@ const duos = LAYERING.map((d) => ({
       const tag = map.querySelector<HTMLElement>("[data-map-tag]");
       const placeTag = (line: SVGLineElement, x1: number, y1: number, x2: number, y2: number, animate: boolean) => {
         if (!tag || !plane) return;
-        tag.textContent = `${plane.dataset.accordLabel ?? ""} · ${line.dataset.name ?? ""}`;
+        tag.textContent = line.dataset.name ?? "";
+        // À mi-chemin, dans l'axe du trait (le texte reste lisible : jamais tête en bas), décalé d'un côté.
+        let angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+        if (angle > 90 || angle < -90) angle += 180;
         tag.style.left = `${(x1 + x2) / 2}px`;
         tag.style.top = `${(y1 + y2) / 2}px`;
+        tag.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translateY(-11px)`;
         tag.hidden = false;
         if (animate) {
           tag.classList.remove("is-in");
@@ -751,14 +755,10 @@ const duos = LAYERING.map((d) => ({
   .guide-map-tag {
     position: absolute;
     z-index: 2;
-    transform: translate(-50%, calc(-100% - 10px));
-    padding: 5px 9px 4px;
-    border-radius: 100px;
-    background: var(--bg);
-    box-shadow: 0 0 0 1px rgba(122, 34, 53, 0.25);
+    transform-origin: center;
     font-size: 10px;
     line-height: 1;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--rose);
     white-space: nowrap;

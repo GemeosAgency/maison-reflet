@@ -1,0 +1,200 @@
+---
+/**
+ * Le diaporama du menu, en composant : les photos d'un Reflet empilées, la
+ * visible en fondu croisé avec un zoom très lent, et un segment par photo
+ * façon stories — le courant se remplit au rythme du défilement, chacun se
+ * clique. Le survol de l'image fige tout. Même rythme que le menu (2,3 s).
+ *
+ * Seule la première photo est chargée avec la page ; les autres à la mise en
+ * route. La mise en route et l'arrêt se commandent par événements sur la
+ * figure : `slides:start` / `slides:stop` (le bandeau « Se marie avec » les
+ * envoie à l'ouverture et à la fermeture).
+ */
+import type { ResponsiveImage } from "../lib/sanity";
+
+interface Props {
+  slides: ResponsiveImage[];
+  name: string;
+  href?: string;
+  /** Attribut sizes des images (largeur affichée). */
+  sizes?: string;
+  class?: string;
+}
+
+const { slides, name, href, sizes = "260px", class: className } = Astro.props;
+const Media = href ? "a" : "div";
+---
+
+{
+  slides.length > 0 && (
+    <div class:list={["slides", className]} data-slides>
+      <Media class="slides-media" href={href} tabindex={href ? "-1" : undefined} aria-label={href ? name : undefined}>
+        {slides.map((slide, i) =>
+          i === 0 ? (
+            <img class="slides-img is-shown" src={slide.src} srcset={slide.srcset} sizes={sizes} alt="" loading="lazy" decoding="async" />
+          ) : (
+            <img class="slides-img" data-src={slide.src} data-srcset={slide.srcset} sizes={sizes} alt="" decoding="async" />
+          )
+        )}
+      </Media>
+      {slides.length > 1 && (
+        <div class="slides-dots">
+          {slides.map((_, i) => (
+            <button type="button" class="slides-dot" data-slides-dot={i} tabindex="-1" aria-label={`${name} ${i + 1}/${slides.length}`}></button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+<script>
+  const SLIDE_MS = 2300;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  for (const fig of document.querySelectorAll<HTMLElement>("[data-slides]")) {
+    const imgs = Array.from(fig.querySelectorAll<HTMLImageElement>(".slides-img"));
+    const dots = Array.from(fig.querySelectorAll<HTMLElement>(".slides-dot"));
+    const media = fig.querySelector<HTMLElement>(".slides-media");
+    const count = imgs.length;
+    let timer: number | undefined;
+    let index = 0;
+    let startedAt = 0;
+    let remaining = SLIDE_MS;
+    let running = false;
+    let paused = false;
+
+    const hydrate = () => {
+      for (const img of imgs) {
+        if (!img.dataset.src) continue;
+        img.src = img.dataset.src;
+        if (img.dataset.srcset) img.srcset = img.dataset.srcset;
+        img.removeAttribute("data-src");
+        img.removeAttribute("data-srcset");
+      }
+    };
+    const show = (i: number, animate: boolean) => {
+      imgs.forEach((im, k) => im.classList.toggle("is-shown", k === i));
+      dots.forEach((dot, k) => {
+        dot.classList.remove("is-current", "is-done");
+        if (k < i) dot.classList.add("is-done");
+        if (k === i && animate) {
+          void dot.offsetWidth; // relance le remplissage depuis zéro
+          dot.style.animationDuration = `${SLIDE_MS}ms`;
+          dot.classList.add("is-current");
+        }
+      });
+    };
+    const schedule = (delay: number) => {
+      window.clearTimeout(timer);
+      startedAt = performance.now();
+      remaining = delay;
+      timer = window.setTimeout(() => {
+        index = (index + 1) % count;
+        show(index, true);
+        schedule(SLIDE_MS);
+      }, delay);
+    };
+    const stop = () => {
+      window.clearTimeout(timer);
+      running = false;
+      paused = false;
+      fig.classList.remove("is-paused");
+      index = 0;
+      show(0, false);
+    };
+    const start = () => {
+      stop();
+      hydrate();
+      if (count < 2 || reducedMotion.matches) return;
+      running = true;
+      show(0, true);
+      schedule(SLIDE_MS);
+    };
+    fig.addEventListener("slides:start", start);
+    fig.addEventListener("slides:stop", stop);
+
+    for (const dot of dots) {
+      dot.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        hydrate();
+        paused = false;
+        fig.classList.remove("is-paused");
+        index = Number((dot as HTMLElement).dataset.slidesDot ?? 0);
+        show(index, !reducedMotion.matches);
+        if (!reducedMotion.matches) {
+          running = true;
+          schedule(SLIDE_MS);
+        }
+      });
+    }
+    media?.addEventListener("mouseenter", () => {
+      if (!running || paused) return;
+      paused = true;
+      window.clearTimeout(timer);
+      remaining = Math.max(200, remaining - (performance.now() - startedAt));
+      fig.classList.add("is-paused");
+    });
+    media?.addEventListener("mouseleave", () => {
+      if (!running || !paused) return;
+      paused = false;
+      fig.classList.remove("is-paused");
+      schedule(remaining);
+    });
+  }
+</script>
+
+<style>
+  .slides { display: flex; flex-direction: column; }
+  .slides-media { position: relative; display: block; aspect-ratio: 3 / 4; overflow: hidden; background: var(--sand); }
+  .slides-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transform: scale(1);
+    transition: opacity 0.6s ease;
+  }
+  .slides-img.is-shown { opacity: 1; animation: slides-kenburns 3.1s ease-out forwards; }
+  @keyframes slides-kenburns {
+    from { transform: scale(1); }
+    to { transform: scale(1.06); }
+  }
+  .slides-dots { display: flex; gap: 4px; height: 14px; margin-top: 10px; }
+  .slides-dot {
+    position: relative;
+    flex: 1 1 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .slides-dot::before,
+  .slides-dot::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 6px;
+    height: 2px;
+  }
+  .slides-dot::before { background: rgba(21, 14, 10, 0.14); transition: background-color 0.2s ease; }
+  .slides-dot:hover::before { background: rgba(21, 14, 10, 0.3); }
+  .slides-dot::after { background: var(--ink); transform: scaleX(0); transform-origin: 0 50%; }
+  :global([dir="rtl"]) .slides-dot::after { transform-origin: 100% 50%; }
+  .slides-dot.is-done::after { transform: scaleX(1); }
+  .slides-dot.is-current::after { animation: slides-dot 2300ms linear forwards; }
+  @keyframes slides-dot {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  .slides.is-paused .slides-img,
+  .slides.is-paused .slides-dot::after { animation-play-state: paused; }
+  @media (prefers-reduced-motion: reduce) {
+    .slides-img { transition: none; }
+    .slides-img.is-shown, .slides-dot.is-current::after { animation: none; }
+    .slides-dot.is-current::after { transform: scaleX(1); }
+  }
+</style>
