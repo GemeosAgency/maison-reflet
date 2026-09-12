@@ -112,9 +112,11 @@ const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? 
     0%, 100% { height: 35%; }
     50% { height: 100%; }
   }
-  .listen-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  /* Le libellé seul donne la hauteur du bloc : le bouton rond se centre dessus. La ligne de
+     progression est posée dessous en absolu, elle ne compte plus dans la hauteur. */
+  .listen-body { position: relative; min-width: 0; }
   .listen-label { margin: 0; font-size: 14px; line-height: 1.3; }
-  .listen-track { height: 1px; background: rgba(21, 14, 10, 0.12); overflow: hidden; opacity: 0; transition: opacity 0.2s; }
+  .listen-track { position: absolute; left: 0; right: 0; bottom: -6px; height: 1px; background: rgba(21, 14, 10, 0.12); overflow: hidden; opacity: 0; transition: opacity 0.2s; }
   .is-playing .listen-track { opacity: 1; }
   .listen-progress { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.25s linear; }
   .listen-time { font-size: 13px; opacity: 0.55; font-variant-numeric: tabular-nums; }
