@@ -879,7 +879,9 @@ const duos = LAYERING.map((d) => ({
       scrollbar-width: none;
     }
     .guide-six-row::-webkit-scrollbar { display: none; }
-    .guide-map-grid { grid-template-columns: 1fr; gap: 32px; }
+    /* Une colonne : le plan garde une largeur bornée, sinon il s'étire sur toute la page. */
+    .guide-map-grid { grid-template-columns: 1fr; gap: 28px; }
+    .guide-map-plane, .guide-map-card { max-width: 640px; }
     .guide-col { flex: 0 0 min(70vw, 320px); scroll-snap-align: start; display: flex; flex-direction: column; gap: 10px; }
     .guide-col::before { display: none; }
     .guide-col.is-dim { display: none; }
