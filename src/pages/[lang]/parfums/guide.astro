@@ -155,7 +155,7 @@ const duos = LAYERING.map((d) => ({
     les Reflets posés sur deux axes, frais ↔ chaud et jour ↔ soir (positions
     dans lib/guide.ts, à déplacer là). Survoler ou toucher un point ouvre sa
     carte à côté, portrait audio compris. Plus de traits entre les points
-    (Sandro) : un bouton « Avec quoi le porter ? » en bas à gauche met le
+    (Sandro) : un bouton « Se marie avec… » en bas à gauche (le mot de la fiche et du guide) met le
     partenaire d'accord en avant et estompe les autres, comme le filtre des six.
   */}
   <section class="guide-map" data-guide-map>
@@ -200,9 +200,9 @@ const duos = LAYERING.map((d) => ({
             </button>
           ))
         }
-        {/* « Avec quoi le porter ? » : le partenaire d'accord du Reflet choisi passe en avant, les autres s'estompent. */}
-        <button type="button" class="guide-map-pair" data-map-pair data-label-pair={t("guide.mapPairCta")} data-label-all={t("guide.all")} aria-pressed="false" hidden>
-          <span data-map-pair-label>{t("guide.mapPairCta")}</span>
+        {/* « Se marie avec… » : le partenaire d'accord du Reflet choisi passe en avant, les autres s'estompent. */}
+        <button type="button" class="guide-map-pair" data-map-pair data-label-pair={`${t("layering.title")}…`} data-label-all={t("guide.all")} aria-pressed="false" hidden>
+          <span data-map-pair-label>{t("layering.title")}…</span>
         </button>
       </div>
       </div>
@@ -419,7 +419,7 @@ const duos = LAYERING.map((d) => ({
 
     /*
      * La carte : survoler, viser au clavier ou toucher un point ouvre sa carte.
-     * « Avec quoi le porter ? » (bas gauche) passe en mode accord : le partenaire
+     * « Se marie avec… » (bas gauche) passe en mode accord : le partenaire
      * du Reflet choisi reste net avec un anneau rose, les autres s'estompent ;
      * dans ce mode le survol ne change plus la sélection (on irait vers le
      * partenaire en la perdant), seul un clic le fait et sort du mode.
@@ -681,7 +681,7 @@ const duos = LAYERING.map((d) => ({
   .guide-axis-evening { bottom: 14px; left: 50%; transform: translateX(-50%); }
   .guide-axis-fresh { left: 14px; top: 50%; transform: translateY(-50%); }
   .guide-axis-warm { right: 14px; top: 50%; transform: translateY(-50%); }
-  /* « Avec quoi le porter ? » en bas à gauche du plan : une pastille, pleine quand le mode accord est actif. */
+  /* « Se marie avec… » en bas à gauche du plan : une pastille, pleine quand le mode accord est actif. */
   .guide-map-pair {
     position: absolute;
     left: 14px;
