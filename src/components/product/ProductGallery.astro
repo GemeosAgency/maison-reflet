@@ -10,11 +10,18 @@
  * resterait seule sur une rangée de paire passe en pleine largeur. Avec les
  * six photos d'Ultra Cuir : flacon · framboises + étiquette · main · bouchon
  * + boîte — quatre rangées au lieu de six.
+ *
+ * Un clic sur une photo l'ouvre en grand (Sandro : « comme sur les sites bien
+ * faits ») : une visionneuse plein écran sur le fond du site, flèches, compteur,
+ * clavier (Échap, ← →), balayage au doigt ; le clic sur l'image passe à la
+ * suivante, le clic à côté referme.
  */
 import type { ResponsiveImage } from "../../lib/sanity";
+import { useTranslations, type Locale } from "../../i18n";
 
 interface Props {
   images: (ResponsiveImage & { alt: string })[];
+  lang: Locale;
   /**
    * Ratio d'un cliché. 720/896 sur la fiche parfum, 1/1 sur la page coffret
    * (maquette Discovery : deux carrés de 720).
@@ -22,7 +29,8 @@ interface Props {
   ratio?: string;
 }
 
-const { images, ratio = "720 / 896" } = Astro.props;
+const { images, lang, ratio = "720 / 896" } = Astro.props;
+const t = useTranslations(lang);
 
 /** Pleine largeur ou moitié : la première, puis un cycle « paire, paire, pleine ». */
 function isFull(i: number, count: number): boolean {
@@ -34,10 +42,15 @@ function isFull(i: number, count: number): boolean {
 }
 ---
 
-<div class="pgallery" style={`--pgallery-ratio: ${ratio}`}>
+<div class="pgallery" style={`--pgallery-ratio: ${ratio}`} data-pgallery>
   {
     images.map((im, i) => (
-      <div class:list={["pgallery-shot", { "is-full": isFull(i, images.length) }]}>
+      <button
+        type="button"
+        class:list={["pgallery-shot", { "is-full": isFull(i, images.length) }]}
+        data-gallery-open={i}
+        aria-label={`${t("gallery.enlarge")} — ${im.alt} (${i + 1}/${images.length})`}
+      >
         <img
           src={im.src}
           srcset={im.srcset}
@@ -47,10 +60,106 @@ function isFull(i: number, count: number): boolean {
           fetchpriority={i === 0 ? "high" : undefined}
           decoding="async"
         />
-      </div>
+      </button>
     ))
   }
 </div>
+
+{/* La visionneuse : une seule par page, cachée tant qu'aucune photo n'est ouverte. */}
+<div class="plightbox" data-lightbox role="dialog" aria-modal="true" aria-label={t("gallery.viewer")} aria-hidden="true" hidden>
+  <div class="plightbox-backdrop" data-lightbox-close></div>
+  <button type="button" class="plightbox-close" data-lightbox-close aria-label={t("gallery.close")}>
+    <img src="/brand/close.svg" alt="" width="16" height="16" />
+  </button>
+  <button type="button" class="plightbox-nav plightbox-prev" data-lightbox-prev aria-label={t("gallery.prev")}>
+    <svg width="14" height="24" viewBox="0 0 14 24" aria-hidden="true"><path d="M12 2 2 12l10 10" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+  </button>
+  <figure class="plightbox-figure">
+    <img class="plightbox-img" data-lightbox-img alt="" sizes="100vw" decoding="async" />
+  </figure>
+  <button type="button" class="plightbox-nav plightbox-next" data-lightbox-next aria-label={t("gallery.next")}>
+    <svg width="14" height="24" viewBox="0 0 14 24" aria-hidden="true"><path d="m2 2 10 10L2 22" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+  </button>
+  <p class="plightbox-count" data-lightbox-count aria-live="polite"></p>
+</div>
+
+<script>
+  const gallery = document.querySelector<HTMLElement>("[data-pgallery]");
+  const box = document.querySelector<HTMLElement>("[data-lightbox]");
+  if (gallery && box) {
+    // Le rétrécissement de type ne suit pas dans les fonctions : on fige la référence.
+    const lb: HTMLElement = box;
+    const shots = Array.from(gallery.querySelectorAll<HTMLImageElement>(".pgallery-shot img"));
+    const img = lb.querySelector<HTMLImageElement>("[data-lightbox-img]")!;
+    const count = lb.querySelector<HTMLElement>("[data-lightbox-count]")!;
+    const closeBtn = lb.querySelector<HTMLButtonElement>(".plightbox-close")!;
+    let index = 0;
+    let lastFocused: HTMLElement | null = null;
+
+    function show(i: number) {
+      index = (i + shots.length) % shots.length;
+      const src = shots[index];
+      // Le même srcset que la vignette, avec sizes=100vw : le navigateur prend
+      // la plus grande source disponible.
+      img.classList.remove("is-in");
+      img.src = src.currentSrc || src.src;
+      img.srcset = src.srcset;
+      img.alt = src.alt;
+      // Forcer un rendu entre les deux classes pour que le fondu joue — sans
+      // requestAnimationFrame, qui ne vient pas dans un onglet en arrière-plan.
+      void img.offsetWidth;
+      img.classList.add("is-in");
+      count.textContent = `${index + 1} / ${shots.length}`;
+      lb.classList.toggle("is-single", shots.length < 2);
+    }
+    function open(i: number) {
+      lastFocused = document.activeElement as HTMLElement | null;
+      lb.hidden = false;
+      lb.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+      show(i);
+      void lb.offsetWidth;
+      lb.classList.add("is-open");
+      closeBtn.focus();
+    }
+    function close() {
+      lb.classList.remove("is-open");
+      lb.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+      window.setTimeout(() => {
+        lb.hidden = true;
+      }, 250);
+      lastFocused?.focus();
+    }
+
+    for (const btn of gallery.querySelectorAll<HTMLButtonElement>("[data-gallery-open]")) {
+      btn.addEventListener("click", () => open(Number(btn.dataset.galleryOpen ?? 0)));
+    }
+    for (const c of lb.querySelectorAll("[data-lightbox-close]")) c.addEventListener("click", close);
+    lb.querySelector("[data-lightbox-prev]")?.addEventListener("click", () => show(index - 1));
+    lb.querySelector("[data-lightbox-next]")?.addEventListener("click", () => show(index + 1));
+    // Le clic sur la photo elle-même : la suivante.
+    img.addEventListener("click", () => shots.length > 1 && show(index + 1));
+    document.addEventListener("keydown", (e) => {
+      if (lb.hidden) return;
+      if (e.key === "Escape") close();
+      else if (e.key === "ArrowRight") show(index + 1);
+      else if (e.key === "ArrowLeft") show(index - 1);
+    });
+    // Balayage au doigt : un geste horizontal net change de photo.
+    let touchX: number | null = null;
+    lb.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "touch") touchX = e.clientX;
+    });
+    lb.addEventListener("pointerup", (e) => {
+      if (touchX === null) return;
+      const dx = e.clientX - touchX;
+      touchX = null;
+      if (Math.abs(dx) < 40) return;
+      show(dx < 0 ? index + 1 : index - 1);
+    });
+  }
+</script>
 
 <style>
   .pgallery {
@@ -59,16 +168,97 @@ function isFull(i: number, count: number): boolean {
     gap: 2px;
   }
   .pgallery-shot {
+    display: block;
+    padding: 0;
+    border: 0;
     aspect-ratio: var(--pgallery-ratio, 720 / 896);
     background: var(--sand);
     overflow: hidden;
+    cursor: zoom-in;
   }
+  .pgallery-shot:focus-visible { outline: 1px solid var(--ink); outline-offset: -3px; }
   .pgallery-shot.is-full { grid-column: 1 / -1; }
   .pgallery-shot img {
+    display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
+
+  /* ===== Visionneuse ===== */
+  .plightbox {
+    position: fixed;
+    inset: 0;
+    /* Au-dessus du panier et de Luma (60). */
+    z-index: 70;
+    display: grid;
+    grid-template-columns: 72px 1fr 72px;
+    grid-template-rows: 1fr auto;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .plightbox.is-open { opacity: 1; }
+  .plightbox[hidden] { display: none; }
+  .plightbox-backdrop { position: absolute; inset: 0; background: rgba(241, 238, 233, 0.97); cursor: zoom-out; }
+  .plightbox-figure {
+    position: relative;
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 56px 0 8px;
+    box-sizing: border-box;
+    pointer-events: none;
+  }
+  .plightbox-img {
+    max-width: 100%;
+    /* Bornée à l'écran (l'en-tête de la visionneuse et le compteur pris en compte). */
+    max-height: calc(100dvh - 120px);
+    object-fit: contain;
+    pointer-events: auto;
+    cursor: pointer;
+    opacity: 0;
+    transform: scale(0.985);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .plightbox-img.is-in { opacity: 1; transform: none; }
+  .plightbox-close,
+  .plightbox-nav {
+    position: relative;
+    z-index: 1;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
+    padding: 12px;
+    line-height: 0;
+  }
+  .plightbox-close { position: absolute; top: 16px; inset-inline-end: 16px; }
+  .plightbox-nav { grid-row: 1; justify-self: center; opacity: 0.6; transition: opacity 0.2s ease; }
+  .plightbox-nav:hover { opacity: 1; }
+  .plightbox-prev { grid-column: 1; }
+  .plightbox-next { grid-column: 3; }
+  [dir="rtl"] .plightbox-nav svg { transform: scaleX(-1); }
+  .plightbox.is-single .plightbox-nav { visibility: hidden; }
+  .plightbox-count {
+    position: relative;
+    z-index: 1;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin: 0;
+    padding: 12px 0 20px;
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+    font-variant-numeric: tabular-nums;
+  }
+  .plightbox-close:focus-visible,
+  .plightbox-nav:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
 
   @media (max-width: 900px) {
     .pgallery {
@@ -83,5 +273,12 @@ function isFull(i: number, count: number): boolean {
       scroll-snap-align: start;
       aspect-ratio: 4 / 5;
     }
+    .plightbox { grid-template-columns: 44px 1fr 44px; }
+    .plightbox-figure { padding: 64px 0 8px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .plightbox,
+    .plightbox-img { transition: none; }
   }
 </style>
