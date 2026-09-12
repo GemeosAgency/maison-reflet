@@ -80,8 +80,9 @@ const accord =
         </button>
         {/* Tout est calé en bas : le diaporama juste au-dessus du texte (Sandro). */}
         <div class="lay-content">
+        {/* Pleine largeur (Sandro), en 4/5 pour garder de la place au texte ; le partenaire s'ouvre dans un nouvel onglet, la fiche courante reste. */}
         <div class="lay-slides">
-          <PhotoSlides slides={accord.partner.slides} name={accord.partner.name} href={accord.partner.href} sizes="258px" />
+          <PhotoSlides slides={accord.partner.slides} name={accord.partner.name} href={accord.partner.href} newTab sizes="420px" ratio="4 / 5" />
         </div>
         <div class="lay-body">
           <div class="lay-head">
@@ -90,7 +91,7 @@ const accord =
               {accord.duo.status === "candidate" && <span class="lay-candidate">{t("layering.candidate")}</span>}
             </p>
             <h2 class="lay-title">
-              {t("layering.title")} <a href={accord.partner.href}>{accord.partner.name}</a>
+              {t("layering.title")} <a href={accord.partner.href} target="_blank" rel="noopener">{accord.partner.name}</a>
             </h2>
             {accord.partner.universe && <p class="lay-universe">{accord.partner.universe}</p>}
           </div>
@@ -175,7 +176,7 @@ const accord =
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    padding: 56px 32px 40px;
+    padding: 52px 32px 32px;
     background: var(--bg);
     border-radius: 8px;
     box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.08);
@@ -197,9 +198,13 @@ const accord =
      margin-top:auto le pousse en bas quand il y a de la place, et laisse le panneau
      défiler normalement quand il n'y en a pas (justify-content: flex-end rendrait
      le haut inaccessible). */
-  .lay-content { margin-top: auto; display: flex; flex-direction: column; gap: 24px; }
-  .lay-slides { width: 100%; max-width: 258px; }
-  .lay-body { display: flex; flex-direction: column; gap: 20px; }
+  .lay-content { margin-top: auto; display: flex; flex-direction: column; gap: 20px; }
+  .lay-slides { width: 100%; }
+  /* Pleine largeur, mais jamais au prix du bouton : l'image cède de la hauteur sur les écrans bas
+     (recadrée par le bas — le bouchon reste, l'ombre du socle s'en va) et retrouve son 4/5 sur les grands. */
+  .lay-slides :global(.slides-media) { max-height: calc(100vh - 470px); min-height: 300px; }
+  .lay-slides :global(.slides-img) { object-position: center 30%; }
+  .lay-body { display: flex; flex-direction: column; gap: 16px; }
   .lay-head { display: flex; flex-direction: column; gap: 8px; }
   .lay-kicker { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rose); }
   .lay-candidate { padding: 3px 9px 2px; border: 1px solid currentColor; border-radius: 100px; font-size: 10px; letter-spacing: 0.1em; }
@@ -212,25 +217,24 @@ const accord =
   .lay-gesture strong { font-weight: 500; opacity: 1; }
   .lay-body :global(.listen) { margin-top: 0; }
   .lay-actions { display: flex; align-items: center; gap: 16px; }
-  /* Comme le bouton principal : libellé à gauche, prix des deux à droite — sans prendre toute la largeur (Sandro). */
+  /* Le bouton principal de la fiche, en rouge (Sandro) : libellé à gauche, prix des deux à droite, sans prendre toute la largeur. */
   .lay-add {
     display: inline-flex;
     align-items: center;
     gap: 28px;
-    padding: 13px 20px;
-    border: 1px solid var(--ink);
-    border-radius: 2px;
-    background: none;
-    color: var(--ink);
+    height: 52px;
+    padding: 8px 24px;
+    border: 0;
+    background: var(--rose);
+    color: var(--paper);
     font: inherit;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 500;
-    letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition: opacity 0.15s;
   }
-  .lay-add:hover { background: var(--ink); color: var(--bg); }
+  .lay-add:hover { opacity: 0.92; }
   .lay-add:disabled { opacity: 0.6; cursor: wait; }
 
   @media (max-width: 560px) {
@@ -245,9 +249,8 @@ const accord =
       padding: 24px 20px 32px;
     }
     .lay.is-open .lay-panel { transform: translateX(0); }
-    .lay-panel { padding-top: 56px; }
-    .lay-slides { max-width: 200px; }
-    .lay-body { gap: 16px; }
+    .lay-panel { padding-top: 52px; }
+    .lay-body { gap: 14px; }
   }
   @media (prefers-reduced-motion: reduce) {
     .lay-backdrop, .lay-panel { transition: none; }

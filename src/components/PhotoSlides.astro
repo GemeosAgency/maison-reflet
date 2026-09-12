@@ -18,17 +18,29 @@ interface Props {
   href?: string;
   /** Attribut sizes des images (largeur affichée). */
   sizes?: string;
+  /** Format de l'image, ex. "3 / 4" (défaut) ou "4 / 5". */
+  ratio?: string;
+  /** Le lien s'ouvre dans un nouvel onglet (la fiche courante reste ouverte). */
+  newTab?: boolean;
   class?: string;
 }
 
-const { slides, name, href, sizes = "260px", class: className } = Astro.props;
+const { slides, name, href, sizes = "260px", ratio = "3 / 4", newTab = false, class: className } = Astro.props;
 const Media = href ? "a" : "div";
 ---
 
 {
   slides.length > 0 && (
     <div class:list={["slides", className]} data-slides>
-      <Media class="slides-media" href={href} tabindex={href ? "-1" : undefined} aria-label={href ? name : undefined}>
+      <Media
+        class="slides-media"
+        href={href}
+        target={href && newTab ? "_blank" : undefined}
+        rel={href && newTab ? "noopener" : undefined}
+        tabindex={href ? "-1" : undefined}
+        aria-label={href ? name : undefined}
+        style={`aspect-ratio: ${ratio}`}
+      >
         {slides.map((slide, i) =>
           i === 0 ? (
             <img class="slides-img is-shown" src={slide.src} srcset={slide.srcset} sizes={sizes} alt="" loading="lazy" decoding="async" />

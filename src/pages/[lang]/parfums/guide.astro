@@ -600,10 +600,10 @@ const duos = LAYERING.map((d) => ({
           {duos.map(({ duo, first, second, total }) => (
             <li class="guide-duo" id={`accord-${duo.id}`}>
               <div class="guide-duo-pair">
-                <a class="guide-duo-media" href={first.href} aria-label={first.name}>
+                <a class="guide-duo-media" href={first.href} target="_blank" rel="noopener" aria-label={first.name}>
                   {first.img && <img src={first.img.src} srcset={first.img.srcset} sizes="140px" alt="" loading="lazy" decoding="async" />}
                 </a>
-                <a class="guide-duo-media" href={second.href} aria-label={second.name}>
+                <a class="guide-duo-media" href={second.href} target="_blank" rel="noopener" aria-label={second.name}>
                   {second.img && <img src={second.img.src} srcset={second.img.srcset} sizes="140px" alt="" loading="lazy" decoding="async" />}
                 </a>
               </div>
@@ -613,7 +613,7 @@ const duos = LAYERING.map((d) => ({
                   {duo.status === "candidate" && <span class="guide-candidate">{t("layering.candidate")}</span>}
                 </p>
                 <h3>
-                  <a href={first.href}>{first.name}</a> <span class="guide-duo-plus">+</span> <a href={second.href}>{second.name}</a>
+                  <a href={first.href} target="_blank" rel="noopener">{first.name}</a> <span class="guide-duo-plus">+</span> <a href={second.href} target="_blank" rel="noopener">{second.name}</a>
                 </h3>
                 <p class="guide-duo-story">{duo.story[lang]}</p>
                 <p class="guide-duo-gesture"><strong>{t("layering.gesture")}</strong> {duo.gesture[lang]}</p>
