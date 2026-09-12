@@ -1,0 +1,55 @@
+---
+/**
+ * La ligne twist du panneau d'achat : « Inspiré de Tuscan Leather · Notre
+ * twist : une framboise plus vive, un trio de safrans, une facette d'iris ».
+ * Le twist devient visible avant même de descendre vers la section dédiée
+ * (Sandro, 12 septembre 2026 : mettre les twists en avant). Texte dans
+ * lib/guide.ts, référence depuis Sanity (inspiredBy).
+ */
+import { useTranslations, type Locale } from "../../i18n";
+import { GUIDE_REFLETS } from "../../lib/guide";
+
+interface Props {
+  lang: Locale;
+  handle: string;
+  inspiredBy: string | null;
+}
+
+const { lang, handle, inspiredBy } = Astro.props;
+const t = useTranslations(lang);
+const twist = GUIDE_REFLETS[handle]?.twistShort[lang] ?? null;
+---
+
+{
+  twist && (
+    <p class="twist-line">
+      {inspiredBy && (
+        <span class="twist-line-ref">
+          {t("product.inspiredBy")} {inspiredBy}
+        </span>
+      )}
+      <span class="twist-line-text">
+        <strong>{t("product.ourTwist")}</strong> {twist}.
+      </span>
+    </p>
+  )
+}
+
+<style>
+  .twist-line {
+    margin: 14px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .twist-line-ref {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--rose);
+  }
+  .twist-line-text { opacity: 0.85; }
+  .twist-line-text strong { font-weight: 500; }
+</style>

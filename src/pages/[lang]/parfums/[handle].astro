@@ -20,6 +20,8 @@ import PyramidDrawer from "../../../components/product/PyramidDrawer.astro";
 import ScentNotes from "../../../components/product/ScentNotes.astro";
 import TwistSection from "../../../components/product/TwistSection.astro";
 import PerfumerWord from "../../../components/product/PerfumerWord.astro";
+import TwistLine from "../../../components/product/TwistLine.astro";
+import LayeringBlock from "../../../components/product/LayeringBlock.astro";
 import {
   formatPrice,
   getAllProducts,
@@ -392,6 +394,7 @@ const productJsonLd = {
         increaseLabel={t("cart.increase")}
         perks={perks}
       >
+        <TwistLine slot="after-description" lang={lang} handle={product.handle} inspiredBy={inspiredMap[product.handle] ?? null} />
         <LumaListen slot="after-description" lang={lang} handle={product.handle} name={product.title} />
         <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={product.title} kind="parfum" />
       </ProductInfoPanel>
@@ -403,6 +406,9 @@ const productJsonLd = {
   {specificTwist && <TwistSection title={t("product.specificTwist")} text={specificTwist} img={twistImg} />}
 
   {perfumerWord && <PerfumerWord title={t("product.perfumerWord")} quote={perfumerWord} img={perfumerPhoto} />}
+
+  {/* Se marie avec : les duos de layering qui incluent ce Reflet (lib/layering.ts). */}
+  <LayeringBlock lang={lang} handle={product.handle} products={products} />
 
   <Reassurance items={reassurances} />
 

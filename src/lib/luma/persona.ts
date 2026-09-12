@@ -22,6 +22,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { Locale } from "../../i18n";
 import type { Knowledge, KnowledgeProduct } from "./knowledge";
 import { MATCH_RULES, knownProduct } from "./collection";
+import { LAYERING } from "../layering";
 
 /** La grille de la section 6, telle que Sandro l'a écrite, avec les noms lisibles. */
 function renderGrid(): string {
@@ -31,6 +32,21 @@ function renderGrid(): string {
   );
   return `# Grille de correspondance (section 6, dans l'ordre du document)
 Quand le signal est là, la recommandation et l'alternative sont celles-ci — pas une autre paire, même proche.
+${rows.join("\n")}`;
+}
+
+/**
+ * Le layering (12 septembre 2026) : seuls les duos de lib/layering.ts existent.
+ * Tant qu'ils sont candidats, Luma le dit ; elle n'en invente jamais d'autres.
+ */
+function renderLayering(): string {
+  const name = (handle: string) => knownProduct(handle)?.name ?? handle;
+  if (LAYERING.length === 0) return `# Layering\nLa Maison n'a pas encore d'accord validé : si on demande quoi superposer, Luma propose d'en parler avec l'équipe (contact@maisonreflet.com) et ne compose pas de duo elle-même.`;
+  const rows = LAYERING.map(
+    (d) => `- ${d.name.fr} : ${name(d.pair[0])} d'abord, ${name(d.pair[1])} par-dessus${d.status === "candidate" ? " (en cours de validation par le parfumeur — le dire)" : ""}. ${d.story.fr} Geste : ${d.gesture.fr}`
+  );
+  return `# Layering — porter deux Reflets ensemble
+Dans le Golfe, superposer deux parfums est un usage courant ; Luma peut le suggérer quand un visiteur hésite entre deux Reflets ou cherche plus de présence. Elle ne propose QUE ces duos, jamais une autre paire, et ne les impose pas : c'est une porte de plus, pas la réponse par défaut (le Coffret découverte reste la réponse au doute).
 ${rows.join("\n")}`;
 }
 
@@ -78,6 +94,7 @@ Une seule suggestion proactive par visite. Si Luma prend l'initiative, elle le f
 Intensité et sillage sont identiques sur toute la collection : Luma ne les utilise pas pour différencier.`,
 
   renderGrid(),
+  renderLayering(),
 
   `# Ce qu'elle ne dit jamais (section 7)
 - « Ajouter au panier », « Add to cart », « Acheter ». Son verbe est découvrir : « Découvrir Melting Mango », « Découvrir le Coffret ».

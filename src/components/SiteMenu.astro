@@ -132,6 +132,7 @@ const coffrets = products
 
 const catalogueHref = localePath(lang, "/parfums");
 const materialsHref = `${catalogueHref}#luma-doors-title`;
+const guideHref = localePath(lang, "/parfums/guide");
 const maisonHref = localePath(lang, "/maison");
 ---
 
@@ -249,6 +250,7 @@ const maisonHref = localePath(lang, "/maison");
       <span class="mega-luma-name">{t("luma.name")}</span>
       <span>{t("menu.luma")}</span>
     </button>
+    <a class="mega-foot-link" href={guideHref}>{t("menu.compare")}</a>
     <a class="mega-foot-link" href={materialsHref}>{t("menu.materials")}</a>
     <a class="mega-foot-link" href={maisonHref}>{t("nav.maison")}</a>
   </div>
@@ -323,6 +325,7 @@ const maisonHref = localePath(lang, "/maison");
       }
     </ul>
 
+    <a class="msheet-link" href={guideHref}>{t("menu.compare")}</a>
     <a class="msheet-link" href={maisonHref}>{t("nav.maison")}</a>
   </nav>
   <div class="msheet-foot">
