@@ -15,7 +15,7 @@
 import { useTranslations, localePath, type Locale } from "../../i18n";
 import LumaListen from "../LumaListen.astro";
 import PhotoSlides from "../PhotoSlides.astro";
-import { accordAudioPath, duosFor, stripVoiceTags } from "../../lib/layering";
+import { accordAudioPath, duosFor } from "../../lib/layering";
 import { universeLabel } from "../../lib/universes";
 import { getRecoImages, responsiveImage, type ResponsiveImage } from "../../lib/sanity";
 import { formatPrice, getDisplayPrice, getPrimaryVariant, isSampleVariantTitle, shopifyImage, type ShopifyProduct } from "../../lib/shopify";
@@ -100,9 +100,7 @@ const accord =
           <LumaListen
             lang={lang}
             src={accordAudioPath(lang, accord.duo.id)}
-            text={stripVoiceTags(accord.duo.recommendation[lang])}
             label={t("layering.recommendation")}
-            moreLabel={t("layering.readRecommendation")}
           />
           <div class="lay-actions">
             <button

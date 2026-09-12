@@ -5,11 +5,11 @@
  * la Maison). Un fichier statique pré-généré (portraits.ts), donc zéro
  * crédit à l'écoute. Une seule ligne dans la charte (Sandro voulait « moins de
  * place ») : un petit bouton rond, le libellé, la durée ; la progression est
- * une ligne fine qui n'apparaît qu'en lecture ; le texte se déplie pour qui
- * ne peut pas écouter.
+ * une ligne fine qui n'apparaît qu'en lecture. Plus de « Lire le portrait »
+ * (Sandro, 12 septembre 2026) : la description est toujours juste au-dessus.
  */
 import { useTranslations, type Locale } from "../i18n";
-import { portraitAudioPath, portraitText } from "../lib/luma/portraits";
+import { portraitAudioPath } from "../lib/luma/portraits";
 
 interface Props {
   lang: Locale;
@@ -18,17 +18,13 @@ interface Props {
   name?: string;
   /** …ou n'importe quel audio statique : la recommandation du parfumeur sur un accord, par exemple. */
   src?: string | null;
-  text?: string | null;
   label?: string;
-  moreLabel?: string;
 }
 
 const { lang, handle, name } = Astro.props;
 const t = useTranslations(lang);
 const src = Astro.props.src ?? (handle ? portraitAudioPath(lang, handle) : null);
-const text = Astro.props.text ?? (handle ? portraitText(lang, handle) : null);
 const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? "");
-const moreLabel = Astro.props.moreLabel ?? t("luma.listenText");
 ---
 
 {
@@ -46,20 +42,6 @@ const moreLabel = Astro.props.moreLabel ?? t("luma.listenText");
       </div>
       <span class="listen-time" data-listen-time aria-hidden="true">–:––</span>
       <audio preload="metadata" src={src} data-listen-audio></audio>
-      {text && (
-        <div class="listen-text">
-          <button type="button" class="listen-more" data-listen-more aria-expanded="false">
-            <span>{moreLabel}</span>
-            <svg class="listen-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-          </button>
-          {/* Révélation en douceur : une grille dont la rangée passe de 0fr à 1fr (un <details> s'ouvre d'un bloc). */}
-          <div class="listen-text-reveal" data-listen-reveal>
-            <div class="listen-text-inner">
-              <p>{text}</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -88,18 +70,6 @@ const moreLabel = Astro.props.moreLabel ?? t("luma.listenText");
       } else audio.pause();
     });
     for (const ev of ["play", "pause", "ended", "timeupdate", "loadedmetadata"]) audio.addEventListener(ev, render);
-    // « Lire le portrait » : le texte se déplie en douceur (voir .listen-text-reveal).
-    const more = root.querySelector<HTMLButtonElement>("[data-listen-more]");
-    more?.addEventListener("click", () => {
-      const open = more.getAttribute("aria-expanded") !== "true";
-      more.setAttribute("aria-expanded", String(open));
-      root.classList.toggle("is-text-open", open);
-    });
-    audio.addEventListener("ended", () => {
-      audio.currentTime = 0;
-      render();
-    });
-    render();
   }
 </script>
 
@@ -148,38 +118,8 @@ const moreLabel = Astro.props.moreLabel ?? t("luma.listenText");
   .is-playing .listen-track { opacity: 1; }
   .listen-progress { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.25s linear; }
   .listen-time { font-size: 13px; opacity: 0.55; font-variant-numeric: tabular-nums; }
-  .listen-text { grid-column: 2 / -1; font-size: 13px; line-height: 1.45; }
-  .listen-more {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0;
-    border: 0;
-    background: none;
-    font: inherit;
-    color: inherit;
-    opacity: 0.55;
-    cursor: pointer;
-    user-select: none;
-    transition: opacity 0.2s;
-  }
-  .listen-more:hover { opacity: 0.85; }
-  /* Pas d'anneau bleu au clic : seul le clavier dessine le contour, en encre. */
-  .listen-more:focus { outline: none; }
-  .listen-more:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
-  .listen-chevron { transition: transform 0.35s ease; }
-  .is-text-open .listen-chevron { transform: rotate(180deg); }
-  .listen-text-reveal {
-    display: grid;
-    grid-template-rows: 0fr;
-    opacity: 0;
-    transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.35s ease;
-  }
-  .is-text-open .listen-text-reveal { grid-template-rows: 1fr; opacity: 1; transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.4s ease 0.1s; }
-  .listen-text-inner { min-height: 0; overflow: hidden; }
-  .listen-text p { margin: 8px 0 0; opacity: 0.8; }
   @media (prefers-reduced-motion: reduce) {
-    .listen-progress, .listen-track, .listen-btn, .listen-text-reveal, .listen-chevron { transition: none; }
+    .listen-progress, .listen-track, .listen-btn { transition: none; }
     .listen-eq i { animation: none; height: 60%; }
   }
 </style>

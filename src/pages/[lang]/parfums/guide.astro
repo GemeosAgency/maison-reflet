@@ -19,7 +19,7 @@ import { getCoffrets, getInspiredByMap, getParfumContent, responsiveImage } from
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 import { REFLET_UNIVERSE, UNIVERSE_LABELS, universeLabel, type UniverseKey } from "../../../lib/universes";
 import { GUIDE_MANIFESTO, GUIDE_REFLETS } from "../../../lib/guide";
-import { LAYERING, accordAudioPath, duosFor, stripVoiceTags } from "../../../lib/layering";
+import { LAYERING, accordAudioPath, duosFor } from "../../../lib/layering";
 
 export function getStaticPaths() {
   return locales.map((lang) => ({ params: { lang } }));
@@ -622,9 +622,7 @@ const duos = LAYERING.map((d) => ({
                 <LumaListen
                   lang={lang}
                   src={accordAudioPath(lang, duo.id)}
-                  text={stripVoiceTags(duo.recommendation[lang])}
                   label={t("layering.recommendation")}
-                  moreLabel={t("layering.readRecommendation")}
                 />
                 {/* Le prix des deux dans le bouton, comme le bouton principal de la fiche ; data-money somme les deux variantes. */}
                 <div class="guide-duo-actions">
@@ -817,7 +815,6 @@ const duos = LAYERING.map((d) => ({
   .guide-map-card-line a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(21, 14, 10, 0.3); }
   .guide-map-card-line a:hover { text-decoration-color: currentColor; }
   .guide-map-card-body :global(.listen) { margin-top: 4px; }
-  .guide-map-card-body :global(.listen-text) { display: none; }
   .guide-inline-k { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); margin-inline-end: 4px; }
   @media (prefers-reduced-motion: reduce) {
     .guide-dot, .is-in .guide-dot { opacity: 1; animation: none; }
@@ -917,7 +914,6 @@ const duos = LAYERING.map((d) => ({
   /* Le lecteur de la fiche est pensé pour une colonne large : ici il se resserre. */
   .guide-col-listen :global(.listen) { margin-top: 0; }
   .guide-col-listen :global(.listen-label) { font-size: 13px; }
-  .guide-col-listen :global(.listen-text) { display: none; }
   .guide-col-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid rgba(21, 14, 10, 0.12); font-size: 14px; }
   .guide-col-price { opacity: 0.7; }
   .guide-none { margin: 0; font-size: 16px; line-height: 1.4; }
