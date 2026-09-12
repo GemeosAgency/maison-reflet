@@ -22,6 +22,13 @@ export type GuideReflet = {
   moment: L10n;
   /** Le même moment, structuré, pour les filtres du guide. */
   when: Moment[];
+  /**
+   * La place sur la carte olfactive du guide : x de 0 (frais) à 100 (chaud),
+   * y de 0 (jour) à 100 (soir). Un jugement, pas une mesure — posé par moi le
+   * 12 septembre 2026 avec l'accord de Sandro (« je te laisse faire le
+   * jugement et on pourra les déplacer ensuite ») : à déplacer ici.
+   */
+  map: { x: number; y: number };
   /** Ce que la référence a de grand, ce que le Reflet y ajoute — une phrase. */
   twistLine: L10n;
   /** Le twist en quelques mots, pour le panneau d'achat : « notre twist : … ». */
@@ -37,6 +44,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     ],
     moment: { fr: "Du matin au soir", en: "From morning to night", ar: "من الصباح إلى المساء" },
     when: ["day", "evening"],
+    map: { x: 50, y: 50 },
     twistLine: {
       fr: "Bois Impérial a fait du boisé une signature nette. Bois Alert y ajoute le safran, le jasmin et une mousse sucrée : la profondeur et le sillage.",
       en: "Bois Impérial made woods a clean signature. Bois Alert adds saffron, jasmine and a sweet moss: depth and trail.",
@@ -56,6 +64,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     ],
     moment: { fr: "Le soir, les grandes occasions", en: "Evenings and grand occasions", ar: "المساء والمناسبات الكبيرة" },
     when: ["evening"],
+    map: { x: 66, y: 84 },
     twistLine: {
       fr: "Oud Maracuja a ouvert l'oud au fruit. New Oud y met la rose de Taïf, un santal crémeux et des fleurs blanches : un oud qui respire.",
       en: "Oud Maracuja opened oud to fruit. New Oud brings Taif rose, creamy sandalwood and white florals: an oud that breathes.",
@@ -75,6 +84,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     ],
     moment: { fr: "Le jour, les fins d'après-midi", en: "Daytime, late afternoons", ar: "النهار وأواخر العصر" },
     when: ["day"],
+    map: { x: 36, y: 28 },
     twistLine: {
       fr: "Baccarat Rouge 540 a la signature ambrée la plus reconnaissable qui soit. Melting Mango y verse une surdose de mangue : l'ouverture juteuse que l'original n'a pas.",
       en: "Baccarat Rouge 540 owns the most recognisable ambery signature there is. Melting Mango pours in an overdose of mango: the juicy opening the original never had.",
@@ -94,6 +104,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     ],
     moment: { fr: "Le soir", en: "Evenings", ar: "المساء" },
     when: ["evening"],
+    map: { x: 82, y: 66 },
     twistLine: {
       fr: "Tuscan Leather a imposé le cuir fruité. Ultra Cuir le rend plus lumineux : une framboise plus vive, un trio de safrans, une facette d'iris.",
       en: "Tuscan Leather set the fruity leather standard. Ultra Cuir makes it brighter: a livelier raspberry, a trio of saffrons, a facet of orris.",
@@ -113,6 +124,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     ],
     moment: { fr: "Le soir, les nuits fraîches", en: "Evenings and cooler nights", ar: "المساء والليالي الباردة" },
     when: ["evening"],
+    map: { x: 90, y: 90 },
     twistLine: {
       fr: "Althaïr a fait de la vanille une gourmandise chic. Minuit Bourbon la tient par un accord cuir et l'éclaire de fleur d'oranger et de lavande.",
       en: "Althaïr turned vanilla into a chic indulgence. Minuit Bourbon holds it with a leather accord and lights it with orange blossom and lavender.",
@@ -132,6 +144,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     ],
     moment: { fr: "Le jour, l'été", en: "Daytime and summer", ar: "النهار والصيف" },
     when: ["day"],
+    map: { x: 14, y: 18 },
     twistLine: {
       fr: "Erba Pura a le fruité le plus solaire. Fifth Season le fond dans une fraîcheur fougère et une douceur lactée : plus portable, plus fondu.",
       en: "Erba Pura has the sunniest fruit there is. Fifth Season melts it into a fougère freshness and a milky softness: easier to wear, more seamless.",

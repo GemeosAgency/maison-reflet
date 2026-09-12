@@ -19,7 +19,7 @@ import { getCoffrets, getInspiredByMap, getParfumContent, responsiveImage } from
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 import { REFLET_UNIVERSE, UNIVERSE_LABELS, universeLabel, type UniverseKey } from "../../../lib/universes";
 import { GUIDE_MANIFESTO, GUIDE_ORIGINS, GUIDE_REFLETS } from "../../../lib/guide";
-import { LAYERING, accordAudioPath, stripVoiceTags } from "../../../lib/layering";
+import { LAYERING, accordAudioPath, duosFor, stripVoiceTags } from "../../../lib/layering";
 
 export function getStaticPaths() {
   return locales.map((lang) => ({ params: { lang } }));
@@ -83,6 +83,26 @@ const universeChips = (Object.keys(UNIVERSE_LABELS) as UniverseKey[])
 const materialChips = MATERIALS.filter((m) => reflets.some((r) => r.materialKeys.includes(m))).map((m) => ({ key: m, label: t(`luma.doors.m.${m}`) }));
 const byHandle = Object.fromEntries(reflets.map((r) => [r.handle, r]));
 
+// L'accord de chaque Reflet (un seul par Reflet aujourd'hui) : le partenaire, et l'ancre vers « Les accords ».
+const accordOf: Record<string, { id: string; partner: string } | null> = Object.fromEntries(
+  reflets.map((r) => {
+    const a = duosFor(r.handle)[0];
+    const partner = a ? byHandle[a.partner]?.name : undefined;
+    return [r.handle, a && partner ? { id: a.duo.id, partner } : null];
+  })
+);
+// twistShort est écrit pour suivre « Notre twist : » ; en tête de ligne, il prend une majuscule.
+const cap = (txt: string | null) => (txt ? txt.charAt(0).toUpperCase() + txt.slice(1) : null);
+
+// La carte des six : positions dans lib/guide.ts ; Bois Alert (le best-seller) est ouvert par défaut.
+const mapPoints = reflets.map((r) => ({ ...r, map: GUIDE_REFLETS[r.handle]?.map ?? { x: 50, y: 50 } }));
+const mapDefault = mapPoints.find((r) => r.handle === "bois-alert")?.handle ?? mapPoints[0]?.handle ?? null;
+const mapLines = LAYERING.map((d) => {
+  const a = mapPoints.find((r) => r.handle === d.pair[0]);
+  const b = mapPoints.find((r) => r.handle === d.pair[1]);
+  return a && b ? { id: d.id, pair: d.pair, x1: a.map.x, y1: a.map.y, x2: b.map.x, y2: b.map.y } : null;
+}).filter((l): l is NonNullable<typeof l> => l !== null);
+
 // Le Coffret découverte, comme sur le catalogue.
 const coffretProducts = allProducts.filter(isCoffret);
 const discovery = (() => {
@@ -131,6 +151,87 @@ const duos = LAYERING.map((d) => ({
   </section>
 
   {/*
+    La carte des six (le « point 5 », Sandro : « très bien, j'aime beaucoup ») :
+    les Reflets posés sur deux axes, frais ↔ chaud et jour ↔ soir (positions
+    dans lib/guide.ts, à déplacer là), les accords du parfumeur en traits entre
+    les points. Survoler ou toucher un point ouvre sa carte à côté, portrait
+    audio compris.
+  */}
+  <section class="guide-map" data-guide-map>
+    <div class="guide-section-head">
+      <h2>{t("guide.mapTitle")}</h2>
+      <p>{t("guide.mapLead")}</p>
+    </div>
+    <div class="guide-map-grid">
+      <div class="guide-map-plane" role="group" aria-label={t("guide.mapTitle")}>
+        <span class="guide-axis guide-axis-day">{t("guide.axisDay")}</span>
+        <span class="guide-axis guide-axis-evening">{t("guide.axisEvening")}</span>
+        <span class="guide-axis guide-axis-fresh">{t("guide.axisFresh")}</span>
+        <span class="guide-axis guide-axis-warm">{t("guide.axisWarm")}</span>
+        <svg class="guide-map-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {mapLines.map((l) => <line data-map-line={l.id} data-pair={l.pair.join(" ")} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} vector-effect="non-scaling-stroke" />)}
+        </svg>
+        {
+          mapPoints.map((r) => (
+            <button
+              type="button"
+              class:list={["guide-dot", { "is-left": r.map.x > 68, "is-active": r.handle === mapDefault }]}
+              data-map-dot={r.handle}
+              data-accord={accordOf[r.handle]?.id ?? ""}
+              style={`left:${r.map.x}%;top:${r.map.y}%`}
+              aria-pressed={r.handle === mapDefault ? "true" : "false"}
+            >
+              <span class="guide-dot-mark" aria-hidden="true"></span>
+              <span class="guide-dot-name">{r.name}</span>
+            </button>
+          ))
+        }
+        <span class="guide-map-legend"><i aria-hidden="true"></i>{t("guide.mapAccord")}</span>
+      </div>
+      <div class="guide-map-cards">
+        {
+          mapPoints.map((r) => (
+            <article class="guide-map-card" data-map-card={r.handle} hidden={r.handle !== mapDefault}>
+              <a class="guide-map-card-media" href={r.href} aria-label={r.name} tabindex="-1">
+                {r.img && <img src={r.img.src} srcset={r.img.srcset} sizes="120px" alt="" loading="lazy" decoding="async" />}
+              </a>
+              <div class="guide-map-card-body">
+                {r.universe && <p class="guide-kicker">{r.universe}</p>}
+                <h3 class="guide-map-card-name"><a href={r.href}>{r.name}</a></h3>
+                {r.inspiredBy && (
+                  <p class="guide-col-inspired">
+                    {t("product.inspiredBy")} {r.inspiredBy}
+                  </p>
+                )}
+                {r.twistShort && (
+                  <p class="guide-map-card-line">
+                    <span class="guide-inline-k">{t("guide.twistLabel")}</span> {cap(r.twistShort)}
+                  </p>
+                )}
+                {r.moment && (
+                  <p class="guide-map-card-line">
+                    <span class="guide-inline-k">{t("guide.moment")}</span> {r.moment}
+                  </p>
+                )}
+                {accordOf[r.handle] && (
+                  <p class="guide-map-card-line">
+                    <span class="guide-inline-k">{t("layering.title")}</span> <a href={`#accord-${accordOf[r.handle]!.id}`}>{accordOf[r.handle]!.partner}</a>
+                  </p>
+                )}
+                <LumaListen lang={lang} handle={r.handle} name={r.name} />
+                <div class="guide-col-foot">
+                  <span class="guide-col-price" data-money={r.variantId}>{r.price}</span>
+                  <a class="guide-link" href={r.href}>{t("guide.discover")}</a>
+                </div>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  {/*
     Les six en rang (refonte UX du 12 sept., validée par Sandro) : des filtres
     qui estompent les colonnes qui ne correspondent pas, les étiquettes une
     seule fois à gauche (les colonnes partagent leurs rangées : subgrid), le
@@ -168,11 +269,6 @@ const duos = LAYERING.map((d) => ({
     </div>
 
     <div class="guide-six-row" data-guide-row>
-      <div class="guide-labels" aria-hidden="true">
-        <span class="guide-label guide-label-materials">{t("guide.materials")}</span>
-        <span class="guide-label guide-label-moment">{t("guide.moment")}</span>
-        <span class="guide-label guide-label-twist">{t("guide.twistLabel")}</span>
-      </div>
       {
         reflets.map((r) => (
           <article
@@ -195,18 +291,36 @@ const duos = LAYERING.map((d) => ({
                 </p>
               )}
             </div>
-            <div class="guide-col-fact">
-              <span class="guide-col-dt">{t("guide.materials")}</span>
-              <p>{r.materials.join(" · ")}</p>
-            </div>
-            <div class="guide-col-fact">
-              <span class="guide-col-dt">{t("guide.moment")}</span>
-              <p>{r.moment}</p>
-            </div>
-            <div class="guide-col-fact guide-col-twist">
-              <span class="guide-col-dt">{t("guide.twistLabel")}</span>
-              <p>{r.twistShort}</p>
-            </div>
+            {/* Les matières signature en pastilles : elles se lisent sans étiquette. */}
+            <ul class="guide-col-mats" aria-label={t("guide.materials")}>
+              {r.materials.map((m) => <li>{m}</li>)}
+            </ul>
+            {/* Le moment, avec son glyphe : soleil le jour, lune le soir, les deux du matin au soir. */}
+            <p class="guide-col-moment">
+              {r.when.includes("day") && (
+                <svg class="guide-glyph" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                  <circle cx="6" cy="6" r="2.3" fill="none" stroke="currentColor" stroke-width="1.1" />
+                  <path d="M6 .7v1.6M6 9.7v1.6M.7 6h1.6M9.7 6h1.6M2.25 2.25l1.1 1.1M8.65 8.65l1.1 1.1M2.25 9.75l1.1-1.1M8.65 3.35l1.1-1.1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" />
+                </svg>
+              )}
+              {r.when.includes("evening") && (
+                <svg class="guide-glyph" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                  <path d="M9.6 7.8A4.3 4.3 0 0 1 4.2 2.4a4.7 4.7 0 1 0 5.4 5.4z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
+                </svg>
+              )}
+              <span>{r.moment}</span>
+            </p>
+            <p class="guide-col-twist">
+              <span class="guide-inline-k">{t("guide.twistLabel")}</span> {cap(r.twistShort)}
+            </p>
+            {/* Toujours rendu, même vide : les colonnes partagent leurs rangées (subgrid). */}
+            <p class="guide-col-accord">
+              {accordOf[r.handle] && (
+                <>
+                  <span class="guide-inline-k">{t("layering.title")}</span> <a href={`#accord-${accordOf[r.handle]!.id}`}>{accordOf[r.handle]!.partner}</a>
+                </>
+              )}
+            </p>
             <div class="guide-col-listen">
               <LumaListen lang={lang} handle={r.handle} name={r.name} />
             </div>
@@ -278,6 +392,39 @@ const duos = LAYERING.map((d) => ({
         });
       }
     }
+
+    /*
+     * La carte : survoler, viser au clavier ou toucher un point ouvre sa carte
+     * et allume le trait de son accord et le point du partenaire. La sélection
+     * reste quand la souris repart — rien ne clignote.
+     */
+    const map = document.querySelector<HTMLElement>("[data-guide-map]");
+    if (map) {
+      const dots = Array.from(map.querySelectorAll<HTMLButtonElement>("[data-map-dot]"));
+      const cards = Array.from(map.querySelectorAll<HTMLElement>("[data-map-card]"));
+      const lines = Array.from(map.querySelectorAll<SVGLineElement>("[data-map-line]"));
+      const select = (handle: string) => {
+        const accord = dots.find((d) => d.dataset.mapDot === handle)?.dataset.accord ?? "";
+        const line = accord ? lines.find((l) => l.dataset.mapLine === accord) : undefined;
+        const partner = (line?.dataset.pair ?? "").split(" ").find((h) => h && h !== handle) ?? "";
+        for (const d of dots) {
+          const h = d.dataset.mapDot ?? "";
+          d.classList.toggle("is-active", h === handle);
+          d.classList.toggle("is-partner", h === partner);
+          d.setAttribute("aria-pressed", String(h === handle));
+        }
+        for (const l of lines) l.classList.toggle("is-lit", l === line);
+        for (const c of cards) c.hidden = c.dataset.mapCard !== handle;
+      };
+      for (const d of dots) {
+        const h = d.dataset.mapDot ?? "";
+        d.addEventListener("mouseenter", () => select(h));
+        d.addEventListener("focus", () => select(h));
+        d.addEventListener("click", () => select(h));
+      }
+      const first = dots.find((d) => d.classList.contains("is-active"))?.dataset.mapDot;
+      if (first) select(first);
+    }
   </script>
 
   {/* Si vous portez… : la grille de correspondance de Luma. */}
@@ -345,7 +492,7 @@ const duos = LAYERING.map((d) => ({
         </div>
         <ul class="guide-duos">
           {duos.map(({ duo, first, second }) => (
-            <li class="guide-duo">
+            <li class="guide-duo" id={`accord-${duo.id}`}>
               <div class="guide-duo-pair">
                 <a class="guide-duo-media" href={first.href} aria-label={first.name}>
                   {first.img && <img src={first.img.src} srcset={first.img.srcset} sizes="140px" alt="" loading="lazy" decoding="async" />}
@@ -459,8 +606,76 @@ const duos = LAYERING.map((d) => ({
   }
   .guide-link:hover { text-decoration-color: currentColor; }
 
+  /* ---- La carte des six ---- */
+  .guide-map { padding: 16px var(--gutter-x) 96px; display: flex; flex-direction: column; gap: 40px; }
+  .guide-map-grid { display: grid; grid-template-columns: minmax(340px, 1.15fr) minmax(280px, 0.85fr); gap: 56px; align-items: center; }
+  .guide-map-plane {
+    position: relative;
+    aspect-ratio: 1;
+    background: rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(21, 14, 10, 0.12);
+    isolation: isolate;
+  }
+  /* La croix des axes, à peine là. */
+  .guide-map-plane::before, .guide-map-plane::after { content: ""; position: absolute; background: rgba(21, 14, 10, 0.08); }
+  .guide-map-plane::before { left: 50%; top: 0; bottom: 0; width: 1px; }
+  .guide-map-plane::after { top: 50%; left: 0; right: 0; height: 1px; }
+  .guide-axis { position: absolute; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.5; pointer-events: none; }
+  .guide-axis-day { top: 10px; left: 50%; transform: translateX(-50%); }
+  .guide-axis-evening { bottom: 10px; left: 50%; transform: translateX(-50%); }
+  .guide-axis-fresh { left: 10px; top: 50%; transform: translateY(-50%); }
+  .guide-axis-warm { right: 10px; top: 50%; transform: translateY(-50%); }
+  .guide-map-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .guide-map-lines line { stroke: var(--rose); stroke-width: 1; stroke-dasharray: 2 4; opacity: 0.45; transition: opacity 0.25s ease, stroke-width 0.25s ease; }
+  .guide-map-lines line.is-lit { opacity: 1; stroke-width: 1.5; stroke-dasharray: none; }
+  /* Un point = un bouton ; le disque est posé exactement sur (x, y), le nom à côté. */
+  .guide-dot {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--ink);
+    cursor: pointer;
+    transform: translate(-11px, -50%);
+    z-index: 1;
+  }
+  .guide-dot.is-left { flex-direction: row-reverse; transform: translate(calc(-100% + 11px), -50%); }
+  .guide-dot-mark {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.9);
+    transition: transform 0.25s ease, background-color 0.25s ease;
+  }
+  .guide-dot-name { font-size: 13px; line-height: 1; white-space: nowrap; }
+  .guide-dot:hover .guide-dot-mark, .guide-dot.is-active .guide-dot-mark { background: var(--rose); transform: scale(1.35); }
+  .guide-dot.is-active .guide-dot-name { font-weight: 500; }
+  .guide-dot.is-partner .guide-dot-mark { background: var(--rose); }
+  .guide-dot:focus { outline: none; }
+  .guide-dot:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+  .guide-map-legend { position: absolute; right: 12px; top: 10px; display: inline-flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.6; pointer-events: none; }
+  .guide-map-legend i { display: block; width: 18px; border-top: 1px dashed var(--rose); }
+  .guide-map-card { display: grid; grid-template-columns: 120px 1fr; gap: 24px; align-items: start; }
+  .guide-map-card[hidden] { display: none; }
+  .guide-map-card-media { display: block; aspect-ratio: 3 / 4; background: var(--sand); overflow: hidden; }
+  .guide-map-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .guide-map-card-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .guide-map-card-name { margin: 0; font-size: 26px; font-weight: 400; line-height: 1.1; }
+  .guide-map-card-line { margin: 0; font-size: 14px; line-height: 1.4; }
+  .guide-map-card-line a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(21, 14, 10, 0.3); }
+  .guide-map-card-line a:hover { text-decoration-color: currentColor; }
+  .guide-map-card-body :global(.listen) { margin-top: 4px; }
+  .guide-map-card-body :global(.listen-text) { display: none; }
+  .guide-inline-k { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); margin-inline-end: 4px; }
+
   /* ---- Les six en rang ---- */
-  .guide-six { padding: 72px var(--gutter-x) 96px; display: flex; flex-direction: column; gap: 40px; }
+  .guide-six { padding: 0 var(--gutter-x) 96px; display: flex; flex-direction: column; gap: 40px; }
 
   /* Les filtres : trois groupes, des pastilles ; l'active passe en encre. */
   .guide-filters { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px 40px; }
@@ -496,26 +711,21 @@ const duos = LAYERING.map((d) => ({
   }
   .guide-filter-reset:hover { text-decoration-color: currentColor; }
 
-  /* La rangée : une colonne d'étiquettes puis les six, qui partagent leurs rangées (subgrid). */
+  /* Les six partagent leurs rangées (subgrid) : tout s'aligne, sans colonne d'étiquettes. */
   .guide-six-row {
     display: grid;
-    grid-template-columns: 92px repeat(6, minmax(0, 1fr));
-    grid-template-rows: repeat(7, auto);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: repeat(8, auto);
     column-gap: 20px;
-    row-gap: 12px;
+    row-gap: 10px;
     align-items: start;
     isolation: isolate;
   }
-  .guide-labels { display: grid; grid-template-rows: subgrid; grid-row: 1 / span 7; grid-column: 1; }
-  .guide-label { font-size: 10px; line-height: 1.4; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.5; padding-top: 2px; }
-  .guide-label-materials { grid-row: 3; }
-  .guide-label-moment { grid-row: 4; }
-  .guide-label-twist { grid-row: 5; }
   .guide-col {
     position: relative;
     display: grid;
     grid-template-rows: subgrid;
-    grid-row: 1 / span 7;
+    grid-row: 1 / span 8;
     min-width: 0;
     cursor: pointer;
     transition: opacity 0.35s ease;
@@ -542,11 +752,14 @@ const duos = LAYERING.map((d) => ({
   .guide-col-name a { text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color 0.25s ease; }
   .guide-col:hover .guide-col-name a { text-decoration-color: rgba(21, 14, 10, 0.4); }
   .guide-col-inspired { margin: 0; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; }
-  .guide-col-fact p { margin: 0; font-size: 13px; line-height: 1.4; }
-  /* twistShort est écrit pour suivre « Notre twist : » ; sous son étiquette, il prend une majuscule. */
-  .guide-col-twist p { opacity: 0.85; }
-  .guide-col-twist p::first-letter { text-transform: uppercase; }
-  .guide-col-dt { display: none; }
+  .guide-col-mats { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+  .guide-col-mats li { padding: 4px 9px; border: 1px solid rgba(21, 14, 10, 0.18); border-radius: 100px; font-size: 11px; line-height: 1.2; white-space: nowrap; }
+  .guide-col-moment { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 1.4; }
+  .guide-glyph { flex-shrink: 0; opacity: 0.7; }
+  .guide-col-twist, .guide-col-accord { margin: 0; font-size: 13px; line-height: 1.4; }
+  .guide-col-twist { opacity: 0.9; }
+  .guide-col-accord a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(21, 14, 10, 0.3); }
+  .guide-col-accord a:hover { text-decoration-color: currentColor; }
   /* Le lecteur de la fiche est pensé pour une colonne large : ici il se resserre. */
   .guide-col-listen :global(.listen) { margin-top: 0; }
   .guide-col-listen :global(.listen-label) { font-size: 13px; }
@@ -665,18 +878,23 @@ const duos = LAYERING.map((d) => ({
       scrollbar-width: none;
     }
     .guide-six-row::-webkit-scrollbar { display: none; }
-    .guide-labels { display: none; }
+    .guide-map-grid { grid-template-columns: 1fr; gap: 32px; }
     .guide-col { flex: 0 0 min(70vw, 320px); scroll-snap-align: start; display: flex; flex-direction: column; gap: 10px; }
     .guide-col::before { display: none; }
     .guide-col.is-dim { display: none; }
-    .guide-col-dt { display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.5; margin-bottom: 3px; }
     .guide-col-foot { margin-top: auto; }
     .guide-twist { grid-template-columns: 1fr; gap: 48px; }
     .guide-duos { gap: 32px 24px; }
   }
   @media (max-width: 900px) {
     .guide-hero { padding: 40px var(--gutter-x) 24px; }
-    .guide-six { padding: 40px 0 64px; gap: 24px; }
+    .guide-map { padding-bottom: 64px; gap: 24px; }
+    .guide-dot { padding: 4px; gap: 6px; transform: translate(-9px, -50%); }
+    .guide-dot.is-left { transform: translate(calc(-100% + 9px), -50%); }
+    .guide-dot-name { font-size: 11px; }
+    .guide-map-card { grid-template-columns: 96px 1fr; gap: 16px; }
+    .guide-map-card-name { font-size: 22px; }
+    .guide-six { padding: 24px 0 64px; gap: 24px; }
     .guide-filters { gap: 16px 24px; }
     .guide-wearing { padding-bottom: 64px; gap: 24px; }
     .guide-section-head h2 { font-size: 26px; }
