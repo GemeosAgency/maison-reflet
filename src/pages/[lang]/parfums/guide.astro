@@ -1034,7 +1034,8 @@ const duos = LAYERING.map((d) => ({
   }
   @media (max-width: 900px) {
     .guide-hero { padding: 40px var(--gutter-x) 24px; }
-    .guide-map { padding-bottom: 56px; gap: 20px; }
+    /* La carte n'existe pas sur mobile (Sandro) : les six et les filtres suffisent sur petit écran. */
+    .guide-map { display: none; }
     .guide-map-plane::before { top: 34px; bottom: 34px; }
     .guide-map-plane::after { left: 64px; right: 64px; }
     .guide-dot { padding: 3px; gap: 6px; transform: translate(-19px, -50%); }
