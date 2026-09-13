@@ -1109,6 +1109,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
 
   /* L'accord du parfumeur : le lecteur (la pilule partagée) sous le titre, puis la carte du partenaire. */
   .cart-accord { display: flex; flex-direction: column; gap: 12px; }
+  /* Le lecteur puis la carte, avec la même respiration qu'entre le titre et le lecteur. */
+  [data-cart-accord-body] { display: flex; flex-direction: column; gap: 12px; }
   .cart-listen {
     position: relative;
     isolation: isolate;
