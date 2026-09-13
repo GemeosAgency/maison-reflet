@@ -10,13 +10,13 @@ interface Props {
   compact?: boolean;
   empty?: string;
 }
-const { carts, limit = 60, compact = false, empty = "Aucun panier abandonné sur la période." } = Astro.props;
+const { carts, limit = 1000, compact = false, empty = "Aucun panier abandonné sur la période." } = Astro.props;
 const rows = carts.slice(0, limit);
 const STATUS: Record<string, { label: string; cls: string }> = { abandoned: { label: "abandonné", cls: "badge-warn" }, open: { label: "en cours", cls: "badge-soft" }, paid: { label: "payé", cls: "badge-ok" } };
 ---
 
 <div class="tbl-wrap">
-  <table class:list={["tbl", { "tbl-compact": compact }]}>
+  <table class:list={["tbl", { "tbl-compact": compact }]} data-paginate="50" data-paginate-noun="paniers">
     <thead><tr><th>Quand</th><th>Statut</th><th>Étape</th><th>Articles</th><th>Pays</th><th>Source</th><th>Appareil</th><th class="num">Montant</th></tr></thead>
     <tbody>
       {rows.length === 0 && <tr><td colspan="8"><p class="empty">{empty}</p></td></tr>}

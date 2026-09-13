@@ -101,52 +101,50 @@ export function timeChart(
     area?: boolean;
   } = {}
 ): string {
-  const width = opts.width ?? 720;
+  // Les formes (grille, aire, courbe, barres) vivent dans un SVG étiré à la
+  // largeur de la carte (repère 0–1000 en pour-mille, traits non déformés) ;
+  // les points et les étiquettes sont du HTML posé en pourcentage : rien ne
+  // s'étire, quelle que soit la largeur de l'écran.
   const height = opts.height ?? 200;
   const pc = opts.primaryColor ?? "var(--rose)";
   const sc = opts.secondaryColor ?? "var(--ink)";
   const fp = opts.primaryFormat ?? ((v: number) => String(v));
   const fs = opts.secondaryFormat ?? ((v: number) => String(v));
-  const pad = { top: 14, bottom: 24, left: 46, right: 8 };
-  const innerW = width - pad.left - pad.right;
-  const innerH = height - pad.top - pad.bottom;
   const n = Math.max(1, primary.length);
-  const step = innerW / n;
-  const maxP = Math.max(1, ...primary.map((s) => s.value));
+  const maxP = Math.max(0, ...primary.map((s) => s.value));
   const maxS = Math.max(1, ...(opts.secondary ?? []).map((s) => s.value));
   const niceMax = (() => {
+    if (maxP <= 0) return 1;
     const p = Math.pow(10, Math.floor(Math.log10(maxP)));
     const m = maxP / p;
     const nice = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10;
     return nice * p;
   })();
-  const yOf = (v: number) => pad.top + innerH - (v / niceMax) * innerH;
-  const xOf = (i: number) => pad.left + i * step + step / 2;
-  const grid = [0, 0.5, 1]
-    .map((t) => {
-      const y = pad.top + innerH - t * innerH;
-      return `<line x1="${pad.left}" y1="${y.toFixed(1)}" x2="${width - pad.right}" y2="${y.toFixed(1)}" stroke="currentColor" opacity="${t === 0 ? 0.22 : 0.08}"/><text x="${pad.left - 8}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="currentColor" opacity="0.55">${esc(fp(niceMax * t))}</text>`;
-    })
-    .join("");
+  const X = (i: number) => ((i + 0.5) / n) * 1000; // pour-mille
+  const Y = (v: number) => 1000 - (v / niceMax) * 1000;
+  const seen = new Set<string>();
+  const ticks = [0, 0.5, 1]
+    .map((t) => ({ t, label: fp(niceMax * t) }))
+    .filter((k) => (seen.has(k.label) ? false : (seen.add(k.label), true)));
+  const grid = [0, 0.5, 1].map((t) => `<line x1="0" x2="1000" y1="${(1000 - t * 1000).toFixed(1)}" y2="${(1000 - t * 1000).toFixed(1)}" stroke="currentColor" opacity="${t === 0 ? 0.22 : 0.08}" vector-effect="non-scaling-stroke"/>`).join("");
+  const step = 1000 / n;
+  const bw = Math.min(step * 0.45, 22);
   const secondaryBars = (opts.secondary ?? [])
     .map((s, i) => {
       if (s.value <= 0) return "";
-      const h = Math.max(2, (s.value / maxS) * innerH * 0.9);
-      const bw = Math.max(2, Math.min(18, step * 0.5));
-      return `<rect x="${(xOf(i) - bw / 2).toFixed(1)}" y="${(pad.top + innerH - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${sc}" opacity="0.22"/>`;
+      const h = Math.max(6, (s.value / maxS) * 900);
+      return `<rect x="${(X(i) - bw / 2).toFixed(1)}" y="${(1000 - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${sc}" opacity="0.22"/>`;
     })
     .join("");
-  const pts = primary.map((s, i) => [xOf(i), yOf(s.value)] as const);
+  const pts = primary.map((s, i) => [X(i), Y(s.value)] as const);
   const line = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-  const area = opts.area === false ? "" : `<path d="${line} L${pts[pts.length - 1][0].toFixed(1)},${(pad.top + innerH).toFixed(1)} L${pts[0][0].toFixed(1)},${(pad.top + innerH).toFixed(1)} Z" fill="${pc}" opacity="0.08"/>`;
-  const dots = primary.map((s, i) => (s.value > 0 ? `<circle cx="${pts[i][0].toFixed(1)}" cy="${pts[i][1].toFixed(1)}" r="${n > 45 ? 2 : 3}" fill="${pc}"/>` : "")).join("");
+  const area = opts.area === false ? "" : `<path d="${line} L${pts[pts.length - 1][0].toFixed(1)},1000 L${pts[0][0].toFixed(1)},1000 Z" fill="${pc}" opacity="0.08"/>`;
+  const dots = primary.map((s, i) => (s.value > 0 ? `<span class="tchart-dot${n > 45 ? " is-small" : ""}" style="left:${(X(i) / 10).toFixed(2)}%;top:${(Y(s.value) / 10).toFixed(2)}%;background:${pc}"></span>` : "")).join("");
   const every = n > 60 ? 14 : n > 31 ? 7 : n > 14 ? 3 : 1;
-  const labels = primary
-    .map((s, i) => (i % every === 0 || i === n - 1 ? `<text x="${xOf(i).toFixed(1)}" y="${height - 7}" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.55">${esc(s.label)}</text>` : ""))
-    .join("");
+  const xLabels = primary.map((s, i) => (i % every === 0 || i === n - 1 ? `<span class="tchart-xlabel" style="left:${(X(i) / 10).toFixed(2)}%">${esc(s.label)}</span>` : "")).join("");
+  const yLabels = ticks.map((k) => `<span class="tchart-ylabel" style="top:${(100 - k.t * 100).toFixed(1)}%">${esc(k.label)}</span>`).join("");
   const points = primary.map((s, i) => ({ k: s.key, l: s.label, p: fp(s.value), s: opts.secondary ? fs(opts.secondary[i]?.value ?? 0) : null }));
-  const hits = primary.map((s, i) => `<rect class="chart-hit" data-i="${i}" x="${(pad.left + i * step).toFixed(1)}" y="${pad.top}" width="${step.toFixed(1)}" height="${innerH}" fill="transparent"/>`).join("");
-  return `<svg class="chart chart-time" viewBox="0 0 ${width} ${height}" width="100%" height="${height}" preserveAspectRatio="none" role="img" aria-label="Évolution" data-chart data-left="${pad.left}" data-step="${step.toFixed(3)}" data-width="${width}" data-count="${n}" data-primary-label="${esc(opts.primaryLabel ?? "")}" data-secondary-label="${esc(opts.secondaryLabel ?? "")}" ${opts.modal ? `data-modal="${esc(opts.modal)}"` : ""} data-points="${esc(JSON.stringify(points))}">${grid}${secondaryBars}${area}<path d="${line}" fill="none" stroke="${pc}" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}<line class="chart-guide" data-guide x1="0" y1="${pad.top}" x2="0" y2="${pad.top + innerH}" stroke="currentColor" opacity="0" vector-effect="non-scaling-stroke"/>${hits}${labels}</svg>`;
+  return `<div class="tchart${opts.modal ? " is-clickable" : ""}" style="--tchart-h:${height}px" role="img" aria-label="Évolution" data-chart data-count="${n}" data-primary-label="${esc(opts.primaryLabel ?? "")}" data-secondary-label="${esc(opts.secondaryLabel ?? "")}" ${opts.modal ? `data-modal="${esc(opts.modal)}"` : ""} data-points="${esc(JSON.stringify(points))}"><div class="tchart-y">${yLabels}</div><div class="tchart-plot" data-plot><svg class="tchart-svg" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">${grid}${secondaryBars}${area}<path d="${line}" fill="none" stroke="${pc}" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>${dots}<span class="tchart-guide" data-guide hidden></span></div><div class="tchart-x">${xLabels}</div></div>`;
 }
 
 /** Une liste de barres horizontales : étiquette, jauge, valeur. `href` ou `modal` rend la ligne cliquable. */

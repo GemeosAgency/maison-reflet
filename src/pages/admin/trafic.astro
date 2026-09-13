@@ -39,9 +39,10 @@ const perDay = k.visitors ? (b.series.visitors.reduce((n, d) => n + d.value, 0) 
   <section class="kpis">
     <Kpi label="Visiteurs" tip="visitors" value={fmtInt(k.visitors)} delta={delta(k.visitors, pk.visitors)} sub={`${perDay} par jour`} modal="days" />
     <Kpi label="Ont vu une fiche" tip="funnel" value={fmtPct(b.funnel[1].value, b.funnel[0].value)} sub={`${fmtInt(b.funnel[1].value)} visiteurs`} />
+    <Kpi label="Ajout au sac" tip="addRate" value={pct(k.addRate)} delta={delta(k.addRate, pk.addRate)} sub={`${fmtInt(k.adders)} visiteur${k.adders > 1 ? "s" : ""}`} />
     <Kpi label="Vont au paiement" tip="checkoutRate" value={pct(k.checkoutRate)} delta={delta(k.checkoutRate, pk.checkoutRate)} sub={`${fmtInt(k.checkouts)} départ${k.checkouts > 1 ? "s" : ""}`} />
     <Kpi tone="rose" label="Conversion" tip="conversion" value={pct(k.conversion)} delta={delta(k.conversion, pk.conversion)} sub={`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""} pour ${fmtInt(k.visitors)} visiteurs`} />
-    <Kpi label="Chiffre par visiteur" value={k.visitors ? fmtMoneyShort(k.revenue / k.visitors) : "–"} unit={k.visitors ? cur : undefined} delta={delta(k.visitors ? k.revenue / k.visitors : null, pk.visitors ? pk.revenue / pk.visitors : null)} />
+    <Kpi label="Chiffre par visiteur" tip="revenuePerVisitor" value={k.revenuePerVisitor === null ? "–" : fmtMoneyShort(k.revenuePerVisitor)} unit={k.revenuePerVisitor === null ? undefined : cur} delta={delta(k.revenuePerVisitor, pk.revenuePerVisitor)} sub="ce que vaut une visite" />
   </section>
 
   <section class="grid grid-3">

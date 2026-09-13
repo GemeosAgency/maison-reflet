@@ -302,7 +302,32 @@ export function cartStatus(v: Visitor, cart: Cart | null, now = Date.now()): Car
 export type Item = { handle: string | null; name: string; image: string | null; quantity: number; amount?: number };
 export type RecentOrder = { id: number; name: string | null; created_at: string; country: string | null; total: number; discounts: number; currency: string; source: Source; source_name: string | null; discount_codes: string[]; items: Item[]; linked: boolean };
 export type CartRow = { anon: string; at: string; stage: Cart["stage"]; estimated: boolean; total: number; currency: string; items: Item[]; country: string | null; source: string; device: Visitor["device"]; status: CartStatus };
-export type Kpis = { revenue: number; orders: number; aov: number | null; units: number; discounts: number; shipping: number; visitors: number; conversion: number | null; checkoutRate: number | null; checkouts: number; abandonedCount: number; abandonedTotal: number; cartsTotal: number; cartsCount: number };
+export type Kpis = {
+  revenue: number;
+  orders: number;
+  aov: number | null;
+  units: number;
+  discounts: number;
+  shipping: number;
+  visitors: number;
+  conversion: number | null;
+  checkoutRate: number | null;
+  checkouts: number;
+  abandonedCount: number;
+  abandonedTotal: number;
+  cartsTotal: number;
+  cartsCount: number;
+  /** Visiteurs distincts ayant mis au moins un produit au sac, et leur part. */
+  adders: number;
+  addRate: number | null;
+  /** Acheteurs distincts (un parcours qui commande deux fois compte une fois), et le chiffre par acheteur. */
+  buyers: number;
+  aovPerBuyer: number | null;
+  /** La valeur moyenne d'un panier, payé ou non. */
+  avgCart: number | null;
+  /** Ce que vaut une visite : chiffre d'affaires divisé par les visiteurs. */
+  revenuePerVisitor: number | null;
+};
 
 type Ctx = { events: SiteEventRow[]; orders: OrderRow[]; catalog: Catalog; range: Range; filters: Filters };
 
@@ -373,6 +398,8 @@ function core({ events, orders: allOrders, catalog, range, filters: f }: Ctx) {
     checkoutRecoveryRate: withCheckout.length ? withCheckout.filter((v) => statusOf(v) === "paid").length / withCheckout.length : null,
   };
 
+  const adders = new Set(ev.filter((e) => e.name === "add_to_cart").map((e) => e.anon_id)).size;
+  const buyers = new Set(orders.map((o) => o.anon_id ?? `commande:${o.id}`)).size;
   const kpis: Kpis = {
     revenue,
     orders: orders.length,
@@ -388,13 +415,19 @@ function core({ events, orders: allOrders, catalog, range, filters: f }: Ctx) {
     abandonedTotal,
     cartsTotal: carts.all.total,
     cartsCount: carts.all.count,
+    adders,
+    addRate: visitors.length ? adders / visitors.length : null,
+    buyers,
+    aovPerBuyer: buyers ? revenue / buyers : null,
+    avgCart: carts.all.count ? carts.all.total / carts.all.count : null,
+    revenuePerVisitor: visitors.length ? revenue / visitors.length : null,
   };
-  return { products, productOf, handleOf, itemOf, visitorsAll, sourceOf, facets, keepOrder, visitors, orders, ev, currency, revenue, cartsByAnon, withCheckout, statusOf, abandoned, open, carts, kpis, events, allOrders, range };
+  return { products, productOf, handleOf, itemOf, visitorsAll, sourceOf, facets, keepOrder, visitors, orders, ev, currency, revenue, cartsByAnon, withCart, withCheckout, statusOf, abandoned, open, carts, kpis, events, allOrders, range };
 }
 
 /** Tout le reste : séries, jour par jour, produits, sources, pays, listes — pour la période regardée. */
 function summarize(ctx: Ctx) {
-  const { products, productOf, handleOf, itemOf, visitorsAll, sourceOf, facets, keepOrder, visitors, orders, ev, currency, revenue, cartsByAnon, withCheckout, statusOf, abandoned, open, carts, kpis, events, allOrders, range } = core(ctx);
+  const { products, productOf, handleOf, itemOf, visitorsAll, sourceOf, facets, keepOrder, visitors, orders, ev, currency, revenue, cartsByAnon, withCart, withCheckout, statusOf, abandoned, open, carts, kpis, events, allOrders, range } = core(ctx);
 
   const toRecent = (o: OrderRow): RecentOrder => ({
     id: o.id,
@@ -416,6 +449,15 @@ function summarize(ctx: Ctx) {
   };
   const recentOrders = orders.map(toRecent);
   const abandonedCarts = [...abandoned, ...open].map(toCartRow).sort((a, b) => (a.at < b.at ? 1 : -1));
+  // Tous les paniers : les payés (par leur parcours, sinon par la commande elle-même), les abandonnés, les en cours.
+  const paidAnon = new Set(withCart.filter((v) => statusOf(v) === "paid").map((v) => v.anon));
+  const paidCarts: CartRow[] = [
+    ...withCart.filter((v) => paidAnon.has(v.anon)).map(toCartRow),
+    ...orders
+      .filter((o) => !(o.anon_id && paidAnon.has(o.anon_id)))
+      .map((o): CartRow => ({ anon: `commande:${o.id}`, at: o.created_at, stage: "checkout", estimated: false, total: o.total, currency: o.currency ?? currency, items: o.lines.filter((l) => l.total > 0).map((l) => itemOf(handleOf(l), l.title, l.quantity, l.total)), country: o.country, source: sourceOf(o).label, device: null, status: "paid" })),
+  ];
+  const allCarts = [...abandonedCarts, ...paidCarts].sort((a, b) => (a.at < b.at ? 1 : -1));
 
   // Les séries par jour.
   const sumByDay = (rows: { created_at: string; amount: number }[]) => {
@@ -604,7 +646,7 @@ function summarize(ctx: Ctx) {
   const funnel = [
     { label: "Visiteurs", value: visitors.length },
     { label: "Fiche vue", value: visitors.filter((v) => v.viewed.size > 0).length },
-    { label: "Ajout au sac", value: new Set(ev.filter((e) => e.name === "add_to_cart").map((e) => e.anon_id)).size },
+    { label: "Ajout au sac", value: kpis.adders },
     { label: "Paiement", value: withCheckout.length },
     { label: "Commande", value: orders.length },
   ];
@@ -634,7 +676,7 @@ function summarize(ctx: Ctx) {
   const earliest = (rows: { created_at: string }[]) => rows.reduce<string | null>((min, r) => (min === null || r.created_at < min ? r.created_at : min), null);
   const tracked = { since: earliest(events), firstOrder: earliest(allOrders), testOrders: allOrders.filter((o) => o.test).length, unlinkedOrders: orders.filter((o) => !o.anon_id).length, beforeTracking: visitors.filter((v) => v.source.channel === "Inconnue").length };
 
-  return { kpis, carts, currency, facets, perProduct, other, campaigns, sources, channels, countries, devices, locales, series, byDay, funnel, abandonedCarts, recentOrders, discountCodes, topPages, landingPages, tracked } as const;
+  return { kpis, carts, currency, facets, perProduct, other, campaigns, sources, channels, countries, devices, locales, series, byDay, funnel, abandonedCarts, allCarts, recentOrders, discountCodes, topPages, landingPages, tracked } as const;
 }
 
 export type Business = Awaited<ReturnType<typeof business>>;

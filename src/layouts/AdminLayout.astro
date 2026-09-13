@@ -165,6 +165,7 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
         subEl.hidden = !tpl.dataset.subtitle;
         dialog.classList.toggle("is-wide", tpl.dataset.wide === "1");
         body.replaceChildren(tpl.content.cloneNode(true));
+        paginate(body);
         if (!dialog.open) dialog.showModal();
         body.scrollTop = 0;
         if (highlight) {
@@ -251,28 +252,24 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
 
       /* ---- les courbes du temps : survol = infobulle et repère ; clic = le jour par jour ---- */
       type Pt = { k: string; l: string; p: string; s: string | null };
-      for (const svg of document.querySelectorAll<SVGSVGElement>("svg[data-chart]")) {
-        const points = JSON.parse(svg.dataset.points ?? "[]") as Pt[];
-        const guide = svg.querySelector<SVGLineElement>("[data-guide]");
-        const left = Number(svg.dataset.left);
-        const step = Number(svg.dataset.step);
-        const vbW = Number(svg.dataset.width);
-        const pLabel = svg.dataset.primaryLabel ?? "";
-        const sLabel = svg.dataset.secondaryLabel ?? "";
+      for (const chart of document.querySelectorAll<HTMLElement>("[data-chart]")) {
+        const plot = chart.querySelector<HTMLElement>("[data-plot]");
+        if (!plot) continue;
+        const points = JSON.parse(chart.dataset.points ?? "[]") as Pt[];
+        const guide = chart.querySelector<HTMLElement>("[data-guide]");
+        const pLabel = chart.dataset.primaryLabel ?? "";
+        const sLabel = chart.dataset.secondaryLabel ?? "";
         const indexAt = (clientX: number) => {
-          const r = svg.getBoundingClientRect();
-          const x = ((clientX - r.left) / r.width) * vbW;
-          return Math.max(0, Math.min(points.length - 1, Math.floor((x - left) / step)));
+          const r = plot.getBoundingClientRect();
+          return Math.max(0, Math.min(points.length - 1, Math.floor(((clientX - r.left) / r.width) * points.length)));
         };
-        svg.addEventListener("pointermove", (e) => {
+        plot.addEventListener("pointermove", (e) => {
           if (!points.length) return;
           const i = indexAt(e.clientX);
           const pt = points[i];
           if (guide) {
-            const x = left + i * step + step / 2;
-            guide.setAttribute("x1", String(x));
-            guide.setAttribute("x2", String(x));
-            guide.setAttribute("opacity", "0.35");
+            guide.hidden = false;
+            guide.style.left = `${((i + 0.5) / points.length) * 100}%`;
           }
           chartTip.innerHTML = `<strong>${pt.l}</strong><span>${pLabel ? `${pLabel} · ` : ""}${pt.p}</span>${pt.s !== null ? `<span class="muted">${sLabel ? `${sLabel} · ` : ""}${pt.s}</span>` : ""}`;
           chartTip.hidden = false;
@@ -282,18 +279,49 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
           chartTip.style.left = `${x}px`;
           chartTip.style.top = `${e.clientY - chartTip.offsetHeight / 2}px`;
         });
-        svg.addEventListener("pointerleave", () => {
+        plot.addEventListener("pointerleave", () => {
           chartTip.hidden = true;
-          guide?.setAttribute("opacity", "0");
+          if (guide) guide.hidden = true;
         });
-        if (svg.dataset.modal) {
-          svg.classList.add("is-clickable");
-          svg.addEventListener("click", (e) => {
+        if (chart.dataset.modal) {
+          plot.addEventListener("click", (e) => {
             const i = indexAt(e.clientX);
-            openModal(svg.dataset.modal!, points[i]?.k);
+            openModal(chart.dataset.modal!, points[i]?.k);
           });
         }
       }
+
+      /* ---- pagination des longs tableaux : 50 lignes, puis « les 50 suivantes » ---- */
+      const paginate = (scope: ParentNode) => {
+        for (const table of scope.querySelectorAll<HTMLTableElement>("table[data-paginate]:not([data-paginated])")) {
+          table.dataset.paginated = "1";
+          const size = Number(table.dataset.paginate) || 50;
+          const noun = table.dataset.paginateNoun ?? "lignes";
+          const rows = [...table.tBodies].flatMap((tb) => [...tb.rows]);
+          if (rows.length <= size) continue;
+          let shown = size;
+          const pager = document.createElement("div");
+          pager.className = "pager";
+          const info = document.createElement("span");
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "btn btn-sm btn-ghost";
+          const render = () => {
+            rows.forEach((r, i) => (r.hidden = i >= shown));
+            info.textContent = `${Math.min(shown, rows.length)} ${noun} sur ${rows.length}`;
+            btn.textContent = `Afficher les ${Math.min(size, rows.length - shown)} suivant${Math.min(size, rows.length - shown) > 1 ? "s" : ""}`;
+            btn.hidden = shown >= rows.length;
+          };
+          btn.addEventListener("click", () => {
+            shown += size;
+            render();
+          });
+          pager.append(info, btn);
+          (table.closest(".tbl-wrap") ?? table).after(pager);
+          render();
+        }
+      };
+      paginate(document);
 
       /* ---- la période sur mesure : fermer le volet en cliquant ailleurs ---- */
       const custom = document.querySelector<HTMLDetailsElement>("[data-custom-range]");
@@ -441,8 +469,17 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
 
   /* ---- graphiques ---- */
   .chart { display: block; width: 100%; color: var(--ink); }
-  .chart.is-clickable { cursor: pointer; }
-  .chart-hit { cursor: inherit; }
+  .tchart { display: grid; grid-template-columns: 44px minmax(0, 1fr); grid-template-rows: var(--tchart-h, 200px) 24px; column-gap: 8px; width: 100%; color: var(--ink); padding-top: 6px; }
+  .tchart-y { position: relative; grid-row: 1; grid-column: 1; }
+  .tchart-ylabel { position: absolute; right: 0; transform: translateY(-50%); font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tchart-plot { position: relative; grid-row: 1; grid-column: 2; min-width: 0; }
+  .tchart-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+  .tchart-dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 0 2px var(--paper); pointer-events: none; }
+  .tchart-dot.is-small { width: 5px; height: 5px; }
+  .tchart-guide { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--ink); opacity: 0.35; transform: translateX(-50%); pointer-events: none; }
+  .tchart-x { position: relative; grid-row: 2; grid-column: 2; }
+  .tchart-xlabel { position: absolute; top: 7px; transform: translateX(-50%); font-size: 10px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .tchart.is-clickable .tchart-plot { cursor: pointer; }
   .spark { display: block; }
   .donut { display: block; }
   .donut-row { display: grid; grid-template-columns: 120px 1fr; gap: 18px; align-items: center; }

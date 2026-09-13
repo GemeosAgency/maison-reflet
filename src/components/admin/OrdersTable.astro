@@ -11,12 +11,12 @@ interface Props {
   empty?: string;
   showDiscount?: boolean;
 }
-const { orders, limit = 50, compact = false, empty = "Aucune commande payée sur la période.", showDiscount = false } = Astro.props;
+const { orders, limit = 1000, compact = false, empty = "Aucune commande payée sur la période.", showDiscount = false } = Astro.props;
 const rows = orders.slice(0, limit);
 ---
 
 <div class="tbl-wrap">
-  <table class:list={["tbl", { "tbl-compact": compact }]}>
+  <table class:list={["tbl", { "tbl-compact": compact }]} data-paginate="50" data-paginate-noun="commandes">
     <thead>
       <tr><th>Quand</th><th>N°</th><th>Pays</th><th>Articles</th><th>Source</th>{showDiscount && <th>Code</th>}{showDiscount && <th class="num">Remise</th>}<th class="num">Total</th></tr>
     </thead>
