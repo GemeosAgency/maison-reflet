@@ -1,0 +1,44 @@
+---
+/**
+ * Retour du lien magique : Supabase renvoie le jeton dans le fragment de
+ * l'URL (#access_token=…), invisible du serveur. Le script le passe à
+ * /api/admin/session, qui le vérifie auprès de Supabase, contrôle la liste
+ * blanche et pose le cookie de session.
+ */
+export const prerender = false;
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Connexion… · Maison Reflet</title>
+  </head>
+  <body>
+    <p class="wait" data-status>Connexion en cours…</p>
+    <script>
+      const status = document.querySelector<HTMLElement>("[data-status]");
+      const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const token = params.get("access_token");
+      const error = params.get("error_description") ?? params.get("error");
+      const fail = (code: string) => window.location.replace(`/admin/login?error=${code}`);
+      if (!token) fail(error ? "expired" : "expired");
+      else
+        fetch("/api/admin/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) })
+          .then(async (r) => {
+            if (r.ok) window.location.replace("/admin");
+            else fail(r.status === 403 ? "denied" : "expired");
+          })
+          .catch(() => {
+            if (status) status.textContent = "La connexion n'a pas abouti. Réessayez depuis le lien.";
+          });
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f1eee9; color: #150e0a; font-family: "PP Neue Montreal", "Helvetica Neue", Arial, sans-serif; }
+  .wait { font-size: 14px; letter-spacing: 0.04em; }
+</style>

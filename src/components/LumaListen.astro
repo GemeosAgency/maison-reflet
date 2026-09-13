@@ -34,11 +34,14 @@ const { lang, handle, name } = Astro.props;
 const t = useTranslations(lang);
 const src = Astro.props.src ?? (handle ? portraitAudioPath(lang, handle) : null);
 const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? "");
+// Pour la tour de contrôle : un portrait (handle) ou la recommandation d'un accord (id du duo dans le chemin).
+const trackKind = handle ? "portrait" : src?.includes("/accords/") ? "accord" : "audio";
+const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? null;
 ---
 
 {
   src && (
-    <div class="listen-wrap" data-luma-listen>
+    <div class="listen-wrap" data-luma-listen data-track-kind={trackKind} data-track-id={trackId}>
       <div class="listen" data-listen-pill>
         {/* Le remplissage de la lecture, et l'ombre qui suit le pointeur au survol. */}
         <span class="listen-fill" data-listen-fill aria-hidden="true"></span>
@@ -60,6 +63,7 @@ const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? 
 }
 
 <script>
+  import { trackSite } from "../lib/site-events";
   const fmt = (s: number) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "–:––");
   const clamp = (n: number) => Math.min(1, Math.max(0, n));
   for (const root of document.querySelectorAll<HTMLElement>("[data-luma-listen]")) {
@@ -91,6 +95,19 @@ const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? 
     const toggle = () => (audio.paused ? play() : audio.pause());
     btn.addEventListener("click", toggle);
     for (const ev of ["play", "pause", "ended", "timeupdate", "loadedmetadata", "seeked"]) audio.addEventListener(ev, render);
+    // Tour de contrôle : une écoute par lecteur et par page, et « jusqu'au bout » à 90 %.
+    let played = false;
+    let completed = false;
+    audio.addEventListener("play", () => {
+      if (played) return;
+      played = true;
+      trackSite("audio_play", { kind: root.dataset.trackKind, id: root.dataset.trackId, source: "page" });
+    });
+    audio.addEventListener("timeupdate", () => {
+      if (completed || !audio.duration || audio.currentTime / audio.duration < 0.9) return;
+      completed = true;
+      trackSite("audio_complete", { kind: root.dataset.trackKind, id: root.dataset.trackId });
+    });
 
     /*
      * La pilule est la timeline : la position suit le pointeur sur toute sa

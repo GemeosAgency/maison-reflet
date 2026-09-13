@@ -1,3 +1,11 @@
 {
-  "regions": ["bom1"]
+  "regions": [
+    "bom1"
+  ],
+  "crons": [
+    {
+      "path": "/api/admin/retention",
+      "schedule": "0 23 * * *"
+    }
+  ]
 }

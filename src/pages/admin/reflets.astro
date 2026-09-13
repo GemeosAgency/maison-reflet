@@ -1,0 +1,103 @@
+---
+/** Les six Reflets vus par Luma et par le site : recommandations, écoutes, ajouts ; les accords ; les portes d'entrée. */
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { readSession } from "../../lib/admin/auth";
+import { reflets, parseDays, fmtInt, fmtPct } from "../../lib/admin/data";
+export const prerender = false;
+
+const admin = await readSession(Astro.cookies);
+if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+const days = parseDays(Astro.url.searchParams.get("days"));
+const r = await reflets(days);
+const max = (rows: { count: number }[]) => Math.max(1, ...rows.map((x) => x.count));
+const maxReco = Math.max(1, ...r.per.map((p) => p.recommended));
+---
+
+<AdminLayout title="Reflets & accords" section="reflets" admin={admin} days={days} subtitle="Ce que Luma recommande, ce que les visiteurs écoutent et ajoutent, les accords qui prennent, et les portes par lesquelles on arrive.">
+  <section class="card tbl-card">
+    <div class="card-head"><h2 class="card-title">Les six</h2><p class="card-note">{fmtInt(r.recommendedTotal)} recommandations de Luma{r.hasSite ? "" : " · colonnes site en attente des premiers événements"}</p></div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Reflet</th><th>Recommandé par Luma</th><th class="num">Alternative</th><th class="num">Fiches vues</th><th class="num">Portraits écoutés</th><th class="num">Jusqu'au bout</th><th class="num">Ajouts panier</th><th class="num">Carte</th><th class="num">Menu</th></tr></thead>
+        <tbody>
+          {
+            r.per.map((p) => (
+              <tr>
+                <td><strong>{p.name}</strong></td>
+                <td>
+                  <span class="reco"><span class="gauge"><span class="gauge-fill" style={`width:${(p.recommended / maxReco) * 100}%;background:var(--rose)`}></span></span><span class="mono">{p.recommended} <span class="muted">· {fmtPct(p.recommended, r.recommendedTotal)}</span></span></span>
+                </td>
+                <td class="num">{p.alternative}</td>
+                <td class="num">{fmtInt(p.views)}</td>
+                <td class="num">{fmtInt(p.plays)}</td>
+                <td class="num muted">{fmtPct(p.completes, p.plays)}</td>
+                <td class="num">{fmtInt(p.adds)}</td>
+                <td class="num muted">{fmtInt(p.mapSelects)}</td>
+                <td class="num muted">{fmtInt(p.menu)}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card tbl-card">
+      <div class="card-head"><h2 class="card-title">Les accords du parfumeur</h2><p class="card-note">recommandations écoutées, « Ajouter les deux », ajouts depuis le panier</p></div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Accord</th><th class="num">Écoutes</th><th class="num">Jusqu'au bout</th><th class="num">Les deux</th><th class="num">Panier</th><th class="num">Carte</th></tr></thead>
+          <tbody>
+            {
+              r.accords.map((a) => (
+                <tr>
+                  <td><strong>{a.name}</strong><br /><span class="muted">{a.pair.join(" + ")}</span></td>
+                  <td class="num">{a.plays}</td>
+                  <td class="num muted">{fmtPct(a.completes, a.plays)}</td>
+                  <td class="num">{a.addsBoth}</td>
+                  <td class="num">{a.cartAdds}</td>
+                  <td class="num muted">{a.mapPairs}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="grid doors">
+      {
+        [
+          ["Ce qu'ils portent déjà", r.doors.origins],
+          ["Ce qu'ils portent aujourd'hui", r.doors.wears],
+          ["Pour qui", r.doors.forWhom],
+          ["Quelle occasion", r.doors.occasion],
+        ].map(([title, rows]) => (
+          <div class="card">
+            <div class="card-head"><h2 class="card-title">{title}</h2></div>
+            {(rows as { label: string; count: number }[]).length === 0 ? (
+              <p class="empty">Rien sur la période.</p>
+            ) : (
+              <ul class="bars">
+                {(rows as { label: string; count: number }[]).slice(0, 7).map((x) => (
+                  <li>
+                    <span class="bar-label" title={x.label}>{x.label}</span>
+                    <span class="gauge"><span class="gauge-fill" style={`width:${(x.count / max(rows as { count: number }[])) * 100}%;background:var(--ink)`}></span></span>
+                    <span class="bar-count">{fmtInt(x.count)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  </section>
+</AdminLayout>
+
+<style>
+  .reco { display: grid; grid-template-columns: 90px auto; align-items: center; gap: 10px; white-space: nowrap; }
+  .tbl td:first-child { white-space: nowrap; }
+  .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
+  @media (max-width: 900px) { .doors { grid-template-columns: 1fr; } }
+</style>

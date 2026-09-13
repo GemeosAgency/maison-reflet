@@ -1,0 +1,118 @@
+---
+/** Une conversation : le fil, ce que Luma a retenu, le déroulé technique, et les droits de la personne. */
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import { readSession } from "../../../lib/admin/auth";
+import { audit } from "../../../lib/admin/db";
+import { conversation, parseDays, fmtDate, fmtTime, fmtMs, fmtDuration, entryLabel, localeLabel, pageLabel, estimateCost, fmtUsd } from "../../../lib/admin/data";
+export const prerender = false;
+
+const admin = await readSession(Astro.cookies);
+if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+const days = parseDays(Astro.url.searchParams.get("days"));
+const id = Astro.params.id ?? "";
+const c = /^[0-9a-f-]{36}$/i.test(id) ? await conversation(id) : null;
+if (!c) return Astro.redirect(`/admin/conversations?days=${days}`);
+await audit(admin.email, "conversation_view", id);
+
+const { session, messages, events, signal } = c;
+const replies = events.filter((e) => e.name === "reply");
+const first = replies[0];
+const entry = (first?.props.entry as string | undefined) ?? session.initiative ?? null;
+const page = (first?.props.page as string | undefined) ?? null;
+const assistants = messages.filter((m) => m.role === "assistant");
+const users = messages.filter((m) => m.role === "user");
+const cost = estimateCost(messages);
+const duration = new Date(session.last_seen_at).getTime() - new Date(session.created_at).getTime();
+const fmtProps = (p: Record<string, unknown>) =>
+  Object.entries(p)
+    .filter(([k]) => !["soft", "chips"].includes(k))
+    .map(([k, v]) => `${k} ${Array.isArray(v) ? v.join(", ") || "–" : typeof v === "number" && k.endsWith("_ms") ? fmtMs(v) : String(v)}`)
+    .join(" · ");
+---
+
+<AdminLayout title={`Conversation du ${fmtDate(session.created_at)}`} section="conversations" admin={admin} days={days} showRange={false} subtitle={`${localeLabel(session.locale)}${session.country ? ` · ${session.country}` : ""} · entrée ${entryLabel(entry)}${page ? ` (${pageLabel(page)})` : ""} · ${users.length} tour${users.length > 1 ? "s" : ""} · ${fmtDuration(duration)}`}>
+  <p><a class="btn btn-sm btn-ghost" href={`/admin/conversations?days=${days}`}>← Toutes les conversations</a></p>
+  <section class="grid detail">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Le fil</h2><p class="card-note">visiteur à droite, Luma à gauche</p></div>
+      <div class="thread">
+        {messages.length === 0 && <p class="empty">Aucun message conservé.</p>}
+        {
+          messages.map((m) => (
+            <div class:list={["msg", m.role === "user" ? "msg-user" : "msg-luma", { "is-empty": !m.content }]}>
+              {m.content || "(contenu anonymisé après 90 jours)"}
+              <div class="msg-meta">
+                <span>{fmtTime(m.created_at)}</span>
+                {m.role === "assistant" && m.tokens_out != null && <span>· {m.tokens_in ?? 0} → {m.tokens_out} tokens</span>}
+                {m.regenerated && <span class="badge badge-warn">régénérée</span>}
+                {Array.isArray(m.violations) && m.violations.length > 0 && (
+                  <span class="badge badge-warn" title={JSON.stringify(m.violations)}>{m.violations.length} infraction{m.violations.length > 1 ? "s" : ""}</span>
+                )}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+    <div class="grid side">
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Ce que Luma a retenu</h2></div>
+        {
+          signal ? (
+            <dl class="facts">
+              <dt>Reflet recommandé</dt><dd>{signal.recommended_handle ?? "–"}</dd>
+              <dt>Alternative</dt><dd>{signal.alternative_handle ?? "–"}</dd>
+              <dt>Référence citée</dt><dd>{signal.cited_origin ?? "–"}</dd>
+              <dt>Porte aujourd'hui</dt><dd>{signal.wears_today ?? "–"}</dd>
+              <dt>Pour qui</dt><dd>{signal.for_whom ?? "–"}</dd>
+              <dt>Occasion</dt><dd>{signal.occasion ?? "–"}</dd>
+            </dl>
+          ) : (
+            <p class="empty">Aucun signal de profil.</p>
+          )
+        }
+      </div>
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">La personne</h2></div>
+        <dl class="facts">
+          <dt>Email</dt><dd>{session.email ?? <span class="muted">non donné</span>}</dd>
+          <dt>Klaviyo</dt><dd>{session.klaviyo_id ?? <span class="muted">–</span>}</dd>
+          <dt>Identifiant</dt><dd class="mono">{session.anon_id}</dd>
+          <dt>Session</dt><dd class="mono">{session.id}</dd>
+          <dt>Première visite</dt><dd>{fmtDate(session.created_at)}</dd>
+          <dt>Dernier échange</dt><dd>{fmtDate(session.last_seen_at)}</dd>
+          <dt>Coût estimé</dt><dd>{fmtUsd(cost)}</dd>
+        </dl>
+        <div class="actions">
+          <form method="post" action="/api/admin/rgpd"><input type="hidden" name="q" value={session.id} /><input type="hidden" name="action" value="export" /><button type="submit" class="btn btn-sm">Exporter (JSON)</button></form>
+          <form method="post" action="/api/admin/rgpd" onsubmit="return confirm('Effacer définitivement cette conversation et ses signaux ?')"><input type="hidden" name="q" value={session.id} /><input type="hidden" name="action" value="delete" /><button type="submit" class="btn btn-sm btn-ghost">Effacer</button></form>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Déroulé technique</h2><p class="card-note">{assistants.length} réponse{assistants.length > 1 ? "s" : ""}</p></div>
+        {
+          events.length === 0 ? (
+            <p class="empty">Aucun événement.</p>
+          ) : (
+            <ul class="timeline">
+              {events.map((e) => (
+                <li>
+                  <time>{fmtTime(e.created_at)}</time>
+                  <span><strong>{e.name}</strong> <span class="muted">{fmtProps(e.props)}</span></span>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </div>
+    </div>
+  </section>
+</AdminLayout>
+
+<style>
+  .detail { grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); align-items: start; }
+  .side { align-content: start; }
+  .actions { display: flex; gap: 10px; margin-top: 16px; }
+  .timeline strong { font-weight: 500; }
+  @media (max-width: 1000px) { .detail { grid-template-columns: 1fr; } }
+</style>

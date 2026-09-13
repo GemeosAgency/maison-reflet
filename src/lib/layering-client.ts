@@ -5,6 +5,7 @@
  * quand plusieurs composants appellent bindLayeringAdds sur la même page.
  */
 import { addManyToCart } from "./cart";
+import { trackSite } from "./site-events";
 
 export function bindLayeringAdds(root: ParentNode = document): void {
   for (const btn of root.querySelectorAll<HTMLButtonElement>("[data-layering-add]")) {
@@ -18,6 +19,7 @@ export function bindLayeringAdds(root: ParentNode = document): void {
       btn.disabled = true;
       try {
         await addManyToCart(ids.map((variantId) => ({ variantId, quantity: 1 })));
+        trackSite("layering_add", { duo: btn.dataset.duo ?? null, variants: ids });
         if (label) label.textContent = btn.dataset.addedLabel ?? initial;
       } catch {
         if (label) label.textContent = btn.dataset.errorLabel ?? initial;

@@ -1,0 +1,117 @@
+---
+/** Les droits des personnes, la rétention, le journal des accès — et ce qu'on stocke, noir sur blanc. */
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { readSession } from "../../lib/admin/auth";
+import { rgpdSearch, retentionStatus, auditLog, fmtDate, fmtInt, localeLabel } from "../../lib/admin/data";
+export const prerender = false;
+
+const admin = await readSession(Astro.cookies);
+if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+const q = Astro.url.searchParams.get("q")?.trim() ?? "";
+const deleted = Astro.url.searchParams.get("deleted");
+const [found, retention, log] = await Promise.all([rgpdSearch(q), retentionStatus(), auditLog(60)]);
+const ACTION_LABEL: Record<string, string> = {
+  login: "connexion",
+  logout: "déconnexion",
+  login_denied: "connexion refusée",
+  magic_link_sent: "lien envoyé",
+  magic_link_failed: "lien non envoyé",
+  conversation_view: "lecture d'une conversation",
+  rgpd_export: "export RGPD",
+  rgpd_delete: "effacement RGPD",
+  retention: "rétention exécutée",
+  retention_failed: "rétention en échec",
+};
+---
+
+<AdminLayout title="RGPD" section="rgpd" admin={admin} showRange={false} subtitle="Retrouver une personne, lui remettre ses données ou tout effacer ; vérifier la rétention ; relire qui a fait quoi.">
+  {deleted !== null && <p class="note"><strong>Effacé.</strong> {deleted} conversation{Number(deleted) > 1 ? "s" : ""} et leurs signaux, {Astro.url.searchParams.get("events") ?? 0} événement{Number(Astro.url.searchParams.get("events") ?? 0) > 1 ? "s" : ""} de navigation.</p>}
+
+  <section class="grid grid-2">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Droits d'une personne</h2><p class="card-note">accès, portabilité, effacement</p></div>
+      <form class="filters" method="get">
+        <input type="search" name="q" placeholder="Email, identifiant de visiteur ou de session" value={q} required />
+        <button type="submit" class="btn btn-sm">Rechercher</button>
+      </form>
+      {
+        q && (
+          <div class="found">
+            <p class="muted">
+              {found.sessions.length === 0 ? "Aucune conversation" : `${fmtInt(found.sessions.length)} conversation${found.sessions.length > 1 ? "s" : ""}`} pour « {q} » ·{" "}
+              {fmtInt(found.siteEvents)} événement{found.siteEvents > 1 ? "s" : ""} de navigation
+            </p>
+            {found.sessions.length > 0 && (
+              <ul class="sessions">
+                {found.sessions.slice(0, 12).map((s) => (
+                  <li>
+                    <a href={`/admin/conversations/${s.id}`}>{fmtDate(s.created_at)}</a>
+                    <span class="muted">{localeLabel(s.locale)}{s.country ? ` · ${s.country}` : ""}{s.email ? ` · ${s.email}` : ""}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(found.sessions.length > 0 || found.siteEvents > 0) && (
+              <div class="actions">
+                <form method="post" action="/api/admin/rgpd"><input type="hidden" name="q" value={q} /><input type="hidden" name="action" value="export" /><button type="submit" class="btn btn-sm">Exporter tout (JSON)</button></form>
+                <form method="post" action="/api/admin/rgpd" onsubmit="return confirm('Effacer définitivement toutes les données de cette personne ? Cette action est journalisée et irréversible.')"><input type="hidden" name="q" value={q} /><input type="hidden" name="action" value="delete" /><button type="submit" class="btn btn-sm btn-rose">Tout effacer</button></form>
+              </div>
+            )}
+          </div>
+        )
+      }
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Rétention</h2><p class="card-note">chaque nuit à 3 h, heure de Dubaï</p></div>
+      <dl class="facts">
+        <dt>Dernier passage</dt><dd>{retention.last ? `${fmtDate(retention.last.created_at)} · ${String(retention.last.details.luma_messages_anonymised ?? 0)} message(s) anonymisé(s), ${String(retention.last.details.site_events_deleted ?? 0)} événement(s) supprimé(s)` : <span class="rose">jamais exécutée</span>}</dd>
+        <dt>Conversations de plus de 90 jours</dt><dd>{fmtInt(retention.oldSessions)}</dd>
+        <dt>Dont messages encore lisibles</dt><dd>{retention.pendingMessages > 0 ? <span class="rose">{fmtInt(retention.pendingMessages)} à anonymiser</span> : "aucun"}</dd>
+      </dl>
+      <p class="card-foot">Luma : 90 jours puis anonymisation du contenu et de l'email, la coquille reste pour les comptages. Site : 13 mois puis suppression. Le cron Vercel appelle <span class="mono">/api/admin/retention</span> avec le secret <span class="mono">CRON_SECRET</span>.</p>
+    </div>
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Ce que nous conservons</h2></div>
+      <dl class="facts">
+        <dt>Conversations Luma</dt><dd>messages, langue, pays, page d'entrée, un identifiant aléatoire (cookie <span class="mono">mr_luma</span>, 30 jours), l'email seulement s'il est donné. 90 jours.</dd>
+        <dt>Signaux de profil</dt><dd>Reflet recommandé, alternative, référence citée, pour qui, occasion. Synchronisés vers Klaviyo uniquement avec un email.</dd>
+        <dt>Navigation</dt><dd>écoutes, filtres, carte, menu, panier, paiement, avec un identifiant aléatoire (<span class="mono">mr_anon</span>), la langue et le pays. Jamais l'adresse IP. 13 mois.</dd>
+        <dt>Sous-traitants</dt><dd>Anthropic (réponses de Luma, pas d'entraînement sur nos données), Supabase (base, Mumbai), Vercel (hébergement), ElevenLabs (voix pré-générées, aucune donnée visiteur), Shopify, Klaviyo.</dd>
+        <dt>Accès</dt><dd>{admin.email} et les adresses de <span class="mono">ADMIN_EMAILS</span>, par lien magique. Chaque lecture, export et effacement est journalisé ci-contre.</dd>
+      </dl>
+    </div>
+    <div class="card tbl-card">
+      <div class="card-head"><h2 class="card-title">Journal des accès</h2><p class="card-note">60 dernières actions</p></div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Quand</th><th>Qui</th><th>Action</th><th>Cible</th></tr></thead>
+          <tbody>
+            {log.length === 0 && <tr><td colspan="4"><p class="empty">Aucune action journalisée (table admin_audit absente ?).</p></td></tr>}
+            {
+              log.map((l) => (
+                <tr>
+                  <td class="muted mono when">{fmtDate(l.created_at)}</td>
+                  <td>{l.actor}</td>
+                  <td>{ACTION_LABEL[l.action] ?? l.action}</td>
+                  <td class="muted mono"><span class="ellipsis" title={l.target ?? ""}>{l.target ?? "–"}</span></td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</AdminLayout>
+
+<style>
+  .found { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .sessions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+  .sessions li { display: flex; gap: 12px; align-items: baseline; }
+  .sessions a { text-decoration: underline; text-underline-offset: 3px; }
+  .actions { display: flex; gap: 10px; margin-top: 6px; }
+  .tbl .ellipsis { max-width: 220px; }
+</style>

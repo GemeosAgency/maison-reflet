@@ -356,6 +356,7 @@ const maisonHref = localePath(lang, "/maison");
 </div>
 
 <script>
+  import { trackSite } from "../lib/site-events";
   /* ---------------- Ordinateur ---------------- */
   const trigger = document.querySelector<HTMLAnchorElement>("[data-menu-trigger]");
   const panel = document.querySelector<HTMLElement>("[data-menu-panel]");
@@ -478,10 +479,16 @@ const maisonHref = localePath(lang, "/maison");
       scheduleNext(fig, fig.querySelectorAll(".mega-fig-img").length, slideRemaining);
     });
   }
+  // Tour de contrôle : les Reflets mis en avant pendant une ouverture du panneau (un envoi par Reflet et par ouverture).
+  let seenThisOpen = new Set<string>();
   function activate(handle: string) {
     for (const f of figures) f.classList.toggle("is-active", f.dataset.menuFigure === handle);
     for (const e of entries) e.classList.toggle("is-active", e.dataset.menuEntry === handle);
     if (slideHandle !== handle) startSlides(handle);
+    if (isOpen && !seenThisOpen.has(handle)) {
+      seenThisOpen.add(handle);
+      trackSite("menu_reflet", { handle });
+    }
   }
   const activeHandle = () => panel?.querySelector<HTMLElement>(".mega-fig.is-active")?.dataset.menuFigure ?? "";
 
@@ -491,6 +498,7 @@ const maisonHref = localePath(lang, "/maison");
 
   function openPanel() {
     window.clearTimeout(closeTimer);
+    seenThisOpen = new Set();
     if (!panel || isOpen) return;
     isOpen = true;
     primeDurations();
@@ -683,6 +691,7 @@ const maisonHref = localePath(lang, "/maison");
     a.dataset.userPlay = "1"; // jeton lu par la garde globale (Layout) : lecture voulue
     a.play().catch(() => {});
     renderListening();
+    trackSite("audio_play", { kind: "portrait", id: handle, source: "menu" });
   }
   for (const b of listenButtons) {
     b.addEventListener("click", (e) => {

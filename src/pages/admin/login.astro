@@ -1,0 +1,85 @@
+---
+/**
+ * Entrée de la tour de contrôle : une adresse, un lien magique (Supabase Auth),
+ * rien d'autre. Le message ne dit jamais si l'adresse est connue. En dev
+ * seulement, `?dev=<email autorisé>` pose la session sans email, pour tester.
+ */
+import { isAllowed, readSession, sessionCookieValue, setSessionCookie } from "../../lib/admin/auth";
+import { audit } from "../../lib/admin/db";
+export const prerender = false;
+
+const secure = Astro.url.protocol === "https:";
+if (import.meta.env.DEV) {
+  const dev = Astro.url.searchParams.get("dev");
+  if (dev && isAllowed(dev)) {
+    setSessionCookie(Astro.cookies, await sessionCookieValue(dev), secure);
+    await audit(dev.toLowerCase(), "login", null, { mode: "dev" });
+    return Astro.redirect("/admin");
+  }
+}
+if (await readSession(Astro.cookies)) return Astro.redirect("/admin");
+
+const sent = Astro.url.searchParams.get("sent") === "1";
+const error = Astro.url.searchParams.get("error");
+const next = Astro.url.searchParams.get("next") ?? "/admin";
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Connexion · Tour de contrôle · Maison Reflet</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+  </head>
+  <body>
+    <main class="login">
+      <div class="login-card">
+        <p class="login-brand">Maison Reflet</p>
+        <p class="login-kicker">Tour de contrôle</p>
+        <h1 class="login-title">Connexion</h1>
+        {
+          sent ? (
+            <p class="login-msg">Si cette adresse est autorisée, un lien de connexion vient de partir. Il est valable une heure : ouvrez-le depuis ce navigateur.</p>
+          ) : (
+            <form class="login-form" method="post" action="/api/admin/login">
+              <input type="hidden" name="next" value={next} />
+              <label class="login-field">
+                <span>Adresse email</span>
+                <input type="email" name="email" required autocomplete="email" autofocus placeholder="prenom@gemeosagency.com" />
+              </label>
+              <button type="submit" class="login-btn">Recevoir le lien</button>
+              {error === "denied" && <p class="login-error">Cette adresse n'a pas accès à la tour de contrôle.</p>}
+              {error === "expired" && <p class="login-error">Le lien a expiré ou a déjà servi. Demandez-en un nouveau.</p>}
+              {error === "send" && <p class="login-error">L'envoi n'a pas abouti. Réessayez dans une minute.</p>}
+            </form>
+          )
+        }
+        <p class="login-foot">Accès réservé à l'équipe. Les connexions sont journalisées.</p>
+      </div>
+    </main>
+  </body>
+</html>
+
+<style is:global>
+  @font-face { font-family: "PP Neue Montreal"; src: url("/fonts/ppneuemontreal-book.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "PP Neue Montreal"; src: url("/fonts/ppneuemontreal-medium.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+  :root { --rose: #812538; --ink: #150e0a; --bg: #f1eee9; --paper: #f7f5f2; --sand: #e7dfd0; --line: rgba(21, 14, 10, 0.1); --muted: rgba(21, 14, 10, 0.58); }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--ink); font-family: "PP Neue Montreal", "Helvetica Neue", Arial, sans-serif; font-size: 14px; }
+  .login { width: 100%; padding: 24px; display: grid; place-items: center; }
+  .login-card { width: min(420px, 100%); padding: 36px 32px 28px; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .login-brand { margin: 0; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 500; }
+  .login-kicker { margin: 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rose); }
+  .login-title { margin: 14px 0 6px; font-size: 30px; font-weight: 400; line-height: 1.05; }
+  .login-form { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+  .login-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
+  .login-field input { padding: 12px 14px; border: 1px solid rgba(21, 14, 10, 0.22); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; font-size: 15px; }
+  .login-field input:focus { outline: 1.5px solid var(--ink); outline-offset: 1px; }
+  .login-btn { padding: 13px 18px; border: 0; border-radius: 100px; background: var(--rose); color: var(--paper); font: inherit; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; }
+  .login-btn:hover { opacity: 0.92; }
+  .login-msg { margin: 10px 0 0; line-height: 1.5; }
+  .login-error { margin: 0; color: var(--rose); font-size: 13px; }
+  .login-foot { margin: 18px 0 0; font-size: 12px; color: var(--muted); }
+</style>

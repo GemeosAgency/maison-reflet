@@ -359,6 +359,7 @@ const duos = LAYERING.map((d) => ({
   </section>
 
   <script>
+    import { trackSite } from "../../../lib/site-events";
     /*
      * Filtres : une valeur active par groupe, les groupes se cumulent. Une
      * colonne qui ne correspond pas s'estompe (et disparaît en cartes, pour
@@ -403,6 +404,7 @@ const duos = LAYERING.map((d) => ({
           const v = chip.dataset.value ?? "";
           active[k] = active[k] === v ? null : v;
           apply();
+          trackSite("guide_filter", { group: k, value: v, on: active[k] === v });
         });
       }
       six.querySelector<HTMLButtonElement>("[data-guide-reset]")?.addEventListener("click", () => {
@@ -446,6 +448,7 @@ const duos = LAYERING.map((d) => ({
         }
       };
       const select = (handle: string) => {
+        if (handle !== current && current) trackSite("map_select", { handle });
         current = handle;
         pairing = false;
         for (const d of dots) {
@@ -469,6 +472,7 @@ const duos = LAYERING.map((d) => ({
       pairBtn?.addEventListener("click", () => {
         pairing = !pairing;
         applyPairing();
+        trackSite("map_pair", { handle: current, partner: partnerOf(current), on: pairing });
       });
       const first = dots.find((d) => d.classList.contains("is-active"))?.dataset.mapDot;
       if (first) select(first);
@@ -572,6 +576,7 @@ const duos = LAYERING.map((d) => ({
                     class="guide-duo-add"
                     data-layering-add
                     data-variants={`${first.variantId},${second.variantId}`}
+                    data-duo={duo.id}
                     data-added-label={t("cart.added")}
                     data-error-label={t("product.error")}
                   >

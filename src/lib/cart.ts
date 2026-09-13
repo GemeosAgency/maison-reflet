@@ -20,6 +20,7 @@ import {
   type CartAttributeInput,
   type ShopifyCart,
 } from "./shopify";
+import { trackSite } from "./site-events";
 import { track as trackKlaviyo } from "./klaviyo";
 import {
   getMetaBrowserIds,
@@ -311,7 +312,13 @@ export async function addManyToCart(
 
   notifyCartUpdated(cart);
   if (options.openDrawer !== false) openCartDrawer();
-  if (options.track !== false) trackAddedToCart(cart, lines);
+  if (options.track !== false) {
+    trackAddedToCart(cart, lines);
+    // Tour de contrôle : les Reflets ajoutés (handles retrouvés sur les lignes du panier rendu).
+    const added = new Set(lines.map((l) => l.variantId));
+    const handles = [...new Set(cart.lines.nodes.filter((l) => added.has(l.merchandise.id)).map((l) => l.merchandise.product.handle))];
+    trackSite("add_to_cart", { handles, variants: lines.map((l) => l.variantId) });
+  }
   return cart;
 }
 
@@ -425,6 +432,12 @@ export async function setVariantQuantity(
  */
 export function trackCheckoutDeparture(cart: ShopifyCart | null) {
   if (!cart) return;
+  // Tour de contrôle : le départ en paiement, avec les Reflets du sac.
+  trackSite("checkout", {
+    handles: [...new Set(paidLines(cart).map((l) => l.merchandise.product.handle))],
+    total: Number(cart.cost.subtotalAmount.amount),
+    currency: cart.cost.subtotalAmount.currencyCode,
+  });
   // L'échantillon offert (ligne à 0) n'apparaît pas dans les contenus : il
   // était déclaré 15 AED, son prix catalogue, alors que le sous-total ne le
   // comptait pas. Le sous-total Storefront est déjà net des remises de ligne.

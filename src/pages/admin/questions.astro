@@ -1,0 +1,77 @@
+---
+/** Ce que les visiteurs demandent à Luma, par thème et mot pour mot, et là où elle n'a pas su répondre. */
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { readSession } from "../../lib/admin/auth";
+import { questions, parseDays, fmtInt, fmtPct, fmtDate } from "../../lib/admin/data";
+export const prerender = false;
+
+const admin = await readSession(Astro.cookies);
+if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+const days = parseDays(Astro.url.searchParams.get("days"));
+const q = await questions(days);
+const maxTheme = Math.max(1, ...q.themes.map((t) => t.count));
+---
+
+<AdminLayout title="Questions" section="questions" admin={admin} days={days} subtitle="Les demandes des visiteurs, regroupées par thème, mot pour mot, et celles où Luma a hésité. C'est la matière première de la FAQ et des textes à écrire.">
+  <section class="kpis">
+    <div class="card kpi"><span class="kpi-label">Messages de visiteurs</span><span class="kpi-value">{fmtInt(q.total)}</span></div>
+    <div class="card kpi"><span class="kpi-label">Questions distinctes</span><span class="kpi-value">{fmtInt(q.distinct)}</span></div>
+    <div class="card kpi kpi-rose"><span class="kpi-label">À revoir</span><span class="kpi-value">{fmtInt(q.unanswered.length)}</span><span class="kpi-sub">réponses hésitantes, régénérées ou avec infraction</span></div>
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Par thème</h2><p class="card-note">un message peut compter dans plusieurs thèmes</p></div>
+      <ul class="bars">
+        {
+          q.themes.map((t) => (
+            <li>
+              <span class="bar-label">{t.label}</span>
+              <span class="gauge"><span class="gauge-fill" style={`width:${(t.count / maxTheme) * 100}%;background:${t.key === "other" ? "var(--line-strong)" : "var(--ink)"}`}></span></span>
+              <span class="bar-count">{fmtInt(t.count)} <span class="muted">· {fmtPct(t.count, q.total)}</span></span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+    <div class="card tbl-card">
+      <div class="card-head"><h2 class="card-title">Les plus posées, mot pour mot</h2></div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Question</th><th class="num">Fois</th><th class="num">Conversations</th></tr></thead>
+          <tbody>
+            {q.top.length === 0 && <tr><td colspan="3"><p class="empty">Rien sur la période.</p></td></tr>}
+            {q.top.slice(0, 20).map((t) => <tr><td class="cell-q">{t.text}</td><td class="num">{t.count}</td><td class="num muted">{t.sessions}</td></tr>)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="card tbl-card">
+    <div class="card-head"><h2 class="card-title">Là où Luma a hésité</h2><p class="card-note">à lire, puis à corriger dans le persona ou à ajouter à la FAQ</p></div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Quand</th><th>La question</th><th>La réponse</th><th>Pourquoi</th></tr></thead>
+        <tbody>
+          {q.unanswered.length === 0 && <tr><td colspan="4"><p class="empty">Aucune hésitation relevée sur la période.</p></td></tr>}
+          {
+            q.unanswered.map((u) => (
+              <tr>
+                <td class="muted mono when"><a href={`/admin/conversations/${u.sessionId}?days=${days}`}>{fmtDate(u.createdAt)}</a></td>
+                <td class="cell-q">{u.question}</td>
+                <td class="cell-q muted"><span class="clamp">{u.answer || "(réponse vide — secours affiché)"}</span></td>
+                <td>{u.reasons.map((r) => <span class="badge badge-warn">{r}</span>)}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</AdminLayout>
+
+<style>
+  .clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .badge + .badge { margin-inline-start: 4px; }
+</style>

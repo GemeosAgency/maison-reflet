@@ -1,0 +1,93 @@
+---
+/** Toutes les conversations Luma de la période, filtrables, une ligne par session. */
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import { readSession } from "../../../lib/admin/auth";
+import { conversations, parseDays, fmtInt, fmtDate, fmtDuration, entryLabel, localeLabel, pageLabel, PER_PAGE } from "../../../lib/admin/data";
+export const prerender = false;
+
+const admin = await readSession(Astro.cookies);
+if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+const sp = Astro.url.searchParams;
+const days = parseDays(sp.get("days"));
+const filters = {
+  locale: sp.get("locale") || undefined,
+  country: sp.get("country") || undefined,
+  entry: sp.get("entry") || undefined,
+  email: sp.get("email") === "1",
+  violations: sp.get("violations") === "1",
+  q: sp.get("q")?.trim() || undefined,
+  page: Number(sp.get("page") ?? 1) || 1,
+};
+const result = await conversations(days, filters);
+const pageHref = (p: number) => {
+  const u = new URL(Astro.url);
+  u.searchParams.set("page", String(p));
+  return `${u.pathname}${u.search}`;
+};
+---
+
+<AdminLayout title="Conversations" section="conversations" admin={admin} days={days} subtitle={`${fmtInt(result.total)} conversation${result.total > 1 ? "s" : ""} sur ${days} jours.`}>
+  <form class="card filters" method="get">
+    <input type="hidden" name="days" value={days} />
+    <input type="search" name="q" placeholder="Rechercher dans les messages…" value={filters.q ?? ""} />
+    <select name="locale">
+      <option value="">Toutes les langues</option>
+      {result.facets.locales.map((l) => <option value={l.label} selected={filters.locale === l.label}>{localeLabel(l.label)} ({l.count})</option>)}
+    </select>
+    <select name="country">
+      <option value="">Tous les pays</option>
+      {result.facets.countries.map((c) => <option value={c.label} selected={filters.country === c.label}>{c.label} ({c.count})</option>)}
+    </select>
+    <select name="entry">
+      <option value="">Toutes les entrées</option>
+      {result.facets.entries.map((e) => <option value={e.label} selected={filters.entry === e.label}>{entryLabel(e.label)} ({e.count})</option>)}
+    </select>
+    <label><input type="checkbox" name="email" value="1" checked={filters.email} /> avec email</label>
+    <label><input type="checkbox" name="violations" value="1" checked={filters.violations} /> à revoir</label>
+    <button type="submit" class="btn btn-sm">Filtrer</button>
+    <a class="btn btn-sm btn-ghost" href={`/admin/conversations?days=${days}`}>Effacer</a>
+  </form>
+
+  <section class="card tbl-card">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Quand</th><th>Langue · pays</th><th>Entrée</th><th>Première question</th><th class="num">Tours</th><th class="num">Durée</th><th>Reflet recommandé</th><th>Repères</th></tr></thead>
+        <tbody>
+          {result.rows.length === 0 && <tr><td colspan="8"><p class="empty">Aucune conversation ne correspond.</p></td></tr>}
+          {
+            result.rows.map((r) => (
+              <tr>
+                <td class="muted mono when"><a class="row-link" href={`/admin/conversations/${r.id}?days=${days}`}>{fmtDate(r.createdAt)}</a></td>
+                <td>{localeLabel(r.locale)}{r.country ? ` · ${r.country}` : ""}</td>
+                <td>{entryLabel(r.entry)}{r.page ? <span class="muted"> · {pageLabel(r.page)}</span> : null}</td>
+                <td class="cell-q"><a href={`/admin/conversations/${r.id}?days=${days}`}><span class="ellipsis" title={r.firstQuestion}>{r.firstQuestion || "—"}</span></a></td>
+                <td class="num">{r.turns}</td>
+                <td class="num muted">{fmtDuration(r.durationMs)}</td>
+                <td>{r.recommended ?? <span class="muted">–</span>}</td>
+                <td>
+                  {r.withCard && <span class="badge badge-soft">fiche</span>}
+                  {r.hasEmail && <span class="badge badge-rose">email</span>}
+                  {r.handoff && <span class="badge">humain</span>}
+                  {r.violations > 0 && <span class="badge badge-warn">{r.violations} infr.</span>}
+                  {r.regenerated > 0 && <span class="badge badge-warn">régénérée</span>}
+                  {r.fallback && <span class="badge badge-warn">secours</span>}
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+    {
+      result.pages > 1 && (
+        <div class="pager">
+          <span>Page {result.page} sur {result.pages} · {PER_PAGE} par page</span>
+          <span>
+            {result.page > 1 && <a class="btn btn-sm btn-ghost" href={pageHref(result.page - 1)}>← Précédente</a>}
+            {result.page < result.pages && <a class="btn btn-sm btn-ghost" href={pageHref(result.page + 1)}>Suivante →</a>}
+          </span>
+        </div>
+      )
+    }
+  </section>
+</AdminLayout>

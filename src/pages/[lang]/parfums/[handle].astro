@@ -503,6 +503,7 @@ const productJsonLd = {
   import { track } from "../../../lib/klaviyo";
   import { metaViewContent, shopifyNumericId } from "../../../lib/meta";
   import { ga4ViewItem } from "../../../lib/ga4";
+  import { trackSite } from "../../../lib/site-events";
 
   // "Viewed Product" : un envoi par chargement de page produit (best effort).
   const viewedProduct = JSON.parse(document.getElementById("viewed-product")?.textContent ?? "null");
@@ -513,6 +514,8 @@ const productJsonLd = {
       // le tracking ne doit jamais faire échouer le rendu de la page
     }
   }
+  // Tour de contrôle : la fiche vue (le handle est le dernier segment de l'URL).
+  trackSite("product_view", { handle: window.location.pathname.split("/").filter(Boolean).pop() ?? null });
 
   // "ViewContent" Meta + "view_item" GA4 — même déclenchement, mêmes données.
   const metaProduct = JSON.parse(document.getElementById("meta-view-content")?.textContent ?? "null");

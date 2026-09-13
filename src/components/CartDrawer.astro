@@ -224,6 +224,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   import { freeShippingThreshold, intlLocale } from "../lib/markets";
   import { getActiveCurrency, hydratePrices, pageLocale } from "../lib/country";
   import type { CartUpdatedEvent } from "../lib/cart";
+  import { trackSite } from "../lib/site-events";
 
   type UpsellItem = {
     handle: string;
@@ -567,6 +568,14 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     a.dataset.userPlay = "1";
     a.play().catch(() => {});
   }
+  // Tour de contrôle : l'ajout du partenaire depuis l'accord du panier.
+  drawer?.addEventListener("click", (e) => {
+    const add = (e.target as HTMLElement | null)?.closest<HTMLButtonElement>("[data-cart-accord-body] [data-add-to-cart]");
+    if (!add || !e.isTrusted) return;
+    const wrap = add.closest<HTMLElement>("[data-cart-accord-body]");
+    const src = wrap?.querySelector<HTMLElement>("[data-accord-listen]")?.dataset.src ?? "";
+    trackSite("accord_add", { duo: src.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? null, variantId: add.dataset.variantId ?? null });
+  });
   drawer?.addEventListener("click", (e) => {
     const btn = (e.target as HTMLElement | null)?.closest<HTMLButtonElement>("[data-accord-play]");
     if (!btn || !e.isTrusted) return;
