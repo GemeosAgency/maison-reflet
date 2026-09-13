@@ -1,0 +1,44 @@
+---
+/** Les paniers abandonnés et en cours : quand, statut, étape, articles (vignettes), pays, source, appareil, montant. */
+import ProductThumb from "./ProductThumb.astro";
+import { fmtDate } from "../../lib/admin/data";
+import { fmtMoney, flagOf, type CartRow } from "../../lib/admin/business";
+import { countryName } from "../../lib/admin/geo";
+interface Props {
+  carts: CartRow[];
+  limit?: number;
+  compact?: boolean;
+  empty?: string;
+}
+const { carts, limit = 60, compact = false, empty = "Aucun panier abandonné sur la période." } = Astro.props;
+const rows = carts.slice(0, limit);
+const STATUS: Record<string, { label: string; cls: string }> = { abandoned: { label: "abandonné", cls: "badge-warn" }, open: { label: "en cours", cls: "badge-soft" }, paid: { label: "payé", cls: "badge-ok" } };
+---
+
+<div class="tbl-wrap">
+  <table class:list={["tbl", { "tbl-compact": compact }]}>
+    <thead><tr><th>Quand</th><th>Statut</th><th>Étape</th><th>Articles</th><th>Pays</th><th>Source</th><th>Appareil</th><th class="num">Montant</th></tr></thead>
+    <tbody>
+      {rows.length === 0 && <tr><td colspan="8"><p class="empty">{empty}</p></td></tr>}
+      {
+        rows.map((c) => (
+          <tr data-row={c.anon}>
+            <td class="muted mono when">{fmtDate(c.at)}</td>
+            <td><span class:list={["badge", STATUS[c.status].cls]}>{STATUS[c.status].label}</span></td>
+            <td class="nowrap">{c.stage === "checkout" ? <span class="badge badge-rose">au paiement</span> : <span class="badge">au sac</span>}</td>
+            <td>
+              <span class="items">
+                <span class="items-stack">{c.items.slice(0, 3).map((i) => <ProductThumb image={i.image} name={i.name} size={28} />)}</span>
+                <span class="items-text">{c.items.map((i) => `${i.quantity > 1 ? `${i.quantity} × ` : ""}${i.name}`).join(", ") || "–"}</span>
+              </span>
+            </td>
+            <td class="nowrap" title={c.country ? countryName(c.country) : ""}>{c.country ? `${flagOf(c.country)} ${c.country}` : "–"}</td>
+            <td class="nowrap">{c.source}</td>
+            <td class="muted">{c.device === "mobile" ? "Mobile" : c.device === "desktop" ? "Ordinateur" : "–"}</td>
+            <td class="num strong">{c.estimated && <span class="muted" data-tip="Montant estimé d'après le catalogue : l'événement ne portait pas le total du sac.">≈ </span>}{fmtMoney(c.total, c.currency)}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>

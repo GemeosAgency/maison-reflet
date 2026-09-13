@@ -12,6 +12,59 @@ import { getAllProducts, isCoffret } from "../shopify";
 export type Days = 7 | 30 | 90;
 export const RANGES: Days[] = [7, 30, 90];
 export const TZ = "Asia/Dubai";
+const DAY_MS = 86400000;
+
+/**
+ * La période regardée : un préréglage (7, 30, 90 derniers jours) ou deux dates
+ * sur mesure (`?from=AAAA-MM-JJ&to=AAAA-MM-JJ`), bornées aux journées de Dubaï.
+ * `query` remet la période dans une URL, `label` la dit en français.
+ */
+export type Range = { from: Date; to: Date; days: number; preset: Days | null; query: string; label: string; fromKey: string; toKey: string };
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const dubaiMidnight = (key: string) => new Date(`${key}T00:00:00+04:00`);
+const fmtRangeDay = (d: Date, withYear: boolean) => new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}) }).format(d);
+
+export function rangeBetween(from: Date, to: Date, preset: Days | null = null): Range {
+  const fromKey = dayKey(from.toISOString());
+  const toKey = dayKey(to.toISOString());
+  const days = Math.max(1, Math.round((dubaiMidnight(toKey).getTime() - dubaiMidnight(fromKey).getTime()) / DAY_MS) + 1);
+  const sameYear = fromKey.slice(0, 4) === toKey.slice(0, 4);
+  return {
+    from: dubaiMidnight(fromKey),
+    to: new Date(dubaiMidnight(toKey).getTime() + DAY_MS - 1),
+    days,
+    preset,
+    query: preset ? `days=${preset}` : `from=${fromKey}&to=${toKey}`,
+    label: preset ? `${preset} derniers jours` : fromKey === toKey ? fmtRangeDay(from, true) : `${fmtRangeDay(dubaiMidnight(fromKey), !sameYear)} – ${fmtRangeDay(dubaiMidnight(toKey), true)}`,
+    fromKey,
+    toKey,
+  };
+}
+export function rangeForDays(days: Days): Range {
+  const today = dubaiMidnight(dayKey(new Date().toISOString()));
+  return rangeBetween(new Date(today.getTime() - (days - 1) * DAY_MS), today, days);
+}
+export function parseRange(params: URLSearchParams): Range {
+  const from = params.get("from");
+  const to = params.get("to");
+  if (from && to && DATE_RE.test(from) && DATE_RE.test(to)) {
+    const today = dubaiMidnight(dayKey(new Date().toISOString()));
+    let a = dubaiMidnight(from);
+    let b = dubaiMidnight(to);
+    if (Number.isFinite(a.getTime()) && Number.isFinite(b.getTime())) {
+      if (b > today) b = today;
+      if (a > b) [a, b] = [b, a];
+      if ((b.getTime() - a.getTime()) / DAY_MS > 366) a = new Date(b.getTime() - 366 * DAY_MS);
+      return rangeBetween(a, b, null);
+    }
+  }
+  return rangeForDays(parseDays(params.get("days")));
+}
+/** La période juste avant, de même longueur (pour les comparaisons). */
+export function previousRange(r: Range): Range {
+  return rangeBetween(new Date(r.from.getTime() - r.days * DAY_MS), new Date(r.from.getTime() - DAY_MS), null);
+}
 
 export function parseDays(v: string | null | undefined): Days {
   const n = Number(v);
@@ -79,23 +132,25 @@ export async function fetchAll<T>(table: string, build: (q: any) => any): Promis
 
 export type LumaData = { sessions: SessionRow[]; messages: MessageRow[]; events: EventRow[]; signals: SignalRow[] };
 
-export async function loadLuma(days: number): Promise<LumaData> {
-  const since = sinceFor(days).toISOString();
-  const sessions = await fetchAll<SessionRow>("luma_sessions", (q) => q.gte("created_at", since).order("created_at", { ascending: false }));
+export async function loadLuma(range: Range): Promise<LumaData> {
+  const since = range.from.toISOString();
+  const until = range.to.toISOString();
+  const sessions = await fetchAll<SessionRow>("luma_sessions", (q) => q.gte("created_at", since).lte("created_at", until).order("created_at", { ascending: false }));
   const ids = sessions.map((s) => s.id);
   if (ids.length === 0) return { sessions, messages: [], events: [], signals: [] };
   const [messages, events, signals] = await Promise.all([
     fetchAll<MessageRow>("luma_messages", (q) => q.in("session_id", ids).order("id", { ascending: true })),
-    fetchAll<EventRow>("luma_events", (q) => q.gte("created_at", since).order("id", { ascending: true })),
+    fetchAll<EventRow>("luma_events", (q) => q.gte("created_at", since).lte("created_at", until).order("id", { ascending: true })),
     fetchAll<SignalRow>("luma_profile_signals", (q) => q.in("session_id", ids)),
   ]);
   return { sessions, messages, events, signals };
 }
 
-export async function loadSite(days: number): Promise<SiteEventRow[]> {
-  const since = sinceFor(days).toISOString();
+export async function loadSite(range: Range): Promise<SiteEventRow[]> {
+  const since = range.from.toISOString();
+  const until = range.to.toISOString();
   try {
-    return await fetchAll<SiteEventRow>("site_events", (q) => q.gte("created_at", since).order("id", { ascending: true }));
+    return await fetchAll<SiteEventRow>("site_events", (q) => q.gte("created_at", since).lte("created_at", until).order("id", { ascending: true }));
   } catch (error) {
     // La table n'existe pas encore (migration 0003 pas appliquée) : la page « Site » le dit, le reste vit.
     console.error("[admin/data] site_events", error);
@@ -138,18 +193,19 @@ function percentile(values: number[], p: number): number | null {
   return sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))];
 }
 export const dayKey = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
-export function dailySeries(rows: { created_at: string }[], days: number): { key: string; label: string; value: number }[] {
-  const counts = new Map<string, number>();
-  for (const r of rows) counts.set(dayKey(r.created_at), (counts.get(dayKey(r.created_at)) ?? 0) + 1);
-  const out: { key: string; label: string; value: number }[] = [];
-  const start = sinceFor(days);
-  for (let i = 0; i < days; i++) {
-    const d = new Date(start);
-    d.setUTCDate(start.getUTCDate() + i);
-    const key = dayKey(d.toISOString());
-    out.push({ key, label: new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, day: "2-digit", month: "2-digit" }).format(d), value: counts.get(key) ?? 0 });
+/** Les jours de la période, dans l'ordre, avec leur clé (AAAA-MM-JJ, Dubaï) et leur étiquette courte. */
+export function daysOf(range: Range): { key: string; label: string; date: Date }[] {
+  const out: { key: string; label: string; date: Date }[] = [];
+  for (let i = 0; i < range.days; i++) {
+    const d = new Date(range.from.getTime() + i * DAY_MS + 12 * 3600 * 1000); // midi, à l'abri des changements d'heure
+    out.push({ key: dayKey(d.toISOString()), label: new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, day: "2-digit", month: "2-digit" }).format(d), date: d });
   }
   return out;
+}
+export function dailySeries(rows: { created_at: string }[], range: Range): { key: string; label: string; value: number }[] {
+  const counts = new Map<string, number>();
+  for (const r of rows) counts.set(dayKey(r.created_at), (counts.get(dayKey(r.created_at)) ?? 0) + 1);
+  return daysOf(range).map((d) => ({ key: d.key, label: d.label, value: counts.get(d.key) ?? 0 }));
 }
 export function countBy<T>(rows: T[], key: (r: T) => string | null | undefined): { label: string; count: number }[] {
   const m = new Map<string, number>();
@@ -190,7 +246,7 @@ export const nameOf = (names: { handle: string; name: string }[], handle: string
 
 /* ------------------------------------------------------------- vue d'ensemble */
 export type Overview = {
-  days: Days;
+  days: number;
   conversations: number;
   userTurns: number;
   withCard: number;
@@ -281,8 +337,8 @@ export function buildConversations(data: LumaData): ConversationRow[] {
   });
 }
 
-export async function overview(days: Days): Promise<Overview> {
-  const [data, site] = await Promise.all([loadLuma(days), loadSite(days)]);
+export async function overview(range: Range): Promise<Overview> {
+  const [data, site] = await Promise.all([loadLuma(range), loadSite(range)]);
   const rows = buildConversations(data);
   const replies = data.events.filter((e) => e.name === "reply");
   const latencies = replies.map((e) => num(e.props.total_ms)).filter((n): n is number => n !== null);
@@ -295,7 +351,7 @@ export async function overview(days: Days): Promise<Overview> {
   ];
   const incidents = incidentDefs.map(([key, label]) => {
     const evs = data.events.filter((e) => e.name === key);
-    return { key, label, count: evs.length, spark: dailySeries(evs, days).map((d) => d.value) };
+    return { key, label, count: evs.length, spark: dailySeries(evs, range).map((d) => d.value) };
   });
   let tokensIn = 0;
   let tokensOut = 0;
@@ -306,7 +362,7 @@ export async function overview(days: Days): Promise<Overview> {
   const users = data.messages.filter((m) => m.role === "user");
   const views = site.filter((e) => e.name === "product_view");
   return {
-    days,
+    days: range.days,
     conversations: rows.length,
     userTurns: users.length,
     withCard: rows.filter((r) => r.withCard).length,
@@ -317,8 +373,8 @@ export async function overview(days: Days): Promise<Overview> {
     p50: percentile(latencies, 50),
     p95: percentile(latencies, 95),
     incidents,
-    seriesConversations: dailySeries(data.sessions, days),
-    seriesTurns: dailySeries(users, days),
+    seriesConversations: dailySeries(data.sessions, range),
+    seriesTurns: dailySeries(users, range),
     byLocale: countBy(rows, (r) => localeLabel(r.locale)),
     byCountry: countBy(rows, (r) => r.country).slice(0, 8),
     byEntry: countBy(rows, (r) => entryLabel(r.entry)),
@@ -339,8 +395,8 @@ export async function overview(days: Days): Promise<Overview> {
 export type ConversationFilters = { locale?: string; country?: string; entry?: string; email?: boolean; violations?: boolean; q?: string; page?: number };
 export const PER_PAGE = 40;
 
-export async function conversations(days: Days, f: ConversationFilters) {
-  const data = await loadLuma(days);
+export async function conversations(range: Range, f: ConversationFilters) {
+  const data = await loadLuma(range);
   let rows = buildConversations(data);
   const facets = {
     locales: countBy(rows, (r) => r.locale),
@@ -390,8 +446,8 @@ const THEMES: { key: string; label: string; re: RegExp }[] = [
 const normalise = (s: string) => s.toLowerCase().replace(/\s+/g, " ").replace(/[\s?!.…]+$/g, "").trim();
 const UNANSWERED = /(je ne (sais|peux) pas|je n'ai pas (l'information|cette information)|pas (d'|l')information|i (don't|do not) (know|have)|i can(not|'t)|لا أستطيع|لا أعرف|ليس لدي)/i;
 
-export async function questions(days: Days) {
-  const data = await loadLuma(days);
+export async function questions(range: Range) {
+  const data = await loadLuma(range);
   const users = data.messages.filter((m) => m.role === "user" && m.content.trim());
   const grouped = new Map<string, { text: string; count: number; sessions: Set<string>; last: string }>();
   for (const m of users) {
@@ -431,8 +487,8 @@ export async function questions(days: Days) {
 }
 
 /* ------------------------------------------------------------- reflets & accords */
-export async function reflets(days: Days) {
-  const [data, site, names] = await Promise.all([loadLuma(days), loadSite(days), refletNames()]);
+export async function reflets(range: Range) {
+  const [data, site, names] = await Promise.all([loadLuma(range), loadSite(range), refletNames()]);
   const uniq = (rows: SiteEventRow[]) => new Set(rows.map((e) => e.anon_id)).size;
   const per = names.map(({ handle, name }) => {
     const plays = site.filter((e) => e.name === "audio_play" && str(e.props.kind) === "portrait" && str(e.props.id) === handle);
@@ -471,8 +527,8 @@ export async function reflets(days: Days) {
 }
 
 /* ------------------------------------------------------------- site */
-export async function site(days: Days) {
-  const [events, names] = await Promise.all([loadSite(days), refletNames()]);
+export async function site(range: Range) {
+  const [events, names] = await Promise.all([loadSite(range), refletNames()]);
   const anon = (rows: SiteEventRow[]) => new Set(rows.map((e) => e.anon_id));
   const funnel = names.map(({ handle, name }) => {
     const viewers = anon(events.filter((e) => e.name === "product_view" && str(e.props.handle) === handle));
@@ -493,7 +549,7 @@ export async function site(days: Days) {
     since: events[0]?.created_at ?? null,
     total: events.length,
     visitors: new Set(events.map((e) => e.anon_id)).size,
-    seriesVisitors: dailySeriesUnique(events, days),
+    seriesVisitors: dailySeriesUnique(events, range),
     funnel,
     filters,
     mapSelects,
@@ -506,13 +562,13 @@ export async function site(days: Days) {
     names,
   };
 }
-function dailySeriesUnique(rows: SiteEventRow[], days: number) {
+function dailySeriesUnique(rows: SiteEventRow[], range: Range) {
   const perDay = new Map<string, Set<string>>();
   for (const r of rows) {
     const k = dayKey(r.created_at);
     perDay.set(k, (perDay.get(k) ?? new Set()).add(r.anon_id));
   }
-  return dailySeries([], days).map((d) => ({ ...d, value: perDay.get(d.key)?.size ?? 0 }));
+  return dailySeries([], range).map((d) => ({ ...d, value: perDay.get(d.key)?.size ?? 0 }));
 }
 
 /* ------------------------------------------------------------- RGPD */

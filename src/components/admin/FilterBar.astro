@@ -1,34 +1,37 @@
 ---
 /**
- * Les filtres du business (Reflet, pays, source, langue) : un formulaire GET,
+ * Les filtres du business (produit, pays, source, langue) : un formulaire GET,
  * chaque changement recharge la page avec l'URL qui va bien — partageable,
- * et la période (days) reste. Les options viennent de ce qui existe vraiment
- * sur la période (facettes), pas d'une liste en dur.
+ * et la période reste. Les options viennent de ce qui existe vraiment sur la
+ * période (facettes), pas d'une liste en dur.
  */
-import type { Filters } from "../../lib/admin/business";
+import type { Filters, Product } from "../../lib/admin/business";
 import { countryName } from "../../lib/admin/geo";
-import { LOCALE_LABEL } from "../../lib/admin/data";
+import { LOCALE_LABEL, type Range } from "../../lib/admin/data";
+import { flagOf } from "../../lib/admin/business";
 
 interface Props {
   filters: Filters;
-  facets: { countries: string[]; sources: string[]; reflets: { handle: string; name: string }[] };
-  days: number;
+  facets: { countries: string[]; sources: string[]; products: Product[] };
+  range: Range;
 }
-const { filters, facets, days } = Astro.props;
+const { filters, facets, range } = Astro.props;
 const active = Object.values(filters).filter(Boolean).length;
-const clearHref = `${Astro.url.pathname}?days=${days}`;
+const clearHref = `${Astro.url.pathname}?${range.query}`;
+const rangeParams = new URLSearchParams(range.query);
 ---
 
 <form class="adm-filters" method="get" slot="filters" data-filter-bar>
-  <input type="hidden" name="days" value={days} />
+  {[...rangeParams.entries()].map(([k, v]) => <input type="hidden" name={k} value={v} />)}
   <span class="adm-filters-label">Filtrer</span>
-  <select name="reflet" aria-label="Reflet" class:list={{ "is-set": Boolean(filters.reflet) }}>
-    <option value="">Tous les Reflets</option>
-    {facets.reflets.map((r) => <option value={r.handle} selected={filters.reflet === r.handle}>{r.name}</option>)}
+  <select name="reflet" aria-label="Produit" class:list={{ "is-set": Boolean(filters.reflet) }}>
+    <option value="">Tous les produits</option>
+    <optgroup label="Les Reflets">{facets.products.filter((p) => p.kind === "reflet").map((r) => <option value={r.handle} selected={filters.reflet === r.handle}>{r.name}</option>)}</optgroup>
+    {facets.products.some((p) => p.kind === "coffret") && <optgroup label="Les coffrets">{facets.products.filter((p) => p.kind === "coffret").map((r) => <option value={r.handle} selected={filters.reflet === r.handle}>{r.name}</option>)}</optgroup>}
   </select>
   <select name="country" aria-label="Pays" class:list={{ "is-set": Boolean(filters.country) }}>
     <option value="">Tous les pays</option>
-    {facets.countries.map((c) => <option value={c} selected={filters.country === c}>{countryName(c)}</option>)}
+    {facets.countries.map((c) => <option value={c} selected={filters.country === c}>{flagOf(c)} {countryName(c)}</option>)}
   </select>
   <select name="source" aria-label="Source" class:list={{ "is-set": Boolean(filters.source) }}>
     <option value="">Toutes les sources</option>
@@ -46,7 +49,6 @@ const clearHref = `${Astro.url.pathname}?days=${days}`;
 <script>
   for (const form of document.querySelectorAll<HTMLFormElement>("[data-filter-bar]")) {
     form.addEventListener("change", () => {
-      // Les champs vides ne polluent pas l'URL.
       for (const el of form.querySelectorAll<HTMLSelectElement>("select")) el.disabled = !el.value;
       form.submit();
     });

@@ -1,0 +1,16 @@
+---
+/**
+ * Le contenu d'une fenêtre de détail, rendu côté serveur et gardé dans un
+ * <template> ; le script de la mise en page le copie dans la boîte de dialogue
+ * au clic sur un élément `data-open-modal="<id>"`.
+ */
+interface Props {
+  id: string;
+  title: string;
+  subtitle?: string;
+  wide?: boolean;
+}
+const { id, title, subtitle, wide = false } = Astro.props;
+---
+
+<template data-modal-template={id} data-title={title} data-subtitle={subtitle} data-wide={wide ? "1" : undefined}><slot /></template>

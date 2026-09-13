@@ -2,18 +2,21 @@
 /** Les six Reflets vus par Luma et par le site : recommandations, écoutes, ajouts ; les accords ; les portes d'entrée. */
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { readSession } from "../../lib/admin/auth";
-import { reflets, parseDays, fmtInt, fmtPct } from "../../lib/admin/data";
+import { reflets, parseRange, fmtInt, fmtPct } from "../../lib/admin/data";
+import { loadCatalog } from "../../lib/admin/business";
+import ProductThumb from "../../components/admin/ProductThumb.astro";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
-const days = parseDays(Astro.url.searchParams.get("days"));
-const r = await reflets(days);
+const range = parseRange(Astro.url.searchParams);
+const [r, catalog] = await Promise.all([reflets(range), loadCatalog()]);
+const imageOf = (handle: string) => catalog.products.find((p) => p.handle === handle)?.image ?? null;
 const max = (rows: { count: number }[]) => Math.max(1, ...rows.map((x) => x.count));
 const maxReco = Math.max(1, ...r.per.map((p) => p.recommended));
 ---
 
-<AdminLayout title="Reflets & accords" section="reflets" admin={admin} days={days} subtitle="Ce que Luma recommande, ce que les visiteurs écoutent et ajoutent, les accords qui prennent, et les portes par lesquelles on arrive.">
+<AdminLayout title="Reflets & accords" section="reflets" admin={admin} range={range} subtitle="Ce que Luma recommande, ce que les visiteurs écoutent et ajoutent, les accords qui prennent, et les portes par lesquelles on arrive.">
   <section class="card tbl-card">
     <div class="card-head"><h2 class="card-title">Les six</h2><p class="card-note">{fmtInt(r.recommendedTotal)} recommandations de Luma{r.hasSite ? "" : " · colonnes site en attente des premiers événements"}</p></div>
     <div class="tbl-wrap">
@@ -23,7 +26,7 @@ const maxReco = Math.max(1, ...r.per.map((p) => p.recommended));
           {
             r.per.map((p) => (
               <tr>
-                <td><strong>{p.name}</strong></td>
+                <td><span class="pcell"><ProductThumb image={imageOf(p.handle)} name={p.name} size={36} /><strong>{p.name}</strong></span></td>
                 <td>
                   <span class="reco"><span class="gauge"><span class="gauge-fill" style={`width:${(p.recommended / maxReco) * 100}%;background:var(--rose)`}></span></span><span class="mono">{p.recommended} <span class="muted">· {fmtPct(p.recommended, r.recommendedTotal)}</span></span></span>
                 </td>
@@ -98,6 +101,7 @@ const maxReco = Math.max(1, ...r.per.map((p) => p.recommended));
 <style>
   .reco { display: grid; grid-template-columns: 90px auto; align-items: center; gap: 10px; white-space: nowrap; }
   .tbl td:first-child { white-space: nowrap; }
+  .pcell { display: inline-flex; align-items: center; gap: 10px; }
   .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
   @media (max-width: 900px) { .doors { grid-template-columns: 1fr; } }
 </style>

@@ -2,18 +2,19 @@
 /** Luma : ce qu'elle a fait sur la période, ce que ça coûte, où ça coince, et ce que le site enregistre autour d'elle. */
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { readSession } from "../../lib/admin/auth";
-import { overview, parseDays, fmtInt, fmtPct, fmtMs, fmtUsd, fmtDate, entryLabel, localeLabel, fmtDuration } from "../../lib/admin/data";
+import { overview, parseRange, fmtInt, fmtPct, fmtMs, fmtUsd, fmtDate, entryLabel, localeLabel, fmtDuration } from "../../lib/admin/data";
 import { bars, sparkline } from "../../lib/admin/charts";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
-const days = parseDays(Astro.url.searchParams.get("days"));
-const o = await overview(days);
+const range = parseRange(Astro.url.searchParams);
+const days = range.days;
+const o = await overview(range);
 const max = (rows: { count: number }[]) => Math.max(1, ...rows.map((r) => r.count));
 ---
 
-<AdminLayout title="Luma" section="luma" admin={admin} days={days} subtitle={`La conseillère sur les ${days} derniers jours : conversations, fiches montrées, emails, coût, incidents.`}>
+<AdminLayout title="Luma" section="luma" admin={admin} range={range} subtitle={`La conseillère sur la période (${range.label}) : conversations, fiches montrées, emails, coût, incidents.`}>
   <section class="kpis">
     <div class="card kpi"><span class="kpi-label">Conversations</span><span class="kpi-value">{fmtInt(o.conversations)}</span><span class="kpi-sub">{fmtInt(o.userTurns)} messages de visiteurs</span></div>
     <div class="card kpi"><span class="kpi-label">Fiches Reflet montrées</span><span class="kpi-value">{fmtPct(o.withCard, o.conversations)}</span><span class="kpi-sub">{fmtInt(o.withCard)} conversations avec une carte</span></div>
@@ -91,12 +92,12 @@ const max = (rows: { count: number }[]) => Math.max(1, ...rows.map((r) => r.coun
           <p class="note">Les événements du site (écoutes, filtres, carte, panier) arrivent ici dès que la table <strong>site_events</strong> existe (migration 0003) et que le site déployé les envoie.</p>
         )
       }
-      <p class="card-foot"><a href={`/admin/site?days=${days}`}>Voir le détail du site →</a></p>
+      <p class="card-foot"><a href={`/admin/site?${range.query}`}>Voir le détail du site →</a></p>
     </div>
   </section>
 
   <section class="card tbl-card">
-    <div class="card-head"><h2 class="card-title">Dernières conversations</h2><a class="card-note" href={`/admin/conversations?days=${days}`}>Toutes les conversations →</a></div>
+    <div class="card-head"><h2 class="card-title">Dernières conversations</h2><a class="card-note" href={`/admin/conversations?${range.query}`}>Toutes les conversations →</a></div>
     <div class="tbl-wrap">
       <table class="tbl">
         <thead><tr><th>Quand</th><th>Langue · pays</th><th>Entrée</th><th>Première question</th><th class="num">Tours</th><th>Reflet</th><th></th></tr></thead>

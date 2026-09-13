@@ -3,15 +3,15 @@
 import AdminLayout from "../../../layouts/AdminLayout.astro";
 import { readSession } from "../../../lib/admin/auth";
 import { audit } from "../../../lib/admin/db";
-import { conversation, parseDays, fmtDate, fmtTime, fmtMs, fmtDuration, entryLabel, localeLabel, pageLabel, estimateCost, fmtUsd } from "../../../lib/admin/data";
+import { conversation, parseRange, fmtDate, fmtTime, fmtMs, fmtDuration, entryLabel, localeLabel, pageLabel, estimateCost, fmtUsd } from "../../../lib/admin/data";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
-const days = parseDays(Astro.url.searchParams.get("days"));
+const range = parseRange(Astro.url.searchParams);
 const id = Astro.params.id ?? "";
 const c = /^[0-9a-f-]{36}$/i.test(id) ? await conversation(id) : null;
-if (!c) return Astro.redirect(`/admin/conversations?days=${days}`);
+if (!c) return Astro.redirect(`/admin/conversations?${range.query}`);
 await audit(admin.email, "conversation_view", id);
 
 const { session, messages, events, signal } = c;
@@ -30,8 +30,8 @@ const fmtProps = (p: Record<string, unknown>) =>
     .join(" · ");
 ---
 
-<AdminLayout title={`Conversation du ${fmtDate(session.created_at)}`} section="conversations" admin={admin} days={days} showRange={false} subtitle={`${localeLabel(session.locale)}${session.country ? ` · ${session.country}` : ""} · entrée ${entryLabel(entry)}${page ? ` (${pageLabel(page)})` : ""} · ${users.length} tour${users.length > 1 ? "s" : ""} · ${fmtDuration(duration)}`}>
-  <p><a class="btn btn-sm btn-ghost" href={`/admin/conversations?days=${days}`}>← Toutes les conversations</a></p>
+<AdminLayout title={`Conversation du ${fmtDate(session.created_at)}`} section="conversations" admin={admin} range={range} showRange={false} subtitle={`${localeLabel(session.locale)}${session.country ? ` · ${session.country}` : ""} · entrée ${entryLabel(entry)}${page ? ` (${pageLabel(page)})` : ""} · ${users.length} tour${users.length > 1 ? "s" : ""} · ${fmtDuration(duration)}`}>
+  <p><a class="btn btn-sm btn-ghost" href={`/admin/conversations?${range.query}`}>← Toutes les conversations</a></p>
   <section class="grid detail">
     <div class="card">
       <div class="card-head"><h2 class="card-title">Le fil</h2><p class="card-note">visiteur à droite, Luma à gauche</p></div>

@@ -1,0 +1,41 @@
+/**
+ * Les explications de la tour de contrôle, au même endroit : chaque chiffre
+ * qui mérite une phrase a la sienne, affichée au survol du « ? ».
+ */
+export const TIPS = {
+  revenue: "Total TTC des commandes payées sur la période, livraison comprise, remises déduites. Source : le webhook Shopify orders/paid.",
+  orders: "Commandes payées (les commandes de test Shopify sont écartées).",
+  aov: "Panier moyen : chiffre d'affaires divisé par le nombre de commandes.",
+  units: "Flacons et coffrets payés, échantillons offerts exclus.",
+  cartsPaid: "Les paniers qui ont fini en commande payée : leur nombre et leur montant.",
+  cartsAbandoned: "Un panier compte dès le premier ajout au sac. Sans commande une heure après le dernier geste, il est abandonné. « Au paiement » : le visiteur était allé jusqu'au checkout.",
+  cartsAll: "Tous les paniers de la période : validés, abandonnés et en cours. La part encaissée dit combien de la valeur mise au panier a été payée.",
+  cartsOpen: "Paniers de moins d'une heure : trop tôt pour savoir s'ils finiront payés.",
+  estimated: "Montant estimé d'après les prix du catalogue : l'événement d'origine ne portait pas le total du sac (anciens événements).",
+  visitors: "Visiteurs distincts : un identifiant anonyme posé par le navigateur (cookie mr_anon), jamais d'adresse IP. Un même navigateur compte une fois sur la période.",
+  conversion: "Commandes payées divisées par les visiteurs de la période.",
+  checkoutRate: "Part des visiteurs qui sont allés jusqu'au paiement (checkout Shopify).",
+  recovery: "Part des paniers qui finissent payés — tous les paniers, puis ceux qui étaient allés jusqu'au paiement.",
+  source: "D'où vient la première visite : la source utm si le lien en portait une, sinon le site d'où l'on vient, sinon « Direct ». Une commande dont on n'a pas le parcours prend ce que Shopify en sait.",
+  channel: "Regroupement des sources : Social (Instagram, TikTok, Facebook…), Payant (utm cpc, paid, ads), Recherche (Google, Bing), Email (Klaviyo), Référent (autre site), Direct.",
+  beforeTracking: "« Avant le suivi » : ce visiteur a des gestes mais pas de vue de page d'arrivée — il naviguait avant la mise en place du suivi, ou avec un onglet ouvert avant.",
+  unlinked: "Commande sans parcours : passée avant le suivi, ou sans le cookie anonyme (bloqueur, navigation privée). Elle compte dans le chiffre, pas dans les sources visiteurs.",
+  delta: "Variation par rapport à la période précédente de même longueur.",
+  funnel: "Visiteurs distincts à chaque étape : au moins une fiche vue, au moins un ajout au sac, un départ en paiement, une commande reliée au parcours.",
+  views: "Visiteurs distincts ayant ouvert la fiche du produit.",
+  adds: "Ajouts au sac (gestes, pas visiteurs) contenant ce produit.",
+  productConversion: "Commandes contenant ce produit divisées par les visiteurs qui ont vu sa fiche.",
+  share: "Part du chiffre d'affaires de la période.",
+  plays: "Écoutes du portrait audio de ce Reflet (page, menu ou panier).",
+  campaigns: "Liens portant utm_campaign : visiteurs arrivés par ce lien, commandes reliées à leur parcours.",
+  landing: "La première page d'une visite sur la période.",
+  topPages: "Pages vues, en visiteurs distincts.",
+  devices: "D'après le pointeur du navigateur : tactile = mobile.",
+  liveNow: "Visiteurs distincts ayant fait au moins un geste ces dix dernières minutes.",
+  pulse: "Visiteurs distincts par tranche de cinq minutes, sur les deux dernières heures.",
+  lumaCost: "Estimation : tokens lus × 3 $ par million, tokens écrits × 15 $ par million. Ce n'est pas la facture.",
+  byDay: "Un clic sur le graphique ouvre le jour par jour.",
+  discounts: "Remises accordées sur les commandes payées (codes et réductions automatiques).",
+  shipping: "Livraison facturée aux clients sur la période.",
+} as const;
+export type TipKey = keyof typeof TIPS;

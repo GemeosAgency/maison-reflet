@@ -1,0 +1,47 @@
+---
+/** Le jour par jour : visiteurs, fiches vues, ajouts, paiements, commandes, chiffre, abandonnés. S'ouvre au clic sur une courbe, sur le bon jour. */
+import ModalTemplate from "./ModalTemplate.astro";
+import { fmtInt } from "../../lib/admin/data";
+import { fmtMoney, type Business } from "../../lib/admin/business";
+interface Props {
+  byDay: Business["byDay"];
+  currency: string;
+  rangeLabel: string;
+}
+const { byDay, currency, rangeLabel } = Astro.props;
+const rows = [...byDay].reverse();
+const tot = rows.reduce((a, d) => ({ visitors: a.visitors + d.visitors, views: a.views + d.views, adds: a.adds + d.adds, checkouts: a.checkouts + d.checkouts, orders: a.orders + d.orders, revenue: a.revenue + d.revenue, abandoned: a.abandoned + d.abandoned, abandonedTotal: a.abandonedTotal + d.abandonedTotal }), { visitors: 0, views: 0, adds: 0, checkouts: 0, orders: 0, revenue: 0, abandoned: 0, abandonedTotal: 0 });
+---
+
+<ModalTemplate id="days" title="Jour par jour" subtitle={`${rangeLabel} · heure de Dubaï · le jour cliqué est surligné`} wide>
+  <div class="card tbl-card">
+    <div class="tbl-wrap">
+      <table class="tbl tbl-compact">
+        <thead><tr><th>Jour</th><th class="num">Visiteurs</th><th class="num">Fiches vues</th><th class="num">Ajouts</th><th class="num">Paiements</th><th class="num">Commandes</th><th class="num">Chiffre</th><th class="num">Abandonnés</th></tr></thead>
+        <tbody>
+          {
+            rows.map((d) => (
+              <tr data-row={d.key} class:list={{ muted: !d.visitors && !d.orders }}>
+                <td class="nowrap">{d.label}</td>
+                <td class="num">{fmtInt(d.visitors)}</td>
+                <td class="num">{fmtInt(d.views)}</td>
+                <td class="num">{fmtInt(d.adds)}</td>
+                <td class="num">{fmtInt(d.checkouts)}</td>
+                <td class="num">{fmtInt(d.orders)}</td>
+                <td class="num strong">{d.revenue ? fmtMoney(d.revenue, currency) : <span class="muted">–</span>}</td>
+                <td class="num">{d.abandoned ? `${fmtInt(d.abandoned)} · ${fmtMoney(d.abandonedTotal, currency)}` : <span class="muted">–</span>}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+        <tfoot>
+          <tr><th>Total</th><th class="num">{fmtInt(tot.visitors)}</th><th class="num">{fmtInt(tot.views)}</th><th class="num">{fmtInt(tot.adds)}</th><th class="num">{fmtInt(tot.checkouts)}</th><th class="num">{fmtInt(tot.orders)}</th><th class="num">{fmtMoney(tot.revenue, currency)}</th><th class="num">{tot.abandoned ? `${fmtInt(tot.abandoned)} · ${fmtMoney(tot.abandonedTotal, currency)}` : "–"}</th></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</ModalTemplate>
+
+<style is:global>
+  .tbl tfoot th { padding: 10px 12px; border-top: 1px solid var(--line-strong); border-bottom: 0; font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--ink); font-weight: 500; }
+</style>

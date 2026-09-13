@@ -1,0 +1,37 @@
+---
+/**
+ * Un indicateur : l'étiquette (avec son « ? »), le chiffre, son unité, une
+ * ligne de contexte et la variation. Cliquable quand une fenêtre de détail
+ * existe (`modal`).
+ */
+import Tip from "./Tip.astro";
+import Delta from "./Delta.astro";
+import type { TipKey } from "../../lib/admin/tips";
+interface Props {
+  label: string;
+  value: string;
+  unit?: string;
+  sub?: string;
+  tip?: TipKey;
+  tipText?: string;
+  delta?: number | null;
+  deltaInvert?: boolean;
+  modal?: string;
+  tone?: "default" | "rose" | "hero";
+  class?: string;
+}
+const { label, value, unit, sub, tip, tipText, delta, deltaInvert, modal, tone = "default", class: cls } = Astro.props;
+// Un <div role="button"> plutôt qu'un <button> : le « ? » est lui-même un bouton, et un bouton dans un bouton casse le HTML.
+---
+
+<div class:list={["card", "kpi", `kpi-${tone}`, { "kpi-click": Boolean(modal) }, cls]} data-open-modal={modal} role={modal ? "button" : undefined} tabindex={modal ? 0 : undefined}>
+  <span class="kpi-label">{label}{(tip || tipText) && <Tip of={tip} text={tipText} />}</span>
+  <span class="kpi-value">{value}{unit && <span class="unit">{unit}</span>}</span>
+  {(sub || delta !== undefined) && (
+    <span class="kpi-foot">
+      {delta !== undefined && <Delta value={delta ?? null} invert={deltaInvert} />}
+      {sub && <span class="kpi-sub">{sub}</span>}
+    </span>
+  )}
+  {modal && <span class="kpi-more" aria-hidden="true">Détail →</span>}
+</div>

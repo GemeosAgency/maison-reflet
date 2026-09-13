@@ -2,19 +2,19 @@
 /** Le comportement sur le site : le parcours par Reflet, les filtres du guide, la carte, le menu, les écoutes. */
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { readSession } from "../../lib/admin/auth";
-import { site, parseDays, fmtInt, fmtPct, fmtDate } from "../../lib/admin/data";
+import { site, parseRange, fmtInt, fmtPct, fmtDate } from "../../lib/admin/data";
 import { bars } from "../../lib/admin/charts";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
-const days = parseDays(Astro.url.searchParams.get("days"));
-const s = await site(days);
+const range = parseRange(Astro.url.searchParams);
+const s = await site(range);
 const max = (rows: { count: number }[]) => Math.max(1, ...rows.map((x) => x.count));
 const maxViews = Math.max(1, ...s.funnel.map((f) => f.views));
 ---
 
-<AdminLayout title="Parcours sur le site" section="site" admin={admin} days={days} subtitle={s.since ? `Ce que les visiteurs font sur le site depuis le ${fmtDate(s.since)} : fiches, écoutes, guide, carte, menu, panier. Les sources sont dans Trafic & sources.` : "En attente des premiers événements du site."}>
+<AdminLayout title="Parcours sur le site" section="site" admin={admin} range={range} subtitle={s.since ? `Ce que les visiteurs font sur le site depuis le ${fmtDate(s.since)} : fiches, écoutes, guide, carte, menu, panier. Les sources sont dans Trafic & sources.` : "En attente des premiers événements du site."}>
   {
     !s.since && (
       <p class="note">Cette page se remplit dès que le site déployé envoie ses événements : fiches vues, écoutes, filtres du guide, carte des six, menu, ajouts au panier, départs en paiement.</p>

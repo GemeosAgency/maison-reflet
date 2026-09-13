@@ -1,0 +1,43 @@
+---
+/** Les produits en vignettes : photo, chiffre, part, flacons, fiches vues, ajouts. Un clic ouvre la fenêtre du produit. */
+import ProductThumb from "./ProductThumb.astro";
+import { fmtInt, fmtPct } from "../../lib/admin/data";
+import { fmtMoneyShort, type PerProduct } from "../../lib/admin/business";
+interface Props {
+  products: PerProduct[];
+  currency: string;
+  focus?: string;
+  mode?: "sales" | "journey";
+}
+const { products, currency, focus, mode = "sales" } = Astro.props;
+const maxShare = Math.max(0.0001, ...products.map((p) => p.share));
+---
+
+<div class="ptiles">
+  {
+    products.map((p) => (
+      <button type="button" class:list={["ptile", { "is-focus": focus === p.handle }]} data-open-modal={`product:${p.handle}`}>
+        <ProductThumb image={p.image} name={p.name} size={72} ratio="portrait" />
+        <span class="ptile-body">
+          <span class="ptile-name">{p.name}{p.kind === "coffret" && <span class="ptile-kind">coffret</span>}</span>
+          <span class="ptile-revenue">{fmtMoneyShort(p.revenue)}<span class="unit">{currency}</span></span>
+          <span class="ptile-share" aria-hidden="true"><span style={`width:${(p.share / maxShare) * 100}%`}></span></span>
+          {mode === "sales" ? (
+            <span class="ptile-stats">
+              <span>Flacons<b>{fmtInt(p.units)}</b></span>
+              <span>Cmd<b>{fmtInt(p.orders)}</b></span>
+              <span>Part<b>{p.share ? `${Math.round(p.share * 100)} %` : "–"}</b></span>
+            </span>
+          ) : (
+            <span class="ptile-stats">
+              <span>Fiches<b>{fmtInt(p.views)}</b></span>
+              <span>Ajouts<b>{fmtInt(p.adds)}</b></span>
+              <span>→ achat<b>{p.views ? fmtPct(p.orders, p.views) : "–"}</b></span>
+            </span>
+          )}
+          {p.abandoned > 0 && <span class="ptile-warn">{fmtInt(p.abandoned)} panier{p.abandoned > 1 ? "s" : ""} abandonné{p.abandoned > 1 ? "s" : ""} · {fmtMoneyShort(p.abandonedTotal)} {currency}</span>}
+        </span>
+      </button>
+    ))
+  }
+</div>

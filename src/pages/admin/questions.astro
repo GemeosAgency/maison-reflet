@@ -2,17 +2,17 @@
 /** Ce que les visiteurs demandent à Luma, par thème et mot pour mot, et là où elle n'a pas su répondre. */
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { readSession } from "../../lib/admin/auth";
-import { questions, parseDays, fmtInt, fmtPct, fmtDate } from "../../lib/admin/data";
+import { questions, parseRange, fmtInt, fmtPct, fmtDate } from "../../lib/admin/data";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
-const days = parseDays(Astro.url.searchParams.get("days"));
-const q = await questions(days);
+const range = parseRange(Astro.url.searchParams);
+const q = await questions(range);
 const maxTheme = Math.max(1, ...q.themes.map((t) => t.count));
 ---
 
-<AdminLayout title="Questions" section="questions" admin={admin} days={days} subtitle="Les demandes des visiteurs, regroupées par thème, mot pour mot, et celles où Luma a hésité. C'est la matière première de la FAQ et des textes à écrire.">
+<AdminLayout title="Questions" section="questions" admin={admin} range={range} subtitle="Les demandes des visiteurs, regroupées par thème, mot pour mot, et celles où Luma a hésité. C'est la matière première de la FAQ et des textes à écrire.">
   <section class="kpis">
     <div class="card kpi"><span class="kpi-label">Messages de visiteurs</span><span class="kpi-value">{fmtInt(q.total)}</span></div>
     <div class="card kpi"><span class="kpi-label">Questions distinctes</span><span class="kpi-value">{fmtInt(q.distinct)}</span></div>
@@ -58,7 +58,7 @@ const maxTheme = Math.max(1, ...q.themes.map((t) => t.count));
           {
             q.unanswered.map((u) => (
               <tr>
-                <td class="muted mono when"><a href={`/admin/conversations/${u.sessionId}?days=${days}`}>{fmtDate(u.createdAt)}</a></td>
+                <td class="muted mono when"><a href={`/admin/conversations/${u.sessionId}?${range.query}`}>{fmtDate(u.createdAt)}</a></td>
                 <td class="cell-q">{u.question}</td>
                 <td class="cell-q muted"><span class="clamp">{u.answer || "(réponse vide — secours affiché)"}</span></td>
                 <td>{u.reasons.map((r) => <span class="badge badge-warn">{r}</span>)}</td>

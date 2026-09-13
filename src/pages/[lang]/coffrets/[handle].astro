@@ -357,6 +357,10 @@ const productJsonLd = {
   import { track } from "../../../lib/klaviyo";
   import { metaViewContent, shopifyNumericId } from "../../../lib/meta";
   import { ga4ViewItem } from "../../../lib/ga4";
+  import { trackSite } from "../../../lib/site-events";
+
+  // Tour de contrôle : la fiche du coffret vue (le handle est le dernier segment de l'URL).
+  trackSite("product_view", { handle: window.location.pathname.split("/").filter(Boolean).pop() ?? null });
 
   const viewedProduct = JSON.parse(document.getElementById("viewed-product")?.textContent ?? "null");
   if (viewedProduct) {

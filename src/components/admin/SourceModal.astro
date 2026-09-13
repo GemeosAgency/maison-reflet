@@ -1,0 +1,45 @@
+---
+/** La fenêtre d'une source : ses visiteurs, ce qu'ils ont regardé, d'où (pays, appareils, pages d'arrivée, campagnes), et ses commandes. */
+import ModalTemplate from "./ModalTemplate.astro";
+import Kpi from "./Kpi.astro";
+import OrdersTable from "./OrdersTable.astro";
+import { fmtInt, fmtPct } from "../../lib/admin/data";
+import { fmtMoney, fmtMoneyShort, type SourceRow } from "../../lib/admin/business";
+import { hbars } from "../../lib/admin/charts";
+interface Props {
+  source: SourceRow;
+  currency: string;
+}
+const { source: s, currency } = Astro.props;
+---
+
+<ModalTemplate id={`source:${s.label}`} title={s.label} subtitle={`Canal ${s.channel}`} wide>
+  <div class="kpis">
+    <Kpi label="Visiteurs" value={fmtInt(s.visitors)} tip="visitors" />
+    <Kpi label="Départs en paiement" value={fmtInt(s.checkouts)} sub={s.visitors ? `${fmtPct(s.checkouts, s.visitors)} des visiteurs` : undefined} />
+    <Kpi label="Commandes" value={fmtInt(s.orders)} sub={s.conversion !== null ? `conversion ${fmtPct(s.orders, s.visitors)}` : undefined} tone="rose" />
+    <Kpi label="Chiffre d'affaires" value={fmtMoneyShort(s.revenue)} unit={currency} sub={s.visitors && s.revenue ? `${fmtMoney(s.revenue / s.visitors, currency)} par visiteur` : undefined} />
+  </div>
+  <div class="modal-grid">
+    <div class="card">
+      <div class="card-head"><h3 class="card-title">Ce qu'ils ont regardé</h3><p class="card-note">fiches vues, visiteurs distincts</p></div>
+      <Fragment set:html={hbars(s.detail.viewed.map((v) => ({ label: v.label, value: v.count, text: fmtInt(v.count) })))} />
+    </div>
+    <div class="card">
+      <div class="card-head"><h3 class="card-title">Pays et appareils</h3></div>
+      <Fragment set:html={hbars([...s.detail.countries.map((c) => ({ label: c.name, prefix: c.flag, value: c.count, text: fmtInt(c.count), color: "var(--ink)" })), ...s.detail.devices.map((d) => ({ label: d.label, value: d.count, text: fmtInt(d.count), color: "var(--rose)" }))])} />
+    </div>
+    <div class="card">
+      <div class="card-head"><h3 class="card-title">Pages d'arrivée</h3></div>
+      <Fragment set:html={hbars(s.detail.landingPages.map((p) => ({ label: p.label, value: p.count, text: fmtInt(p.count) })))} />
+    </div>
+    <div class="card">
+      <div class="card-head"><h3 class="card-title">Campagnes (utm)</h3></div>
+      <Fragment set:html={hbars(s.detail.campaigns.map((c) => ({ label: c.campaign, value: c.visitors, text: `${fmtInt(c.visitors)}${c.orders ? ` · ${fmtInt(c.orders)} cmd` : ""}`, color: "var(--warn)" })))} />
+    </div>
+  </div>
+  <div>
+    <p class="modal-section-title">Commandes venues de {s.label}</p>
+    <div class="card tbl-card"><OrdersTable orders={s.detail.orders} compact limit={8} empty="Aucune commande depuis cette source sur la période." /></div>
+  </div>
+</ModalTemplate>

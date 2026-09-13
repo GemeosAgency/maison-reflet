@@ -1,0 +1,12 @@
+---
+/** Le « ? » qui explique un chiffre au survol ou au focus. Le texte vient de lib/admin/tips.ts ou d'une phrase directe. */
+import { TIPS, type TipKey } from "../../lib/admin/tips";
+interface Props {
+  of?: TipKey;
+  text?: string;
+}
+const { of, text } = Astro.props;
+const tip = text ?? (of ? TIPS[of] : "");
+---
+
+{tip && <button type="button" class="tip" aria-label="Explication" data-tip={tip}>?</button>}

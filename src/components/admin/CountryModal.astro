@@ -1,0 +1,40 @@
+---
+/** La fenêtre d'un pays : visiteurs, commandes, ce qui s'y vend, d'où viennent ses visiteurs, en quelle langue, et ses commandes. */
+import ModalTemplate from "./ModalTemplate.astro";
+import Kpi from "./Kpi.astro";
+import OrdersTable from "./OrdersTable.astro";
+import { fmtInt, fmtPct, LOCALE_LABEL } from "../../lib/admin/data";
+import { fmtMoney, fmtMoneyShort, type CountryRow } from "../../lib/admin/business";
+import { hbars } from "../../lib/admin/charts";
+interface Props {
+  country: CountryRow;
+  currency: string;
+}
+const { country: c, currency } = Astro.props;
+---
+
+<ModalTemplate id={`country:${c.code}`} title={`${c.flag} ${c.name}`} subtitle={`${fmtInt(c.visitors)} visiteur${c.visitors > 1 ? "s" : ""} · ${fmtInt(c.orders)} commande${c.orders > 1 ? "s" : ""}`} wide>
+  <div class="kpis">
+    <Kpi label="Visiteurs" value={fmtInt(c.visitors)} tip="visitors" />
+    <Kpi label="Commandes" value={fmtInt(c.orders)} sub={c.conversion !== null ? `conversion ${fmtPct(c.orders, c.visitors)}` : undefined} tone="rose" />
+    <Kpi label="Chiffre d'affaires" value={fmtMoneyShort(c.revenue)} unit={currency} sub={c.orders ? `panier moyen ${fmtMoney(c.revenue / c.orders, currency)}` : undefined} />
+  </div>
+  <div class="modal-grid">
+    <div class="card">
+      <div class="card-head"><h3 class="card-title">Ce qui s'y vend</h3><p class="card-note">flacons et coffrets</p></div>
+      <Fragment set:html={hbars(c.detail.products.map((p) => ({ label: p.label, value: p.count, text: fmtInt(p.count), color: "var(--rose)" })))} />
+    </div>
+    <div class="card">
+      <div class="card-head"><h3 class="card-title">D'où viennent ses visiteurs</h3></div>
+      <Fragment set:html={hbars(c.detail.sources.map((s) => ({ label: s.label, value: s.count, text: fmtInt(s.count) })))} />
+    </div>
+    <div class="card">
+      <div class="card-head"><h3 class="card-title">Langues et appareils</h3></div>
+      <Fragment set:html={hbars([...c.detail.locales.map((l) => ({ label: LOCALE_LABEL[l.label] ?? l.label, value: l.count, text: fmtInt(l.count) })), ...c.detail.devices.map((d) => ({ label: d.label, value: d.count, text: fmtInt(d.count), color: "var(--rose)" }))])} />
+    </div>
+  </div>
+  <div>
+    <p class="modal-section-title">Commandes livrées en {c.name}</p>
+    <div class="card tbl-card"><OrdersTable orders={c.detail.orders} compact limit={8} empty="Aucune commande dans ce pays sur la période." /></div>
+  </div>
+</ModalTemplate>

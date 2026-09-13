@@ -1,0 +1,55 @@
+---
+/** La fenêtre d'un produit : la photo, ses chiffres, ses fiches vues et ventes par jour, ses pays, ses commandes, ses paniers. */
+import ModalTemplate from "./ModalTemplate.astro";
+import ProductThumb from "./ProductThumb.astro";
+import Kpi from "./Kpi.astro";
+import OrdersTable from "./OrdersTable.astro";
+import CartsTable from "./CartsTable.astro";
+import { fmtInt, fmtPct } from "../../lib/admin/data";
+import { fmtMoney, fmtMoneyShort, type PerProduct } from "../../lib/admin/business";
+import { timeChart, hbars } from "../../lib/admin/charts";
+interface Props {
+  product: PerProduct;
+  currency: string;
+  totalRevenue: number;
+}
+const { product: p, currency, totalRevenue } = Astro.props;
+const money = (n: number) => fmtMoney(n, currency);
+---
+
+<ModalTemplate id={`product:${p.handle}`} title={p.name} subtitle={`${p.kind === "coffret" ? "Coffret" : "Reflet"} · ${money(p.price)} · ${totalRevenue ? fmtPct(p.revenue, totalRevenue) : "–"} du chiffre d'affaires`} wide>
+  <div class="modal-hero">
+    <ProductThumb image={p.image} name={p.name} size={120} ratio="portrait" />
+    <div class="kpis">
+      <Kpi label="Chiffre d'affaires" value={fmtMoneyShort(p.revenue)} unit={currency} tone="rose" />
+      <Kpi label="Flacons" value={fmtInt(p.units)} sub={`${fmtInt(p.orders)} commande${p.orders > 1 ? "s" : ""}`} />
+      <Kpi label="Fiches vues" value={fmtInt(p.views)} tip="views" />
+      <Kpi label="Ajouts" value={fmtInt(p.adds)} tip="adds" />
+      <Kpi label="Fiche → achat" value={p.views ? fmtPct(p.orders, p.views) : "–"} tip="productConversion" />
+      <Kpi label="Abandonnés" value={fmtInt(p.abandoned)} sub={p.abandoned ? money(p.abandonedTotal) : undefined} tip="cartsAbandoned" />
+      {p.kind === "reflet" && <Kpi label="Écoutes" value={fmtInt(p.plays)} tip="plays" />}
+    </div>
+  </div>
+  <div class="modal-grid">
+    <div class="card">
+      <div class="card-head"><h3 class="card-title">Fiches vues et flacons vendus, par jour</h3><p class="card-note">aire : fiches vues · barres : flacons</p></div>
+      <Fragment set:html={timeChart(p.detail.seriesViews, { secondary: p.detail.seriesUnits, height: 150, primaryColor: "var(--ink)", secondaryColor: "var(--rose)", primaryLabel: "fiches vues", secondaryLabel: "flacons" })} />
+    </div>
+    <div class="card">
+      <div class="card-head"><h3 class="card-title">Où il part</h3><p class="card-note">flacons par pays de livraison</p></div>
+      <Fragment set:html={hbars(p.detail.countries.map((c) => ({ label: c.name, prefix: c.flag, value: c.units, text: fmtInt(c.units), color: "var(--rose)" })))} />
+    </div>
+  </div>
+  <div>
+    <p class="modal-section-title">Dernières commandes avec {p.name}</p>
+    <div class="card tbl-card"><OrdersTable orders={p.detail.orders} compact limit={8} empty="Aucune commande avec ce produit sur la période." /></div>
+  </div>
+  {
+    p.detail.carts.length > 0 && (
+      <div>
+        <p class="modal-section-title">Paniers abandonnés ou en cours avec {p.name}</p>
+        <div class="card tbl-card"><CartsTable carts={p.detail.carts} compact limit={8} /></div>
+      </div>
+    )
+  }
+</ModalTemplate>

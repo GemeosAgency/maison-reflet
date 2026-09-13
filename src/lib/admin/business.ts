@@ -3,14 +3,17 @@
  * webhook Shopify) croisées avec les parcours anonymes (site_events). Tout se
  * calcule en mémoire à partir de deux jeux de lignes : les VISITEURS (un profil
  * par identifiant anonyme : source d'arrivée, pays, appareil, ce qu'il a vu,
- * son dernier départ en paiement) et les COMMANDES. Les filtres (Reflet, pays,
- * source, langue) s'appliquent aux deux, et chaque chiffre en découle.
+ * son sac, son dernier départ en paiement) et les COMMANDES. Les filtres
+ * (produit, pays, source, langue) s'appliquent aux deux, et chaque chiffre en
+ * découle. La période précédente est calculée de la même façon pour les
+ * comparaisons. Les détails (par produit, par source, par pays, jour par jour)
+ * nourrissent les fenêtres qui s'ouvrent au clic.
  */
 import { adminDb } from "./db";
 import { COUNTRY_CENTROIDS, countryName } from "./geo";
 import { LAYERING } from "../layering";
-import { getAllProducts, isSampleVariantTitle } from "../shopify";
-import { dailySeries, dayKey, fetchAll, loadSite, refletNames, sinceFor, type Days, type SiteEventRow } from "./data";
+import { getAllProducts, isCoffret, isSampleVariantTitle } from "../shopify";
+import { dailySeries, dayKey, daysOf, fetchAll, loadSite, previousRange, rangeBetween, refletNames, TZ, type Range, type SiteEventRow } from "./data";
 
 /* ------------------------------------------------------------------ types */
 export type OrderLine = { variant_id: number | null; product_id: number | null; handle: string | null; title: string; variant_title: string | null; sku: string | null; quantity: number; price: number; total: number };
@@ -38,6 +41,11 @@ export type OrderRow = {
   received_at: string;
 };
 
+export type Product = { handle: string; name: string; image: string | null; price: number; kind: "reflet" | "coffret"; productId: number | null };
+export type Catalog = { products: Product[]; variantPrice: Map<string, { price: number; handle: string }>; handlePrice: Map<string, number>; byProductId: Map<number, string> };
+/** Une vignette Shopify à la largeur voulue (le CDN redimensionne à la demande). */
+export const thumb = (url: string | null | undefined, w = 160) => (url ? `${url}${url.includes("?") ? "&" : "?"}width=${w}` : null);
+
 export type Source = { label: string; channel: Channel };
 export type Channel = "Direct" | "Social" | "Payant" | "Recherche" | "Email" | "Référent" | "Inconnue";
 export const CHANNEL_COLORS: Record<Channel, string> = {
@@ -62,7 +70,6 @@ export type Visitor = {
   lastSeen: string;
   pageViews: number;
   viewed: Set<string>;
-  /** Le sac : dernier ajout, montant du sac après cet ajout (événements récents), variantes ajoutées (pour estimer les anciens). */
   cartAt: string | null;
   addedTotal: number | null;
   addedLines: CartLine[];
@@ -70,49 +77,6 @@ export type Visitor = {
   checkout: { at: string; total: number; currency: string | null; lines: CartLine[] } | null;
   orders: OrderRow[];
 };
-
-/** Les prix du catalogue Shopify, pour chiffrer un sac dont l'événement ne portait pas encore le montant. */
-export type Catalog = { variantPrice: Map<string, { price: number; handle: string }>; handlePrice: Map<string, number> };
-export async function loadCatalog(): Promise<Catalog> {
-  const variantPrice = new Map<string, { price: number; handle: string }>();
-  const handlePrice = new Map<string, number>();
-  try {
-    for (const p of await getAllProducts()) {
-      for (const v of p.variants.nodes) {
-        const price = Number(v.price.amount);
-        variantPrice.set(v.id, { price, handle: p.handle });
-        if (price > 0 && !isSampleVariantTitle(v.title) && !handlePrice.has(p.handle)) handlePrice.set(p.handle, price);
-      }
-    }
-  } catch (error) {
-    console.error("[admin/business] catalogue Shopify indisponible", error);
-  }
-  return { variantPrice, handlePrice };
-}
-
-export type Cart = { stage: "cart" | "checkout"; at: string; total: number; currency: string | null; lines: CartLine[]; estimated: boolean };
-/**
- * Le panier d'un visiteur : son départ en paiement s'il y en a un, sinon son sac
- * (dernier ajout). Le montant vient de l'événement quand il l'a ; sinon il est
- * estimé d'après le catalogue (variantes ajoutées, sans tenir compte des retraits).
- */
-export function cartOf(v: Visitor, catalog: Catalog): Cart | null {
-  if (v.checkout) return { stage: "checkout", at: v.checkout.at, total: v.checkout.total, currency: v.checkout.currency, lines: v.checkout.lines, estimated: false };
-  if (!v.cartAt) return null;
-  if (v.addedTotal !== null) return { stage: "cart", at: v.cartAt, total: v.addedTotal, currency: null, lines: v.addedLines, estimated: false };
-  const byHandle = new Map<string, CartLine>();
-  for (const gid of v.addedVariants) {
-    const p = catalog.variantPrice.get(gid);
-    if (!p || p.price <= 0) continue;
-    const cur = byHandle.get(p.handle) ?? { handle: p.handle, quantity: 0, amount: 0 };
-    cur.quantity++;
-    cur.amount += p.price;
-    byHandle.set(p.handle, cur);
-  }
-  for (const l of v.addedLines) if (!byHandle.has(l.handle)) byHandle.set(l.handle, { handle: l.handle, quantity: l.quantity, amount: (catalog.handlePrice.get(l.handle) ?? 0) * l.quantity });
-  const lines = [...byHandle.values()];
-  return { stage: "cart", at: v.cartAt, total: lines.reduce((n, l) => n + l.amount, 0), currency: null, lines, estimated: true };
-}
 
 export type Filters = { reflet?: string; country?: string; source?: string; locale?: string };
 export function parseFilters(params: URLSearchParams): Filters {
@@ -128,6 +92,15 @@ export function parseFilters(params: URLSearchParams): Filters {
   };
 }
 export const hasFilters = (f: Filters) => Boolean(f.reflet || f.country || f.source || f.locale);
+export function filtersQuery(f: Filters): string {
+  const p = new URLSearchParams();
+  if (f.reflet) p.set("reflet", f.reflet);
+  if (f.country) p.set("country", f.country);
+  if (f.source) p.set("source", f.source);
+  if (f.locale) p.set("locale", f.locale);
+  const s = p.toString();
+  return s ? `&${s}` : "";
+}
 
 /* ------------------------------------------------------------------ helpers */
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
@@ -140,7 +113,14 @@ const cartLines = (v: unknown): CartLine[] =>
     : [];
 
 export const fmtMoney = (n: number, currency = "AED") => `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(n))} ${currency}`;
-export const fmtMoneyShort = (n: number) => (n >= 10000 ? `${(n / 1000).toFixed(1).replace(".", ",")} k` : new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(n)));
+export const fmtMoneyShort = (n: number) => (n >= 100000 ? `${(n / 1000).toFixed(0)} k` : n >= 10000 ? `${(n / 1000).toFixed(1).replace(".", ",")} k` : new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(n)));
+export const flagOf = (code: string | null | undefined) => (code && /^[A-Z]{2}$/.test(code) ? String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)) : "");
+/** La variation en % entre deux valeurs (null si rien à comparer). */
+export function delta(cur: number | null | undefined, prev: number | null | undefined): number | null {
+  if (cur == null || prev == null || !Number.isFinite(cur) || !Number.isFinite(prev)) return null;
+  if (prev === 0) return cur === 0 ? 0 : null;
+  return (cur - prev) / prev;
+}
 
 /** D'où vient une visite : la source utm si elle existe, sinon le site d'où l'on vient, sinon direct. */
 export function classifySource(ref: string | null, utm: { source?: string; medium?: string } | null): Source {
@@ -199,10 +179,9 @@ function orderSource(o: OrderRow): Source {
 }
 
 /* ------------------------------------------------------------------ lecture */
-export async function loadOrders(days: number): Promise<OrderRow[]> {
-  const since = sinceFor(days).toISOString();
+export async function loadOrders(range: Range): Promise<OrderRow[]> {
   try {
-    const rows = await fetchAll<OrderRow>("shop_orders", (q) => q.gte("created_at", since).order("created_at", { ascending: false }));
+    const rows = await fetchAll<OrderRow>("shop_orders", (q) => q.gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString()).order("created_at", { ascending: false }));
     return rows.map((r) => ({ ...r, total: Number(r.total), subtotal: Number(r.subtotal), discounts: Number(r.discounts), shipping: Number(r.shipping), lines: Array.isArray(r.lines) ? r.lines : [] }));
   } catch (error) {
     console.error("[admin/business] shop_orders", error);
@@ -210,7 +189,32 @@ export async function loadOrders(days: number): Promise<OrderRow[]> {
   }
 }
 
-/** Les profils de visiteurs, à partir des événements bruts. */
+/** Le catalogue Shopify : les six Reflets et les coffrets, avec image et prix, pour les vignettes et les estimations. */
+export async function loadCatalog(): Promise<Catalog> {
+  const products: Product[] = [];
+  const variantPrice = new Map<string, { price: number; handle: string }>();
+  const handlePrice = new Map<string, number>();
+  const byProductId = new Map<number, string>();
+  try {
+    for (const p of await getAllProducts()) {
+      const productId = Number(p.id.split("/").pop()) || null;
+      if (productId) byProductId.set(productId, p.handle);
+      for (const v of p.variants.nodes) {
+        const price = Number(v.price.amount);
+        variantPrice.set(v.id, { price, handle: p.handle });
+        if (price > 0 && !isSampleVariantTitle(v.title) && !handlePrice.has(p.handle)) handlePrice.set(p.handle, price);
+      }
+      products.push({ handle: p.handle, name: p.title, image: p.featuredImage?.url ?? null, price: handlePrice.get(p.handle) ?? Number(p.priceRange.minVariantPrice.amount), kind: isCoffret(p) ? "coffret" : "reflet", productId });
+    }
+  } catch (error) {
+    console.error("[admin/business] catalogue Shopify indisponible", error);
+    for (const h of [...new Set(LAYERING.flatMap((d) => d.pair))]) products.push({ handle: h, name: h, image: null, price: 0, kind: "reflet", productId: null });
+  }
+  products.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "reflet" ? -1 : 1));
+  return { products, variantPrice, handlePrice, byProductId };
+}
+
+/* ------------------------------------------------------------------ visiteurs & paniers */
 export function buildVisitors(events: SiteEventRow[], orders: OrderRow[]): Map<string, Visitor> {
   const byAnon = new Map<string, Visitor>();
   for (const e of events) {
@@ -246,7 +250,7 @@ export function buildVisitors(events: SiteEventRow[], orders: OrderRow[]): Map<s
         if (t !== null) v.addedTotal = t;
         for (const gid of Array.isArray(e.props.variants) ? e.props.variants : []) if (typeof gid === "string") v.addedVariants.push(gid);
         const lines = cartLines(e.props.lines);
-        if (lines.length) v.addedLines = lines; // le sac complet après l'ajout (événements récents)
+        if (lines.length) v.addedLines = lines;
         else for (const h of Array.isArray(e.props.handles) ? e.props.handles : []) if (typeof h === "string" && !v.addedLines.some((l) => l.handle === h)) v.addedLines.push({ handle: h, quantity: 1, amount: 0 });
         break;
       }
@@ -265,10 +269,28 @@ export function buildVisitors(events: SiteEventRow[], orders: OrderRow[]): Map<s
   return byAnon;
 }
 
-/* ------------------------------------------------------------------ le business */
+export type Cart = { stage: "cart" | "checkout"; at: string; total: number; currency: string | null; lines: CartLine[]; estimated: boolean };
+/** Le panier d'un visiteur : son départ en paiement s'il y en a un, sinon son sac ; montant de l'événement, sinon estimé d'après le catalogue. */
+export function cartOf(v: Visitor, catalog: Catalog): Cart | null {
+  if (v.checkout) return { stage: "checkout", at: v.checkout.at, total: v.checkout.total, currency: v.checkout.currency, lines: v.checkout.lines, estimated: false };
+  if (!v.cartAt) return null;
+  if (v.addedTotal !== null) return { stage: "cart", at: v.cartAt, total: v.addedTotal, currency: null, lines: v.addedLines, estimated: false };
+  const byHandle = new Map<string, CartLine>();
+  for (const gid of v.addedVariants) {
+    const p = catalog.variantPrice.get(gid);
+    if (!p || p.price <= 0) continue;
+    const cur = byHandle.get(p.handle) ?? { handle: p.handle, quantity: 0, amount: 0 };
+    cur.quantity++;
+    cur.amount += p.price;
+    byHandle.set(p.handle, cur);
+  }
+  for (const l of v.addedLines) if (!byHandle.has(l.handle)) byHandle.set(l.handle, { handle: l.handle, quantity: l.quantity, amount: (catalog.handlePrice.get(l.handle) ?? 0) * l.quantity });
+  const lines = [...byHandle.values()];
+  return { stage: "cart", at: v.cartAt, total: lines.reduce((n, l) => n + l.amount, 0), currency: null, lines, estimated: true };
+}
+
 const ONE_HOUR = 3600 * 1000;
 export type CartStatus = "paid" | "open" | "abandoned";
-/** Payé si une commande du même parcours suit le panier ; en cours moins d'une heure après le dernier geste ; abandonné ensuite. */
 export function cartStatus(v: Visitor, cart: Cart | null, now = Date.now()): CartStatus | null {
   if (!cart) return null;
   const at = new Date(cart.at).getTime();
@@ -276,27 +298,36 @@ export function cartStatus(v: Visitor, cart: Cart | null, now = Date.now()): Car
   return now - at < ONE_HOUR ? "open" : "abandoned";
 }
 
-export type Business = Awaited<ReturnType<typeof business>>;
+/* ------------------------------------------------------------------ le business */
+export type Item = { handle: string | null; name: string; image: string | null; quantity: number; amount?: number };
+export type RecentOrder = { id: number; name: string | null; created_at: string; country: string | null; total: number; discounts: number; currency: string; source: Source; source_name: string | null; discount_codes: string[]; items: Item[]; linked: boolean };
+export type CartRow = { anon: string; at: string; stage: Cart["stage"]; estimated: boolean; total: number; currency: string; items: Item[]; country: string | null; source: string; device: Visitor["device"]; status: CartStatus };
+export type Kpis = { revenue: number; orders: number; aov: number | null; units: number; discounts: number; shipping: number; visitors: number; conversion: number | null; checkoutRate: number | null; checkouts: number; abandonedCount: number; abandonedTotal: number; cartsTotal: number; cartsCount: number };
 
-export async function business(days: Days, f: Filters = {}) {
-  const [events, allOrders, names, catalog] = await Promise.all([loadSite(days), loadOrders(days), refletNames(), loadCatalog()]);
-  const handleOf = (line: OrderLine) => line.handle ?? (names.find((n) => n.name === line.title)?.handle ?? null);
+type Ctx = { events: SiteEventRow[]; orders: OrderRow[]; catalog: Catalog; range: Range; filters: Filters };
+
+/** Le socle : visiteurs et commandes filtrés, paniers, indicateurs. Suffit pour la période de comparaison. */
+function core({ events, orders: allOrders, catalog, range, filters: f }: Ctx) {
+  const products = catalog.products;
+  const productOf = (h: string | null) => products.find((p) => p.handle === h) ?? null;
+  const handleOf = (line: OrderLine) => line.handle ?? (line.product_id ? catalog.byProductId.get(line.product_id) : null) ?? products.find((p) => p.name === line.title)?.handle ?? null;
+  const itemOf = (handle: string | null, title: string, quantity: number, amount?: number): Item => {
+    const p = productOf(handle);
+    return { handle, name: p?.name ?? title, image: p?.image ?? null, quantity, amount };
+  };
   const realOrders = allOrders.filter((o) => !o.test);
   const visitorsAll = buildVisitors(events, realOrders);
-  // La source d'une commande : celle de son parcours quand on l'a (et qu'elle est connue), sinon ce que Shopify en dit.
   const sourceOf = (o: OrderRow): Source => {
     const v = o.anon_id ? visitorsAll.get(o.anon_id) : undefined;
     return v && v.source.channel !== "Inconnue" ? v.source : orderSource(o);
   };
 
-  // Les facettes des filtres, avant filtrage (pour proposer ce qui existe).
   const facets = {
     countries: [...new Set([...[...visitorsAll.values()].map((v) => v.country), ...realOrders.map((o) => o.country)])].filter((c): c is string => Boolean(c)).sort(),
     sources: [...new Set([...[...visitorsAll.values()].map((v) => v.source.label), ...realOrders.map((o) => sourceOf(o).label)])].sort(),
-    reflets: names,
+    products,
   };
 
-  // Filtrage : un visiteur passe s'il correspond ; une commande passe si elle correspond (par son parcours quand il existe).
   const keepVisitor = (v: Visitor) =>
     (!f.reflet || v.viewed.has(f.reflet) || v.addedLines.some((l) => l.handle === f.reflet) || v.checkout?.lines.some((l) => l.handle === f.reflet) || v.orders.some((o) => o.lines.some((l) => handleOf(l) === f.reflet))) &&
     (!f.country || v.country === f.country) &&
@@ -315,10 +346,8 @@ export async function business(days: Days, f: Filters = {}) {
   const currency = orders.find((o) => o.currency)?.currency ?? visitors.find((v) => v.checkout?.currency)?.checkout?.currency ?? "AED";
   const revenue = orders.reduce((n, o) => n + o.total, 0);
   const units = orders.reduce((n, o) => n + o.lines.reduce((m, l) => m + (l.total > 0 ? l.quantity : 0), 0), 0);
-  const discounts = orders.reduce((n, o) => n + o.discounts, 0);
-  const shipping = orders.reduce((n, o) => n + o.shipping, 0);
 
-  // Les paniers : un sac ou un départ en paiement par visiteur. Validé (commande), abandonné (plus d'une heure sans commande), en cours.
+  // Les paniers.
   const now = Date.now();
   const cartsByAnon = new Map<string, Cart>();
   for (const v of visitors) {
@@ -331,9 +360,9 @@ export async function business(days: Days, f: Filters = {}) {
   const abandoned = withCart.filter((v) => statusOf(v) === "abandoned");
   const open = withCart.filter((v) => statusOf(v) === "open");
   const sum = (vs: Visitor[]) => vs.reduce((n, v) => n + (cartsByAnon.get(v.anon)?.total ?? 0), 0);
+  const atCheckout = (vs: Visitor[]) => vs.filter((v) => cartsByAnon.get(v.anon)?.stage === "checkout");
   const abandonedTotal = sum(abandoned);
   const openTotal = sum(open);
-  const atCheckout = (vs: Visitor[]) => vs.filter((v) => cartsByAnon.get(v.anon)?.stage === "checkout");
   const carts = {
     paid: { count: orders.length, total: revenue },
     abandoned: { count: abandoned.length, total: abandonedTotal, atCheckout: atCheckout(abandoned).length, atCheckoutTotal: sum(atCheckout(abandoned)) },
@@ -344,62 +373,136 @@ export async function business(days: Days, f: Filters = {}) {
     checkoutRecoveryRate: withCheckout.length ? withCheckout.filter((v) => statusOf(v) === "paid").length / withCheckout.length : null,
   };
 
-  // Par Reflet.
-  const perReflet = names.map(({ handle, name }) => {
-    const lines = orders.flatMap((o) => o.lines.filter((l) => handleOf(l) === handle && l.total > 0).map((l) => ({ ...l, order: o })));
-    const orderIds = new Set(lines.map((l) => l.order.id));
-    const abandonedLines = abandoned.flatMap((v) => (cartsByAnon.get(v.anon)?.lines ?? []).filter((l) => l.handle === handle));
-    const viewers = new Set(ev.filter((e) => e.name === "product_view" && str(e.props.handle) === handle).map((e) => e.anon_id)).size;
-    const adds = ev.filter((e) => e.name === "add_to_cart" && Array.isArray(e.props.handles) && (e.props.handles as unknown[]).includes(handle)).length;
+  const kpis: Kpis = {
+    revenue,
+    orders: orders.length,
+    aov: orders.length ? revenue / orders.length : null,
+    units,
+    discounts: orders.reduce((n, o) => n + o.discounts, 0),
+    shipping: orders.reduce((n, o) => n + o.shipping, 0),
+    visitors: visitors.length,
+    conversion: visitors.length ? orders.length / visitors.length : null,
+    checkoutRate: visitors.length ? withCheckout.length / visitors.length : null,
+    checkouts: withCheckout.length,
+    abandonedCount: abandoned.length,
+    abandonedTotal,
+    cartsTotal: carts.all.total,
+    cartsCount: carts.all.count,
+  };
+  return { products, productOf, handleOf, itemOf, visitorsAll, sourceOf, facets, keepOrder, visitors, orders, ev, currency, revenue, cartsByAnon, withCheckout, statusOf, abandoned, open, carts, kpis, events, allOrders, range };
+}
+
+/** Tout le reste : séries, jour par jour, produits, sources, pays, listes — pour la période regardée. */
+function summarize(ctx: Ctx) {
+  const { products, productOf, handleOf, itemOf, visitorsAll, sourceOf, facets, keepOrder, visitors, orders, ev, currency, revenue, cartsByAnon, withCheckout, statusOf, abandoned, open, carts, kpis, events, allOrders, range } = core(ctx);
+
+  const toRecent = (o: OrderRow): RecentOrder => ({
+    id: o.id,
+    name: o.name,
+    created_at: o.created_at,
+    country: o.country,
+    total: o.total,
+    discounts: o.discounts,
+    currency: o.currency ?? currency,
+    source: sourceOf(o),
+    source_name: o.source_name,
+    discount_codes: o.discount_codes,
+    items: o.lines.filter((l) => l.total > 0).map((l) => itemOf(handleOf(l), l.title, l.quantity, l.total)),
+    linked: Boolean(o.anon_id && visitorsAll.has(o.anon_id)),
+  });
+  const toCartRow = (v: Visitor): CartRow => {
+    const c = cartsByAnon.get(v.anon)!;
+    return { anon: v.anon, at: c.at, stage: c.stage, estimated: c.estimated, total: c.total, currency: c.currency ?? currency, items: c.lines.map((l) => itemOf(l.handle, l.handle, l.quantity, l.amount)), country: v.country, source: v.source.label, device: v.device, status: statusOf(v) as CartStatus };
+  };
+  const recentOrders = orders.map(toRecent);
+  const abandonedCarts = [...abandoned, ...open].map(toCartRow).sort((a, b) => (a.at < b.at ? 1 : -1));
+
+  // Les séries par jour.
+  const sumByDay = (rows: { created_at: string; amount: number }[]) => {
+    const m = new Map<string, number>();
+    for (const r of rows) m.set(dayKey(r.created_at), (m.get(dayKey(r.created_at)) ?? 0) + r.amount);
+    return daysOf(range).map((d) => ({ key: d.key, label: d.label, value: Math.round(m.get(d.key) ?? 0) }));
+  };
+  const uniqueByDay = (rows: { created_at: string; anon_id: string }[]) => {
+    const m = new Map<string, Set<string>>();
+    for (const r of rows) m.set(dayKey(r.created_at), (m.get(dayKey(r.created_at)) ?? new Set()).add(r.anon_id));
+    return daysOf(range).map((d) => ({ key: d.key, label: d.label, value: m.get(d.key)?.size ?? 0 }));
+  };
+  const series = {
+    revenue: sumByDay(orders.map((o) => ({ created_at: o.created_at, amount: o.total }))),
+    orders: dailySeries(orders, range),
+    visitors: uniqueByDay(ev),
+    checkouts: dailySeries(ev.filter((e) => e.name === "checkout"), range),
+    abandoned: sumByDay(abandoned.map((v) => ({ created_at: cartsByAnon.get(v.anon)!.at, amount: cartsByAnon.get(v.anon)!.total }))),
+  };
+  const byDay = daysOf(range).map((d, i) => {
+    const dayOrders = orders.filter((o) => dayKey(o.created_at) === d.key);
+    const dayAbandoned = abandoned.filter((v) => dayKey(cartsByAnon.get(v.anon)!.at) === d.key);
     return {
-      handle,
-      name,
-      revenue: lines.reduce((n, l) => n + l.total, 0),
-      units: lines.reduce((n, l) => n + l.quantity, 0),
-      orders: orderIds.size,
-      abandoned: abandonedLines.length,
-      abandonedTotal: abandonedLines.reduce((n, l) => n + l.amount, 0),
-      views: viewers,
-      adds,
+      key: d.key,
+      label: new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, weekday: "short", day: "numeric", month: "short" }).format(d.date),
+      visitors: series.visitors[i].value,
+      views: ev.filter((e) => e.name === "product_view" && dayKey(e.created_at) === d.key).length,
+      adds: ev.filter((e) => e.name === "add_to_cart" && dayKey(e.created_at) === d.key).length,
+      checkouts: series.checkouts[i].value,
+      orders: dayOrders.length,
+      revenue: dayOrders.reduce((n, o) => n + o.total, 0),
+      abandoned: dayAbandoned.length,
+      abandonedTotal: dayAbandoned.reduce((n, v) => n + (cartsByAnon.get(v.anon)?.total ?? 0), 0),
     };
   });
-  perReflet.sort((a, b) => b.revenue - a.revenue || b.views - a.views);
-  // Ce qui n'est pas un Reflet (coffret, échantillon payant…) dans les commandes.
-  const otherLines = orders.flatMap((o) => o.lines.filter((l) => l.total > 0 && !names.some((n) => n.handle === handleOf(l))));
+
+  // Par produit (les Reflets et les coffrets), avec le détail pour la fenêtre.
+  const perProduct = products.map((p) => {
+    const lines = orders.flatMap((o) => o.lines.filter((l) => handleOf(l) === p.handle && l.total > 0).map((l) => ({ ...l, order: o })));
+    const orderIds = new Set(lines.map((l) => l.order.id));
+    const abandonedRows = abandonedCarts.filter((c) => c.status === "abandoned" && c.items.some((i) => i.handle === p.handle));
+    const abandonedAmount = abandonedRows.reduce((n, c) => n + c.items.filter((i) => i.handle === p.handle).reduce((m, i) => m + (i.amount ?? 0), 0), 0);
+    const viewEvents = ev.filter((e) => e.name === "product_view" && str(e.props.handle) === p.handle);
+    const viewers = new Set(viewEvents.map((e) => e.anon_id)).size;
+    const adds = ev.filter((e) => e.name === "add_to_cart" && Array.isArray(e.props.handles) && (e.props.handles as unknown[]).includes(p.handle)).length;
+    const plays = ev.filter((e) => e.name === "audio_play" && str(e.props.id) === p.handle).length;
+    const countriesMap = new Map<string, number>();
+    for (const l of lines) {
+      const code = l.order.country ?? (l.order.anon_id ? visitorsAll.get(l.order.anon_id)?.country : null) ?? null;
+      if (code) countriesMap.set(code, (countriesMap.get(code) ?? 0) + l.quantity);
+    }
+    const productRevenue = lines.reduce((n, l) => n + l.total, 0);
+    return {
+      ...p,
+      revenue: productRevenue,
+      units: lines.reduce((n, l) => n + l.quantity, 0),
+      orders: orderIds.size,
+      abandoned: abandonedRows.length,
+      abandonedTotal: abandonedAmount,
+      views: viewers,
+      plays,
+      adds,
+      share: revenue ? productRevenue / revenue : 0,
+      detail: {
+        seriesViews: dailySeries(viewEvents, range),
+        seriesUnits: sumByDay(lines.map((l) => ({ created_at: l.order.created_at, amount: l.quantity }))),
+        countries: [...countriesMap.entries()].map(([code, u]) => ({ code, name: countryName(code), flag: flagOf(code), units: u })).sort((a, b) => b.units - a.units).slice(0, 6),
+        orders: recentOrders.filter((o) => orderIds.has(o.id)).slice(0, 8),
+        carts: abandonedCarts.filter((c) => c.items.some((i) => i.handle === p.handle)).slice(0, 8),
+      },
+    };
+  });
+  perProduct.sort((a, b) => b.revenue - a.revenue || b.views - a.views);
+  const otherLines = orders.flatMap((o) => o.lines.filter((l) => l.total > 0 && !products.some((p) => p.handle === handleOf(l))));
   const other = { revenue: otherLines.reduce((n, l) => n + l.total, 0), units: otherLines.reduce((n, l) => n + l.quantity, 0), titles: [...new Set(otherLines.map((l) => l.title))] };
 
-  // Les sources : visiteurs, commandes et CA par source d'arrivée.
-  const sourceMap = new Map<string, { label: string; channel: Channel; visitors: number; orders: number; revenue: number; checkouts: number }>();
-  const bump = (s: Source) => {
-    const cur = sourceMap.get(s.label) ?? { label: s.label, channel: s.channel, visitors: 0, orders: 0, revenue: 0, checkouts: 0 };
-    sourceMap.set(s.label, cur);
-    return cur;
-  };
-  for (const v of visitors) {
-    const cur = bump(v.source);
-    cur.visitors++;
-    if (v.checkout) cur.checkouts++;
-  }
-  for (const o of orders) {
-    const cur = bump(sourceOf(o));
-    cur.orders++;
-    cur.revenue += o.total;
-  }
-  const sources = [...sourceMap.values()].sort((a, b) => b.revenue - a.revenue || b.visitors - a.visitors);
-  const channels = (["Direct", "Social", "Payant", "Recherche", "Email", "Référent", "Inconnue"] as Channel[])
-    .map((channel) => ({ channel, color: CHANNEL_COLORS[channel], visitors: sources.filter((s) => s.channel === channel).reduce((n, s) => n + s.visitors, 0), orders: sources.filter((s) => s.channel === channel).reduce((n, s) => n + s.orders, 0), revenue: sources.filter((s) => s.channel === channel).reduce((n, s) => n + s.revenue, 0) }))
-    .filter((c) => c.visitors > 0 || c.orders > 0);
+  // Les campagnes utm.
   const campaigns = (() => {
-    const m = new Map<string, { campaign: string; source: string; visitors: number; orders: number; revenue: number }>();
+    const m = new Map<string, { campaign: string; source: string; sourceLabel: string; visitors: number; orders: number; revenue: number }>();
     for (const e of ev) {
       if (e.name !== "page_view" || e.props.landing !== true) continue;
       const utm = e.props.utm && typeof e.props.utm === "object" ? (e.props.utm as Record<string, string>) : null;
       if (!utm?.campaign) continue;
       const key = `${utm.source ?? "?"}|${utm.campaign}`;
-      const cur = m.get(key) ?? { campaign: utm.campaign, source: utm.source ?? "?", visitors: 0, orders: 0, revenue: 0 };
+      const cur = m.get(key) ?? { campaign: utm.campaign, source: utm.source ?? "?", sourceLabel: classifySource(null, utm).label, visitors: 0, orders: 0, revenue: 0 };
       cur.visitors++;
-      const v = visitorsAll.get(e.anon_id);
-      for (const o of v?.orders ?? []) if (keepOrder(o)) {
+      for (const o of visitorsAll.get(e.anon_id)?.orders ?? []) if (keepOrder(o)) {
         cur.orders++;
         cur.revenue += o.total;
       }
@@ -408,68 +511,104 @@ export async function business(days: Days, f: Filters = {}) {
     return [...m.values()].sort((a, b) => b.revenue - a.revenue || b.visitors - a.visitors);
   })();
 
-  // Pays, appareils, langues.
-  const countryMap = new Map<string, { code: string; name: string; visitors: number; orders: number; revenue: number }>();
-  for (const v of visitors) if (v.country) {
-    const cur = countryMap.get(v.country) ?? { code: v.country, name: countryName(v.country), visitors: 0, orders: 0, revenue: 0 };
+  // Les sources et les canaux, avec le détail.
+  const sourceMap = new Map<string, { label: string; channel: Channel; color: string; visitors: number; orders: number; revenue: number; checkouts: number; visitorsList: Visitor[]; ordersList: RecentOrder[] }>();
+  const bump = (s: Source) => {
+    const cur = sourceMap.get(s.label) ?? { label: s.label, channel: s.channel, color: CHANNEL_COLORS[s.channel], visitors: 0, orders: 0, revenue: 0, checkouts: 0, visitorsList: [], ordersList: [] };
+    sourceMap.set(s.label, cur);
+    return cur;
+  };
+  for (const v of visitors) {
+    const cur = bump(v.source);
     cur.visitors++;
-    countryMap.set(v.country, cur);
+    cur.visitorsList.push(v);
+    if (v.checkout) cur.checkouts++;
   }
-  for (const o of orders) {
-    const code = o.country ?? (o.anon_id ? visitorsAll.get(o.anon_id)?.country : null) ?? null;
-    if (!code) continue;
-    const cur = countryMap.get(code) ?? { code, name: countryName(code), visitors: 0, orders: 0, revenue: 0 };
+  for (const o of recentOrders) {
+    const cur = bump(o.source);
     cur.orders++;
     cur.revenue += o.total;
-    countryMap.set(code, cur);
+    cur.ordersList.push(o);
   }
-  const countries = [...countryMap.values()].sort((a, b) => b.revenue - a.revenue || b.visitors - a.visitors);
+  const top = <T,>(rows: T[], key: (r: T) => string | null, n: number) => {
+    const m = new Map<string, number>();
+    for (const r of rows) {
+      const k = key(r);
+      if (k) m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return [...m.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count).slice(0, n);
+  };
+  const sources = [...sourceMap.values()]
+    .map(({ visitorsList, ordersList, ...s }) => ({
+      ...s,
+      conversion: s.visitors ? s.orders / s.visitors : null,
+      detail: {
+        orders: ordersList.slice(0, 8),
+        landingPages: top(visitorsList, (v) => v.landingPath, 6),
+        countries: top(visitorsList, (v) => v.country, 6).map((c) => ({ ...c, name: countryName(c.label), flag: flagOf(c.label) })),
+        devices: top(visitorsList, (v) => (v.device === "mobile" ? "Mobile" : v.device === "desktop" ? "Ordinateur" : null), 2),
+        campaigns: campaigns.filter((c) => c.sourceLabel === s.label),
+        viewed: top(visitorsList.flatMap((v) => [...v.viewed]), (h) => productOf(h)?.name ?? h, 6),
+      },
+    }))
+    .sort((a, b) => b.revenue - a.revenue || b.visitors - a.visitors);
+  const channels = (["Direct", "Social", "Payant", "Recherche", "Email", "Référent", "Inconnue"] as Channel[])
+    .map((channel) => ({ channel, color: CHANNEL_COLORS[channel], visitors: sources.filter((s) => s.channel === channel).reduce((n, s) => n + s.visitors, 0), orders: sources.filter((s) => s.channel === channel).reduce((n, s) => n + s.orders, 0), revenue: sources.filter((s) => s.channel === channel).reduce((n, s) => n + s.revenue, 0) }))
+    .filter((c) => c.visitors > 0 || c.orders > 0);
+
+  // Les pays, avec le détail.
+  const countryMap = new Map<string, { code: string; name: string; flag: string; visitors: number; orders: number; revenue: number; visitorsList: Visitor[]; ordersList: RecentOrder[] }>();
+  const bumpCountry = (code: string) => {
+    const cur = countryMap.get(code) ?? { code, name: countryName(code), flag: flagOf(code), visitors: 0, orders: 0, revenue: 0, visitorsList: [], ordersList: [] };
+    countryMap.set(code, cur);
+    return cur;
+  };
+  for (const v of visitors) if (v.country) {
+    const cur = bumpCountry(v.country);
+    cur.visitors++;
+    cur.visitorsList.push(v);
+  }
+  for (const o of recentOrders) {
+    const code = o.country ?? (orders.find((x) => x.id === o.id)?.anon_id ? visitorsAll.get(orders.find((x) => x.id === o.id)!.anon_id!)?.country : null) ?? null;
+    if (!code) continue;
+    const cur = bumpCountry(code);
+    cur.orders++;
+    cur.revenue += o.total;
+    cur.ordersList.push(o);
+  }
+  const countries = [...countryMap.values()]
+    .map(({ visitorsList, ordersList, ...c }) => ({
+      ...c,
+      conversion: c.visitors ? c.orders / c.visitors : null,
+      detail: {
+        orders: ordersList.slice(0, 8),
+        products: top(ordersList.flatMap((o) => o.items.flatMap((i) => Array.from({ length: i.quantity }, () => i.name))), (n) => n, 6),
+        sources: top(visitorsList, (v) => v.source.label, 5),
+        devices: top(visitorsList, (v) => (v.device === "mobile" ? "Mobile" : v.device === "desktop" ? "Ordinateur" : null), 2),
+        locales: top(visitorsList, (v) => v.locale, 3),
+      },
+    }))
+    .sort((a, b) => b.revenue - a.revenue || b.visitors - a.visitors);
+
   const devices = [
     { label: "Mobile", value: visitors.filter((v) => v.device === "mobile").length, color: "var(--rose)" },
     { label: "Ordinateur", value: visitors.filter((v) => v.device === "desktop").length, color: "var(--ink)" },
-  ];
+    { label: "Inconnu", value: visitors.filter((v) => !v.device).length, color: "var(--sand)" },
+  ].filter((d) => d.value > 0);
   const locales = [
     { label: "Français", value: visitors.filter((v) => v.locale === "fr").length, color: "var(--ink)" },
     { label: "Anglais", value: visitors.filter((v) => v.locale === "en").length, color: "var(--rose)" },
     { label: "Arabe", value: visitors.filter((v) => v.locale === "ar").length, color: "#a8641e" },
+  ].filter((d) => d.value > 0);
+
+  const funnel = [
+    { label: "Visiteurs", value: visitors.length },
+    { label: "Fiche vue", value: visitors.filter((v) => v.viewed.size > 0).length },
+    { label: "Ajout au sac", value: new Set(ev.filter((e) => e.name === "add_to_cart").map((e) => e.anon_id)).size },
+    { label: "Paiement", value: withCheckout.length },
+    { label: "Commande", value: orders.length },
   ];
 
-  // Les séries par jour.
-  const sumByDay = (rows: { created_at: string; amount: number }[]) => {
-    const m = new Map<string, number>();
-    for (const r of rows) m.set(dayKey(r.created_at), (m.get(dayKey(r.created_at)) ?? 0) + r.amount);
-    return dailySeries([], days).map((d) => ({ ...d, value: Math.round(m.get(d.key) ?? 0) }));
-  };
-  const uniqueByDay = (rows: { created_at: string; anon_id: string }[]) => {
-    const m = new Map<string, Set<string>>();
-    for (const r of rows) m.set(dayKey(r.created_at), (m.get(dayKey(r.created_at)) ?? new Set()).add(r.anon_id));
-    return dailySeries([], days).map((d) => ({ ...d, value: m.get(d.key)?.size ?? 0 }));
-  };
-  const series = {
-    revenue: sumByDay(orders.map((o) => ({ created_at: o.created_at, amount: o.total }))),
-    orders: dailySeries(orders, days),
-    visitors: uniqueByDay(ev),
-    checkouts: dailySeries(ev.filter((e) => e.name === "checkout"), days),
-    abandoned: sumByDay(abandoned.map((v) => ({ created_at: cartsByAnon.get(v.anon)!.at, amount: cartsByAnon.get(v.anon)!.total }))),
-  };
-
-  // Le parcours global : visiteurs → fiche vue → ajout → paiement → commande.
-  const funnel = {
-    visitors: visitors.length,
-    viewers: visitors.filter((v) => v.viewed.size > 0).length,
-    adders: new Set(ev.filter((e) => e.name === "add_to_cart").map((e) => e.anon_id)).size,
-    checkouts: withCheckout.length,
-    orders: orders.length,
-  };
-
-  // Les paniers abandonnés, un par un (les plus récents d'abord), et les commandes récentes.
-  const abandonedCarts = [...abandoned, ...open]
-    .map((v) => {
-      const c = cartsByAnon.get(v.anon)!;
-      return { anon: v.anon, at: c.at, stage: c.stage, estimated: c.estimated, total: c.total, currency: c.currency ?? currency, lines: c.lines, country: v.country, source: v.source.label, device: v.device, status: statusOf(v) as CartStatus };
-    })
-    .sort((a, b) => (a.at < b.at ? 1 : -1));
-  const recentOrders = orders.slice(0, 50).map((o) => ({ ...o, source: sourceOf(o), items: o.lines.filter((l) => l.total > 0).map((l) => `${l.quantity > 1 ? `${l.quantity} × ` : ""}${names.find((n) => n.handle === handleOf(l))?.name ?? l.title}`), linked: Boolean(o.anon_id && visitorsAll.has(o.anon_id)) }));
   const discountCodes = (() => {
     const m = new Map<string, { code: string; orders: number; revenue: number; discounts: number }>();
     for (const o of orders) for (const code of o.discount_codes) {
@@ -493,43 +632,27 @@ export async function business(days: Days, f: Filters = {}) {
   })();
 
   const earliest = (rows: { created_at: string }[]) => rows.reduce<string | null>((min, r) => (min === null || r.created_at < min ? r.created_at : min), null);
-  const tracked = { since: earliest(events), firstOrder: earliest(allOrders), testOrders: allOrders.filter((o) => o.test).length, unlinkedOrders: orders.filter((o) => !o.anon_id).length };
+  const tracked = { since: earliest(events), firstOrder: earliest(allOrders), testOrders: allOrders.filter((o) => o.test).length, unlinkedOrders: orders.filter((o) => !o.anon_id).length, beforeTracking: visitors.filter((v) => v.source.channel === "Inconnue").length };
 
-  return {
-    days,
-    filters: f,
-    facets,
-    currency,
-    kpis: {
-      revenue,
-      orders: orders.length,
-      aov: orders.length ? revenue / orders.length : null,
-      units,
-      discounts,
-      shipping,
-      visitors: visitors.length,
-      conversion: visitors.length ? orders.length / visitors.length : null,
-      checkoutRate: visitors.length ? withCheckout.length / visitors.length : null,
-    },
-    carts,
-    perReflet,
-    other,
-    sources,
-    channels,
-    campaigns,
-    countries,
-    devices,
-    locales,
-    series,
-    funnel,
-    abandonedCarts,
-    recentOrders,
-    discountCodes,
-    topPages,
-    landingPages,
-    tracked,
-    names,
+  return { kpis, carts, currency, facets, perProduct, other, campaigns, sources, channels, countries, devices, locales, series, byDay, funnel, abandonedCarts, recentOrders, discountCodes, topPages, landingPages, tracked } as const;
+}
+
+export type Business = Awaited<ReturnType<typeof business>>;
+export type PerProduct = Business["perProduct"][number];
+export type SourceRow = Business["sources"][number];
+export type CountryRow = Business["countries"][number];
+
+export async function business(range: Range, f: Filters = {}) {
+  const prev = previousRange(range);
+  const span = rangeBetween(prev.from, range.to);
+  const [eventsAll, ordersAll, catalog] = await Promise.all([loadSite(span), loadOrders(span), loadCatalog()]);
+  const within = (iso: string, r: Range) => {
+    const t = new Date(iso).getTime();
+    return t >= r.from.getTime() && t <= r.to.getTime();
   };
+  const current = summarize({ events: eventsAll.filter((e) => within(e.created_at, range)), orders: ordersAll.filter((o) => within(o.created_at, range)), catalog, range, filters: f });
+  const previous = core({ events: eventsAll.filter((e) => within(e.created_at, prev)), orders: ordersAll.filter((o) => within(o.created_at, prev)), catalog, range: prev, filters: f });
+  return { range, previousRange: prev, filters: f, catalog, ...current, previous: { kpis: previous.kpis, carts: previous.carts } };
 }
 
 /* ------------------------------------------------------------------ en direct */
@@ -546,7 +669,7 @@ const EVENT_LABEL: Record<string, string> = {
   menu_reflet: "parcourt le menu",
   layering_add: "ajoute un accord",
   accord_add: "ajoute l'accord du panier",
-  add_to_cart: "ajoute au panier",
+  add_to_cart: "ajoute au sac",
   checkout: "part payer",
 };
 
@@ -554,14 +677,15 @@ const EVENT_LABEL: Record<string, string> = {
 export async function live() {
   const now = Date.now();
   const since = new Date(now - LIVE_WINDOW_MS).toISOString();
-  const dayStart = new Date(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()) + "T00:00:00+04:00").toISOString();
-  const [recent, today, ordersToday, names] = await Promise.all([
+  const dayStart = new Date(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()) + "T00:00:00+04:00").toISOString();
+  const [recent, today, ordersToday, catalog] = await Promise.all([
     fetchAll<SiteEventRow>("site_events", (q) => q.gte("created_at", since).order("id", { ascending: false })).catch(() => [] as SiteEventRow[]),
     fetchAll<SiteEventRow>("site_events", (q) => q.gte("created_at", dayStart).order("id", { ascending: true })).catch(() => [] as SiteEventRow[]),
     fetchAll<OrderRow>("shop_orders", (q) => q.gte("created_at", dayStart).eq("test", false).order("created_at", { ascending: false })).catch(() => [] as OrderRow[]),
-    refletNames(),
+    loadCatalog(),
   ]);
-  const nameOf = (h: string | null) => names.find((n) => n.handle === h)?.name ?? h ?? "";
+  const productOf = (h: string | null) => catalog.products.find((p) => p.handle === h) ?? null;
+  const nameOf = (h: string | null) => productOf(h)?.name ?? h ?? "";
   const duoName = (id: string | null) => LAYERING.find((d) => d.id === id)?.name.fr ?? id ?? "";
   const byCountry = new Map<string, { code: string; name: string; visitors: Set<string>; lat: number; lng: number; paths: Map<string, number>; lastAt: string }>();
   for (const e of recent) {
@@ -578,16 +702,17 @@ export async function live() {
     .sort((a, b) => b.visitors - a.visitors);
   const feed = recent.slice(0, 40).map((e) => {
     const handle = str(e.props.handle) ?? str(e.props.id);
-    const what = e.name === "add_to_cart" || e.name === "checkout" ? (Array.isArray(e.props.handles) ? (e.props.handles as string[]).map(nameOf).join(" + ") : "") : e.name === "layering_add" || e.name === "accord_add" ? duoName(str(e.props.duo)) : e.name === "guide_filter" ? `${str(e.props.group) ?? ""} · ${str(e.props.value) ?? ""}` : handle ? nameOf(handle) : e.path ?? "";
+    const handles = Array.isArray(e.props.handles) ? (e.props.handles as string[]) : handle ? [handle] : [];
+    const what = e.name === "add_to_cart" || e.name === "checkout" ? handles.map(nameOf).join(" + ") : e.name === "layering_add" || e.name === "accord_add" ? duoName(str(e.props.duo)) : e.name === "guide_filter" ? `${str(e.props.group) ?? ""} · ${str(e.props.value) ?? ""}` : handle ? nameOf(handle) : e.path ?? "";
+    const image = thumb(handles.map((h) => productOf(h)?.image ?? null).find(Boolean) ?? null, 96);
     const amount = num(e.props.total);
-    return { at: e.created_at, country: e.country, verb: EVENT_LABEL[e.name] ?? e.name, what, amount, currency: str(e.props.currency), anon: e.anon_id.slice(0, 6), locale: e.locale, kind: e.name };
+    return { at: e.created_at, country: e.country, verb: EVENT_LABEL[e.name] ?? e.name, what, image, amount, currency: str(e.props.currency), anon: e.anon_id.slice(0, 6), locale: e.locale, kind: e.name };
   });
   const revenueToday = ordersToday.reduce((n, o) => n + Number(o.total), 0);
   const visitorsNow = new Set(recent.map((e) => e.anon_id)).size;
   const visitorsToday = new Set(today.map((e) => e.anon_id)).size;
   const checkoutsToday = new Set(today.filter((e) => e.name === "checkout").map((e) => e.anon_id)).size;
   const carts = new Set(today.filter((e) => e.name === "add_to_cart").map((e) => e.anon_id)).size;
-  // Le pouls : visiteurs distincts par tranche de 5 minutes sur les deux dernières heures.
   const pulse: number[] = [];
   for (let i = 23; i >= 0; i--) {
     const a = now - (i + 1) * 5 * 60 * 1000;
@@ -604,3 +729,6 @@ export async function live() {
     pulse,
   };
 }
+
+// Gardé pour les pages Luma (les six Reflets seulement).
+export { refletNames };

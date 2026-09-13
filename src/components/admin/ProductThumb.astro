@@ -1,0 +1,17 @@
+---
+/** La vignette d'un produit (image Shopify redimensionnée par le CDN), avec un repli sur l'initiale. */
+import { thumb } from "../../lib/admin/business";
+interface Props {
+  image: string | null | undefined;
+  name: string;
+  size?: number;
+  ratio?: "square" | "portrait";
+  class?: string;
+}
+const { image, name, size = 40, ratio = "square", class: cls } = Astro.props;
+const src = thumb(image, Math.round(size * 2.5));
+---
+
+<span class:list={["pthumb", `pthumb-${ratio}`, cls]} style={`--s:${size}px`}>
+  {src ? <img src={src} alt="" width={size} height={ratio === "portrait" ? Math.round(size * 1.25) : size} loading="lazy" decoding="async" /> : <span class="pthumb-fallback">{name.slice(0, 1)}</span>}
+</span>

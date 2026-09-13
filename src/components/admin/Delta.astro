@@ -1,0 +1,17 @@
+---
+/** La variation par rapport à la période précédente : ▲ +12 % en vert, ▼ −8 % en rose ; « — » quand il n'y a rien à comparer. */
+interface Props {
+  value: number | null;
+  /** Une baisse est une bonne nouvelle (paniers abandonnés). */
+  invert?: boolean;
+  label?: string;
+}
+const { value, invert = false, label = "vs période précédente" } = Astro.props;
+const good = value === null ? null : invert ? value <= 0 : value >= 0;
+const text = value === null ? "—" : `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value * 100) >= 100 ? Math.round(Math.abs(value * 100)) : Math.abs(value * 100).toFixed(Math.abs(value) < 0.1 ? 1 : 0).replace(".", ",")} %`;
+---
+
+<span class:list={["delta", { "is-good": good === true, "is-bad": good === false, "is-none": value === null }]} title={label}>
+  {value !== null && value !== 0 && <span class="delta-arrow" aria-hidden="true">{value > 0 ? "▲" : "▼"}</span>}
+  <span class="delta-text">{text}</span>
+</span>

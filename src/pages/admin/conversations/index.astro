@@ -2,13 +2,13 @@
 /** Toutes les conversations Luma de la période, filtrables, une ligne par session. */
 import AdminLayout from "../../../layouts/AdminLayout.astro";
 import { readSession } from "../../../lib/admin/auth";
-import { conversations, parseDays, fmtInt, fmtDate, fmtDuration, entryLabel, localeLabel, pageLabel, PER_PAGE } from "../../../lib/admin/data";
+import { conversations, parseRange, fmtInt, fmtDate, fmtDuration, entryLabel, localeLabel, pageLabel, PER_PAGE } from "../../../lib/admin/data";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const sp = Astro.url.searchParams;
-const days = parseDays(sp.get("days"));
+const range = parseRange(sp);
 const filters = {
   locale: sp.get("locale") || undefined,
   country: sp.get("country") || undefined,
@@ -18,7 +18,7 @@ const filters = {
   q: sp.get("q")?.trim() || undefined,
   page: Number(sp.get("page") ?? 1) || 1,
 };
-const result = await conversations(days, filters);
+const result = await conversations(range, filters);
 const pageHref = (p: number) => {
   const u = new URL(Astro.url);
   u.searchParams.set("page", String(p));
@@ -26,9 +26,9 @@ const pageHref = (p: number) => {
 };
 ---
 
-<AdminLayout title="Conversations" section="conversations" admin={admin} days={days} subtitle={`${fmtInt(result.total)} conversation${result.total > 1 ? "s" : ""} sur ${days} jours.`}>
+<AdminLayout title="Conversations" section="conversations" admin={admin} range={range} subtitle={`${fmtInt(result.total)} conversation${result.total > 1 ? "s" : ""} · ${range.label}.`}>
   <form class="card filters" method="get">
-    <input type="hidden" name="days" value={days} />
+    {[...new URLSearchParams(range.query).entries()].map(([k, v]) => <input type="hidden" name={k} value={v} />)}
     <input type="search" name="q" placeholder="Rechercher dans les messages…" value={filters.q ?? ""} />
     <select name="locale">
       <option value="">Toutes les langues</option>
@@ -45,7 +45,7 @@ const pageHref = (p: number) => {
     <label><input type="checkbox" name="email" value="1" checked={filters.email} /> avec email</label>
     <label><input type="checkbox" name="violations" value="1" checked={filters.violations} /> à revoir</label>
     <button type="submit" class="btn btn-sm">Filtrer</button>
-    <a class="btn btn-sm btn-ghost" href={`/admin/conversations?days=${days}`}>Effacer</a>
+    <a class="btn btn-sm btn-ghost" href={`/admin/conversations?${range.query}`}>Effacer</a>
   </form>
 
   <section class="card tbl-card">
@@ -57,10 +57,10 @@ const pageHref = (p: number) => {
           {
             result.rows.map((r) => (
               <tr>
-                <td class="muted mono when"><a class="row-link" href={`/admin/conversations/${r.id}?days=${days}`}>{fmtDate(r.createdAt)}</a></td>
+                <td class="muted mono when"><a class="row-link" href={`/admin/conversations/${r.id}?${range.query}`}>{fmtDate(r.createdAt)}</a></td>
                 <td>{localeLabel(r.locale)}{r.country ? ` · ${r.country}` : ""}</td>
                 <td>{entryLabel(r.entry)}{r.page ? <span class="muted"> · {pageLabel(r.page)}</span> : null}</td>
-                <td class="cell-q"><a href={`/admin/conversations/${r.id}?days=${days}`}><span class="ellipsis" title={r.firstQuestion}>{r.firstQuestion || "—"}</span></a></td>
+                <td class="cell-q"><a href={`/admin/conversations/${r.id}?${range.query}`}><span class="ellipsis" title={r.firstQuestion}>{r.firstQuestion || "—"}</span></a></td>
                 <td class="num">{r.turns}</td>
                 <td class="num muted">{fmtDuration(r.durationMs)}</td>
                 <td>{r.recommended ?? <span class="muted">–</span>}</td>

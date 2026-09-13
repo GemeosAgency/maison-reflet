@@ -1,0 +1,46 @@
+---
+/** Une liste de commandes : quand, numéro, pays, articles (vignettes), source, code, total. Réutilisée dans les pages et les fenêtres. */
+import ProductThumb from "./ProductThumb.astro";
+import { fmtDate } from "../../lib/admin/data";
+import { fmtMoney, flagOf, type RecentOrder } from "../../lib/admin/business";
+import { countryName } from "../../lib/admin/geo";
+interface Props {
+  orders: RecentOrder[];
+  limit?: number;
+  compact?: boolean;
+  empty?: string;
+  showDiscount?: boolean;
+}
+const { orders, limit = 50, compact = false, empty = "Aucune commande payée sur la période.", showDiscount = false } = Astro.props;
+const rows = orders.slice(0, limit);
+---
+
+<div class="tbl-wrap">
+  <table class:list={["tbl", { "tbl-compact": compact }]}>
+    <thead>
+      <tr><th>Quand</th><th>N°</th><th>Pays</th><th>Articles</th><th>Source</th>{showDiscount && <th>Code</th>}{showDiscount && <th class="num">Remise</th>}<th class="num">Total</th></tr>
+    </thead>
+    <tbody>
+      {rows.length === 0 && <tr><td colspan={showDiscount ? 8 : 6}><p class="empty">{empty}</p></td></tr>}
+      {
+        rows.map((o) => (
+          <tr data-row={o.id}>
+            <td class="muted mono when">{fmtDate(o.created_at)}</td>
+            <td class="mono">{o.name ?? o.id}</td>
+            <td class="nowrap" title={o.country ? countryName(o.country) : ""}>{o.country ? `${flagOf(o.country)} ${o.country}` : "–"}</td>
+            <td>
+              <span class="items">
+                <span class="items-stack">{o.items.slice(0, 3).map((i) => <ProductThumb image={i.image} name={i.name} size={28} />)}</span>
+                <span class="items-text">{o.items.map((i) => `${i.quantity > 1 ? `${i.quantity} × ` : ""}${i.name}`).join(", ") || "–"}</span>
+              </span>
+            </td>
+            <td class="nowrap">{o.source.label}{!o.linked && <span class="muted" data-tip="Commande sans parcours : passée avant le suivi, ou sans le cookie anonyme."> · sans parcours</span>}</td>
+            {showDiscount && <td>{o.discount_codes.length ? o.discount_codes.join(", ") : <span class="muted">–</span>}</td>}
+            {showDiscount && <td class="num muted">{o.discounts ? `−${fmtMoney(o.discounts, o.currency)}` : "–"}</td>}
+            <td class="num strong">{fmtMoney(o.total, o.currency)}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>

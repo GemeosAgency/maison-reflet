@@ -1,172 +1,102 @@
 ---
 /**
- * Vue d'ensemble : le business depuis le site, en un regard. Le chiffre, les
- * paniers (validés, abandonnés, en cours, total), par Reflet, les sources, les
- * pays, le parcours, Luma en bref, ce qui se passe maintenant, les dernières
- * commandes. Filtrable par Reflet, pays, source, langue.
+ * Vue d'ensemble : le business depuis le site, en un regard. Le chiffre et sa
+ * variation, les paniers (validés, abandonnés, en cours, total), la courbe du
+ * temps, les produits en vignettes, les sources, les pays, le parcours, le
+ * direct, Luma en bref, les dernières commandes. Tout ce qui est cliquable
+ * ouvre une fenêtre de détail ; chaque « ? » explique le chiffre.
  */
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import FilterBar from "../../components/admin/FilterBar.astro";
+import Kpi from "../../components/admin/Kpi.astro";
+import Tip from "../../components/admin/Tip.astro";
+import ProductTiles from "../../components/admin/ProductTiles.astro";
+import ProductModal from "../../components/admin/ProductModal.astro";
+import SourceModal from "../../components/admin/SourceModal.astro";
+import CountryModal from "../../components/admin/CountryModal.astro";
+import DaysModal from "../../components/admin/DaysModal.astro";
+import ModalTemplate from "../../components/admin/ModalTemplate.astro";
+import OrdersTable from "../../components/admin/OrdersTable.astro";
+import CartsTable from "../../components/admin/CartsTable.astro";
 import { readSession } from "../../lib/admin/auth";
-import { parseDays, fmtInt, fmtPct, fmtUsd, fmtDate, loadLuma, buildConversations, estimateCost } from "../../lib/admin/data";
-import { business, live, parseFilters, hasFilters, fmtMoney, fmtMoneyShort } from "../../lib/admin/business";
-import { barsAndLine, donut, gauge } from "../../lib/admin/charts";
+import { parseRange, fmtInt, fmtPct, fmtUsd, fmtDate, loadLuma, buildConversations, estimateCost } from "../../lib/admin/data";
+import { business, live, parseFilters, hasFilters, fmtMoney, fmtMoneyShort, delta, filtersQuery } from "../../lib/admin/business";
+import { timeChart, hbars, funnelSteps, stackBar } from "../../lib/admin/charts";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
-const days = parseDays(Astro.url.searchParams.get("days"));
+const range = parseRange(Astro.url.searchParams);
 const filters = parseFilters(Astro.url.searchParams);
-const [b, now, luma] = await Promise.all([business(days, filters), live().catch(() => null), loadLuma(days).catch(() => null)]);
+const [b, now, luma] = await Promise.all([business(range, filters), live().catch(() => null), loadLuma(range).catch(() => null)]);
 const convs = luma ? buildConversations(luma) : [];
 const cur = b.currency;
 const money = (n: number) => fmtMoney(n, cur);
 const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0).replace(".", ",")} %`);
-const q = (extra: string) => {
-  const u = new URL(Astro.url);
-  u.pathname = extra;
-  return `${u.pathname}${u.search}`;
-};
-const maxReflet = Math.max(1, ...b.perReflet.map((r) => r.revenue));
-const roseGauge = (part: number) => gauge(part, { color: "var(--rose)" });
-const maxCountry = Math.max(1, ...b.countries.map((c) => Math.max(c.visitors, 1)));
-const funnelMax = Math.max(1, b.funnel.visitors);
-const subtitle = hasFilters(filters) ? `Vue filtrée, ${days} derniers jours, heure de Dubaï.` : `Tout ce qui se passe depuis le site sur les ${days} derniers jours, heure de Dubaï.`;
+const q = `${range.query}${filtersQuery(filters)}`;
+const k = b.kpis;
+const pk = b.previous.kpis;
+const subtitle = hasFilters(filters) ? `Vue filtrée · ${range.label}, heure de Dubaï.` : `Tout ce qui se passe depuis le site · ${range.label}, heure de Dubaï.`;
+const cartParts = [
+  { label: "Validés", value: b.carts.paid.total, color: "#812538", text: `${fmtInt(b.carts.paid.count)} · ${money(b.carts.paid.total)}`, modal: "orders" },
+  { label: `Abandonnés${b.carts.abandoned.atCheckout ? ` (dont ${fmtInt(b.carts.abandoned.atCheckout)} au paiement)` : ""}`, value: b.carts.abandoned.total, color: "#a8641e", text: `${fmtInt(b.carts.abandoned.count)} · ${money(b.carts.abandoned.total)}`, modal: "carts" },
+  { label: "En cours (moins d'une heure)", value: b.carts.open.total, color: "#cfc6b8", text: `${fmtInt(b.carts.open.count)} · ${money(b.carts.open.total)}`, modal: "carts" },
+];
+const countryRows = b.countries.slice(0, 8).map((c) => ({ label: c.name, prefix: c.flag, value: c.visitors, text: `${fmtInt(c.visitors)}${c.orders ? ` · ${fmtInt(c.orders)} cmd · ${fmtMoneyShort(c.revenue)}` : ""}`, modal: `country:${c.code}` }));
+const sourceRows = b.sources.slice(0, 7).map((s) => ({ label: s.label, value: s.visitors, text: `${fmtInt(s.visitors)}${s.revenue ? ` · ${fmtMoneyShort(s.revenue)} ${cur}` : ""}`, color: s.color, modal: `source:${s.label}` }));
+const channelParts = b.channels.map((c) => ({ label: c.channel, value: c.visitors, color: c.color, text: `${fmtInt(c.visitors)}${c.orders ? ` · ${fmtInt(c.orders)} cmd` : ""}` }));
 ---
 
-<AdminLayout title="Vue d'ensemble" section="overview" admin={admin} days={days} subtitle={subtitle}>
-  <FilterBar slot="filters" filters={filters} facets={b.facets} days={days} />
+<AdminLayout title="Vue d'ensemble" section="overview" admin={admin} range={range} subtitle={subtitle}>
+  <FilterBar slot="filters" filters={filters} facets={b.facets} range={range} />
 
   <section class="kpis kpis-hero">
-    <div class="card kpi kpi-hero kpi-rose">
-      <span class="kpi-label">Chiffre d'affaires</span>
-      <span class="kpi-value">{fmtMoneyShort(b.kpis.revenue)}<span class="unit">{cur}</span></span>
-      <span class="kpi-sub">{fmtInt(b.kpis.orders)} commande{b.kpis.orders > 1 ? "s" : ""} · panier moyen {b.kpis.aov === null ? "–" : money(b.kpis.aov)} · {fmtInt(b.kpis.units)} flacon{b.kpis.units > 1 ? "s" : ""}</span>
-    </div>
-    <div class="card kpi"><span class="kpi-label">Paniers validés</span><span class="kpi-value">{fmtMoneyShort(b.carts.paid.total)}<span class="unit">{cur}</span></span><span class="kpi-sub">{fmtInt(b.carts.paid.count)} commande{b.carts.paid.count > 1 ? "s" : ""} payée{b.carts.paid.count > 1 ? "s" : ""}</span></div>
-    <div class="card kpi"><span class="kpi-label">Paniers abandonnés</span><span class="kpi-value">{fmtMoneyShort(b.carts.abandoned.total)}<span class="unit">{cur}</span></span><span class="kpi-sub">{fmtInt(b.carts.abandoned.count)} panier{b.carts.abandoned.count > 1 ? "s" : ""} laissé{b.carts.abandoned.count > 1 ? "s" : ""}{b.carts.abandoned.atCheckout ? `, dont ${fmtInt(b.carts.abandoned.atCheckout)} au paiement` : ""}{b.carts.open.count ? ` · ${fmtInt(b.carts.open.count)} en cours` : ""}</span></div>
-    <div class="card kpi"><span class="kpi-label">Panier total</span><span class="kpi-value">{fmtMoneyShort(b.carts.all.total)}<span class="unit">{cur}</span></span><span class="kpi-sub">{fmtInt(b.carts.all.count)} panier{b.carts.all.count > 1 ? "s" : ""} au total · {b.carts.all.total ? fmtPct(b.carts.paid.total, b.carts.all.total) : "–"} encaissé</span></div>
-    <div class="card kpi"><span class="kpi-label">Visiteurs</span><span class="kpi-value">{fmtInt(b.kpis.visitors)}</span><span class="kpi-sub">conversion {pct(b.kpis.conversion)} · {pct(b.kpis.checkoutRate)} vont au paiement</span></div>
+    <Kpi tone="hero" label="Chiffre d'affaires" tip="revenue" value={fmtMoneyShort(k.revenue)} unit={cur} delta={delta(k.revenue, pk.revenue)} sub={`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""} · panier moyen ${k.aov === null ? "–" : money(k.aov)} · ${fmtInt(k.units)} flacon${k.units > 1 ? "s" : ""}`} modal="orders" />
+    <Kpi label="Paniers validés" tip="cartsPaid" value={fmtMoneyShort(b.carts.paid.total)} unit={cur} delta={delta(k.orders, pk.orders)} sub={`${fmtInt(b.carts.paid.count)} commande${b.carts.paid.count > 1 ? "s" : ""}`} modal="orders" />
+    <Kpi label="Paniers abandonnés" tip="cartsAbandoned" value={fmtMoneyShort(b.carts.abandoned.total)} unit={cur} delta={delta(k.abandonedTotal, pk.abandonedTotal)} deltaInvert sub={`${fmtInt(b.carts.abandoned.count)} panier${b.carts.abandoned.count > 1 ? "s" : ""}${b.carts.abandoned.atCheckout ? `, ${fmtInt(b.carts.abandoned.atCheckout)} au paiement` : ""}${b.carts.open.count ? ` · ${fmtInt(b.carts.open.count)} en cours` : ""}`} modal="carts" />
+    <Kpi label="Panier total" tip="cartsAll" value={fmtMoneyShort(b.carts.all.total)} unit={cur} delta={delta(k.cartsTotal, pk.cartsTotal)} sub={`${fmtInt(b.carts.all.count)} panier${b.carts.all.count > 1 ? "s" : ""} · ${b.carts.all.total ? fmtPct(b.carts.paid.total, b.carts.all.total) : "–"} encaissé`} />
+    <Kpi label="Visiteurs" tip="visitors" value={fmtInt(k.visitors)} delta={delta(k.visitors, pk.visitors)} sub={`conversion ${pct(k.conversion)} · ${pct(k.checkoutRate)} au paiement`} modal="days" />
   </section>
 
   <section class="grid grid-3">
     <div class="card span-2">
-      <div class="card-head"><h2 class="card-title">Chiffre d'affaires et commandes, par jour</h2><p class="card-note">barres : {cur} encaissés · points : commandes</p></div>
-      <Fragment set:html={barsAndLine(b.series.revenue, b.series.orders, { height: 180, barFormat: money, lineFormat: (v) => `${v} commande${v > 1 ? "s" : ""}` })} />
+      <div class="card-head"><h2 class="card-title">Chiffre d'affaires et commandes, par jour <Tip of="byDay" /></h2><p class="card-note">aire : {cur} encaissés · barres : commandes · un clic ouvre le jour</p></div>
+      <Fragment set:html={timeChart(b.series.revenue, { secondary: b.series.orders, height: 210, primaryFormat: (v) => fmtMoneyShort(v), secondaryFormat: (v) => `${v} commande${v > 1 ? "s" : ""}`, primaryLabel: "chiffre", secondaryLabel: "", modal: "days" })} />
     </div>
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Les paniers</h2><a class="card-note" href={q("/admin/ventes")}>Le détail →</a></div>
-      <div class="stack" aria-hidden="true">
-        {b.carts.all.total > 0 && <span style={`width:${(b.carts.paid.total / b.carts.all.total) * 100}%;background:var(--rose)`}></span>}
-        {b.carts.all.total > 0 && <span style={`width:${(b.carts.abandoned.total / b.carts.all.total) * 100}%;background:var(--ink);opacity:.35`}></span>}
-        {b.carts.all.total > 0 && <span style={`width:${(b.carts.open.total / b.carts.all.total) * 100}%;background:var(--warn);opacity:.7`}></span>}
-      </div>
-      <ul class="legend">
-        <li><span class="dot" style="background:var(--rose)"></span><span>Validés</span><span class="legend-num">{fmtInt(b.carts.paid.count)} · {money(b.carts.paid.total)}</span></li>
-        <li><span class="dot" style="background:var(--ink);opacity:.35"></span><span>Abandonnés{b.carts.abandoned.atCheckout ? ` · ${fmtInt(b.carts.abandoned.atCheckout)} au paiement` : ""}</span><span class="legend-num">{fmtInt(b.carts.abandoned.count)} · {money(b.carts.abandoned.total)}</span></li>
-        <li><span class="dot" style="background:var(--warn);opacity:.7"></span><span>En cours (moins d'une heure)</span><span class="legend-num">{fmtInt(b.carts.open.count)} · {money(b.carts.open.total)}</span></li>
-      </ul>
-      <p class="card-foot">Un panier compte dès le premier ajout au sac. Sans commande une heure après le dernier geste, il est abandonné. {pct(b.carts.recoveryRate)} des paniers finissent payés{b.carts.checkoutRecoveryRate !== null ? `, ${pct(b.carts.checkoutRecoveryRate)} des départs en paiement` : ""}.{b.carts.estimated ? ` ${fmtInt(b.carts.estimated)} montant${b.carts.estimated > 1 ? "s" : ""} estimé${b.carts.estimated > 1 ? "s" : ""} d'après le catalogue (≈).` : ""}</p>
+      <div class="card-head"><h2 class="card-title">Les paniers <Tip of="cartsAbandoned" /></h2><a class="card-note" href={`/admin/ventes?${q}`}>Le détail →</a></div>
+      <Fragment set:html={stackBar(cartParts)} />
+      <p class="card-foot">{pct(b.carts.recoveryRate)} des paniers finissent payés{b.carts.checkoutRecoveryRate !== null ? `, ${pct(b.carts.checkoutRecoveryRate)} des départs en paiement` : ""}.{b.carts.estimated ? ` ${fmtInt(b.carts.estimated)} montant${b.carts.estimated > 1 ? "s" : ""} estimé${b.carts.estimated > 1 ? "s" : ""} (≈).` : ""}</p>
     </div>
   </section>
 
-  <section class="card tbl-card">
-    <div class="card-head"><h2 class="card-title">Par Reflet</h2><p class="card-note">ventes, paniers abandonnés, et ce qui précède : fiches vues, ajouts</p></div>
-    <div class="tbl-wrap">
-      <table class="tbl">
-        <thead><tr><th>Reflet</th><th class="cell-gauge">Chiffre d'affaires</th><th class="num">Flacons</th><th class="num">Commandes</th><th class="num">Abandonnés</th><th class="num">Fiches vues</th><th class="num">Ajouts</th><th class="num">Fiche → achat</th></tr></thead>
-        <tbody>
-          {
-            b.perReflet.map((r) => (
-              <tr class:list={{ "is-focus": filters.reflet === r.handle }}>
-                <td class="lead"><a class="row-link" href={`${Astro.url.pathname}?days=${days}&reflet=${r.handle}`}>{r.name}</a></td>
-                <td class="cell-gauge"><span class="mono">{money(r.revenue)}</span> <span class="muted">{b.kpis.revenue ? fmtPct(r.revenue, b.kpis.revenue) : ""}</span><Fragment set:html={roseGauge(r.revenue / maxReflet)} /></td>
-                <td class="num">{fmtInt(r.units)}</td>
-                <td class="num">{fmtInt(r.orders)}</td>
-                <td class="num">{r.abandoned ? <span>{fmtInt(r.abandoned)} <span class="muted">· {money(r.abandonedTotal)}</span></span> : <span class="muted">–</span>}</td>
-                <td class="num">{fmtInt(r.views)}</td>
-                <td class="num">{fmtInt(r.adds)}</td>
-                <td class="num">{r.views ? fmtPct(r.orders, r.views) : "–"}</td>
-              </tr>
-            ))
-          }
-          {b.other.units > 0 && <tr><td class="muted">Autres articles <span class="muted">({b.other.titles.join(", ")})</span></td><td class="mono">{money(b.other.revenue)}</td><td class="num">{fmtInt(b.other.units)}</td><td colspan="5"></td></tr>}
-        </tbody>
-      </table>
-    </div>
-  </section>
+  <div class="section-title"><h2>Les produits</h2><p>chiffre, part, flacons — un clic ouvre le détail</p></div>
+  <ProductTiles products={b.perProduct} currency={cur} focus={filters.reflet} />
+  {b.other.units > 0 && <p class="card-foot">Autres articles vendus : {b.other.titles.join(", ")} — {fmtInt(b.other.units)} unité{b.other.units > 1 ? "s" : ""}, {money(b.other.revenue)}.</p>}
 
   <section class="grid grid-3">
     <div class="card">
-      <div class="card-head"><h2 class="card-title">D'où viennent-ils</h2><a class="card-note" href={q("/admin/trafic")}>Trafic & sources →</a></div>
-      <div class="donut-row">
-        <Fragment set:html={donut(b.channels.map((c) => ({ label: c.channel, value: c.visitors, color: c.color })), { size: 120 })} />
-        <ul class="legend">
-          {b.channels.length === 0 && <li class="muted">Aucune visite suivie sur la période.</li>}
-          {b.channels.slice(0, 6).map((c) => <li><span class="dot" style={`background:${c.color}`}></span><span>{c.channel}</span><span class="legend-num">{fmtInt(c.visitors)} · {c.orders ? `${fmtInt(c.orders)} cmd` : "–"}</span></li>)}
-        </ul>
-      </div>
-      {
-        b.sources.length > 0 && (
-          <ul class="bars sources">
-            {b.sources.slice(0, 6).map((s) => (
-              <li>
-                <span class="bar-label" title={s.label}>{s.label}</span>
-                <span class="gauge"><span class="gauge-fill" style={`width:${(s.visitors / Math.max(1, b.sources[0]?.visitors ?? 1, ...b.sources.map((x) => x.visitors))) * 100}%;background:var(--ink)`}></span></span>
-                <span class="bar-count">{fmtInt(s.visitors)} vis.{s.revenue ? ` · ${fmtMoneyShort(s.revenue)} ${cur}` : ""}</span>
-              </li>
-            ))}
-          </ul>
-        )
-      }
+      <div class="card-head"><h2 class="card-title">D'où viennent-ils <Tip of="source" /></h2><a class="card-note" href={`/admin/trafic?${q}`}>Trafic & sources →</a></div>
+      <Fragment set:html={stackBar(channelParts)} />
+      <div class="sources-list"><Fragment set:html={hbars(sourceRows)} /></div>
     </div>
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Pays</h2><p class="card-note">visiteurs · commandes · CA</p></div>
-      {
-        b.countries.length === 0 ? (
-          <p class="empty">Rien sur la période.</p>
-        ) : (
-          <ul class="bars countries">
-            {b.countries.slice(0, 8).map((c) => (
-              <li>
-                <span class="bar-label" title={c.name}><a href={`${Astro.url.pathname}?days=${days}&country=${c.code}`}>{c.name}</a></span>
-                <span class="gauge"><span class="gauge-fill" style={`width:${(c.visitors / maxCountry) * 100}%;background:var(--ink)`}></span></span>
-                <span class="bar-count">{fmtInt(c.visitors)}{c.orders ? ` · ${fmtInt(c.orders)} · ${fmtMoneyShort(c.revenue)}` : ""}</span>
-              </li>
-            ))}
-          </ul>
-        )
-      }
+      <div class="card-head"><h2 class="card-title">Pays</h2><p class="card-note">visiteurs · commandes · chiffre</p></div>
+      <Fragment set:html={hbars(countryRows)} />
     </div>
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Le parcours</h2><p class="card-note">visiteurs distincts</p></div>
-      <div class="funnel funnel-wide">
-        {
-          [
-            ["Visiteurs", b.funnel.visitors],
-            ["Fiche vue", b.funnel.viewers],
-            ["Ajout panier", b.funnel.adders],
-            ["Paiement", b.funnel.checkouts],
-            ["Commande", b.funnel.orders],
-          ].map(([label, v]) => (
-            <div class="funnel-row">
-              <span class="muted">{label}</span>
-              <span class="funnel-bar" style={`width:${Math.max(1, ((v as number) / funnelMax) * 100)}%`}></span>
-              <span class="num mono">{fmtInt(v as number)}</span>
-            </div>
-          ))
-        }
-      </div>
-      <p class="card-foot">{b.funnel.viewers ? `${fmtPct(b.funnel.adders, b.funnel.viewers)} des fiches vues finissent au panier` : "En attente des premières visites."}{b.funnel.checkouts ? ` · ${fmtPct(b.funnel.orders, b.funnel.checkouts)} des paiements aboutissent` : ""}</p>
+      <div class="card-head"><h2 class="card-title">Le parcours <Tip of="funnel" /></h2><p class="card-note">visiteurs distincts</p></div>
+      <Fragment set:html={funnelSteps(b.funnel, fmtInt)} />
+      <p class="card-foot">{b.funnel[1].value ? `${fmtPct(b.funnel[2].value, b.funnel[1].value)} des fiches vues finissent au sac` : "En attente des premières visites."}{b.funnel[3].value ? ` · ${fmtPct(b.funnel[4].value, b.funnel[3].value)} des paiements aboutissent` : ""}</p>
     </div>
   </section>
 
   <section class="grid grid-3">
     <div class="card live-card">
-      <div class="card-head"><h2 class="card-title">Maintenant</h2><a class="card-note" href="/admin/live">Le globe →</a></div>
+      <div class="card-head"><h2 class="card-title">Maintenant <Tip of="liveNow" /></h2><a class="card-note" href="/admin/live">Le globe →</a></div>
       {
         now ? (
-          <div class="kpis">
+          <div class="kpis kpis-inline">
             <div class="kpi"><span class="kpi-label">Sur le site</span><span class="kpi-value">{fmtInt(now.visitorsNow)}</span><span class="kpi-sub">visiteur{now.visitorsNow > 1 ? "s" : ""} ces {now.windowMinutes} dernières minutes</span></div>
             <div class="kpi"><span class="kpi-label">Aujourd'hui</span><span class="kpi-value">{fmtInt(now.today.visitors)}</span><span class="kpi-sub">{fmtInt(now.today.orders)} commande{now.today.orders > 1 ? "s" : ""} · {fmtMoney(now.today.revenue, now.today.currency)}</span></div>
           </div>
@@ -177,12 +107,12 @@ const subtitle = hasFilters(filters) ? `Vue filtrée, ${days} derniers jours, he
       {now && now.countries.length > 0 && <div class="tag-list">{now.countries.slice(0, 6).map((c) => <span class="badge badge-soft">{c.name} · {c.visitors}</span>)}</div>}
     </div>
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Luma, en bref</h2><a class="card-note" href={`/admin/luma?days=${days}`}>La vue Luma →</a></div>
+      <div class="card-head"><h2 class="card-title">Luma, en bref</h2><a class="card-note" href={`/admin/luma?${range.query}`}>La vue Luma →</a></div>
       {
         luma ? (
-          <div class="kpis">
+          <div class="kpis kpis-inline">
             <div class="kpi"><span class="kpi-label">Conversations</span><span class="kpi-value">{fmtInt(convs.length)}</span><span class="kpi-sub">{fmtPct(convs.filter((c) => c.withCard).length, convs.length)} avec une fiche montrée</span></div>
-            <div class="kpi"><span class="kpi-label">Emails captés</span><span class="kpi-value">{fmtInt(convs.filter((c) => c.hasEmail).length)}</span><span class="kpi-sub">coût estimé {fmtUsd(estimateCost(luma.messages))}</span></div>
+            <div class="kpi"><span class="kpi-label">Emails captés</span><span class="kpi-value">{fmtInt(convs.filter((c) => c.hasEmail).length)}</span><span class="kpi-sub">coût estimé {fmtUsd(estimateCost(luma.messages))} <Tip of="lumaCost" /></span></div>
           </div>
         ) : (
           <p class="empty">Indisponible.</p>
@@ -194,46 +124,36 @@ const subtitle = hasFilters(filters) ? `Vue filtrée, ${days} derniers jours, he
       <dl class="facts">
         <dt>Événements du site</dt><dd>{b.tracked.since ? `depuis le ${fmtDate(b.tracked.since)}` : "aucun encore"}</dd>
         <dt>Première commande</dt><dd>{b.tracked.firstOrder ? fmtDate(b.tracked.firstOrder) : "aucune sur la période"}</dd>
-        <dt>Commandes sans parcours</dt><dd>{fmtInt(b.tracked.unlinkedOrders)} <span class="muted">(avant le suivi, ou sans cookie)</span></dd>
+        <dt>Commandes sans parcours <Tip of="unlinked" /></dt><dd>{fmtInt(b.tracked.unlinkedOrders)}</dd>
+        <dt>Visiteurs d'avant le suivi <Tip of="beforeTracking" /></dt><dd>{fmtInt(b.tracked.beforeTracking)}</dd>
         <dt>Commandes de test écartées</dt><dd>{fmtInt(b.tracked.testOrders)}</dd>
       </dl>
     </div>
   </section>
 
   <section class="card tbl-card">
-    <div class="card-head"><h2 class="card-title">Dernières commandes</h2><a class="card-note" href={q("/admin/ventes")}>Toutes les ventes →</a></div>
-    <div class="tbl-wrap">
-      <table class="tbl">
-        <thead><tr><th>Quand</th><th>N°</th><th>Pays</th><th>Articles</th><th>Source</th><th>Code</th><th class="num">Total</th></tr></thead>
-        <tbody>
-          {b.recentOrders.length === 0 && <tr><td colspan="7"><p class="empty">Aucune commande payée sur la période. Elles arrivent ici par le webhook Shopify <span class="mono">orders/paid</span>.</p></td></tr>}
-          {
-            b.recentOrders.slice(0, 8).map((o) => (
-              <tr>
-                <td class="muted mono when">{fmtDate(o.created_at)}</td>
-                <td class="mono">{o.name ?? o.id}</td>
-                <td>{o.country ?? "–"}</td>
-                <td>{o.items.join(", ") || "–"}</td>
-                <td>{o.source.label}{!o.linked && <span class="muted"> · sans parcours</span>}</td>
-                <td>{o.discount_codes.length ? o.discount_codes.join(", ") : <span class="muted">–</span>}</td>
-                <td class="num strong">{fmtMoney(o.total, o.currency ?? cur)}</td>
-              </tr>
-            ))
-          }
-        </tbody>
-      </table>
-    </div>
+    <div class="card-head"><h2 class="card-title">Dernières commandes</h2><a class="card-note" href={`/admin/ventes?${q}`}>Toutes les ventes →</a></div>
+    <OrdersTable orders={b.recentOrders} limit={8} />
   </section>
+
+  <!-- Les fenêtres de détail -->
+  {b.perProduct.map((p) => <ProductModal product={p} currency={cur} totalRevenue={k.revenue} />)}
+  {b.sources.map((s) => <SourceModal source={s} currency={cur} />)}
+  {b.countries.map((c) => <CountryModal country={c} currency={cur} />)}
+  <DaysModal byDay={b.byDay} currency={cur} rangeLabel={range.label} />
+  <ModalTemplate id="orders" title="Les commandes" subtitle={`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""} payée${k.orders > 1 ? "s" : ""} · ${money(k.revenue)} · ${range.label}`} wide>
+    <div class="card tbl-card"><OrdersTable orders={b.recentOrders} showDiscount /></div>
+  </ModalTemplate>
+  <ModalTemplate id="carts" title="Paniers abandonnés et en cours" subtitle={`${fmtInt(b.carts.abandoned.count)} abandonné${b.carts.abandoned.count > 1 ? "s" : ""} (${money(b.carts.abandoned.total)}) · ${fmtInt(b.carts.open.count)} en cours · un panier compte dès le premier ajout au sac`} wide>
+    <div class="card tbl-card"><CartsTable carts={b.abandonedCarts} /></div>
+  </ModalTemplate>
 </AdminLayout>
 
 <style>
   .kpis-hero { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .sources { margin-top: 16px; }
-  .sources li, .countries li { grid-template-columns: minmax(90px, 1fr) minmax(60px, 1.4fr) auto; }
-  .funnel-wide .funnel-row { grid-template-columns: 90px 1fr 44px; }
-  .funnel-row:nth-child(5) .funnel-bar { background: var(--rose); }
-  .funnel-row:nth-child(4) .funnel-bar { background: var(--ink); opacity: 0.3; }
-  .tbl tr.is-focus td { background: rgba(129, 37, 56, 0.05); }
+  .kpis-inline { gap: 10px; }
+  .kpis-inline .kpi-value { font-size: 28px; }
+  .sources-list { margin-top: 16px; }
   .live-card .tag-list { margin-top: 14px; }
   @media (max-width: 1300px) { .kpis-hero { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   @media (max-width: 900px) { .kpis-hero { grid-template-columns: 1fr; } }
