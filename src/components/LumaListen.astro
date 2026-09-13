@@ -8,9 +8,11 @@
  * pilule cerclée, toute cliquable, la pastille ronde avec le glyphe, le
  * libellé, la durée à droite ; au survol et en lecture le contour s'affirme
  * et seule la pastille se remplit (l'onde y bat pendant la lecture) ; la
- * progression est un filet au bas de la pilule. Largeur bornée à celle du
- * menu (320 px), pas pleine largeur. Plus de « Lire le portrait » : la
- * description est toujours juste au-dessus.
+ * progression est un filet au bas de la pilule, qui est aussi la timeline :
+ * un clic ou un glissé s'y déplace, les flèches au clavier avancent et
+ * reculent de cinq secondes (Sandro, 13 septembre 2026). Largeur bornée à
+ * celle du menu (320 px), pas pleine largeur. Plus de « Lire le portrait » :
+ * la description est toujours juste au-dessus.
  */
 import { useTranslations, type Locale } from "../i18n";
 import { portraitAudioPath } from "../lib/luma/portraits";
@@ -43,8 +45,13 @@ const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? 
         </span>
         <span class="listen-label">{label}</span>
         <span class="listen-time" data-listen-time aria-hidden="true">–:––</span>
-        <span class="listen-track" aria-hidden="true"><span class="listen-progress" data-listen-progress></span></span>
       </button>
+      {/* La timeline, posée sur le bas de la pilule (hors du bouton : un curseur dans un bouton n'est pas permis). */}
+      <div class="listen-seek" data-listen-seek role="slider" tabindex="0" aria-label={t("luma.seek")} aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <span class="listen-track" aria-hidden="true">
+          <span class="listen-progress" data-listen-progress><span class="listen-knob"></span></span>
+        </span>
+      </div>
       <audio preload="metadata" src={src} data-listen-audio></audio>
     </div>
   )
@@ -52,18 +59,25 @@ const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? 
 
 <script>
   const fmt = (s: number) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "–:––");
+  const clamp = (n: number) => Math.min(1, Math.max(0, n));
   for (const root of document.querySelectorAll<HTMLElement>("[data-luma-listen]")) {
     const audio = root.querySelector<HTMLAudioElement>("[data-listen-audio]");
     const btn = root.querySelector<HTMLButtonElement>("[data-listen-toggle]");
     const bar = root.querySelector<HTMLElement>("[data-listen-progress]");
     const time = root.querySelector<HTMLElement>("[data-listen-time]");
-    if (!audio || !btn || !bar || !time) continue;
+    const seek = root.querySelector<HTMLElement>("[data-listen-seek]");
+    if (!audio || !btn || !bar || !time || !seek) continue;
     const render = () => {
       const playing = !audio.paused && !audio.ended;
+      const started = audio.currentTime > 0;
       root.classList.toggle("is-playing", playing);
+      root.classList.toggle("has-time", started);
       btn.setAttribute("aria-pressed", String(playing));
-      if (audio.duration) bar.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
-      time.textContent = playing || audio.currentTime > 0 ? fmt(audio.currentTime) : fmt(audio.duration);
+      const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+      bar.style.width = `${pct}%`;
+      seek.setAttribute("aria-valuenow", String(Math.round(pct)));
+      seek.setAttribute("aria-valuetext", `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`);
+      time.textContent = playing || started ? fmt(audio.currentTime) : fmt(audio.duration);
     };
     btn.addEventListener("click", () => {
       if (audio.paused) {
@@ -73,12 +87,55 @@ const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? 
         audio.play().catch(() => {});
       } else audio.pause();
     });
-    for (const ev of ["play", "pause", "ended", "timeupdate", "loadedmetadata"]) audio.addEventListener(ev, render);
+    for (const ev of ["play", "pause", "ended", "timeupdate", "loadedmetadata", "seeked"]) audio.addEventListener(ev, render);
+
+    /*
+     * La timeline : un clic ou un glissé sur le bas de la pilule déplace la
+     * lecture (sans la lancer si elle est en pause) ; les flèches au clavier
+     * avancent et reculent de cinq secondes. Le sens suit l'écriture (RTL).
+     */
+    const seekTo = (clientX: number) => {
+      if (!audio.duration) return;
+      const r = seek.getBoundingClientRect();
+      let ratio = clamp((clientX - r.left) / r.width);
+      if (getComputedStyle(seek).direction === "rtl") ratio = 1 - ratio;
+      audio.currentTime = ratio * audio.duration;
+      render();
+    };
+    seek.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      root.classList.add("is-seeking");
+      seek.setPointerCapture(e.pointerId);
+      seekTo(e.clientX);
+    });
+    seek.addEventListener("pointermove", (e) => {
+      if (root.classList.contains("is-seeking")) seekTo(e.clientX);
+    });
+    const endSeek = (e: PointerEvent) => {
+      if (!root.classList.contains("is-seeking")) return;
+      root.classList.remove("is-seeking");
+      if (seek.hasPointerCapture(e.pointerId)) seek.releasePointerCapture(e.pointerId);
+    };
+    seek.addEventListener("pointerup", endSeek);
+    seek.addEventListener("pointercancel", endSeek);
+    seek.addEventListener("click", (e) => e.stopPropagation());
+    seek.addEventListener("keydown", (e) => {
+      if (!audio.duration) return;
+      const step = e.shiftKey ? 15 : 5;
+      if (e.key === "ArrowRight" || e.key === "ArrowUp") audio.currentTime = Math.min(audio.duration, audio.currentTime + step);
+      else if (e.key === "ArrowLeft" || e.key === "ArrowDown") audio.currentTime = Math.max(0, audio.currentTime - step);
+      else if (e.key === "Home") audio.currentTime = 0;
+      else if (e.key === "End") audio.currentTime = audio.duration;
+      else return;
+      e.preventDefault();
+      render();
+    });
   }
 </script>
 
 <style>
-  .listen-wrap { margin-top: 14px; width: 100%; max-width: 320px; }
+  .listen-wrap { position: relative; margin-top: 14px; width: 100%; max-width: 320px; }
   /* La pilule du menu : cerclée, toute cliquable ; le libellé à gauche de la durée. */
   .listen {
     position: relative;
@@ -131,11 +188,31 @@ const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? 
     0%, 100% { height: 35%; }
     50% { height: 100%; }
   }
-  /* La progression : un filet au bas de la pilule, entre les deux marges, visible en lecture. */
-  .listen-track { position: absolute; inset-inline: 14px; bottom: 0; height: 1px; }
+  /* La timeline : une zone de prise de 18 px sur le bas de la pilule ; le filet (1 px) apparaît au survol,
+     en lecture ou une fois commencé ; le point au bout du filet dit qu'on peut le saisir. */
+  .listen-seek { position: absolute; inset-inline: 14px; bottom: 0; height: 18px; cursor: pointer; touch-action: none; }
+  .listen-seek:focus { outline: none; }
+  .listen-track { position: absolute; inset-inline: 0; bottom: 5px; height: 1px; background: rgba(21, 14, 10, 0.15); opacity: 0; transition: opacity 0.2s ease; }
+  .is-playing .listen-track, .has-time .listen-track, .listen-wrap:hover .listen-track, .listen-seek:focus-visible .listen-track { opacity: 1; }
   .listen-progress { position: absolute; inset-block: 0; inset-inline-start: 0; width: 0; background: var(--ink); transition: width 0.25s linear; }
+  .is-seeking .listen-progress { transition: none; }
+  .listen-knob {
+    position: absolute;
+    top: 50%;
+    inset-inline-end: -4px;
+    width: 8px;
+    height: 8px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background: var(--ink);
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .listen-wrap:hover .listen-knob, .is-seeking .listen-knob, .listen-seek:focus-visible .listen-knob { opacity: 1; transform: scale(1); }
+  .listen-seek:focus-visible .listen-knob { box-shadow: 0 0 0 3px rgba(21, 14, 10, 0.18); }
   @media (prefers-reduced-motion: reduce) {
-    .listen, .listen-icon, .listen-progress { transition: none; }
+    .listen, .listen-icon, .listen-progress, .listen-track, .listen-knob { transition: none; }
     .listen-eq i { animation: none; height: 60%; }
   }
 </style>
