@@ -31,11 +31,12 @@ const maxShare = Math.max(0.0001, ...products.map((p) => p.share));
           ) : (
             <span class="ptile-stats">
               <span>Fiches<b>{fmtInt(p.views)}</b></span>
+              <span>Écoutes<b>{p.kind === "reflet" ? fmtInt(p.plays) : "–"}</b></span>
               <span>Ajouts<b>{fmtInt(p.adds)}</b></span>
-              <span>→ achat<b>{p.views ? fmtPct(p.orders, p.views) : "–"}</b></span>
             </span>
           )}
-          {p.abandoned > 0 && <span class="ptile-warn">{fmtInt(p.abandoned)} panier{p.abandoned > 1 ? "s" : ""} abandonné{p.abandoned > 1 ? "s" : ""} · {fmtMoneyShort(p.abandonedTotal)} {currency}</span>}
+          {mode === "sales" && p.abandoned > 0 && <span class="ptile-warn">{fmtInt(p.abandoned)} panier{p.abandoned > 1 ? "s" : ""} abandonné{p.abandoned > 1 ? "s" : ""} · {fmtMoneyShort(p.abandonedTotal)} {currency}</span>}
+          {mode === "journey" && <span class="ptile-warn ptile-rate">{p.views ? `${fmtPct(p.adds, p.views)} des fiches finissent au sac · ${fmtPct(p.orders, p.views)} achètent` : "aucune fiche vue"}</span>}
         </span>
       </button>
     ))

@@ -697,6 +697,182 @@ export async function business(range: Range, f: Filters = {}) {
   return { range, previousRange: prev, filters: f, catalog, ...current, previous: { kpis: previous.kpis, carts: previous.carts } };
 }
 
+/* ------------------------------------------------------------------ le parcours sur le site */
+const GUIDE_GROUPS: Record<string, string> = { when: "Pour quand ?", universe: "Plutôt…", materials: "Une matière…", material: "Une matière…" };
+const GUIDE_VALUES: Record<string, string> = { day: "Jour", evening: "Soir", both: "Les deux" };
+const LISTEN_SOURCE: Record<string, string> = { page: "Sur la fiche", menu: "Dans le menu", cart: "Dans le panier", guide: "Dans le guide" };
+const pretty = (s: string) => s.replace(/[-_]+/g, " ").replace(/^\p{L}/u, (c) => c.toUpperCase());
+/** Le nom d'une page d'après son chemin, toutes langues confondues : « Accueil », « Guide des six », le nom du produit… */
+export function pageName(path: string | null, products: Product[]): string {
+  if (!path) return "–";
+  const segs = path.split("?")[0].split("/").filter(Boolean);
+  if (segs.length && /^(fr|en|ar)$/.test(segs[0])) segs.shift();
+  if (!segs.length) return "Accueil";
+  if (segs[0] === "parfums") {
+    if (segs.length === 1) return "Les parfums";
+    if (segs[1] === "guide") return "Guide des six";
+    return products.find((p) => p.handle === segs[1])?.name ?? pretty(segs[1]);
+  }
+  if (segs[0] === "coffrets") return segs[1] ? products.find((p) => p.handle === segs[1])?.name ?? pretty(segs[1]) : "Les coffrets";
+  if (segs[0] === "maison") return "La Maison";
+  if (segs[0] === "panier") return "Panier";
+  return pretty(segs.join(" / "));
+}
+async function countLumaSessions(range: Range): Promise<number> {
+  try {
+    const { count } = await adminDb().from("luma_sessions").select("id", { count: "exact", head: true }).gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString());
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+const MAX_VISIT_MS = 60 * 60 * 1000;
+
+export type Journey = Awaited<ReturnType<typeof journey>>;
+/** Ce que les visiteurs font sur le site : pages, chemins, guide, menu, écoutes, accords — avec la période d'avant pour comparer. */
+export async function journey(range: Range, f: Filters = {}) {
+  const prev = previousRange(range);
+  const span = rangeBetween(prev.from, range.to);
+  const [eventsAll, ordersAll, catalog, lumaSessions] = await Promise.all([loadSite(span), loadOrders(span), loadCatalog(), countLumaSessions(range)]);
+  const within = (iso: string, r: Range) => {
+    const t = new Date(iso).getTime();
+    return t >= r.from.getTime() && t <= r.to.getTime();
+  };
+  const ctx: Ctx = { events: eventsAll.filter((e) => within(e.created_at, range)), orders: ordersAll.filter((o) => within(o.created_at, range)), catalog, range, filters: f };
+  const prevCtx: Ctx = { events: eventsAll.filter((e) => within(e.created_at, prev)), orders: ordersAll.filter((o) => within(o.created_at, prev)), catalog, range: prev, filters: f };
+  const cur = summarize(ctx);
+  const c = core(ctx);
+  const p = core(prevCtx);
+  const products = catalog.products;
+  const name = (path: string | null) => pageName(path, products);
+
+  const measure = (k: ReturnType<typeof core>) => {
+    const withPages = k.visitors.filter((v) => v.pageViews > 0);
+    const durations = k.visitors.map((v) => Math.min(MAX_VISIT_MS, new Date(v.lastSeen).getTime() - new Date(v.firstSeen).getTime())).filter((d) => d > 0);
+    const landings = new Map<string, number>();
+    for (const e of k.ev) if (e.name === "page_view" && e.props.landing === true) landings.set(e.anon_id, (landings.get(e.anon_id) ?? 0) + 1);
+    const plays = k.ev.filter((e) => e.name === "audio_play");
+    return {
+      visitors: k.visitors.length,
+      pagesPerVisit: withPages.length ? withPages.reduce((n, v) => n + v.pageViews, 0) / withPages.length : null,
+      avgDurationMs: durations.length ? durations.reduce((n, d) => n + d, 0) / durations.length : null,
+      bounceRate: withPages.length ? withPages.filter((v) => v.pageViews <= 1).length / withPages.length : null,
+      returning: [...landings.values()].filter((n) => n >= 2).length,
+      plays: plays.length,
+      listeners: new Set(plays.map((e) => e.anon_id)).size,
+      completes: k.ev.filter((e) => e.name === "audio_complete").length,
+      adders: k.kpis.adders,
+      checkouts: k.kpis.checkouts,
+      orders: k.kpis.orders,
+      viewers: k.visitors.filter((v) => v.viewed.size > 0).length,
+    };
+  };
+  const now = measure(c);
+  const before = measure(p);
+  const ev = c.ev;
+  const visitors = c.visitors;
+
+  // Les pages : les plus vues, d'arrivée, de sortie ; les chemins les plus suivis.
+  const uniqBy = (rows: { key: string; anon: string }[]) => {
+    const m = new Map<string, Set<string>>();
+    for (const r of rows) m.set(r.key, (m.get(r.key) ?? new Set()).add(r.anon));
+    return [...m.entries()].map(([label, s]) => ({ label, count: s.size })).sort((a, b) => b.count - a.count);
+  };
+  const countOf = (keys: (string | null)[]) => {
+    const m = new Map<string, number>();
+    for (const k of keys) if (k) m.set(k, (m.get(k) ?? 0) + 1);
+    return [...m.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count);
+  };
+  const pageViews = ev.filter((e) => e.name === "page_view" && e.path);
+  const topPages = uniqBy(pageViews.map((e) => ({ key: name(e.path), anon: e.anon_id }))).slice(0, 10);
+  const landingPages = countOf(visitors.map((v) => (v.landingPath ? name(v.landingPath) : null))).slice(0, 8);
+  const lastPath = new Map<string, string>();
+  for (const e of pageViews) lastPath.set(e.anon_id, e.path!); // ev est trié par id croissant : le dernier gagne
+  const exitPages = countOf([...lastPath.values()].map((pth) => name(pth))).slice(0, 8);
+  const pathsByAnon = new Map<string, string[]>();
+  for (const e of pageViews) {
+    const list = pathsByAnon.get(e.anon_id) ?? [];
+    const n = name(e.path);
+    if (list[list.length - 1] !== n) list.push(n);
+    pathsByAnon.set(e.anon_id, list);
+  }
+  const sequences = countOf([...pathsByAnon.values()].filter((l) => l.length >= 2).map((l) => l.slice(0, 3).join(" → ")))
+    .slice(0, 8)
+    .map((s) => ({ steps: s.label.split(" → "), count: s.count }));
+  const depth = countOf([...pathsByAnon.values()].map((l) => (l.length >= 5 ? "5 pages et plus" : `${l.length} page${l.length > 1 ? "s" : ""}`))).sort((a, b) => a.label.localeCompare(b.label, "fr", { numeric: true }));
+
+  // Le guide, la carte, le menu.
+  const guideFilters = countOf(ev.filter((e) => e.name === "guide_filter" && e.props.on !== false).map((e) => `${GUIDE_GROUPS[str(e.props.group) ?? ""] ?? pretty(str(e.props.group) ?? "?")} · ${GUIDE_VALUES[str(e.props.value) ?? ""] ?? pretty(str(e.props.value) ?? "?")}`)).slice(0, 10);
+  const productRows = (evName: string, key: (e: SiteEventRow) => string | null) =>
+    products
+      .filter((pr) => pr.kind === "reflet")
+      .map((pr) => ({ handle: pr.handle, name: pr.name, image: pr.image, count: ev.filter((e) => e.name === evName && key(e) === pr.handle).length }))
+      .sort((a, b) => b.count - a.count);
+  const mapSelects = productRows("map_select", (e) => str(e.props.handle));
+  const mapPairs = ev.filter((e) => e.name === "map_pair" && e.props.on !== false).length;
+  const menu = productRows("menu_reflet", (e) => str(e.props.handle));
+  const guideVisitors = new Set(pageViews.filter((e) => name(e.path) === "Guide des six").map((e) => e.anon_id)).size;
+
+  // Les écoutes.
+  const plays = ev.filter((e) => e.name === "audio_play");
+  const completes = ev.filter((e) => e.name === "audio_complete");
+  const listens = {
+    total: plays.length,
+    completes: completes.length,
+    listeners: now.listeners,
+    byKind: [
+      { label: "Portraits", value: plays.filter((e) => str(e.props.kind) !== "accord").length, color: "var(--ink)" },
+      { label: "Accords du parfumeur", value: plays.filter((e) => str(e.props.kind) === "accord").length, color: "var(--rose)" },
+    ],
+    bySource: countOf(plays.map((e) => LISTEN_SOURCE[str(e.props.source) ?? "page"] ?? pretty(str(e.props.source) ?? "page"))),
+    perReflet: products
+      .filter((pr) => pr.kind === "reflet")
+      .map((pr) => ({ handle: pr.handle, name: pr.name, image: pr.image, plays: plays.filter((e) => str(e.props.kind) !== "accord" && str(e.props.id) === pr.handle).length, completes: completes.filter((e) => str(e.props.kind) !== "accord" && str(e.props.id) === pr.handle).length }))
+      .sort((a, b) => b.plays - a.plays),
+  };
+  const accords = LAYERING.map((d) => ({
+    id: d.id,
+    name: d.name.fr,
+    pair: d.pair.map((h) => products.find((pr) => pr.handle === h) ?? { handle: h, name: h, image: null }),
+    plays: plays.filter((e) => str(e.props.kind) === "accord" && str(e.props.id) === d.id).length,
+    completes: completes.filter((e) => str(e.props.kind) === "accord" && str(e.props.id) === d.id).length,
+    addsBoth: ev.filter((e) => e.name === "layering_add" && str(e.props.duo) === d.id).length,
+    cartAdds: ev.filter((e) => e.name === "accord_add" && str(e.props.duo) === d.id).length,
+    mapPairs: ev.filter((e) => e.name === "map_pair" && d.pair.includes(str(e.props.handle) ?? "")).length,
+  }));
+
+  // Par jour.
+  const uniqueByDay = (rows: SiteEventRow[]) => {
+    const m = new Map<string, Set<string>>();
+    for (const r of rows) m.set(dayKey(r.created_at), (m.get(dayKey(r.created_at)) ?? new Set()).add(r.anon_id));
+    return daysOf(range).map((d) => ({ key: d.key, label: d.label, value: m.get(d.key)?.size ?? 0 }));
+  };
+  const series = { visitors: uniqueByDay(ev), plays: dailySeries(plays, range) };
+  const byDay = daysOf(range).map((d, i) => {
+    const day = ev.filter((e) => dayKey(e.created_at) === d.key);
+    return {
+      key: d.key,
+      label: new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, weekday: "short", day: "numeric", month: "short" }).format(d.date),
+      visitors: series.visitors[i].value,
+      pageViews: day.filter((e) => e.name === "page_view").length,
+      productViews: day.filter((e) => e.name === "product_view").length,
+      plays: day.filter((e) => e.name === "audio_play").length,
+      guide: day.filter((e) => e.name === "guide_filter" || e.name === "map_select" || e.name === "map_pair").length,
+      adds: day.filter((e) => e.name === "add_to_cart").length,
+    };
+  });
+  const funnel = [
+    { label: "Visiteurs", value: now.visitors },
+    { label: "Fiche vue", value: now.viewers },
+    { label: "Écoute", value: now.listeners },
+    { label: "Ajout au sac", value: now.adders },
+    { label: "Paiement", value: now.checkouts },
+    { label: "Commande", value: now.orders },
+  ];
+
+  return { range, previousRange: prev, filters: f, catalog, currency: cur.currency, facets: cur.facets, perProduct: cur.perProduct, tracked: cur.tracked, kpis: now, previous: before, lumaSessions, funnel, series, byDay, topPages, landingPages, exitPages, sequences, depth, guideFilters, guideVisitors, mapSelects, mapPairs, menu, listens, accords };
+}
+
 /* ------------------------------------------------------------------ en direct */
 export type LivePayload = Awaited<ReturnType<typeof live>>;
 const LIVE_WINDOW_MS = 10 * 60 * 1000;
