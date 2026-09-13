@@ -32,7 +32,7 @@ const STATUS: Record<string, { label: string; cls: string }> = { abandoned: { la
     <div class="card kpi"><span class="kpi-label">Panier moyen</span><span class="kpi-value">{b.kpis.aov === null ? "–" : fmtMoneyShort(b.kpis.aov)}{b.kpis.aov !== null && <span class="unit">{cur}</span>}</span><span class="kpi-sub">{b.kpis.orders ? `${(b.kpis.units / b.kpis.orders).toFixed(1).replace(".", ",")} flacon par commande` : "–"}</span></div>
     <div class="card kpi"><span class="kpi-label">Remises</span><span class="kpi-value">{fmtMoneyShort(b.kpis.discounts)}<span class="unit">{cur}</span></span><span class="kpi-sub">{b.discountCodes.length} code{b.discountCodes.length > 1 ? "s" : ""} utilisé{b.discountCodes.length > 1 ? "s" : ""}</span></div>
     <div class="card kpi"><span class="kpi-label">Livraison facturée</span><span class="kpi-value">{fmtMoneyShort(b.kpis.shipping)}<span class="unit">{cur}</span></span></div>
-    <div class="card kpi"><span class="kpi-label">Abandonnés</span><span class="kpi-value">{fmtMoneyShort(b.carts.abandoned.total)}<span class="unit">{cur}</span></span><span class="kpi-sub">{fmtInt(b.carts.abandoned.count)} panier{b.carts.abandoned.count > 1 ? "s" : ""} · {b.carts.all.count ? fmtPct(b.carts.abandoned.count, b.carts.all.count) : "–"} des départs</span></div>
+    <div class="card kpi"><span class="kpi-label">Abandonnés</span><span class="kpi-value">{fmtMoneyShort(b.carts.abandoned.total)}<span class="unit">{cur}</span></span><span class="kpi-sub">{fmtInt(b.carts.abandoned.count)} panier{b.carts.abandoned.count > 1 ? "s" : ""}{b.carts.abandoned.atCheckout ? `, ${fmtInt(b.carts.abandoned.atCheckout)} au paiement` : ""} · {b.carts.all.count ? fmtPct(b.carts.abandoned.count, b.carts.all.count) : "–"} des paniers</span></div>
   </section>
 
   <section class="grid grid-2">
@@ -69,22 +69,23 @@ const STATUS: Record<string, { label: string; cls: string }> = { abandoned: { la
   </section>
 
   <section class="card tbl-card">
-    <div class="card-head"><h2 class="card-title">Paniers abandonnés et en cours</h2><p class="card-note">un départ en paiement sans commande ; en cours = moins d'une heure</p></div>
+    <div class="card-head"><h2 class="card-title">Paniers abandonnés et en cours</h2><p class="card-note">un sac ou un départ en paiement sans commande ; en cours = moins d'une heure après le dernier geste ; ≈ montant estimé d'après le catalogue</p></div>
     <div class="tbl-wrap">
       <table class="tbl">
-        <thead><tr><th>Quand</th><th>Statut</th><th>Articles</th><th>Pays</th><th>Source</th><th>Appareil</th><th class="num">Montant</th></tr></thead>
+        <thead><tr><th>Quand</th><th>Statut</th><th>Étape</th><th>Articles</th><th>Pays</th><th>Source</th><th>Appareil</th><th class="num">Montant</th></tr></thead>
         <tbody>
-          {b.abandonedCarts.length === 0 && <tr><td colspan="7"><p class="empty">Aucun panier abandonné sur la période.</p></td></tr>}
+          {b.abandonedCarts.length === 0 && <tr><td colspan="8"><p class="empty">Aucun panier abandonné sur la période.</p></td></tr>}
           {
             b.abandonedCarts.slice(0, 60).map((c) => (
               <tr>
                 <td class="muted mono when">{fmtDate(c.at)}</td>
                 <td><span class:list={["badge", STATUS[c.status].cls]}>{STATUS[c.status].label}</span></td>
+                <td class="nowrap">{c.stage === "checkout" ? <span class="badge badge-rose">au paiement</span> : <span class="badge">au sac</span>}</td>
                 <td>{c.lines.length ? c.lines.map((l) => `${l.quantity > 1 ? `${l.quantity} × ` : ""}${b.names.find((n) => n.handle === l.handle)?.name ?? l.handle}`).join(", ") : <span class="muted">–</span>}</td>
                 <td class="nowrap">{c.country ? countryName(c.country) : "–"}</td>
                 <td class="nowrap">{c.source}</td>
                 <td class="muted">{c.device === "mobile" ? "Mobile" : c.device === "desktop" ? "Ordinateur" : "–"}</td>
-                <td class="num strong">{fmtMoney(c.total, c.currency)}</td>
+                <td class="num strong">{c.estimated ? "≈ " : ""}{fmtMoney(c.total, c.currency)}</td>
               </tr>
             ))
           }

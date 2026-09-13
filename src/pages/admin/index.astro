@@ -44,8 +44,8 @@ const subtitle = hasFilters(filters) ? `Vue filtrée, ${days} derniers jours, he
       <span class="kpi-sub">{fmtInt(b.kpis.orders)} commande{b.kpis.orders > 1 ? "s" : ""} · panier moyen {b.kpis.aov === null ? "–" : money(b.kpis.aov)} · {fmtInt(b.kpis.units)} flacon{b.kpis.units > 1 ? "s" : ""}</span>
     </div>
     <div class="card kpi"><span class="kpi-label">Paniers validés</span><span class="kpi-value">{fmtMoneyShort(b.carts.paid.total)}<span class="unit">{cur}</span></span><span class="kpi-sub">{fmtInt(b.carts.paid.count)} commande{b.carts.paid.count > 1 ? "s" : ""} payée{b.carts.paid.count > 1 ? "s" : ""}</span></div>
-    <div class="card kpi"><span class="kpi-label">Paniers abandonnés</span><span class="kpi-value">{fmtMoneyShort(b.carts.abandoned.total)}<span class="unit">{cur}</span></span><span class="kpi-sub">{fmtInt(b.carts.abandoned.count)} départ{b.carts.abandoned.count > 1 ? "s" : ""} en paiement sans commande{b.carts.open.count ? ` · ${fmtInt(b.carts.open.count)} en cours` : ""}</span></div>
-    <div class="card kpi"><span class="kpi-label">Panier total</span><span class="kpi-value">{fmtMoneyShort(b.carts.all.total)}<span class="unit">{cur}</span></span><span class="kpi-sub">{fmtInt(b.carts.all.count)} panier{b.carts.all.count > 1 ? "s" : ""} arrivé{b.carts.all.count > 1 ? "s" : ""} au paiement · {b.carts.all.total ? fmtPct(b.carts.paid.total, b.carts.all.total) : "–"} encaissé</span></div>
+    <div class="card kpi"><span class="kpi-label">Paniers abandonnés</span><span class="kpi-value">{fmtMoneyShort(b.carts.abandoned.total)}<span class="unit">{cur}</span></span><span class="kpi-sub">{fmtInt(b.carts.abandoned.count)} panier{b.carts.abandoned.count > 1 ? "s" : ""} laissé{b.carts.abandoned.count > 1 ? "s" : ""}{b.carts.abandoned.atCheckout ? `, dont ${fmtInt(b.carts.abandoned.atCheckout)} au paiement` : ""}{b.carts.open.count ? ` · ${fmtInt(b.carts.open.count)} en cours` : ""}</span></div>
+    <div class="card kpi"><span class="kpi-label">Panier total</span><span class="kpi-value">{fmtMoneyShort(b.carts.all.total)}<span class="unit">{cur}</span></span><span class="kpi-sub">{fmtInt(b.carts.all.count)} panier{b.carts.all.count > 1 ? "s" : ""} au total · {b.carts.all.total ? fmtPct(b.carts.paid.total, b.carts.all.total) : "–"} encaissé</span></div>
     <div class="card kpi"><span class="kpi-label">Visiteurs</span><span class="kpi-value">{fmtInt(b.kpis.visitors)}</span><span class="kpi-sub">conversion {pct(b.kpis.conversion)} · {pct(b.kpis.checkoutRate)} vont au paiement</span></div>
   </section>
 
@@ -63,10 +63,10 @@ const subtitle = hasFilters(filters) ? `Vue filtrée, ${days} derniers jours, he
       </div>
       <ul class="legend">
         <li><span class="dot" style="background:var(--rose)"></span><span>Validés</span><span class="legend-num">{fmtInt(b.carts.paid.count)} · {money(b.carts.paid.total)}</span></li>
-        <li><span class="dot" style="background:var(--ink);opacity:.35"></span><span>Abandonnés</span><span class="legend-num">{fmtInt(b.carts.abandoned.count)} · {money(b.carts.abandoned.total)}</span></li>
+        <li><span class="dot" style="background:var(--ink);opacity:.35"></span><span>Abandonnés{b.carts.abandoned.atCheckout ? ` · ${fmtInt(b.carts.abandoned.atCheckout)} au paiement` : ""}</span><span class="legend-num">{fmtInt(b.carts.abandoned.count)} · {money(b.carts.abandoned.total)}</span></li>
         <li><span class="dot" style="background:var(--warn);opacity:.7"></span><span>En cours (moins d'une heure)</span><span class="legend-num">{fmtInt(b.carts.open.count)} · {money(b.carts.open.total)}</span></li>
       </ul>
-      <p class="card-foot">Un panier compte à partir du départ en paiement. Sans commande une heure après, il est abandonné. Récupération : {pct(b.carts.recoveryRate)} des départs finissent payés.</p>
+      <p class="card-foot">Un panier compte dès le premier ajout au sac. Sans commande une heure après le dernier geste, il est abandonné. {pct(b.carts.recoveryRate)} des paniers finissent payés{b.carts.checkoutRecoveryRate !== null ? `, ${pct(b.carts.checkoutRecoveryRate)} des départs en paiement` : ""}.{b.carts.estimated ? ` ${fmtInt(b.carts.estimated)} montant${b.carts.estimated > 1 ? "s" : ""} estimé${b.carts.estimated > 1 ? "s" : ""} d'après le catalogue (≈).` : ""}</p>
     </div>
   </section>
 

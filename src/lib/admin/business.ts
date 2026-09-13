@@ -8,6 +8,8 @@
  */
 import { adminDb } from "./db";
 import { COUNTRY_CENTROIDS, countryName } from "./geo";
+import { LAYERING } from "../layering";
+import { getAllProducts, isSampleVariantTitle } from "../shopify";
 import { dailySeries, dayKey, fetchAll, loadSite, refletNames, sinceFor, type Days, type SiteEventRow } from "./data";
 
 /* ------------------------------------------------------------------ types */
@@ -60,11 +62,57 @@ export type Visitor = {
   lastSeen: string;
   pageViews: number;
   viewed: Set<string>;
+  /** Le sac : dernier ajout, montant du sac après cet ajout (événements récents), variantes ajoutées (pour estimer les anciens). */
+  cartAt: string | null;
   addedTotal: number | null;
   addedLines: CartLine[];
+  addedVariants: string[];
   checkout: { at: string; total: number; currency: string | null; lines: CartLine[] } | null;
   orders: OrderRow[];
 };
+
+/** Les prix du catalogue Shopify, pour chiffrer un sac dont l'événement ne portait pas encore le montant. */
+export type Catalog = { variantPrice: Map<string, { price: number; handle: string }>; handlePrice: Map<string, number> };
+export async function loadCatalog(): Promise<Catalog> {
+  const variantPrice = new Map<string, { price: number; handle: string }>();
+  const handlePrice = new Map<string, number>();
+  try {
+    for (const p of await getAllProducts()) {
+      for (const v of p.variants.nodes) {
+        const price = Number(v.price.amount);
+        variantPrice.set(v.id, { price, handle: p.handle });
+        if (price > 0 && !isSampleVariantTitle(v.title) && !handlePrice.has(p.handle)) handlePrice.set(p.handle, price);
+      }
+    }
+  } catch (error) {
+    console.error("[admin/business] catalogue Shopify indisponible", error);
+  }
+  return { variantPrice, handlePrice };
+}
+
+export type Cart = { stage: "cart" | "checkout"; at: string; total: number; currency: string | null; lines: CartLine[]; estimated: boolean };
+/**
+ * Le panier d'un visiteur : son départ en paiement s'il y en a un, sinon son sac
+ * (dernier ajout). Le montant vient de l'événement quand il l'a ; sinon il est
+ * estimé d'après le catalogue (variantes ajoutées, sans tenir compte des retraits).
+ */
+export function cartOf(v: Visitor, catalog: Catalog): Cart | null {
+  if (v.checkout) return { stage: "checkout", at: v.checkout.at, total: v.checkout.total, currency: v.checkout.currency, lines: v.checkout.lines, estimated: false };
+  if (!v.cartAt) return null;
+  if (v.addedTotal !== null) return { stage: "cart", at: v.cartAt, total: v.addedTotal, currency: null, lines: v.addedLines, estimated: false };
+  const byHandle = new Map<string, CartLine>();
+  for (const gid of v.addedVariants) {
+    const p = catalog.variantPrice.get(gid);
+    if (!p || p.price <= 0) continue;
+    const cur = byHandle.get(p.handle) ?? { handle: p.handle, quantity: 0, amount: 0 };
+    cur.quantity++;
+    cur.amount += p.price;
+    byHandle.set(p.handle, cur);
+  }
+  for (const l of v.addedLines) if (!byHandle.has(l.handle)) byHandle.set(l.handle, { handle: l.handle, quantity: l.quantity, amount: (catalog.handlePrice.get(l.handle) ?? 0) * l.quantity });
+  const lines = [...byHandle.values()];
+  return { stage: "cart", at: v.cartAt, total: lines.reduce((n, l) => n + l.amount, 0), currency: null, lines, estimated: true };
+}
 
 export type Filters = { reflet?: string; country?: string; source?: string; locale?: string };
 export function parseFilters(params: URLSearchParams): Filters {
@@ -168,7 +216,7 @@ export function buildVisitors(events: SiteEventRow[], orders: OrderRow[]): Map<s
   for (const e of events) {
     let v = byAnon.get(e.anon_id);
     if (!v) {
-      v = { anon: e.anon_id, country: null, locale: null, device: null, source: { label: "Avant le suivi", channel: "Inconnue" }, landingPath: null, firstSeen: e.created_at, lastSeen: e.created_at, pageViews: 0, viewed: new Set(), addedTotal: null, addedLines: [], checkout: null, orders: [] };
+      v = { anon: e.anon_id, country: null, locale: null, device: null, source: { label: "Avant le suivi", channel: "Inconnue" }, landingPath: null, firstSeen: e.created_at, lastSeen: e.created_at, pageViews: 0, viewed: new Set(), cartAt: null, addedTotal: null, addedLines: [], addedVariants: [], checkout: null, orders: [] };
       byAnon.set(e.anon_id, v);
     }
     v.country ??= e.country;
@@ -193,10 +241,13 @@ export function buildVisitors(events: SiteEventRow[], orders: OrderRow[]): Map<s
         break;
       }
       case "add_to_cart": {
+        if (!v.cartAt || e.created_at > v.cartAt) v.cartAt = e.created_at;
         const t = num(e.props.total);
         if (t !== null) v.addedTotal = t;
+        for (const gid of Array.isArray(e.props.variants) ? e.props.variants : []) if (typeof gid === "string") v.addedVariants.push(gid);
         const lines = cartLines(e.props.lines);
-        if (lines.length) v.addedLines = lines;
+        if (lines.length) v.addedLines = lines; // le sac complet après l'ajout (événements récents)
+        else for (const h of Array.isArray(e.props.handles) ? e.props.handles : []) if (typeof h === "string" && !v.addedLines.some((l) => l.handle === h)) v.addedLines.push({ handle: h, quantity: 1, amount: 0 });
         break;
       }
       case "checkout": {
@@ -217,9 +268,10 @@ export function buildVisitors(events: SiteEventRow[], orders: OrderRow[]): Map<s
 /* ------------------------------------------------------------------ le business */
 const ONE_HOUR = 3600 * 1000;
 export type CartStatus = "paid" | "open" | "abandoned";
-export function cartStatus(v: Visitor, now = Date.now()): CartStatus | null {
-  if (!v.checkout) return null;
-  const at = new Date(v.checkout.at).getTime();
+/** Payé si une commande du même parcours suit le panier ; en cours moins d'une heure après le dernier geste ; abandonné ensuite. */
+export function cartStatus(v: Visitor, cart: Cart | null, now = Date.now()): CartStatus | null {
+  if (!cart) return null;
+  const at = new Date(cart.at).getTime();
   if (v.orders.some((o) => new Date(o.created_at).getTime() >= at - 10 * 60 * 1000)) return "paid";
   return now - at < ONE_HOUR ? "open" : "abandoned";
 }
@@ -227,7 +279,7 @@ export function cartStatus(v: Visitor, now = Date.now()): CartStatus | null {
 export type Business = Awaited<ReturnType<typeof business>>;
 
 export async function business(days: Days, f: Filters = {}) {
-  const [events, allOrders, names] = await Promise.all([loadSite(days), loadOrders(days), refletNames()]);
+  const [events, allOrders, names, catalog] = await Promise.all([loadSite(days), loadOrders(days), refletNames(), loadCatalog()]);
   const handleOf = (line: OrderLine) => line.handle ?? (names.find((n) => n.name === line.title)?.handle ?? null);
   const realOrders = allOrders.filter((o) => !o.test);
   const visitorsAll = buildVisitors(events, realOrders);
@@ -266,26 +318,37 @@ export async function business(days: Days, f: Filters = {}) {
   const discounts = orders.reduce((n, o) => n + o.discounts, 0);
   const shipping = orders.reduce((n, o) => n + o.shipping, 0);
 
-  // Les paniers : validés (commandes), abandonnés (départ en paiement sans commande après une heure), en cours.
-  const withCheckout = visitors.filter((v) => v.checkout);
+  // Les paniers : un sac ou un départ en paiement par visiteur. Validé (commande), abandonné (plus d'une heure sans commande), en cours.
   const now = Date.now();
-  const abandoned = withCheckout.filter((v) => cartStatus(v, now) === "abandoned");
-  const open = withCheckout.filter((v) => cartStatus(v, now) === "open");
-  const abandonedTotal = abandoned.reduce((n, v) => n + (v.checkout?.total ?? 0), 0);
-  const openTotal = open.reduce((n, v) => n + (v.checkout?.total ?? 0), 0);
+  const cartsByAnon = new Map<string, Cart>();
+  for (const v of visitors) {
+    const c = cartOf(v, catalog);
+    if (c) cartsByAnon.set(v.anon, c);
+  }
+  const withCart = visitors.filter((v) => cartsByAnon.has(v.anon));
+  const withCheckout = withCart.filter((v) => cartsByAnon.get(v.anon)!.stage === "checkout");
+  const statusOf = (v: Visitor) => cartStatus(v, cartsByAnon.get(v.anon) ?? null, now);
+  const abandoned = withCart.filter((v) => statusOf(v) === "abandoned");
+  const open = withCart.filter((v) => statusOf(v) === "open");
+  const sum = (vs: Visitor[]) => vs.reduce((n, v) => n + (cartsByAnon.get(v.anon)?.total ?? 0), 0);
+  const abandonedTotal = sum(abandoned);
+  const openTotal = sum(open);
+  const atCheckout = (vs: Visitor[]) => vs.filter((v) => cartsByAnon.get(v.anon)?.stage === "checkout");
   const carts = {
     paid: { count: orders.length, total: revenue },
-    abandoned: { count: abandoned.length, total: abandonedTotal },
-    open: { count: open.length, total: openTotal },
+    abandoned: { count: abandoned.length, total: abandonedTotal, atCheckout: atCheckout(abandoned).length, atCheckoutTotal: sum(atCheckout(abandoned)) },
+    open: { count: open.length, total: openTotal, atCheckout: atCheckout(open).length },
     all: { count: orders.length + abandoned.length + open.length, total: revenue + abandonedTotal + openTotal },
-    recoveryRate: withCheckout.length ? orders.filter((o) => o.anon_id && visitorAnon.has(o.anon_id)).length / withCheckout.length : null,
+    estimated: [...abandoned, ...open].filter((v) => cartsByAnon.get(v.anon)?.estimated).length,
+    recoveryRate: withCart.length ? withCart.filter((v) => statusOf(v) === "paid").length / withCart.length : null,
+    checkoutRecoveryRate: withCheckout.length ? withCheckout.filter((v) => statusOf(v) === "paid").length / withCheckout.length : null,
   };
 
   // Par Reflet.
   const perReflet = names.map(({ handle, name }) => {
     const lines = orders.flatMap((o) => o.lines.filter((l) => handleOf(l) === handle && l.total > 0).map((l) => ({ ...l, order: o })));
     const orderIds = new Set(lines.map((l) => l.order.id));
-    const abandonedLines = abandoned.flatMap((v) => v.checkout!.lines.filter((l) => l.handle === handle));
+    const abandonedLines = abandoned.flatMap((v) => (cartsByAnon.get(v.anon)?.lines ?? []).filter((l) => l.handle === handle));
     const viewers = new Set(ev.filter((e) => e.name === "product_view" && str(e.props.handle) === handle).map((e) => e.anon_id)).size;
     const adds = ev.filter((e) => e.name === "add_to_cart" && Array.isArray(e.props.handles) && (e.props.handles as unknown[]).includes(handle)).length;
     return {
@@ -387,7 +450,7 @@ export async function business(days: Days, f: Filters = {}) {
     orders: dailySeries(orders, days),
     visitors: uniqueByDay(ev),
     checkouts: dailySeries(ev.filter((e) => e.name === "checkout"), days),
-    abandoned: sumByDay(abandoned.map((v) => ({ created_at: v.checkout!.at, amount: v.checkout!.total }))),
+    abandoned: sumByDay(abandoned.map((v) => ({ created_at: cartsByAnon.get(v.anon)!.at, amount: cartsByAnon.get(v.anon)!.total }))),
   };
 
   // Le parcours global : visiteurs → fiche vue → ajout → paiement → commande.
@@ -401,7 +464,10 @@ export async function business(days: Days, f: Filters = {}) {
 
   // Les paniers abandonnés, un par un (les plus récents d'abord), et les commandes récentes.
   const abandonedCarts = [...abandoned, ...open]
-    .map((v) => ({ anon: v.anon, at: v.checkout!.at, total: v.checkout!.total, currency: v.checkout!.currency ?? currency, lines: v.checkout!.lines, country: v.country, source: v.source.label, device: v.device, status: cartStatus(v, now) as CartStatus }))
+    .map((v) => {
+      const c = cartsByAnon.get(v.anon)!;
+      return { anon: v.anon, at: c.at, stage: c.stage, estimated: c.estimated, total: c.total, currency: c.currency ?? currency, lines: c.lines, country: v.country, source: v.source.label, device: v.device, status: statusOf(v) as CartStatus };
+    })
     .sort((a, b) => (a.at < b.at ? 1 : -1));
   const recentOrders = orders.slice(0, 50).map((o) => ({ ...o, source: sourceOf(o), items: o.lines.filter((l) => l.total > 0).map((l) => `${l.quantity > 1 ? `${l.quantity} × ` : ""}${names.find((n) => n.handle === handleOf(l))?.name ?? l.title}`), linked: Boolean(o.anon_id && visitorsAll.has(o.anon_id)) }));
   const discountCodes = (() => {
@@ -496,6 +562,7 @@ export async function live() {
     refletNames(),
   ]);
   const nameOf = (h: string | null) => names.find((n) => n.handle === h)?.name ?? h ?? "";
+  const duoName = (id: string | null) => LAYERING.find((d) => d.id === id)?.name.fr ?? id ?? "";
   const byCountry = new Map<string, { code: string; name: string; visitors: Set<string>; lat: number; lng: number; paths: Map<string, number>; lastAt: string }>();
   for (const e of recent) {
     const code = e.country ?? "??";
@@ -511,7 +578,7 @@ export async function live() {
     .sort((a, b) => b.visitors - a.visitors);
   const feed = recent.slice(0, 40).map((e) => {
     const handle = str(e.props.handle) ?? str(e.props.id);
-    const what = e.name === "add_to_cart" || e.name === "checkout" ? (Array.isArray(e.props.handles) ? (e.props.handles as string[]).map(nameOf).join(" + ") : "") : e.name === "layering_add" || e.name === "accord_add" ? str(e.props.duo) ?? "" : e.name === "guide_filter" ? `${str(e.props.group) ?? ""} · ${str(e.props.value) ?? ""}` : handle ? nameOf(handle) : e.path ?? "";
+    const what = e.name === "add_to_cart" || e.name === "checkout" ? (Array.isArray(e.props.handles) ? (e.props.handles as string[]).map(nameOf).join(" + ") : "") : e.name === "layering_add" || e.name === "accord_add" ? duoName(str(e.props.duo)) : e.name === "guide_filter" ? `${str(e.props.group) ?? ""} · ${str(e.props.value) ?? ""}` : handle ? nameOf(handle) : e.path ?? "";
     const amount = num(e.props.total);
     return { at: e.created_at, country: e.country, verb: EVENT_LABEL[e.name] ?? e.name, what, amount, currency: str(e.props.currency), anon: e.anon_id.slice(0, 6), locale: e.locale, kind: e.name };
   });
