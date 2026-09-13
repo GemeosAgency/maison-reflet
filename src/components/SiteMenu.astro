@@ -715,8 +715,6 @@ const maisonHref = localePath(lang, "/maison");
       if (!handle || !src) return;
       const a = player(handle, src);
       if (!a.getAttribute("src")) a.src = sources.get(handle) ?? src;
-      const duration = durations.get(handle) || a.duration;
-      if (!duration) return;
       if (current !== handle) {
         const previous = currentPlayer();
         if (previous && previous !== a) release(previous);
@@ -726,16 +724,27 @@ const maisonHref = localePath(lang, "/maison");
       const r = seek.getBoundingClientRect();
       let ratio = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
       if (getComputedStyle(seek).direction === "rtl") ratio = 1 - ratio;
-      a.currentTime = ratio * duration;
       seek.setAttribute("aria-valuenow", String(Math.round(ratio * 100)));
-      renderListening();
+      const apply = () => {
+        const duration = durations.get(handle) || a.duration;
+        if (!duration) return;
+        a.currentTime = ratio * duration;
+        renderListening();
+      };
+      // Durée pas encore connue (lecteur tout juste créé) : on se place dès qu'elle arrive.
+      if (durations.get(handle) || a.duration) apply();
+      else a.addEventListener("loadedmetadata", apply, { once: true });
     };
     seek.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       e.stopPropagation();
       seeking = true;
       seek.classList.add("is-seeking");
-      seek.setPointerCapture(e.pointerId);
+      try {
+        seek.setPointerCapture(e.pointerId);
+      } catch {
+        /* pointeur inconnu (événement synthétique) : le geste marche sans capture */
+      }
       seekTo(e.clientX);
     });
     seek.addEventListener("pointermove", (e) => {
