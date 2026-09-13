@@ -194,30 +194,28 @@ const maisonHref = localePath(lang, "/maison");
                 <span class="mega-fig-cta">{t("menu.discover")}</span>
               </a>
               {r.audio && (
-                <div class="mega-listen-wrap">
-                <button
-                  type="button"
-                  class="mega-listen mega-listen-big"
-                  data-menu-listen={r.handle}
-                  data-src={r.audio}
-                  aria-label={r.listenLabel}
-                  aria-pressed="false"
-                  tabindex="-1"
-                >
-                  <span class="mega-listen-icon" aria-hidden="true">
-                    <svg class="mega-listen-play" width="12" height="12" viewBox="0 0 12 12"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
-                    <svg class="mega-listen-pause" width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
-                    <span class="mega-eq"><i></i><i></i><i></i></span>
-                  </span>
-                  <span class="mega-listen-label">{t("menu.listenPortrait")}</span>
-                  <span class="mega-listen-time" data-menu-time={r.handle}></span>
-                </button>
-                {/* La timeline sur le bas de la pilule : clic ou glissé pour se déplacer dans le portrait (Sandro). */}
-                <div class="mega-listen-seek" data-menu-seek={r.handle} role="slider" tabindex="-1" aria-label={t("luma.seek")} aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                  <span class="mega-listen-track mega-listen-track-big" aria-hidden="true">
-                    <span class="mega-listen-progress" data-menu-progress={r.handle}><span class="mega-listen-knob"></span></span>
-                  </span>
-                </div>
+                /* La pilule est aussi la barre : une teinte la remplit au fil de la lecture, un clic ou un glissé
+                   n'importe où dessus s'y déplace ; la pastille est le bouton lecture-pause (même dessin que LumaListen). */
+                <div class="mega-listen mega-listen-big" data-menu-pill={r.handle}>
+                  <span class="mega-listen-fill" data-menu-progress={r.handle} aria-hidden="true"></span>
+                  <span class="mega-listen-ghost" aria-hidden="true"></span>
+                  <button
+                    type="button"
+                    class="mega-listen-icon"
+                    data-menu-listen={r.handle}
+                    data-src={r.audio}
+                    aria-label={r.listenLabel}
+                    aria-pressed="false"
+                    tabindex="-1"
+                  >
+                    <svg class="mega-listen-play" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
+                    <svg class="mega-listen-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
+                    <span class="mega-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+                  </button>
+                  <div class="mega-listen-body" data-menu-seek={r.handle} role="slider" tabindex="-1" aria-label={t("luma.seek")} aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <span class="mega-listen-label">{t("menu.listenPortrait")}</span>
+                    <span class="mega-listen-time" data-menu-time={r.handle}></span>
+                  </div>
                 </div>
               )}
             </div>
@@ -639,7 +637,7 @@ const maisonHref = localePath(lang, "/maison");
     for (const b of listenButtons) {
       const handle = b.dataset.menuListen ?? "";
       const mine = handle === current;
-      b.classList.toggle("is-playing", mine && playing);
+      (b.closest<HTMLElement>(".mega-listen") ?? b).classList.toggle("is-playing", mine && playing);
       b.setAttribute("aria-pressed", String(mine && playing));
     }
     for (const entry of document.querySelectorAll<HTMLElement>("[data-menu-entry]")) {
@@ -669,6 +667,23 @@ const maisonHref = localePath(lang, "/maison");
     current = "";
     renderListening();
   }
+  /** Lance (ou reprend) le portrait d'un Reflet ; appelé sur un vrai geste seulement. */
+  function startListening(handle: string, src: string) {
+    const a = player(handle, src);
+    // Lecteur vidé après une écoute précédente : on lui redonne sa source.
+    if (!a.getAttribute("src")) a.src = sources.get(handle) ?? src;
+    if (current !== handle) {
+      const previous = currentPlayer();
+      if (previous) release(previous);
+      current = handle;
+      // Le visuel suit la voix.
+      activate(handle);
+    }
+    for (const other of document.querySelectorAll<HTMLAudioElement>("[data-listen-audio]")) if (other !== a) other.pause();
+    a.dataset.userPlay = "1"; // jeton lu par la garde globale (Layout) : lecture voulue
+    a.play().catch(() => {});
+    renderListening();
+  }
   for (const b of listenButtons) {
     b.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -684,33 +699,29 @@ const maisonHref = localePath(lang, "/maison");
         a.pause();
         return;
       }
-      // Lecteur vidé après une écoute précédente : on lui redonne sa source.
-      if (!a.getAttribute("src")) a.src = sources.get(handle) ?? src;
-      if (current !== handle) {
-        const previous = currentPlayer();
-        if (previous) release(previous);
-        current = handle;
-        // Le visuel suit la voix.
-        activate(handle);
-      }
-      for (const other of document.querySelectorAll<HTMLAudioElement>("[data-listen-audio]")) if (other !== a) other.pause();
-      a.dataset.userPlay = "1"; // jeton lu par la garde globale (Layout) : lecture voulue
-      a.play().catch(() => {});
-      renderListening();
+      startListening(handle, src);
     });
   }
 
   /*
-   * La timeline de la pilule : un clic ou un glissé déplace la lecture du
-   * portrait (sans la lancer si elle ne l'est pas — le départ reste un vrai
-   * clic sur la pilule). Se déplacer sur un autre Reflet que celui en cours le
-   * met en avant, comme un clic sur sa pilule.
+   * La pilule est la timeline : la position suit le pointeur sur toute sa
+   * largeur ; un clic ou un glissé se déplace, et relâché sur une lecture en
+   * pause, il la lance d'ici (vrai geste seulement). Se déplacer sur un autre
+   * Reflet que celui en cours le met en avant, comme un clic sur sa pilule.
    */
   for (const seek of panel?.querySelectorAll<HTMLElement>("[data-menu-seek]") ?? []) {
     const handle = seek.dataset.menuSeek ?? "";
+    const pill = seek.closest<HTMLElement>(".mega-listen") ?? seek;
     const button = panel?.querySelector<HTMLButtonElement>(`[data-menu-listen="${handle}"]`);
     const src = button?.dataset.src ?? "";
     let seeking = false;
+    let wasPaused = false;
+    const ratioAt = (clientX: number) => {
+      const r = pill.getBoundingClientRect();
+      let ratio = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+      if (getComputedStyle(pill).direction === "rtl") ratio = 1 - ratio;
+      return ratio;
+    };
     const seekTo = (clientX: number) => {
       if (!handle || !src) return;
       const a = player(handle, src);
@@ -721,9 +732,7 @@ const maisonHref = localePath(lang, "/maison");
         current = handle;
         activate(handle);
       }
-      const r = seek.getBoundingClientRect();
-      let ratio = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
-      if (getComputedStyle(seek).direction === "rtl") ratio = 1 - ratio;
+      const ratio = ratioAt(clientX);
       seek.setAttribute("aria-valuenow", String(Math.round(ratio * 100)));
       const apply = () => {
         const duration = durations.get(handle) || a.duration;
@@ -739,7 +748,8 @@ const maisonHref = localePath(lang, "/maison");
       e.preventDefault();
       e.stopPropagation();
       seeking = true;
-      seek.classList.add("is-seeking");
+      wasPaused = !(current === handle && listening());
+      pill.classList.add("is-seeking");
       try {
         seek.setPointerCapture(e.pointerId);
       } catch {
@@ -749,12 +759,17 @@ const maisonHref = localePath(lang, "/maison");
     });
     seek.addEventListener("pointermove", (e) => {
       if (seeking) seekTo(e.clientX);
+      else pill.style.setProperty("--ghost", `${ratioAt(e.clientX) * 100}%`);
     });
+    pill.addEventListener("pointerleave", () => pill.style.setProperty("--ghost", "0%"));
     const end = (e: PointerEvent) => {
       if (!seeking) return;
       seeking = false;
-      seek.classList.remove("is-seeking");
+      pill.classList.remove("is-seeking");
+      pill.style.setProperty("--ghost", "0%");
       if (seek.hasPointerCapture(e.pointerId)) seek.releasePointerCapture(e.pointerId);
+      // Relâché sur une lecture en pause : on part d'ici — sur un vrai geste seulement.
+      if (wasPaused && e.isTrusted && handle && src) startListening(handle, src);
     };
     seek.addEventListener("pointerup", end);
     seek.addEventListener("pointercancel", end);
@@ -946,12 +961,19 @@ const maisonHref = localePath(lang, "/maison");
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     width: 26px;
     height: 26px;
+    padding: 0;
     border: 1px solid rgba(21, 14, 10, 0.3);
     border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
     transition: border-color 0.25s ease, background-color 0.25s ease, color 0.25s ease;
   }
+  .mega-listen-icon:focus { outline: none; }
   .mega-listen:hover .mega-listen-icon { border-color: var(--ink); }
   .mega-listen.is-playing .mega-listen-icon { background: var(--ink); border-color: var(--ink); color: var(--bg); }
   .mega-listen-label { opacity: 0.85; }
@@ -984,8 +1006,13 @@ const maisonHref = localePath(lang, "/maison");
     0%, 100% { height: 35%; }
     50% { height: 100%; }
   }
-  .mega-listen-track { position: absolute; }
-  .mega-listen-progress { position: absolute; inset-block: 0; inset-inline-start: 0; width: 0%; background: var(--ink); transition: width 0.25s linear; }
+  /* Le remplissage de la lecture et l'ombre du survol, derrière le contenu de la pilule. */
+  .mega-listen-fill, .mega-listen-ghost { position: absolute; inset-block: 0; inset-inline-start: 0; z-index: -1; pointer-events: none; }
+  .mega-listen-fill { width: 0%; background: rgba(21, 14, 10, 0.08); transition: width 0.25s linear; }
+  .mega-listen.is-seeking .mega-listen-fill { transition: none; }
+  .mega-listen-ghost { width: var(--ghost, 0%); background: rgba(21, 14, 10, 0.045); }
+  .mega-listen-body { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 12px; align-self: stretch; touch-action: none; }
+  .mega-listen-body:focus { outline: none; }
   /* Poussé au bas de la colonne, aligné sur le bouton d'écoute du visuel et le
      prix du second coffret (la règle générique .mega-all plus bas pose 28px). */
   .mega-col-reflets .mega-all { margin-top: auto; padding-top: 20px; }
@@ -1104,11 +1131,13 @@ const maisonHref = localePath(lang, "/maison");
   }
   .mega-fig-title:hover .mega-fig-cta { text-decoration-color: currentColor; }
   /* Le grand bouton d'écoute sous le visuel : la mise en avant de l'audio. */
-  .mega-listen-wrap { position: relative; margin-top: 8px; }
   .mega-listen-big {
     position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
     width: 100%;
-    margin-top: 0;
+    margin-top: 8px;
     justify-content: flex-start;
     gap: 12px;
     padding: 10px 14px;
@@ -1128,26 +1157,6 @@ const maisonHref = localePath(lang, "/maison");
   .mega-listen-big.is-playing { border-color: var(--ink); }
   .mega-listen-big:hover .mega-listen-icon,
   .mega-listen-big.is-playing .mega-listen-icon { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-  /* La timeline : 18 px de prise sur le bas de la pilule ; le filet apparaît au survol ou en lecture, le point au bout dit qu'on peut le saisir. */
-  .mega-listen-seek { position: absolute; inset-inline: 14px; bottom: 0; height: 18px; cursor: pointer; touch-action: none; z-index: 1; }
-  .mega-listen-track-big { inset-inline: 0; bottom: 5px; height: 1px; background: rgba(21, 14, 10, 0.15); opacity: 0; transition: opacity 0.2s ease; }
-  .mega-listen-wrap:hover .mega-listen-track-big, .mega-listen-wrap:has(.is-playing) .mega-listen-track-big { opacity: 1; }
-  .mega-listen-big ~ .mega-listen-seek .mega-listen-progress { background: var(--ink); }
-  .mega-listen-seek.is-seeking .mega-listen-progress { transition: none; }
-  .mega-listen-knob {
-    position: absolute;
-    top: 50%;
-    inset-inline-end: -4px;
-    width: 8px;
-    height: 8px;
-    margin-top: -4px;
-    border-radius: 50%;
-    background: var(--ink);
-    opacity: 0;
-    transform: scale(0.6);
-    transition: opacity 0.2s ease, transform 0.2s ease;
-  }
-  .mega-listen-wrap:hover .mega-listen-knob, .mega-listen-seek.is-seeking .mega-listen-knob { opacity: 1; transform: scale(1); }
 
   .mega-foot {
     max-width: var(--page-max);

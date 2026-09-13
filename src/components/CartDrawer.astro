@@ -204,6 +204,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     inspiredBy: t("product.inspiredBy"),
     accordWith: t("cart.accordWith"),
     accordListen: t("layering.recommendation"),
+    seek: t("luma.seek"),
     threshold: FREE_SHIPPING_THRESHOLD,
     thumbWidth: THUMB_WIDTH,
   })}
@@ -445,30 +446,39 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
 
   /* ------------------------------------------------ l'accord du parfumeur */
 
+  /*
+   * L'accord : le lecteur de la recommandation sous le titre, hors de la carte
+   * (Sandro), au dessin de la pilule partagée (LumaListen) — la pilule est la
+   * barre, la pastille le bouton — puis la carte du partenaire : vignette,
+   * accord, nom, « + Ajouter » et prix.
+   */
   function accordHtml(a: Accord, mine: UpsellItem, partner: UpsellItem): string {
     const href = productHref(partner.handle);
     const price = `<span class="cart-upsell-price" data-money="${partner.variantId}">${formatPrice(String(partner.price), partner.currency, intlLocale(pageLocale()))}</span>`;
     const vignette = partner.img ? `<img src="${partner.img}" alt="${partner.title}" width="120" height="120" />` : "";
-    // Même ligne d'écoute que les portraits (LumaListen) : bouton rond, libellé, durée, onde en lecture.
     const listen = a.audio
       ? `
-        <div class="cart-accord-listen" data-accord-listen data-src="${a.audio}">
-          <button type="button" class="cart-accord-play" data-accord-play aria-label="${I18N.accordListen}" aria-pressed="false">
-            <svg class="cart-accord-ico-play" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1.5v9l8-4.5z" fill="currentColor"/></svg>
-            <svg class="cart-accord-ico-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor"/></svg>
-            <span class="cart-accord-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+        <div class="cart-listen" data-accord-listen data-src="${a.audio}">
+          <span class="cart-listen-fill" data-accord-fill aria-hidden="true"></span>
+          <span class="cart-listen-ghost" aria-hidden="true"></span>
+          <button type="button" class="cart-listen-icon" data-accord-play aria-label="${I18N.accordListen}" aria-pressed="false">
+            <svg class="cart-listen-play" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1.5v9l8-4.5z" fill="currentColor"/></svg>
+            <svg class="cart-listen-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor"/></svg>
+            <span class="cart-listen-eq" aria-hidden="true"><i></i><i></i><i></i></span>
           </button>
-          <span class="cart-accord-listen-label">${I18N.accordListen}</span>
-          <span class="cart-accord-time" data-accord-time aria-hidden="true">–:––</span>
+          <div class="cart-listen-body" data-accord-seek role="slider" tabindex="0" aria-label="${I18N.seek}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span class="cart-listen-label">${I18N.accordListen}</span>
+            <span class="cart-listen-time" data-accord-time aria-hidden="true">–:––</span>
+          </div>
         </div>`
       : "";
     return `
+      ${listen}
       <div class="cart-accord-card">
         ${vignette && href ? `<a class="cart-upsell-card-img-link" href="${href}" tabindex="-1" aria-hidden="true">${vignette}</a>` : vignette}
         <div class="cart-accord-body">
           <p class="cart-accord-kicker">${a.name} · ${I18N.accordWith.replace("{name}", mine.title)}</p>
           ${href ? `<a class="cart-upsell-card-name" href="${href}">${partner.title}</a>` : `<p class="cart-upsell-card-name">${partner.title}</p>`}
-          ${listen}
           <div class="cart-upsell-cta">
             <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id="${partner.variantId}">
               <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
@@ -499,7 +509,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     a.hidden = true;
     a.setAttribute("data-listen-audio", "");
     drawer?.append(a);
-    for (const ev of ["play", "pause", "timeupdate", "loadedmetadata", "durationchange"]) a.addEventListener(ev, renderAccordPlayer);
+    for (const ev of ["play", "pause", "timeupdate", "loadedmetadata", "durationchange", "seeked"]) a.addEventListener(ev, renderAccordPlayer);
     a.addEventListener("loadedmetadata", () => {
       const src = a.getAttribute("src");
       if (src && Number.isFinite(a.duration)) accordDurations.set(src, a.duration);
@@ -528,29 +538,126 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     const a = accordAudio;
     const same = !!a && a.getAttribute("src") === src;
     const playing = same && !a!.paused && !a!.ended;
+    const started = same && a!.currentTime > 0;
     wrap.classList.toggle("is-playing", playing);
     wrap.querySelector("[data-accord-play]")?.setAttribute("aria-pressed", String(playing));
+    const known = accordDurations.get(src) ?? (same ? a!.duration : NaN);
+    const pct = same && known ? (a!.currentTime / known) * 100 : 0;
+    const fill = wrap.querySelector<HTMLElement>("[data-accord-fill]");
+    if (fill) fill.style.width = `${pct}%`;
+    wrap.querySelector("[data-accord-seek]")?.setAttribute("aria-valuenow", String(Math.round(pct)));
     const time = wrap.querySelector<HTMLElement>("[data-accord-time]");
-    if (time) {
-      const known = accordDurations.get(src);
-      time.textContent = same && (playing || a!.currentTime > 0) ? fmtTime(a!.currentTime) : fmtTime(known ?? (same ? a!.duration : NaN));
-    }
+    if (time) time.textContent = playing || started ? fmtTime(a!.currentTime) : fmtTime(known);
   }
-  drawer?.addEventListener("click", (e) => {
-    const btn = (e.target as HTMLElement | null)?.closest<HTMLButtonElement>("[data-accord-play]");
-    if (!btn || !e.isTrusted) return;
-    const src = btn.closest<HTMLElement>("[data-accord-listen]")?.dataset.src;
-    if (!src) return;
+  /** Prépare le lecteur sur la source de la carte affichée (sans lire). */
+  function accordAudioFor(wrap: HTMLElement): HTMLAudioElement | null {
+    const src = wrap.dataset.src;
+    if (!src) return null;
     const a = accordPlayer();
     if (a.getAttribute("src") !== src) {
       a.setAttribute("src", src);
       a.load();
     }
-    if (a.paused) {
-      for (const other of document.querySelectorAll<HTMLAudioElement>("[data-listen-audio]")) if (other !== a) other.pause();
-      a.dataset.userPlay = "1";
-      a.play().catch(() => {});
-    } else a.pause();
+    return a;
+  }
+  function playAccord(wrap: HTMLElement) {
+    const a = accordAudioFor(wrap);
+    if (!a) return;
+    for (const other of document.querySelectorAll<HTMLAudioElement>("[data-listen-audio]")) if (other !== a) other.pause();
+    a.dataset.userPlay = "1";
+    a.play().catch(() => {});
+  }
+  drawer?.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement | null)?.closest<HTMLButtonElement>("[data-accord-play]");
+    if (!btn || !e.isTrusted) return;
+    const wrap = btn.closest<HTMLElement>("[data-accord-listen]");
+    if (!wrap) return;
+    const a = accordAudioFor(wrap);
+    if (!a) return;
+    if (a.paused) playAccord(wrap);
+    else a.pause();
+  });
+  // La pilule est la timeline : clic ou glissé sur son corps, lecture au relâcher si elle était en pause.
+  let accordSeeking: HTMLElement | null = null;
+  let accordWasPaused = false;
+  const accordRatio = (wrap: HTMLElement, clientX: number) => {
+    const r = wrap.getBoundingClientRect();
+    let ratio = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    if (getComputedStyle(wrap).direction === "rtl") ratio = 1 - ratio;
+    return ratio;
+  };
+  const accordSeekTo = (wrap: HTMLElement, clientX: number) => {
+    const a = accordAudioFor(wrap);
+    if (!a) return;
+    const ratio = accordRatio(wrap, clientX);
+    const apply = () => {
+      const d = accordDurations.get(wrap.dataset.src ?? "") || a.duration;
+      if (!d) return;
+      a.currentTime = ratio * d;
+      renderAccordPlayer();
+    };
+    if (accordDurations.get(wrap.dataset.src ?? "") || a.duration) apply();
+    else a.addEventListener("loadedmetadata", apply, { once: true });
+  };
+  drawer?.addEventListener("pointerdown", (e) => {
+    const seek = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-accord-seek]");
+    const wrap = seek?.closest<HTMLElement>("[data-accord-listen]");
+    if (!seek || !wrap) return;
+    e.preventDefault();
+    accordSeeking = wrap;
+    const a = accordAudioFor(wrap);
+    accordWasPaused = !a || a.paused;
+    wrap.classList.add("is-seeking");
+    try {
+      seek.setPointerCapture(e.pointerId);
+    } catch {
+      /* pointeur inconnu (événement synthétique) : le geste marche sans capture */
+    }
+    accordSeekTo(wrap, e.clientX);
+  });
+  drawer?.addEventListener("pointermove", (e) => {
+    const wrap = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-accord-listen]");
+    if (accordSeeking) accordSeekTo(accordSeeking, e.clientX);
+    else if (wrap) wrap.style.setProperty("--ghost", `${accordRatio(wrap, e.clientX) * 100}%`);
+  });
+  drawer?.addEventListener("pointerout", (e) => {
+    const wrap = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-accord-listen]");
+    if (wrap && !wrap.contains(e.relatedTarget as Node | null)) wrap.style.setProperty("--ghost", "0%");
+  });
+  const endAccordSeek = (e: PointerEvent) => {
+    const wrap = accordSeeking;
+    if (!wrap) return;
+    accordSeeking = null;
+    wrap.classList.remove("is-seeking");
+    wrap.style.setProperty("--ghost", "0%");
+    const seek = wrap.querySelector<HTMLElement>("[data-accord-seek]");
+    if (seek?.hasPointerCapture(e.pointerId)) seek.releasePointerCapture(e.pointerId);
+    if (accordWasPaused && e.isTrusted) playAccord(wrap);
+  };
+  drawer?.addEventListener("pointerup", endAccordSeek);
+  drawer?.addEventListener("pointercancel", endAccordSeek);
+  drawer?.addEventListener("keydown", (e) => {
+    const seek = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-accord-seek]");
+    const wrap = seek?.closest<HTMLElement>("[data-accord-listen]");
+    if (!seek || !wrap) return;
+    const a = accordAudioFor(wrap);
+    if (!a) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (a.paused) playAccord(wrap);
+      else a.pause();
+      return;
+    }
+    const d = accordDurations.get(wrap.dataset.src ?? "") || a.duration;
+    if (!d) return;
+    const step = e.shiftKey ? 15 : 5;
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") a.currentTime = Math.min(d, a.currentTime + step);
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") a.currentTime = Math.max(0, a.currentTime - step);
+    else if (e.key === "Home") a.currentTime = 0;
+    else if (e.key === "End") a.currentTime = d;
+    else return;
+    e.preventDefault();
+    renderAccordPlayer();
   });
 
   /*
@@ -1000,32 +1107,59 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-sample-option:hover { opacity: 0.8; }
   .cart-sample-option img { width: 32px; height: 32px; object-fit: cover; }
 
-  /* L'accord du parfumeur : la carte du partenaire, l'histoire, l'écoute, le geste. */
+  /* L'accord du parfumeur : le lecteur (la pilule partagée) sous le titre, puis la carte du partenaire. */
   .cart-accord { display: flex; flex-direction: column; gap: 12px; }
+  .cart-listen {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 320px;
+    padding: 10px 14px;
+    border: 1px solid rgba(21, 14, 10, 0.3);
+    border-radius: 100px;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.25s ease;
+  }
+  .cart-listen:hover, .cart-listen.is-playing { border-color: var(--ink); }
+  .cart-listen-fill, .cart-listen-ghost { position: absolute; inset-block: 0; inset-inline-start: 0; z-index: -1; pointer-events: none; }
+  .cart-listen-fill { width: 0; background: rgba(21, 14, 10, 0.08); transition: width 0.25s linear; }
+  .cart-listen.is-seeking .cart-listen-fill { transition: none; }
+  .cart-listen-ghost { width: var(--ghost, 0%); background: rgba(21, 14, 10, 0.045); }
+  .cart-listen-icon {
+    flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; padding: 0;
+    border: 1px solid rgba(21, 14, 10, 0.4); border-radius: 50%;
+    background: transparent; color: var(--ink); cursor: pointer;
+    transition: border-color 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+  }
+  .cart-listen-icon:focus { outline: none; }
+  .cart-listen-icon:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+  .cart-listen:hover .cart-listen-icon, .cart-listen.is-playing .cart-listen-icon { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .cart-listen-body { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 12px; align-self: stretch; touch-action: none; }
+  .cart-listen-body:focus { outline: none; }
+  .cart-listen-body:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 4px; border-radius: 100px; }
+  .cart-listen-label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cart-listen-time { margin-inline-start: auto; flex-shrink: 0; font-size: 13px; opacity: 0.55; font-variant-numeric: tabular-nums; }
+  .cart-listen-pause, .cart-listen-eq { display: none; }
+  .cart-listen.is-playing .cart-listen-play { display: none; }
+  .cart-listen.is-playing .cart-listen-icon .cart-listen-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 10px; }
+  .cart-listen.is-playing:hover .cart-listen-icon .cart-listen-eq { display: none; }
+  .cart-listen.is-playing:hover .cart-listen-pause { display: block; }
+  .cart-listen-eq i { display: block; width: 2px; height: 35%; border-radius: 1px; background: currentColor; animation: cart-listen-eq 0.9s ease-in-out infinite; }
+  .cart-listen-eq i:nth-child(2) { animation-delay: -0.45s; }
+  .cart-listen-eq i:nth-child(3) { animation-delay: -0.2s; }
+  @keyframes cart-listen-eq { 0%, 100% { height: 35%; } 50% { height: 100%; } }
   .cart-accord-card { display: flex; gap: 20px; align-items: center; background: var(--cream); padding-inline-end: 20px; }
   .cart-accord-card img { width: 120px; height: 120px; flex-shrink: 0; object-fit: cover; }
-  .cart-accord-body { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; min-width: 0; }
+  .cart-accord-body { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; min-width: 0; }
   .cart-accord-kicker { margin: 0; font-size: 11px; line-height: 1.3; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); }
-  .cart-accord-listen { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 2px; }
-  .cart-accord-play {
-    width: 28px; height: 28px; padding: 0;
-    border: 1px solid var(--ink); border-radius: 50%;
-    background: transparent; color: var(--ink);
-    display: inline-flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: background 0.2s, color 0.2s;
-  }
-  .cart-accord-play:hover, .cart-accord-listen.is-playing .cart-accord-play { background: var(--ink); color: var(--bg); }
-  .cart-accord-ico-pause, .cart-accord-eq { display: none; }
-  .cart-accord-listen.is-playing .cart-accord-ico-play { display: none; }
-  .cart-accord-listen.is-playing .cart-accord-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 10px; }
-  .cart-accord-listen.is-playing .cart-accord-play:hover .cart-accord-eq { display: none; }
-  .cart-accord-listen.is-playing .cart-accord-play:hover .cart-accord-ico-pause { display: block; }
-  .cart-accord-eq i { display: block; width: 2px; height: 35%; border-radius: 1px; background: currentColor; animation: cart-accord-eq 0.9s ease-in-out infinite; }
-  .cart-accord-eq i:nth-child(2) { animation-delay: -0.45s; }
-  .cart-accord-eq i:nth-child(3) { animation-delay: -0.2s; }
-  @keyframes cart-accord-eq { 0%, 100% { height: 35%; } 50% { height: 100%; } }
-  .cart-accord-listen-label { font-size: 12px; line-height: 1.3; color: var(--ink); }
-  .cart-accord-time { font-size: 12px; opacity: 0.55; font-variant-numeric: tabular-nums; color: var(--ink); }
   .cart-upsell { display: flex; flex-direction: column; gap: 12px; }
   .cart-upsell-title { margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; color: var(--ink); }
   .cart-upsell-scroll { display: flex; gap: 4px; overflow-x: auto; }
