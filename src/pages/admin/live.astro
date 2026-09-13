@@ -1,0 +1,312 @@
+---
+/**
+ * En direct : le globe des visiteurs des dix dernières minutes (cobe, WebGL),
+ * un point par pays dont la taille suit le nombre de visiteurs, la liste à
+ * côté, le fil des gestes, la journée en cours. Rafraîchi toutes les dix
+ * secondes depuis /api/admin/live. Un clic sur un pays tourne le globe vers lui.
+ */
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { readSession } from "../../lib/admin/auth";
+import { live } from "../../lib/admin/business";
+export const prerender = false;
+
+const admin = await readSession(Astro.cookies);
+if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+const initial = await live().catch(() => null);
+---
+
+<AdminLayout title="En direct" section="live" admin={admin} showRange={false} subtitle="Qui est sur le site maintenant, d'où, et ce qu'il fait — le globe tourne, les points vivent.">
+  <section class="live" data-live data-initial={JSON.stringify(initial)}>
+    <div class="card live-globe-card">
+      <div class="live-globe-head">
+        <div>
+          <p class="kpi-label">Sur le site maintenant</p>
+          <p class="live-now"><span data-live-now>{initial?.visitorsNow ?? 0}</span><span class="live-now-unit">visiteur<span data-live-plural>{(initial?.visitorsNow ?? 0) > 1 ? "s" : ""}</span></span></p>
+          <p class="muted live-window">ces <span data-live-window>{initial?.windowMinutes ?? 10}</span> dernières minutes · mis à jour <span data-live-at>—</span></p>
+        </div>
+        <div class="live-pulse">
+          <p class="kpi-label">Les deux dernières heures</p>
+          <svg class="live-pulse-svg" viewBox="0 0 240 40" width="240" height="40" preserveAspectRatio="none" aria-label="Visiteurs par tranche de cinq minutes" data-live-pulse></svg>
+        </div>
+      </div>
+      <div class="live-globe-wrap" data-globe-wrap>
+        <canvas class="live-globe" data-globe aria-label="Globe des visiteurs"></canvas>
+        <p class="live-globe-empty" data-live-empty hidden>Personne en ce moment. Le globe attend la prochaine visite.</p>
+      </div>
+      <p class="live-hint muted">Glisser pour tourner · un pays dans la liste pour s'y rendre</p>
+    </div>
+
+    <div class="live-side">
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Par pays</h2><p class="card-note">visiteurs maintenant</p></div>
+        <ul class="live-countries" data-live-countries>
+          <li class="muted empty">En attente…</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Aujourd'hui</h2><p class="card-note">heure de Dubaï</p></div>
+        <div class="live-today">
+          <div class="kpi"><span class="kpi-label">Visiteurs</span><span class="kpi-value" data-today="visitors">–</span></div>
+          <div class="kpi"><span class="kpi-label">Paniers</span><span class="kpi-value" data-today="carts">–</span></div>
+          <div class="kpi"><span class="kpi-label">Paiements</span><span class="kpi-value" data-today="checkouts">–</span></div>
+          <div class="kpi kpi-rose"><span class="kpi-label">Commandes</span><span class="kpi-value" data-today="orders">–</span><span class="kpi-sub" data-today="revenue"></span></div>
+        </div>
+        <p class="card-foot" data-today="last"></p>
+      </div>
+    </div>
+
+    <div class="card live-feed-card">
+      <div class="card-head"><h2 class="card-title">Ce qui se passe</h2><p class="card-note">les derniers gestes, anonymes</p></div>
+      <ol class="live-feed" data-live-feed><li class="muted empty">En attente…</li></ol>
+    </div>
+  </section>
+</AdminLayout>
+
+<script>
+  import createGlobe, { type Marker } from "cobe";
+
+  type Country = { code: string; name: string; visitors: number; lat: number; lng: number; onMap: boolean; topPath: string | null; lastAt: string };
+  type Feed = { at: string; country: string | null; verb: string; what: string; amount: number | null; currency: string | null; anon: string; locale: string | null; kind: string };
+  type Payload = {
+    at: string;
+    windowMinutes: number;
+    visitorsNow: number;
+    countries: Country[];
+    feed: Feed[];
+    today: { visitors: number; carts: number; checkouts: number; orders: number; revenue: number; currency: string; lastOrderAt: string | null; lastOrderItems: string[] };
+    pulse: number[];
+  };
+
+  const root = document.querySelector<HTMLElement>("[data-live]");
+  if (root) {
+    const canvas = root.querySelector<HTMLCanvasElement>("[data-globe]")!;
+    const wrap = root.querySelector<HTMLElement>("[data-globe-wrap]")!;
+    const $ = <T extends Element>(sel: string) => root.querySelector<T>(sel)!;
+    const fmt = new Intl.NumberFormat("fr-FR");
+    const fmtTime = (iso: string) => new Intl.DateTimeFormat("fr-FR", { timeZone: "Asia/Dubai", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+    const money = (n: number, cur: string) => `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(n))} ${cur}`;
+    const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
+    const flag = (code: string | null) => (code && /^[A-Z]{2}$/.test(code) ? String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)) : "");
+
+    /* ---- le globe ---- */
+    const ROSE: [number, number, number] = [0.505, 0.145, 0.22];
+    let markers: Marker[] = [];
+    let phi = 0;
+    let theta = 0.28;
+    let targetPhi: number | null = null;
+    let targetTheta: number | null = null;
+    let autorotate = true;
+    let resumeAt = 0;
+    let pointerStart: number | null = null;
+    let phiAtStart = 0;
+    const size = () => Math.min(wrap.clientWidth, 640);
+    // cobe 2 n'a plus de onRender : on tient la boucle nous-mêmes et on pousse l'état à chaque image.
+    const globe = createGlobe(canvas, {
+      devicePixelRatio: Math.min(2, window.devicePixelRatio || 1),
+      width: size(),
+      height: size(),
+      phi,
+      theta,
+      dark: 0,
+      diffuse: 1.6,
+      mapSamples: 22000,
+      mapBrightness: 3.2,
+      mapBaseBrightness: 0.02,
+      baseColor: [0.83, 0.78, 0.71],
+      markerColor: ROSE,
+      glowColor: [0.98, 0.97, 0.95],
+      markers,
+      scale: 1,
+      offset: [0, 0],
+    });
+    let lastSize = size();
+    const frame = () => {
+      if (targetPhi !== null && targetTheta !== null) {
+        phi += (targetPhi - phi) * 0.08;
+        theta += (targetTheta - theta) * 0.08;
+        if (Math.abs(targetPhi - phi) < 0.002) {
+          targetPhi = null;
+          targetTheta = null;
+        }
+      } else if (autorotate && pointerStart === null && Date.now() > resumeAt) {
+        phi += 0.0028;
+      }
+      const s = size();
+      const resized = s !== lastSize;
+      lastSize = s;
+      globe.update({ phi, theta, markers, ...(resized ? { width: s, height: s } : {}) });
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+    canvas.style.width = `${size()}px`;
+    canvas.style.height = `${size()}px`;
+    window.addEventListener("resize", () => {
+      canvas.style.width = `${size()}px`;
+      canvas.style.height = `${size()}px`;
+    });
+    // Glisser pour tourner (souris ou doigt).
+    canvas.addEventListener("pointerdown", (e) => {
+      pointerStart = e.clientX;
+      phiAtStart = phi;
+      targetPhi = null;
+      canvas.style.cursor = "grabbing";
+    });
+    const release = () => {
+      pointerStart = null;
+      resumeAt = Date.now() + 6000;
+      canvas.style.cursor = "grab";
+    };
+    canvas.addEventListener("pointerup", release);
+    canvas.addEventListener("pointerleave", release);
+    canvas.addEventListener("pointermove", (e) => {
+      if (pointerStart === null) return;
+      phi = phiAtStart + (e.clientX - pointerStart) / 180;
+    });
+    // Tourner vers un lieu (angles d'après l'exemple « rotate to location » de cobe).
+    const focus = (lat: number, lng: number) => {
+      const p = Math.PI - ((lng * Math.PI) / 180 - Math.PI / 2);
+      // Le plus court chemin : ramener la cible près de phi courant (modulo 2π).
+      const twoPi = Math.PI * 2;
+      let t = p;
+      while (t - phi > Math.PI) t -= twoPi;
+      while (phi - t > Math.PI) t += twoPi;
+      targetPhi = t;
+      targetTheta = Math.max(-0.9, Math.min(0.9, (lat * Math.PI) / 180 * 0.6));
+      resumeAt = Date.now() + 9000;
+    };
+
+    /* ---- le rendu des panneaux ---- */
+    let lastFeedKey = "";
+    const render = (p: Payload) => {
+      $("[data-live-now]").textContent = fmt.format(p.visitorsNow);
+      $("[data-live-plural]").textContent = p.visitorsNow > 1 ? "s" : "";
+      $("[data-live-window]").textContent = String(p.windowMinutes);
+      $("[data-live-at]").textContent = `à ${fmtTime(p.at)}`;
+      const onMap = p.countries.filter((c) => c.onMap);
+      const max = Math.max(1, ...onMap.map((c) => c.visitors));
+      markers = onMap.map((c) => ({ location: [c.lat, c.lng], size: 0.035 + (c.visitors / max) * 0.09, color: ROSE, id: c.code }));
+      $<HTMLElement>("[data-live-empty]").hidden = p.visitorsNow > 0;
+      // Pays.
+      const list = $("[data-live-countries]");
+      list.innerHTML = p.countries.length
+        ? p.countries
+            .map(
+              (c) =>
+                `<li><button type="button" class="live-country" data-lat="${c.lat}" data-lng="${c.lng}" ${c.onMap ? "" : "disabled"}><span class="live-flag">${flag(c.code === "??" ? null : c.code)}</span><span class="live-country-name">${esc(c.name)}</span><span class="live-country-path muted">${esc(c.topPath ?? "")}</span><span class="live-country-n">${fmt.format(c.visitors)}</span></button></li>`
+            )
+            .join("")
+        : `<li class="muted empty">Personne en ce moment.</li>`;
+      // Aujourd'hui.
+      $("[data-today=visitors]").textContent = fmt.format(p.today.visitors);
+      $("[data-today=carts]").textContent = fmt.format(p.today.carts);
+      $("[data-today=checkouts]").textContent = fmt.format(p.today.checkouts);
+      $("[data-today=orders]").textContent = fmt.format(p.today.orders);
+      $("[data-today=revenue]").textContent = p.today.orders ? money(p.today.revenue, p.today.currency) : "aucune encore";
+      $("[data-today=last]").textContent = p.today.lastOrderAt ? `Dernière commande à ${fmtTime(p.today.lastOrderAt)} : ${p.today.lastOrderItems.join(" + ")}.` : "";
+      // Le fil.
+      const key = p.feed[0] ? `${p.feed[0].at}${p.feed[0].anon}` : "";
+      const feed = $("[data-live-feed]");
+      if (key !== lastFeedKey || !feed.children.length) {
+        lastFeedKey = key;
+        feed.innerHTML = p.feed.length
+          ? p.feed
+              .map(
+                (f) =>
+                  `<li class="live-item kind-${esc(f.kind)}"><time class="mono muted">${fmtTime(f.at)}</time><span class="live-flag">${flag(f.country)}</span><span class="live-item-text">Quelqu'un ${esc(f.verb)}${f.what ? ` <strong>${esc(f.what)}</strong>` : ""}${f.amount ? ` <span class="rose">· ${money(f.amount, f.currency ?? "AED")}</span>` : ""}</span><span class="muted live-item-lang">${esc((f.locale ?? "").toUpperCase())}</span></li>`
+              )
+              .join("")
+          : `<li class="muted empty">Rien ces ${p.windowMinutes} dernières minutes.</li>`;
+      }
+      // Le pouls.
+      const svg = $<SVGSVGElement>("[data-live-pulse]");
+      const w = 240;
+      const h = 40;
+      const maxP = Math.max(1, ...p.pulse);
+      const bw = w / p.pulse.length;
+      svg.innerHTML = p.pulse.map((v, i) => `<rect x="${(i * bw + 1).toFixed(1)}" y="${(h - 2 - (v / maxP) * (h - 6)).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${Math.max(v > 0 ? 2 : 1, (v / maxP) * (h - 6)).toFixed(1)}" rx="1" fill="${i === p.pulse.length - 1 ? "#812538" : "#150e0a"}" opacity="${v > 0 ? 0.8 : 0.15}"><title>${v} visiteur${v > 1 ? "s" : ""}</title></rect>`).join("");
+    };
+    root.addEventListener("click", (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".live-country");
+      if (!btn || btn.disabled) return;
+      focus(Number(btn.dataset.lat), Number(btn.dataset.lng));
+      for (const b of root.querySelectorAll(".live-country.is-on")) b.classList.remove("is-on");
+      btn.classList.add("is-on");
+    });
+
+    /* ---- le rafraîchissement ---- */
+    const initial = root.dataset.initial ? (JSON.parse(root.dataset.initial) as Payload | null) : null;
+    if (initial) {
+      render(initial);
+      const first = initial.countries.find((c) => c.onMap);
+      if (first) {
+        phi = Math.PI - ((first.lng * Math.PI) / 180 - Math.PI / 2);
+      } else {
+        phi = Math.PI - ((54 * Math.PI) / 180 - Math.PI / 2); // Dubaï de face par défaut
+      }
+    }
+    let failures = 0;
+    const tick = async () => {
+      if (document.hidden) return;
+      try {
+        const res = await fetch("/api/admin/live", { cache: "no-store" });
+        if (res.status === 401) {
+          window.location.href = "/admin/login?next=/admin/live";
+          return;
+        }
+        if (!res.ok) throw new Error(String(res.status));
+        render((await res.json()) as Payload);
+        failures = 0;
+      } catch {
+        failures++;
+        if (failures > 5) $("[data-live-at]").textContent = "— connexion perdue, nouvel essai…";
+      }
+    };
+    setInterval(tick, 10000);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) tick();
+    });
+    if (!initial) tick();
+    window.addEventListener("beforeunload", () => globe.destroy());
+  }
+</script>
+
+<style is:global>
+  /* Global (préfixe .live-) : la liste des pays et le fil sont injectés par le script, hors portée des styles scopés. */
+  .live { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
+  .live-globe-card { display: flex; flex-direction: column; gap: 8px; }
+  .live-globe-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+  .live-now { margin: 4px 0 0; display: flex; align-items: baseline; gap: 10px; font-size: 56px; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--rose); }
+  .live-now-unit { font-size: 16px; color: var(--muted); letter-spacing: 0.02em; }
+  .live-window { margin: 6px 0 0; font-size: 12px; }
+  .live-pulse { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  .live-pulse-svg { display: block; }
+  .live-globe-wrap { position: relative; display: flex; justify-content: center; align-items: center; min-height: 320px; margin: 4px 0; }
+  .live-globe { display: block; max-width: 100%; aspect-ratio: 1; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .live-globe-empty { position: absolute; inset: auto 0 12%; margin: 0; text-align: center; font-size: 13px; color: var(--muted); pointer-events: none; }
+  .live-hint { margin: 0; text-align: center; font-size: 11px; letter-spacing: 0.04em; }
+  .live-side { display: flex; flex-direction: column; gap: 16px; }
+  .live-countries { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 360px; overflow-y: auto; }
+  .live-country { display: grid; grid-template-columns: 24px 1fr auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; width: 100%; padding: 8px 10px; border: 1px solid transparent; border-radius: 8px; background: none; text-align: start; cursor: pointer; font-size: 14px; transition: background-color 0.15s ease, border-color 0.15s ease; }
+  .live-country:hover { background: rgba(21, 14, 10, 0.04); }
+  .live-country.is-on { border-color: var(--rose); }
+  .live-country:disabled { cursor: default; opacity: 0.7; }
+  .live-flag { font-size: 16px; line-height: 1; }
+  /* Placement explicite : les cellules à ligne fixe seraient sinon posées avant les autres (auto-placement). */
+  .live-country .live-flag { grid-column: 1; grid-row: 1 / span 2; }
+  .live-country-name { grid-column: 2; grid-row: 1; font-weight: 500; }
+  .live-country-path { grid-column: 2; grid-row: 2; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .live-country-n { grid-column: 3; grid-row: 1 / span 2; font-size: 20px; font-variant-numeric: tabular-nums; color: var(--rose); }
+  .live-today { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+  .live-today .kpi-value { font-size: 28px; }
+  .live-feed-card { grid-column: 1 / -1; }
+  .live-feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .live-item { display: grid; grid-template-columns: 48px 24px 1fr auto; gap: 12px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .live-item:last-child { border-bottom: 0; }
+  .live-item time { font-size: 12px; }
+  .live-item strong { font-weight: 500; }
+  .live-item-lang { font-size: 11px; letter-spacing: 0.08em; }
+  .live-item.kind-checkout .live-item-text, .live-item.kind-add_to_cart .live-item-text { color: var(--rose); }
+  .live-item.kind-checkout strong, .live-item.kind-add_to_cart strong { color: var(--ink); }
+  .empty { padding: 12px 0; font-size: 13px; }
+  @media (max-width: 1100px) { .live { grid-template-columns: 1fr; } }
+</style>

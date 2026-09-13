@@ -6,7 +6,7 @@
  */
 const KEY = "mr_anon";
 
-function anonId(): string {
+export function anonId(): string {
   try {
     let id = localStorage.getItem(KEY);
     if (!id || !/^[A-Za-z0-9_-]{8,64}$/.test(id)) {
@@ -16,6 +16,41 @@ function anonId(): string {
     return id;
   } catch {
     return "anonymous-visitor";
+  }
+}
+
+/**
+ * La vue de page, avec ce qui fait une source : le site d'où l'on vient et les
+ * utm de la première page d'une visite (`landing`), l'appareil (grossier :
+ * tactile ou non), la largeur d'écran par palier. Rien d'identifiant.
+ */
+export function trackPageView(): void {
+  try {
+    const first = !sessionStorage.getItem("mr_landed");
+    if (first) sessionStorage.setItem("mr_landed", "1");
+    const u = new URL(window.location.href);
+    const utm: Record<string, string> = {};
+    for (const k of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]) {
+      const v = u.searchParams.get(k);
+      if (v) utm[k.slice(4)] = v.slice(0, 80);
+    }
+    let ref: string | null = null;
+    try {
+      const r = document.referrer ? new URL(document.referrer) : null;
+      ref = r && r.host !== window.location.host ? r.host.replace(/^www\./, "") : null;
+    } catch {
+      ref = null;
+    }
+    const w = window.innerWidth;
+    trackSite("page_view", {
+      landing: first,
+      ref: first ? ref : null,
+      utm: first && Object.keys(utm).length ? utm : null,
+      device: matchMedia("(pointer: coarse)").matches ? "mobile" : "desktop",
+      screen: w < 600 ? "s" : w < 1100 ? "m" : "l",
+    });
+  } catch {
+    /* jamais bloquant */
   }
 }
 

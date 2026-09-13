@@ -1,0 +1,54 @@
+---
+/**
+ * Les filtres du business (Reflet, pays, source, langue) : un formulaire GET,
+ * chaque changement recharge la page avec l'URL qui va bien — partageable,
+ * et la période (days) reste. Les options viennent de ce qui existe vraiment
+ * sur la période (facettes), pas d'une liste en dur.
+ */
+import type { Filters } from "../../lib/admin/business";
+import { countryName } from "../../lib/admin/geo";
+import { LOCALE_LABEL } from "../../lib/admin/data";
+
+interface Props {
+  filters: Filters;
+  facets: { countries: string[]; sources: string[]; reflets: { handle: string; name: string }[] };
+  days: number;
+}
+const { filters, facets, days } = Astro.props;
+const active = Object.values(filters).filter(Boolean).length;
+const clearHref = `${Astro.url.pathname}?days=${days}`;
+---
+
+<form class="adm-filters" method="get" slot="filters" data-filter-bar>
+  <input type="hidden" name="days" value={days} />
+  <span class="adm-filters-label">Filtrer</span>
+  <select name="reflet" aria-label="Reflet" class:list={{ "is-set": Boolean(filters.reflet) }}>
+    <option value="">Tous les Reflets</option>
+    {facets.reflets.map((r) => <option value={r.handle} selected={filters.reflet === r.handle}>{r.name}</option>)}
+  </select>
+  <select name="country" aria-label="Pays" class:list={{ "is-set": Boolean(filters.country) }}>
+    <option value="">Tous les pays</option>
+    {facets.countries.map((c) => <option value={c} selected={filters.country === c}>{countryName(c)}</option>)}
+  </select>
+  <select name="source" aria-label="Source" class:list={{ "is-set": Boolean(filters.source) }}>
+    <option value="">Toutes les sources</option>
+    {facets.sources.map((s) => <option value={s} selected={filters.source === s}>{s}</option>)}
+  </select>
+  <select name="locale" aria-label="Langue" class:list={{ "is-set": Boolean(filters.locale) }}>
+    <option value="">Toutes les langues</option>
+    {Object.entries(LOCALE_LABEL).map(([k, v]) => <option value={k} selected={filters.locale === k}>{v}</option>)}
+  </select>
+  {active > 0 && <span class="adm-filters-on">{active} filtre{active > 1 ? "s" : ""} actif{active > 1 ? "s" : ""}</span>}
+  {active > 0 && <a class="adm-filters-clear" href={clearHref}>Tout effacer</a>}
+  <noscript><button type="submit" class="btn btn-sm">Appliquer</button></noscript>
+</form>
+
+<script>
+  for (const form of document.querySelectorAll<HTMLFormElement>("[data-filter-bar]")) {
+    form.addEventListener("change", () => {
+      // Les champs vides ne polluent pas l'URL.
+      for (const el of form.querySelectorAll<HTMLSelectElement>("select")) el.disabled = !el.value;
+      form.submit();
+    });
+  }
+</script>

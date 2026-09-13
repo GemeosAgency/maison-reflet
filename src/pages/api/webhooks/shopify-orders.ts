@@ -1,5 +1,7 @@
 import type { APIRoute } from "astro";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { adminDb } from "../../../lib/admin/db";
+import { getAllProducts } from "../../../lib/shopify";
 
 // Rendu à la demande (fonction serverless Vercel), pas prégénéré.
 export const prerender = false;
@@ -94,28 +96,126 @@ const FB_COOKIE_RE = /^fb\.\d\.\d+\..+$/;
 // est bien plus large) — champs tous optionnels par prudence.
 type ShopifyOrderWebhook = {
   id?: number;
+  name?: string;
   test?: boolean;
   email?: string | null;
   contact_email?: string | null;
+  financial_status?: string | null;
   total_price?: string;
+  subtotal_price?: string;
+  total_discounts?: string;
+  total_shipping_price_set?: { shop_money?: { amount?: string } } | null;
   currency?: string;
+  customer_locale?: string | null;
+  source_name?: string | null;
+  referring_site?: string | null;
+  landing_site?: string | null;
+  discount_codes?: { code?: string }[];
   processed_at?: string | null;
   created_at?: string | null;
   order_status_url?: string | null;
   line_items?: {
     variant_id?: number | null;
+    product_id?: number | null;
+    title?: string;
+    variant_title?: string | null;
+    sku?: string | null;
     quantity?: number;
     price?: string;
+    total_discount?: string;
   }[];
   customer?: {
     first_name?: string | null;
     last_name?: string | null;
     phone?: string | null;
   } | null;
-  billing_address?: { phone?: string | null } | null;
+  billing_address?: { phone?: string | null; country_code?: string | null } | null;
+  shipping_address?: { country_code?: string | null } | null;
   client_details?: { browser_ip?: string | null; user_agent?: string | null } | null;
   note_attributes?: { name?: string; value?: string }[];
 };
+
+// L'identifiant anonyme du parcours (cookie mr_anon, voir lib/site-events.ts) : même garde-fou que /api/site-events.
+const ANON_RE = /^[A-Za-z0-9_-]{8,64}$/;
+const hostOf = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  try {
+    return new URL(url).host.replace(/^www\./, "") || null;
+  } catch {
+    return null;
+  }
+};
+const money = (v: unknown): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/**
+ * La commande dans notre table shop_orders, pour la tour de contrôle (CA,
+ * panier moyen, par Reflet, sources, paniers abandonnés qui finissent payés).
+ * Sans donnée personnelle — ni email, ni nom, ni adresse — et idempotent (upsert
+ * sur l'id Shopify : les rejeux du webhook ne comptent rien deux fois). Les
+ * commandes de test sont gardées, marquées `test`, écartées des chiffres.
+ * Jamais bloquant : un échec ici ne doit pas empêcher Meta/GA4 ni faire rejouer.
+ */
+async function persistOrder(order: ShopifyOrderWebhook): Promise<void> {
+  if (!order.id) return;
+  let handles = new Map<number, string>();
+  try {
+    for (const p of await getAllProducts()) {
+      const id = Number(p.id.split("/").pop());
+      if (id) handles.set(id, p.handle);
+    }
+  } catch {
+    handles = new Map();
+  }
+  let anon: string | null = null;
+  let ga: string | null = null;
+  for (const attr of order.note_attributes ?? []) {
+    const value = (attr.value ?? "").trim();
+    if (attr.name === "mr_anon" && ANON_RE.test(value)) anon = value;
+    if (attr.name === "_ga" && GA4_CLIENT_ID_RE.test(value)) ga = value;
+  }
+  const lines = (order.line_items ?? []).map((li) => {
+    const quantity = li.quantity ?? 1;
+    const price = money(li.price);
+    return {
+      variant_id: li.variant_id ?? null,
+      product_id: li.product_id ?? null,
+      handle: li.product_id ? handles.get(li.product_id) ?? null : null,
+      title: li.title ?? "",
+      variant_title: li.variant_title ?? null,
+      sku: li.sku ?? null,
+      quantity,
+      price,
+      total: Math.max(0, price * quantity - money(li.total_discount)),
+    };
+  });
+  const row = {
+    id: order.id,
+    name: order.name ?? null,
+    created_at: order.created_at ?? new Date().toISOString(),
+    processed_at: order.processed_at ?? null,
+    test: Boolean(order.test),
+    financial_status: order.financial_status ?? null,
+    currency: order.currency ?? null,
+    total: money(order.total_price),
+    subtotal: money(order.subtotal_price),
+    discounts: money(order.total_discounts),
+    shipping: money(order.total_shipping_price_set?.shop_money?.amount),
+    country: order.shipping_address?.country_code ?? order.billing_address?.country_code ?? null,
+    locale: order.customer_locale ?? null,
+    source_name: order.source_name ?? null,
+    referring_site: hostOf(order.referring_site),
+    landing_site: order.landing_site?.slice(0, 500) ?? null,
+    discount_codes: (order.discount_codes ?? []).map((d) => d.code).filter((c): c is string => Boolean(c)),
+    lines,
+    anon_id: anon,
+    ga_client: ga,
+  };
+  const { error } = await adminDb().from("shop_orders").upsert(row, { onConflict: "id" });
+  if (error) console.error("[webhooks/shopify-orders] shop_orders :", error.message);
+}
 
 export const POST: APIRoute = async ({ request }) => {
   // Sans clé de signature, impossible de distinguer Shopify d'un POST forgé :
@@ -141,15 +241,6 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: true, skipped: `topic ${topic ?? "inconnu"}` }, 200);
   }
 
-  const metaConfigured = Boolean(PIXEL_ID && ACCESS_TOKEN);
-  const ga4Configured = Boolean(GA4_MEASUREMENT_ID && GA4_API_SECRET);
-  // Aucun tracker configuré : acquitter sans traiter (mode placeholder — le
-  // webhook peut être branché avant les clés Meta/GA4).
-  if (!metaConfigured && !ga4Configured) {
-    console.warn("[webhooks/shopify-orders] Aucun tracker configuré — Purchase non relayé.");
-    return json({ ok: true, skipped: "aucun tracker configuré" }, 200);
-  }
-
   let order: ShopifyOrderWebhook;
   try {
     order = JSON.parse(rawBody);
@@ -158,6 +249,23 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   if (!order.id) return json({ ok: true, skipped: "commande sans id" }, 200);
+
+  // La tour de contrôle d'abord : la commande est posée chez nous quoi qu'il
+  // arrive ensuite côté Meta/GA4 (et même sans tracker configuré).
+  try {
+    await persistOrder(order);
+  } catch (error) {
+    console.error("[webhooks/shopify-orders] shop_orders :", error);
+  }
+
+  const metaConfigured = Boolean(PIXEL_ID && ACCESS_TOKEN);
+  const ga4Configured = Boolean(GA4_MEASUREMENT_ID && GA4_API_SECRET);
+  // Aucun tracker configuré : acquitter sans relayer (mode placeholder — le
+  // webhook peut être branché avant les clés Meta/GA4).
+  if (!metaConfigured && !ga4Configured) {
+    console.warn("[webhooks/shopify-orders] Aucun tracker configuré — Purchase non relayé.");
+    return json({ ok: true, skipped: "aucun tracker configuré" }, 200);
+  }
 
   // Commandes de test Shopify (passerelle Bogus / boutique test) : ne pas
   // polluer les données publicitaires réelles. Pour tester le flux de bout en

@@ -1,0 +1,170 @@
+---
+/** Trafic & sources : qui vient, d'où, sur quoi, et ce que chaque source rapporte. */
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import FilterBar from "../../components/admin/FilterBar.astro";
+import { readSession } from "../../lib/admin/auth";
+import { parseDays, fmtInt, fmtPct, fmtDate } from "../../lib/admin/data";
+import { business, parseFilters, fmtMoney, fmtMoneyShort, CHANNEL_COLORS } from "../../lib/admin/business";
+import { bars, barsAndLine, donut } from "../../lib/admin/charts";
+export const prerender = false;
+
+const admin = await readSession(Astro.cookies);
+if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+const days = parseDays(Astro.url.searchParams.get("days"));
+const filters = parseFilters(Astro.url.searchParams);
+const b = await business(days, filters);
+const cur = b.currency;
+const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0).replace(".", ",")} %`);
+const maxSource = Math.max(1, ...b.sources.map((s) => s.visitors));
+const totalDevices = b.devices.reduce((n, d) => n + d.value, 0);
+const totalLocales = b.locales.reduce((n, d) => n + d.value, 0);
+---
+
+<AdminLayout title="Trafic & sources" section="trafic" admin={admin} days={days} subtitle={b.tracked.since ? `Visites anonymes suivies depuis le ${fmtDate(b.tracked.since)} : d'où elles viennent et ce qu'elles deviennent.` : "En attente des premières visites suivies."}>
+  <FilterBar slot="filters" filters={filters} facets={b.facets} days={days} />
+
+  <section class="kpis">
+    <div class="card kpi"><span class="kpi-label">Visiteurs</span><span class="kpi-value">{fmtInt(b.kpis.visitors)}</span><span class="kpi-sub">{b.kpis.visitors ? `${(b.series.visitors.reduce((n, d) => n + d.value, 0) / Math.max(1, days)).toFixed(1).replace(".", ",")} par jour` : "–"}</span></div>
+    <div class="card kpi"><span class="kpi-label">Ont vu une fiche</span><span class="kpi-value">{fmtPct(b.funnel.viewers, b.funnel.visitors)}</span><span class="kpi-sub">{fmtInt(b.funnel.viewers)} visiteurs</span></div>
+    <div class="card kpi"><span class="kpi-label">Vont au paiement</span><span class="kpi-value">{pct(b.kpis.checkoutRate)}</span><span class="kpi-sub">{fmtInt(b.funnel.checkouts)} départs</span></div>
+    <div class="card kpi kpi-rose"><span class="kpi-label">Conversion</span><span class="kpi-value">{pct(b.kpis.conversion)}</span><span class="kpi-sub">{fmtInt(b.kpis.orders)} commande{b.kpis.orders > 1 ? "s" : ""} pour {fmtInt(b.kpis.visitors)} visiteurs</span></div>
+    <div class="card kpi"><span class="kpi-label">CA par visiteur</span><span class="kpi-value">{b.kpis.visitors ? fmtMoneyShort(b.kpis.revenue / b.kpis.visitors) : "–"}{b.kpis.visitors > 0 && <span class="unit">{cur}</span>}</span></div>
+  </section>
+
+  <section class="grid grid-3">
+    <div class="card span-2">
+      <div class="card-head"><h2 class="card-title">Visiteurs et départs en paiement, par jour</h2><p class="card-note">barres : visiteurs · points : départs en paiement</p></div>
+      <Fragment set:html={barsAndLine(b.series.visitors, b.series.checkouts, { height: 170, barFormat: (v) => `${v} visiteur${v > 1 ? "s" : ""}`, lineFormat: (v) => `${v} départ${v > 1 ? "s" : ""}` })} />
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Canaux</h2><p class="card-note">part des visiteurs</p></div>
+      <div class="donut-row">
+        <Fragment set:html={donut(b.channels.map((c) => ({ label: c.channel, value: c.visitors, color: c.color })), { size: 120 })} />
+        <ul class="legend">
+          {b.channels.length === 0 && <li class="muted">Rien encore.</li>}
+          {b.channels.map((c) => <li><span class="dot" style={`background:${c.color}`}></span><span>{c.channel}</span><span class="legend-num">{fmtPct(c.visitors, b.kpis.visitors)}{c.revenue ? ` · ${fmtMoneyShort(c.revenue)}` : ""}</span></li>)}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="card tbl-card">
+    <div class="card-head"><h2 class="card-title">Les sources</h2><p class="card-note">la source d'arrivée de chaque visiteur ; pour une commande sans parcours, ce que Shopify en sait</p></div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Source</th><th>Canal</th><th class="cell-gauge">Visiteurs</th><th class="num">Départs paiement</th><th class="num">Commandes</th><th class="num">Conversion</th><th class="num">CA</th><th class="num">CA / visiteur</th></tr></thead>
+        <tbody>
+          {b.sources.length === 0 && <tr><td colspan="8"><p class="empty">Aucune visite suivie sur la période.</p></td></tr>}
+          {
+            b.sources.map((s) => (
+              <tr class:list={{ "is-focus": filters.source === s.label }}>
+                <td class="lead"><a class="row-link" href={`${Astro.url.pathname}?days=${days}&source=${encodeURIComponent(s.label)}`}>{s.label}</a></td>
+                <td><span class="badge" style={`border-color:${CHANNEL_COLORS[s.channel]};color:${CHANNEL_COLORS[s.channel]}`}>{s.channel}</span></td>
+                <td class="cell-gauge"><span class="mono">{fmtInt(s.visitors)}</span><span class="gauge"><span class="gauge-fill" style={`width:${(s.visitors / maxSource) * 100}%;background:var(--ink)`}></span></span></td>
+                <td class="num">{fmtInt(s.checkouts)}</td>
+                <td class="num">{fmtInt(s.orders)}</td>
+                <td class="num">{s.visitors ? fmtPct(s.orders, s.visitors) : "–"}</td>
+                <td class="num strong">{s.revenue ? fmtMoney(s.revenue, cur) : <span class="muted">–</span>}</td>
+                <td class="num muted">{s.visitors && s.revenue ? fmtMoney(s.revenue / s.visitors, cur) : "–"}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="grid grid-3">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Appareils</h2></div>
+      <div class="donut-row">
+        <Fragment set:html={donut(b.devices, { size: 110 })} />
+        <ul class="legend">{b.devices.map((d) => <li><span class="dot" style={`background:${d.color}`}></span><span>{d.label}</span><span class="legend-num">{fmtPct(d.value, totalDevices)}</span></li>)}</ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Langues</h2></div>
+      <div class="donut-row">
+        <Fragment set:html={donut(b.locales, { size: 110 })} />
+        <ul class="legend">{b.locales.map((d) => <li><span class="dot" style={`background:${d.color}`}></span><span>{d.label}</span><span class="legend-num">{fmtPct(d.value, totalLocales)}</span></li>)}</ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Pays</h2><p class="card-note">visiteurs · commandes</p></div>
+      {
+        b.countries.length === 0 ? (
+          <p class="empty">Rien sur la période.</p>
+        ) : (
+          <ul class="bars">
+            {b.countries.sort((x, y) => y.visitors - x.visitors).slice(0, 8).map((c) => (
+              <li>
+                <span class="bar-label" title={c.name}><a href={`${Astro.url.pathname}?days=${days}&country=${c.code}`}>{c.name}</a></span>
+                <span class="gauge"><span class="gauge-fill" style={`width:${(c.visitors / Math.max(1, ...b.countries.map((x) => x.visitors))) * 100}%;background:var(--ink)`}></span></span>
+                <span class="bar-count">{fmtInt(c.visitors)}{c.orders ? ` · ${fmtInt(c.orders)}` : ""}</span>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </div>
+  </section>
+
+  <section class="grid grid-3">
+    <div class="card tbl-card">
+      <div class="card-head"><h2 class="card-title">Campagnes (utm)</h2></div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Campagne</th><th>Source</th><th class="num">Visiteurs</th><th class="num">Cmd</th><th class="num">CA</th></tr></thead>
+          <tbody>
+            {b.campaigns.length === 0 && <tr><td colspan="5"><p class="empty">Aucun lien avec utm_campaign sur la période.</p></td></tr>}
+            {b.campaigns.slice(0, 12).map((c) => <tr><td class="lead">{c.campaign}</td><td class="muted">{c.source}</td><td class="num">{fmtInt(c.visitors)}</td><td class="num">{fmtInt(c.orders)}</td><td class="num">{c.revenue ? fmtMoneyShort(c.revenue) : "–"}</td></tr>)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Pages d'arrivée</h2><p class="card-note">la première page d'une visite</p></div>
+      {
+        b.landingPages.length === 0 ? (
+          <p class="empty">Rien sur la période.</p>
+        ) : (
+          <ul class="bars paths">
+            {b.landingPages.map((p) => (
+              <li>
+                <span class="bar-label mono" title={p.path}>{p.path}</span>
+                <span class="gauge"><span class="gauge-fill" style={`width:${(p.visitors / Math.max(1, b.landingPages[0]?.visitors ?? 1)) * 100}%;background:var(--ink)`}></span></span>
+                <span class="bar-count">{fmtInt(p.visitors)}</span>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Pages les plus vues</h2><p class="card-note">visiteurs distincts</p></div>
+      {
+        b.topPages.length === 0 ? (
+          <p class="empty">Rien sur la période.</p>
+        ) : (
+          <ul class="bars paths">
+            {b.topPages.map((p) => (
+              <li>
+                <span class="bar-label mono" title={p.path}>{p.path}</span>
+                <span class="gauge"><span class="gauge-fill" style={`width:${(p.visitors / Math.max(1, b.topPages[0]?.visitors ?? 1)) * 100}%;background:var(--ink)`}></span></span>
+                <span class="bar-count">{fmtInt(p.visitors)}</span>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </div>
+  </section>
+  <p class="card-foot">Un visiteur = un identifiant anonyme posé par le navigateur (cookie mr_anon) ; sa source est celle de sa première page sur la période. Pas de cookie, pas de visiteur : GA4 et Meta restent les références publicitaires.</p>
+</AdminLayout>
+
+<style>
+  .paths li { grid-template-columns: minmax(120px, 2fr) minmax(50px, 1fr) 40px; }
+  .paths .bar-label { font-size: 12px; }
+  .strong { font-weight: 500; }
+  .tbl tr.is-focus td { background: rgba(129, 37, 56, 0.05); }
+</style>

@@ -65,7 +65,7 @@ export type AuditRow = { id: number; actor: string; action: string; target: stri
 
 /* --------------------------------------------------------------- lecture */
 const PAGE = 1000;
-async function fetchAll<T>(table: string, build: (q: any) => any): Promise<T[]> {
+export async function fetchAll<T>(table: string, build: (q: any) => any): Promise<T[]> {
   const out: T[] = [];
   for (let page = 0; page < 20; page++) {
     const q = build(adminDb().from(table).select("*")).range(page * PAGE, page * PAGE + PAGE - 1);
@@ -137,7 +137,7 @@ function percentile(values: number[], p: number): number | null {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))];
 }
-const dayKey = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
+export const dayKey = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
 export function dailySeries(rows: { created_at: string }[], days: number): { key: string; label: string; value: number }[] {
   const counts = new Map<string, number>();
   for (const r of rows) counts.set(dayKey(r.created_at), (counts.get(dayKey(r.created_at)) ?? 0) + 1);
@@ -536,18 +536,27 @@ export async function rgpdSearch(q: string) {
   } catch {
     siteEvents = 0;
   }
-  return { sessions, anonIds, siteEvents, mode };
+  // Les commandes reliées au parcours (shop_orders.anon_id) : aucune donnée personnelle dedans, mais le lien, lui, s'efface.
+  let orders = 0;
+  try {
+    const { count } = await adminDb().from("shop_orders").select("id", { count: "exact", head: true }).in("anon_id", anonIds.length ? anonIds : ["-"]);
+    orders = count ?? 0;
+  } catch {
+    orders = 0;
+  }
+  return { sessions, anonIds, siteEvents, orders, mode };
 }
 export async function rgpdExport(q: string) {
   const found = await rgpdSearch(q);
   const ids = found.sessions.map((s) => s.id);
-  const [messages, events, signals, siteEvents] = await Promise.all([
+  const [messages, events, signals, siteEvents, orders] = await Promise.all([
     ids.length ? fetchAll<MessageRow>("luma_messages", (x) => x.in("session_id", ids).order("id", { ascending: true })) : [],
     ids.length ? fetchAll<EventRow>("luma_events", (x) => x.in("session_id", ids).order("id", { ascending: true })) : [],
     ids.length ? fetchAll<SignalRow>("luma_profile_signals", (x) => x.in("session_id", ids)) : [],
     found.anonIds.length ? fetchAll<SiteEventRow>("site_events", (x) => x.in("anon_id", found.anonIds).order("id", { ascending: true })).catch(() => []) : [],
+    found.anonIds.length ? fetchAll<Record<string, unknown>>("shop_orders", (x) => x.in("anon_id", found.anonIds).order("created_at", { ascending: true })).catch(() => []) : [],
   ]);
-  return { exportedAt: new Date().toISOString(), query: q, sessions: found.sessions, messages, events, signals, siteEvents };
+  return { exportedAt: new Date().toISOString(), query: q, sessions: found.sessions, messages, events, signals, siteEvents, orders };
 }
 export async function rgpdDelete(q: string) {
   const found = await rgpdSearch(q);
@@ -565,6 +574,12 @@ export async function rgpdDelete(q: string) {
       events = count ?? 0;
     } catch {
       events = 0;
+    }
+    // La commande reste (comptabilité, sans donnée personnelle) ; son lien au parcours, non.
+    try {
+      await adminDb().from("shop_orders").update({ anon_id: null, ga_client: null }).in("anon_id", found.anonIds);
+    } catch {
+      /* table absente : rien à délier */
     }
   }
   return { sessions, events };

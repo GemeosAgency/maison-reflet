@@ -14,10 +14,10 @@ const max = (rows: { count: number }[]) => Math.max(1, ...rows.map((x) => x.coun
 const maxViews = Math.max(1, ...s.funnel.map((f) => f.views));
 ---
 
-<AdminLayout title="Site" section="site" admin={admin} days={days} subtitle={s.since ? `Événements anonymes du site depuis le ${fmtDate(s.since)}. Les sources de trafic restent dans GA4.` : "En attente des premiers événements du site."}>
+<AdminLayout title="Parcours sur le site" section="site" admin={admin} days={days} subtitle={s.since ? `Ce que les visiteurs font sur le site depuis le ${fmtDate(s.since)} : fiches, écoutes, guide, carte, menu, panier. Les sources sont dans Trafic & sources.` : "En attente des premiers événements du site."}>
   {
     !s.since && (
-      <p class="note">Cette page se remplit dès que la table <strong>site_events</strong> existe (migration <strong>0003_admin.sql</strong>, à coller dans le SQL Editor de Supabase) et que le site déployé envoie ses événements : fiches vues, écoutes, filtres du guide, carte des six, menu, ajouts au panier, départs en paiement.</p>
+      <p class="note">Cette page se remplit dès que le site déployé envoie ses événements : fiches vues, écoutes, filtres du guide, carte des six, menu, ajouts au panier, départs en paiement.</p>
     )
   }
   <section class="kpis">

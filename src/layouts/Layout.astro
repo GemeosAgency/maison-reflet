@@ -733,6 +733,7 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
 
     <script>
       import { loadCart, initAddToCartButtons, visibleQuantity, type CartUpdatedEvent } from "../lib/cart";
+      import { trackPageView } from "../lib/site-events";
       import { initKlaviyo, identify } from "../lib/klaviyo";
       import { initMetaPixel } from "../lib/meta";
       import { initGa4 } from "../lib/ga4";
@@ -749,6 +750,9 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
       // gtag.js + page_view (aiguillage gtag/relais, voir lib/ga4.ts).
       // Inerte tant que PUBLIC_GA4_MEASUREMENT_ID n'est pas définie.
       initGa4();
+
+      // Tour de contrôle : la vue de page, avec la source de la visite (anonyme).
+      trackPageView();
 
       // Câblage global des boutons "Add to bag" (cartes produit/coffret, quelle
       // que soit la page) — voir cart.ts pour la raison de la délégation unique.

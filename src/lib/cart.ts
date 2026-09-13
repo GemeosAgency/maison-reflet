@@ -20,7 +20,7 @@ import {
   type CartAttributeInput,
   type ShopifyCart,
 } from "./shopify";
-import { trackSite } from "./site-events";
+import { anonId, trackSite } from "./site-events";
 import { track as trackKlaviyo } from "./klaviyo";
 import {
   getMetaBrowserIds,
@@ -101,6 +101,8 @@ function trackingCartAttributes(): CartAttributeInput[] {
   if (fbp) attributes.push({ key: "_fbp", value: fbp });
   if (fbc) attributes.push({ key: "_fbc", value: fbc });
   if (ga4ClientId) attributes.push({ key: "_ga", value: ga4ClientId });
+  // Tour de contrôle : l'identifiant anonyme du parcours revient dans la commande (note_attributes) — c'est ce qui relie une vente à ses pages, ses écoutes et son panier.
+  attributes.push({ key: "mr_anon", value: anonId() });
   return attributes;
 }
 
@@ -317,7 +319,13 @@ export async function addManyToCart(
     // Tour de contrôle : les Reflets ajoutés (handles retrouvés sur les lignes du panier rendu).
     const added = new Set(lines.map((l) => l.variantId));
     const handles = [...new Set(cart.lines.nodes.filter((l) => added.has(l.merchandise.id)).map((l) => l.merchandise.product.handle))];
-    trackSite("add_to_cart", { handles, variants: lines.map((l) => l.variantId) });
+    trackSite("add_to_cart", {
+      handles,
+      variants: lines.map((l) => l.variantId),
+      total: Number(cart.cost.subtotalAmount.amount),
+      currency: cart.cost.subtotalAmount.currencyCode,
+      lines: paidLines(cart).map((l) => ({ handle: l.merchandise.product.handle, quantity: l.quantity, amount: Number(l.cost.totalAmount.amount) })),
+    });
   }
   return cart;
 }
@@ -435,6 +443,7 @@ export function trackCheckoutDeparture(cart: ShopifyCart | null) {
   // Tour de contrôle : le départ en paiement, avec les Reflets du sac.
   trackSite("checkout", {
     handles: [...new Set(paidLines(cart).map((l) => l.merchandise.product.handle))],
+    lines: paidLines(cart).map((l) => ({ handle: l.merchandise.product.handle, quantity: l.quantity, amount: Number(l.cost.totalAmount.amount) })),
     total: Number(cart.cost.subtotalAmount.amount),
     currency: cart.cost.subtotalAmount.currencyCode,
   });

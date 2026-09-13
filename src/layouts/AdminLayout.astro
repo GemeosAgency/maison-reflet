@@ -12,7 +12,7 @@ import { RANGES, type Days } from "../lib/admin/data";
 
 interface Props {
   title: string;
-  section: "overview" | "conversations" | "questions" | "reflets" | "site" | "rgpd";
+  section: "overview" | "ventes" | "trafic" | "live" | "luma" | "conversations" | "questions" | "reflets" | "site" | "rgpd";
   admin: { email: string };
   days?: Days;
   subtitle?: string;
@@ -20,13 +20,32 @@ interface Props {
 }
 const { title, section, admin, days = 30, subtitle, showRange = true } = Astro.props;
 
-const nav = [
-  { key: "overview", href: "/admin", label: "Vue d'ensemble" },
-  { key: "conversations", href: "/admin/conversations", label: "Conversations" },
-  { key: "questions", href: "/admin/questions", label: "Questions" },
-  { key: "reflets", href: "/admin/reflets", label: "Reflets & accords" },
-  { key: "site", href: "/admin/site", label: "Site" },
-  { key: "rgpd", href: "/admin/rgpd", label: "RGPD" },
+const groups = [
+  {
+    label: "Business",
+    items: [
+      { key: "overview", href: "/admin", label: "Vue d'ensemble" },
+      { key: "ventes", href: "/admin/ventes", label: "Ventes & paniers" },
+      { key: "trafic", href: "/admin/trafic", label: "Trafic & sources" },
+      { key: "live", href: "/admin/live", label: "En direct", live: true },
+    ],
+  },
+  {
+    label: "Luma",
+    items: [
+      { key: "luma", href: "/admin/luma", label: "Vue Luma" },
+      { key: "conversations", href: "/admin/conversations", label: "Conversations" },
+      { key: "questions", href: "/admin/questions", label: "Questions" },
+      { key: "reflets", href: "/admin/reflets", label: "Reflets & accords" },
+    ],
+  },
+  {
+    label: "Site & données",
+    items: [
+      { key: "site", href: "/admin/site", label: "Parcours sur le site" },
+      { key: "rgpd", href: "/admin/rgpd", label: "RGPD" },
+    ],
+  },
 ] as const;
 
 const rangeHref = (d: number) => {
@@ -56,7 +75,19 @@ const now = new Intl.DateTimeFormat("fr-FR", { timeZone: "Asia/Dubai", weekday: 
         <span class="adm-brand-sub">Tour de contrôle</span>
       </a>
       <nav class="adm-nav" aria-label="Sections">
-        {nav.map((n) => <a class:list={["adm-nav-link", { "is-active": n.key === section }]} href={n.href} aria-current={n.key === section ? "page" : undefined}>{n.label}</a>)}
+        {
+          groups.map((g) => (
+            <div class="adm-nav-group">
+              <p class="adm-nav-label">{g.label}</p>
+              {g.items.map((n) => (
+                <a class:list={["adm-nav-link", { "is-active": n.key === section }]} href={n.href} aria-current={n.key === section ? "page" : undefined}>
+                  {n.label}
+                  {"live" in n && n.live && <span class="adm-live-dot" aria-hidden="true"></span>}
+                </a>
+              ))}
+            </div>
+          ))
+        }
       </nav>
       <div class="adm-side-foot">
         <a class="adm-side-link" href="/" target="_blank" rel="noopener">Voir le site ↗</a>
@@ -79,6 +110,7 @@ const now = new Intl.DateTimeFormat("fr-FR", { timeZone: "Asia/Dubai", weekday: 
           )
         }
       </header>
+      <slot name="filters" />
       <slot />
     </main>
   </body>
@@ -122,12 +154,17 @@ const now = new Intl.DateTimeFormat("fr-FR", { timeZone: "Asia/Dubai", weekday: 
   button { font: inherit; color: inherit; }
 
   /* ---- barre latérale ---- */
-  .adm-side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 28px; padding: 28px 20px 24px; background: var(--paper); border-right: 1px solid var(--line); }
+  .adm-side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 28px; padding: 28px 20px 24px; background: var(--paper); border-right: 1px solid var(--line); overflow-y: auto; }
   .adm-brand { display: flex; flex-direction: column; gap: 4px; padding: 0 12px; }
   .adm-brand-name { font-size: 13px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; }
   .adm-brand-sub { font-size: 12px; color: var(--rose); letter-spacing: 0.08em; text-transform: uppercase; }
-  .adm-nav { display: flex; flex-direction: column; gap: 2px; }
-  .adm-nav-link { display: block; padding: 10px 12px; border-radius: 8px; font-size: 14px; color: var(--muted); transition: background-color 0.15s ease, color 0.15s ease; }
+  .adm-nav { display: flex; flex-direction: column; gap: 18px; }
+  .adm-nav-group { display: flex; flex-direction: column; gap: 2px; }
+  .adm-nav-label { margin: 0 0 6px; padding: 0 12px; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); opacity: 0.8; }
+  .adm-nav-link { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 8px; font-size: 14px; color: var(--muted); transition: background-color 0.15s ease, color 0.15s ease; }
+  .adm-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 rgba(63, 107, 79, 0.5); animation: adm-pulse 2.2s ease-out infinite; }
+  @keyframes adm-pulse { 0% { box-shadow: 0 0 0 0 rgba(63, 107, 79, 0.45); } 70% { box-shadow: 0 0 0 7px rgba(63, 107, 79, 0); } 100% { box-shadow: 0 0 0 0 rgba(63, 107, 79, 0); } }
+  @media (prefers-reduced-motion: reduce) { .adm-live-dot { animation: none; } }
   .adm-nav-link:hover { color: var(--ink); background: rgba(21, 14, 10, 0.04); }
   .adm-nav-link.is-active { color: var(--rose); background: var(--sand); font-weight: 500; }
   .adm-side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 12px; font-size: 12px; color: var(--muted); }
@@ -166,14 +203,39 @@ const now = new Intl.DateTimeFormat("fr-FR", { timeZone: "Asia/Dubai", weekday: 
   .kpi-value small { font-size: 14px; color: var(--muted); margin-inline-start: 8px; letter-spacing: 0.04em; }
   .kpi-sub { font-size: 12px; color: var(--muted); }
   .kpi-rose .kpi-value { color: var(--rose); }
+  .kpi-hero { grid-column: span 2; }
+  .kpi-hero .kpi-value { font-size: 44px; }
+  .kpi-value .unit { font-size: 16px; color: var(--muted); margin-inline-start: 6px; letter-spacing: 0.02em; }
+  .kpi-trend { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+
+  .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--sand); }
+  .stack span { display: block; height: 100%; }
+  .legend { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+  .legend li { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 10px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend .legend-num { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+  .donut-row { display: grid; grid-template-columns: 120px 1fr; gap: 18px; align-items: center; }
+  .donut { display: block; }
+  .tbl .cell-gauge { min-width: 120px; }
+  .tbl .cell-gauge .gauge { margin-top: 6px; }
+  .tbl .lead { font-weight: 500; }
+  .tbl td.strong { font-weight: 500; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .adm-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+  .adm-filters .adm-filters-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-inline-end: 4px; }
+  .adm-filters select { padding: 8px 32px 8px 12px; border: 1px solid var(--line-strong); border-radius: 100px; background: var(--paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23150e0a' stroke-width='1.2'/%3E%3C/svg%3E") no-repeat right 12px center; color: var(--ink); font: inherit; font-size: 13px; appearance: none; -webkit-appearance: none; cursor: pointer; }
+  .adm-filters select.is-set { border-color: var(--rose); color: var(--rose); }
+  .adm-filters .adm-filters-clear { margin-inline-start: auto; font-size: 12px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+  .adm-filters .adm-filters-clear:hover { color: var(--ink); }
+  .adm-filters .adm-filters-on { font-size: 12px; color: var(--rose); }
 
   .chart { display: block; width: 100%; color: var(--ink); }
   .spark { display: block; }
 
   .bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-  .bars li { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(80px, 2fr) 48px; align-items: center; gap: 12px; font-size: 13px; }
+  .bars li { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(60px, 2fr) auto; align-items: center; gap: 12px; font-size: 13px; }
   .bars .bar-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bars .bar-count { text-align: end; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .bars .bar-count { min-width: 32px; text-align: end; font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
   .gauge { display: block; height: 6px; border-radius: 3px; background: var(--sand); overflow: hidden; }
   .gauge-fill { display: block; height: 100%; border-radius: 3px; }
 
@@ -186,7 +248,7 @@ const now = new Intl.DateTimeFormat("fr-FR", { timeZone: "Asia/Dubai", weekday: 
   .tbl tbody tr:last-child td { border-bottom: 0; }
   .tbl tbody tr:hover { background: rgba(255, 255, 255, 0.55); }
   .tbl .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .tbl .when { white-space: nowrap; }
+  .tbl .when, .tbl .nowrap { white-space: nowrap; }
   .tbl .muted { color: var(--muted); }
   .tbl a.row-link { display: block; }
   .tbl .cell-q { max-width: 420px; }
@@ -252,8 +314,12 @@ const now = new Intl.DateTimeFormat("fr-FR", { timeZone: "Asia/Dubai", weekday: 
   @media (max-width: 900px) {
     body.adm { grid-template-columns: 1fr; }
     .adm-side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 16px 20px; border-right: 0; border-bottom: 1px solid var(--line); }
-    .adm-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+    .adm-nav { flex-direction: row; flex-wrap: wrap; gap: 4px 12px; }
+    .adm-nav-group { flex-direction: row; flex-wrap: wrap; gap: 2px; }
+    .adm-nav-label { display: none; }
     .adm-nav-link { padding: 8px 10px; font-size: 13px; }
+    .kpi-hero { grid-column: auto; }
+    .donut-row { grid-template-columns: 1fr; }
     .adm-side-foot { margin-top: 0; width: 100%; flex-direction: row; align-items: center; gap: 16px; padding: 0; }
     .adm-main { padding: 20px 20px 48px; }
     .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }

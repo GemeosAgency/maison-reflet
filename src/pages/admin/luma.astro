@@ -1,0 +1,126 @@
+---
+/** Luma : ce qu'elle a fait sur la période, ce que ça coûte, où ça coince, et ce que le site enregistre autour d'elle. */
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import { readSession } from "../../lib/admin/auth";
+import { overview, parseDays, fmtInt, fmtPct, fmtMs, fmtUsd, fmtDate, entryLabel, localeLabel, fmtDuration } from "../../lib/admin/data";
+import { bars, sparkline } from "../../lib/admin/charts";
+export const prerender = false;
+
+const admin = await readSession(Astro.cookies);
+if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+const days = parseDays(Astro.url.searchParams.get("days"));
+const o = await overview(days);
+const max = (rows: { count: number }[]) => Math.max(1, ...rows.map((r) => r.count));
+---
+
+<AdminLayout title="Luma" section="luma" admin={admin} days={days} subtitle={`La conseillère sur les ${days} derniers jours : conversations, fiches montrées, emails, coût, incidents.`}>
+  <section class="kpis">
+    <div class="card kpi"><span class="kpi-label">Conversations</span><span class="kpi-value">{fmtInt(o.conversations)}</span><span class="kpi-sub">{fmtInt(o.userTurns)} messages de visiteurs</span></div>
+    <div class="card kpi"><span class="kpi-label">Fiches Reflet montrées</span><span class="kpi-value">{fmtPct(o.withCard, o.conversations)}</span><span class="kpi-sub">{fmtInt(o.withCard)} conversations avec une carte</span></div>
+    <div class="card kpi kpi-rose"><span class="kpi-label">Emails captés</span><span class="kpi-value">{fmtInt(o.emails)}</span><span class="kpi-sub">{fmtPct(o.emails, o.conversations)} des conversations</span></div>
+    <div class="card kpi"><span class="kpi-label">Coût estimé</span><span class="kpi-value">{fmtUsd(o.cost)}</span><span class="kpi-sub">{fmtInt(o.tokensIn / 1000)} k tokens lus · {fmtInt(o.tokensOut / 1000)} k écrits</span></div>
+    <div class="card kpi"><span class="kpi-label">Latence</span><span class="kpi-value">{fmtMs(o.p50)}<small>p50</small></span><span class="kpi-sub">p95 {fmtMs(o.p95)}</span></div>
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Conversations par jour</h2><p class="card-note">{fmtInt(o.conversations)} au total</p></div>
+      <Fragment set:html={bars(o.seriesConversations, { height: 150 })} />
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Messages de visiteurs par jour</h2><p class="card-note">{o.conversations ? (o.userTurns / o.conversations).toFixed(1).replace(".", ",") : "–"} par conversation</p></div>
+      <Fragment set:html={bars(o.seriesTurns, { height: 150, color: "var(--rose)" })} />
+    </div>
+  </section>
+
+  <section class="grid grid-4">
+    {
+      [
+        ["Langues", o.byLocale],
+        ["Pays", o.byCountry],
+        ["Entrées", o.byEntry],
+        ["Pages", o.byPage],
+      ].map(([title, rows]) => (
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">{title}</h2></div>
+          {(rows as { label: string; count: number }[]).length === 0 ? (
+            <p class="empty">Rien sur la période.</p>
+          ) : (
+            <ul class="bars">
+              {(rows as { label: string; count: number }[]).slice(0, 8).map((r) => (
+                <li>
+                  <span class="bar-label">{r.label}</span>
+                  <span class="gauge"><span class="gauge-fill" style={`width:${(r.count / max(rows as { count: number }[])) * 100}%;background:var(--ink)`}></span></span>
+                  <span class="bar-count">{fmtInt(r.count)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))
+    }
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Incidents et signaux</h2><p class="card-note">par jour, sur la période</p></div>
+      <ul class="bars incidents">
+        {
+          o.incidents.map((i) => (
+            <li>
+              <span class="bar-label">{i.label}</span>
+              <Fragment set:html={sparkline(i.spark, { width: 160, height: 28, color: i.key === "email_capture_proposed" ? "var(--ink)" : "var(--rose)" })} />
+              <span class="bar-count">{fmtInt(i.count)}</span>
+            </li>
+          ))
+        }
+      </ul>
+      <p class="card-foot">Une réponse de secours = Luma n'a pas pu répondre elle-même. Le passage à un humain envoie vers contact@maisonreflet.com.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Le site, en un regard</h2><p class="card-note">{o.site.since ? `depuis le ${fmtDate(o.site.since)}` : "en attente des premiers événements"}</p></div>
+      {
+        o.site.since ? (
+          <div class="kpis">
+            <div class="kpi"><span class="kpi-label">Visiteurs suivis</span><span class="kpi-value">{fmtInt(o.site.visitors)}</span></div>
+            <div class="kpi"><span class="kpi-label">Fiches vues</span><span class="kpi-value">{fmtInt(o.site.views)}</span></div>
+            <div class="kpi"><span class="kpi-label">Écoutes</span><span class="kpi-value">{fmtInt(o.site.plays)}</span></div>
+            <div class="kpi"><span class="kpi-label">Ajouts panier</span><span class="kpi-value">{fmtInt(o.site.adds)}</span><span class="kpi-sub">{fmtInt(o.site.checkouts)} départs en paiement</span></div>
+          </div>
+        ) : (
+          <p class="note">Les événements du site (écoutes, filtres, carte, panier) arrivent ici dès que la table <strong>site_events</strong> existe (migration 0003) et que le site déployé les envoie.</p>
+        )
+      }
+      <p class="card-foot"><a href={`/admin/site?days=${days}`}>Voir le détail du site →</a></p>
+    </div>
+  </section>
+
+  <section class="card tbl-card">
+    <div class="card-head"><h2 class="card-title">Dernières conversations</h2><a class="card-note" href={`/admin/conversations?days=${days}`}>Toutes les conversations →</a></div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Quand</th><th>Langue · pays</th><th>Entrée</th><th>Première question</th><th class="num">Tours</th><th>Reflet</th><th></th></tr></thead>
+        <tbody>
+          {o.recent.length === 0 && <tr><td colspan="7"><p class="empty">Aucune conversation sur la période.</p></td></tr>}
+          {
+            o.recent.map((r) => (
+              <tr>
+                <td class="muted mono when"><a class="row-link" href={`/admin/conversations/${r.id}`}>{fmtDate(r.createdAt)}</a></td>
+                <td>{localeLabel(r.locale)}{r.country ? ` · ${r.country}` : ""}</td>
+                <td>{entryLabel(r.entry)}</td>
+                <td class="cell-q"><span class="ellipsis" title={r.firstQuestion}>{r.firstQuestion || "—"}</span></td>
+                <td class="num">{r.turns}</td>
+                <td>{r.recommended ?? "–"}</td>
+                <td>{r.hasEmail && <span class="badge badge-rose">email</span>} {r.violations > 0 && <span class="badge badge-warn">{r.violations} infr.</span>} {r.fallback && <span class="badge badge-warn">secours</span>}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</AdminLayout>
+
+<style>
+  .incidents li { grid-template-columns: minmax(120px, 1fr) 160px 48px; }
+</style>
