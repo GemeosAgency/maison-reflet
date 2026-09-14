@@ -1,76 +1,55 @@
 ---
-/** Luma : ce qu'elle a fait sur la période, ce que ça coûte, où ça coince, et ce que le site enregistre autour d'elle. */
+/**
+ * Luma : ce qu'elle fait, ce que ça coûte, où ça coince, ce qu'elle recommande
+ * et par quelles portes on arrive. Les écoutes, les accords et le comportement
+ * sur le site sont dans Trafic & sources ; le lien avec les ventes est en bref
+ * ici et détaillé sur la vue d'ensemble.
+ */
 import AdminLayout from "../../layouts/AdminLayout.astro";
+import Kpi from "../../components/admin/Kpi.astro";
+import Tip from "../../components/admin/Tip.astro";
+import ProductThumb from "../../components/admin/ProductThumb.astro";
 import { readSession } from "../../lib/admin/auth";
-import { overview, parseRange, fmtInt, fmtPct, fmtMs, fmtUsd, fmtDate, entryLabel, localeLabel, fmtDuration } from "../../lib/admin/data";
-import { bars, sparkline } from "../../lib/admin/charts";
+import { overview, reflets, parseRange, fmtInt, fmtPct, fmtMs, fmtUsd, fmtDate, entryLabel, localeLabel } from "../../lib/admin/data";
+import { business, loadCatalog, delta } from "../../lib/admin/business";
+import { timeChart, sparkline, hbars } from "../../lib/admin/charts";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const range = parseRange(Astro.url.searchParams);
-const days = range.days;
-const o = await overview(range);
-const max = (rows: { count: number }[]) => Math.max(1, ...rows.map((r) => r.count));
+const [o, r, catalog, b] = await Promise.all([overview(range), reflets(range), loadCatalog(), business(range).catch(() => null)]);
+const imageOf = (handle: string) => catalog.products.find((p) => p.handle === handle)?.image ?? null;
+const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0).replace(".", ",")} %`);
+const perCost = o.conversations ? o.cost / o.conversations : null;
+const rows = (list: { label: string; count: number }[], color = "var(--ink)") => list.slice(0, 7).map((x) => ({ label: x.label, value: x.count, text: fmtInt(x.count), color }));
+const recoRows = [...r.per].sort((x, y) => y.recommended - x.recommended);
+const maxReco = Math.max(1, ...r.per.map((p) => p.recommended));
 ---
 
-<AdminLayout title="Luma" section="luma" admin={admin} range={range} subtitle={`La conseillère sur la période (${range.label}) : conversations, fiches montrées, emails, coût, incidents.`}>
+<AdminLayout title="Luma" section="luma" admin={admin} range={range} subtitle={`La conseillère · ${range.label} : conversations, fiches montrées, emails, coût, incidents, ce qu'elle recommande.`}>
   <section class="kpis">
-    <div class="card kpi"><span class="kpi-label">Conversations</span><span class="kpi-value">{fmtInt(o.conversations)}</span><span class="kpi-sub">{fmtInt(o.userTurns)} messages de visiteurs</span></div>
-    <div class="card kpi"><span class="kpi-label">Fiches Reflet montrées</span><span class="kpi-value">{fmtPct(o.withCard, o.conversations)}</span><span class="kpi-sub">{fmtInt(o.withCard)} conversations avec une carte</span></div>
-    <div class="card kpi kpi-rose"><span class="kpi-label">Emails captés</span><span class="kpi-value">{fmtInt(o.emails)}</span><span class="kpi-sub">{fmtPct(o.emails, o.conversations)} des conversations</span></div>
-    <div class="card kpi"><span class="kpi-label">Coût estimé</span><span class="kpi-value">{fmtUsd(o.cost)}</span><span class="kpi-sub">{fmtInt(o.tokensIn / 1000)} k tokens lus · {fmtInt(o.tokensOut / 1000)} k écrits</span></div>
-    <div class="card kpi"><span class="kpi-label">Latence</span><span class="kpi-value">{fmtMs(o.p50)}<small>p50</small></span><span class="kpi-sub">p95 {fmtMs(o.p95)}</span></div>
+    <Kpi label="Conversations" value={fmtInt(o.conversations)} sub={`${fmtInt(o.userTurns)} messages de visiteurs · ${o.conversations ? (o.userTurns / o.conversations).toFixed(1).replace(".", ",") : "–"} par conversation`} />
+    <Kpi label="Fiches montrées" value={fmtPct(o.withCard, o.conversations)} sub={`${fmtInt(o.withCard)} conversation${o.withCard > 1 ? "s" : ""} avec une carte Reflet`} />
+    <Kpi tone="rose" label="Emails captés" value={fmtInt(o.emails)} sub={`${fmtPct(o.emails, o.conversations)} des conversations`} />
+    <Kpi label="Coût estimé" tip="lumaCost" value={fmtUsd(o.cost)} sub={`${perCost === null ? "–" : fmtUsd(perCost)} par conversation · ${fmtInt(o.tokensIn / 1000)} k lus, ${fmtInt(o.tokensOut / 1000)} k écrits`} />
+    <Kpi label="Latence" value={fmtMs(o.p50)} sub={`médiane · p95 ${fmtMs(o.p95)}`} />
+    {b && <Kpi label="Convertissent" tip="lumaConversion" value={b.kpis.lumaTalkers ? pct(b.kpis.lumaConversion) : "–"} delta={b.kpis.lumaTalkers ? delta(b.kpis.lumaConversion, b.previous.kpis.lumaConversion) : undefined} sub={b.kpis.lumaTalkers ? `${fmtInt(b.kpis.lumaTalkers)} visiteur${b.kpis.lumaTalkers > 1 ? "s" : ""} reliés · ${pct(b.kpis.otherConversion)} pour les autres` : "en attente de conversations reliées au parcours"} />}
   </section>
 
-  <section class="grid grid-2">
-    <div class="card">
-      <div class="card-head"><h2 class="card-title">Conversations par jour</h2><p class="card-note">{fmtInt(o.conversations)} au total</p></div>
-      <Fragment set:html={bars(o.seriesConversations, { height: 150 })} />
+  <section class="grid grid-3">
+    <div class="card span-2">
+      <div class="card-head"><h2 class="card-title">Conversations et messages, par jour</h2><p class="card-note">aire : conversations · barres : messages de visiteurs</p></div>
+      <Fragment set:html={timeChart(o.seriesConversations, { secondary: o.seriesTurns, height: 190, primaryColor: "var(--rose)", secondaryColor: "var(--ink)", primaryFormat: (v) => `${v} conversation${v > 1 ? "s" : ""}`, secondaryFormat: (v) => `${v} message${v > 1 ? "s" : ""}`, primaryLabel: "" })} />
     </div>
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Messages de visiteurs par jour</h2><p class="card-note">{o.conversations ? (o.userTurns / o.conversations).toFixed(1).replace(".", ",") : "–"} par conversation</p></div>
-      <Fragment set:html={bars(o.seriesTurns, { height: 150, color: "var(--rose)" })} />
-    </div>
-  </section>
-
-  <section class="grid grid-4">
-    {
-      [
-        ["Langues", o.byLocale],
-        ["Pays", o.byCountry],
-        ["Entrées", o.byEntry],
-        ["Pages", o.byPage],
-      ].map(([title, rows]) => (
-        <div class="card">
-          <div class="card-head"><h2 class="card-title">{title}</h2></div>
-          {(rows as { label: string; count: number }[]).length === 0 ? (
-            <p class="empty">Rien sur la période.</p>
-          ) : (
-            <ul class="bars">
-              {(rows as { label: string; count: number }[]).slice(0, 8).map((r) => (
-                <li>
-                  <span class="bar-label">{r.label}</span>
-                  <span class="gauge"><span class="gauge-fill" style={`width:${(r.count / max(rows as { count: number }[])) * 100}%;background:var(--ink)`}></span></span>
-                  <span class="bar-count">{fmtInt(r.count)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ))
-    }
-  </section>
-
-  <section class="grid grid-2">
-    <div class="card">
-      <div class="card-head"><h2 class="card-title">Incidents et signaux</h2><p class="card-note">par jour, sur la période</p></div>
+      <div class="card-head"><h2 class="card-title">Incidents et signaux</h2><p class="card-note">par jour</p></div>
       <ul class="bars incidents">
         {
           o.incidents.map((i) => (
             <li>
               <span class="bar-label">{i.label}</span>
-              <Fragment set:html={sparkline(i.spark, { width: 160, height: 28, color: i.key === "email_capture_proposed" ? "var(--ink)" : "var(--rose)" })} />
+              <Fragment set:html={sparkline(i.spark, { width: 120, height: 26, color: i.key === "email_capture_proposed" ? "var(--ink)" : "var(--rose)" })} />
               <span class="bar-count">{fmtInt(i.count)}</span>
             </li>
           ))
@@ -78,50 +57,89 @@ const max = (rows: { count: number }[]) => Math.max(1, ...rows.map((r) => r.coun
       </ul>
       <p class="card-foot">Une réponse de secours = Luma n'a pas pu répondre elle-même. Le passage à un humain envoie vers contact@maisonreflet.com.</p>
     </div>
+  </section>
+
+  <section class="grid grid-3">
+    <div class="card tbl-card span-2">
+      <div class="card-head"><h2 class="card-title">Ce qu'elle recommande</h2><p class="card-note">{fmtInt(r.recommendedTotal)} recommandation{r.recommendedTotal > 1 ? "s" : ""} · l'alternative est le second Reflet proposé</p></div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Reflet</th><th class="cell-gauge">Recommandé</th><th class="num">Part</th><th class="num">En alternative</th></tr></thead>
+          <tbody>
+            {
+              recoRows.map((p) => (
+                <tr>
+                  <td><span class="pcell"><ProductThumb image={imageOf(p.handle)} name={p.name} size={36} /><strong>{p.name}</strong></span></td>
+                  <td class="cell-gauge"><span class="mono">{fmtInt(p.recommended)}</span><span class="gauge"><span class="gauge-fill" style={`width:${(p.recommended / maxReco) * 100}%;background:var(--rose)`}></span></span></td>
+                  <td class="num muted">{fmtPct(p.recommended, r.recommendedTotal)}</td>
+                  <td class="num">{fmtInt(p.alternative)}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Le site, en un regard</h2><p class="card-note">{o.site.since ? `depuis le ${fmtDate(o.site.since)}` : "en attente des premiers événements"}</p></div>
-      {
-        o.site.since ? (
-          <div class="kpis">
-            <div class="kpi"><span class="kpi-label">Visiteurs suivis</span><span class="kpi-value">{fmtInt(o.site.visitors)}</span></div>
-            <div class="kpi"><span class="kpi-label">Fiches vues</span><span class="kpi-value">{fmtInt(o.site.views)}</span></div>
-            <div class="kpi"><span class="kpi-label">Écoutes</span><span class="kpi-value">{fmtInt(o.site.plays)}</span></div>
-            <div class="kpi"><span class="kpi-label">Ajouts panier</span><span class="kpi-value">{fmtInt(o.site.adds)}</span><span class="kpi-sub">{fmtInt(o.site.checkouts)} départs en paiement</span></div>
-          </div>
-        ) : (
-          <p class="note">Les événements du site (écoutes, filtres, carte, panier) arrivent ici dès que la table <strong>site_events</strong> existe (migration 0003) et que le site déployé les envoie.</p>
-        )
-      }
-      <p class="card-foot"><a href={`/admin/site?${range.query}`}>Voir le détail du site →</a></p>
+      <div class="card-head"><h2 class="card-title">Par où on arrive</h2><p class="card-note">entrée · page</p></div>
+      <Fragment set:html={hbars(rows(o.byEntry))} />
+      <p class="modal-section-title spaced">Pages</p>
+      <Fragment set:html={hbars(rows(o.byPage, "var(--rose)"))} />
     </div>
   </section>
 
-  <section class="card tbl-card">
-    <div class="card-head"><h2 class="card-title">Dernières conversations</h2><a class="card-note" href={`/admin/conversations?${range.query}`}>Toutes les conversations →</a></div>
-    <div class="tbl-wrap">
-      <table class="tbl">
-        <thead><tr><th>Quand</th><th>Langue · pays</th><th>Entrée</th><th>Première question</th><th class="num">Tours</th><th>Reflet</th><th></th></tr></thead>
-        <tbody>
-          {o.recent.length === 0 && <tr><td colspan="7"><p class="empty">Aucune conversation sur la période.</p></td></tr>}
-          {
-            o.recent.map((r) => (
-              <tr>
-                <td class="muted mono when"><a class="row-link" href={`/admin/conversations/${r.id}`}>{fmtDate(r.createdAt)}</a></td>
-                <td>{localeLabel(r.locale)}{r.country ? ` · ${r.country}` : ""}</td>
-                <td>{entryLabel(r.entry)}</td>
-                <td class="cell-q"><span class="ellipsis" title={r.firstQuestion}>{r.firstQuestion || "—"}</span></td>
-                <td class="num">{r.turns}</td>
-                <td>{r.recommended ?? "–"}</td>
-                <td>{r.hasEmail && <span class="badge badge-rose">email</span>} {r.violations > 0 && <span class="badge badge-warn">{r.violations} infr.</span>} {r.fallback && <span class="badge badge-warn">secours</span>}</td>
-              </tr>
-            ))
-          }
-        </tbody>
-      </table>
+  <section class="grid grid-4">
+    {
+      [
+        ["Ce qu'ils portent déjà", r.doors.origins],
+        ["Ce qu'ils portent aujourd'hui", r.doors.wears],
+        ["Pour qui", r.doors.forWhom],
+        ["Quelle occasion", r.doors.occasion],
+      ].map(([title, list]) => (
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">{title}</h2></div>
+          <Fragment set:html={hbars(rows(list as { label: string; count: number }[]))} />
+        </div>
+      ))
+    }
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Langues et pays</h2></div>
+      <div class="grid grid-2 tight">
+        <Fragment set:html={hbars(rows(o.byLocale))} />
+        <Fragment set:html={hbars(rows(o.byCountry, "var(--rose)"))} />
+      </div>
+    </div>
+    <div class="card tbl-card">
+      <div class="card-head"><h2 class="card-title">Dernières conversations</h2><a class="card-note" href={`/admin/conversations?${range.query}`}>Toutes →</a></div>
+      <div class="tbl-wrap">
+        <table class="tbl tbl-compact">
+          <thead><tr><th>Quand</th><th>Langue</th><th>Première question</th><th class="num">Tours</th><th></th></tr></thead>
+          <tbody>
+            {o.recent.length === 0 && <tr><td colspan="5"><p class="empty">Aucune conversation sur la période.</p></td></tr>}
+            {
+              o.recent.map((c) => (
+                <tr>
+                  <td class="muted mono when"><a class="row-link" href={`/admin/conversations/${c.id}?${range.query}`}>{fmtDate(c.createdAt)}</a></td>
+                  <td>{localeLabel(c.locale)}{c.country ? ` · ${c.country}` : ""}</td>
+                  <td class="cell-q"><span class="ellipsis" title={c.firstQuestion}>{c.firstQuestion || "—"}</span></td>
+                  <td class="num">{c.turns}</td>
+                  <td>{c.hasEmail && <span class="badge badge-rose">email</span>} {c.fallback && <span class="badge badge-warn">secours</span>}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 </AdminLayout>
 
 <style>
-  .incidents li { grid-template-columns: minmax(120px, 1fr) 160px 48px; }
+  .incidents li { grid-template-columns: minmax(100px, 1fr) 120px 40px; }
+  .pcell { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .spaced { margin-top: 16px; }
+  .tight { gap: 8px 24px; }
 </style>

@@ -3,13 +3,15 @@
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { readSession } from "../../lib/admin/auth";
 import { rgpdSearch, retentionStatus, auditLog, fmtDate, fmtInt, localeLabel } from "../../lib/admin/data";
+import { trackingStatus } from "../../lib/admin/business";
+import Tip from "../../components/admin/Tip.astro";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const q = Astro.url.searchParams.get("q")?.trim() ?? "";
 const deleted = Astro.url.searchParams.get("deleted");
-const [found, retention, log] = await Promise.all([rgpdSearch(q), retentionStatus(), auditLog(60)]);
+const [found, retention, log, tracking] = await Promise.all([rgpdSearch(q), retentionStatus(), auditLog(60), trackingStatus()]);
 const ACTION_LABEL: Record<string, string> = {
   login: "connexion",
   logout: "déconnexion",
@@ -24,8 +26,21 @@ const ACTION_LABEL: Record<string, string> = {
 };
 ---
 
-<AdminLayout title="RGPD" section="rgpd" admin={admin} showRange={false} subtitle="Retrouver une personne, lui remettre ses données ou tout effacer ; vérifier la rétention ; relire qui a fait quoi.">
+<AdminLayout title="RGPD & suivi" section="rgpd" admin={admin} showRange={false} subtitle="Retrouver une personne, lui remettre ses données ou tout effacer ; vérifier la rétention ; relire qui a fait quoi ; savoir ce que le suivi enregistre.">
   {deleted !== null && <p class="note"><strong>Effacé.</strong> {deleted} conversation{Number(deleted) > 1 ? "s" : ""} et leurs signaux, {Astro.url.searchParams.get("events") ?? 0} événement{Number(Astro.url.searchParams.get("events") ?? 0) > 1 ? "s" : ""} de navigation.</p>}
+
+  <section class="card">
+    <div class="card-head"><h2 class="card-title">Le suivi, en chiffres</h2><p class="card-note">ce que les tables contiennent aujourd'hui, toutes périodes</p></div>
+    <dl class="facts facts-wide">
+      <dt>Événements du site</dt><dd>{fmtInt(tracking.events)}{tracking.firstEvent ? ` · depuis le ${fmtDate(tracking.firstEvent)}` : " · aucun encore"}</dd>
+      <dt>Avec une ville <Tip of="city" /></dt><dd>{fmtInt(tracking.withCity)}</dd>
+      <dt>Commandes réelles</dt><dd>{fmtInt(tracking.orders)}{tracking.firstOrder ? ` · première le ${fmtDate(tracking.firstOrder)}` : " · aucune encore"}</dd>
+      <dt>Commandes de test <Tip of="testOrders" /></dt><dd>{fmtInt(tracking.testOrders)}</dd>
+      <dt>Commandes sans parcours <Tip of="unlinked" /></dt><dd>{fmtInt(tracking.unlinked)}</dd>
+      <dt>Commandes annulées <Tip of="cancelled" /></dt><dd>{fmtInt(tracking.cancelled)}</dd>
+      <dt>Conversations Luma reliées au parcours <Tip of="lumaConversion" /></dt><dd>{fmtInt(tracking.lumaLinked)} depuis le 14 septembre</dd>
+    </dl>
+  </section>
 
   <section class="grid grid-2">
     <div class="card">
@@ -114,4 +129,6 @@ const ACTION_LABEL: Record<string, string> = {
   .sessions a { text-decoration: underline; text-underline-offset: 3px; }
   .actions { display: flex; gap: 10px; margin-top: 6px; }
   .tbl .ellipsis { max-width: 220px; }
+  .facts-wide { grid-template-columns: auto 1fr auto 1fr; column-gap: 24px; }
+  @media (max-width: 900px) { .facts-wide { grid-template-columns: auto 1fr; } }
 </style>

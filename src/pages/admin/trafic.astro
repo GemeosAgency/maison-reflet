@@ -1,62 +1,86 @@
 ---
-/** Trafic & sources : qui vient, d'où, sur quoi, et ce que chaque source rapporte. */
+/**
+ * Trafic & sources : tout ce qui concerne les visiteurs du site, en deux
+ * moitiés. D'où ils viennent — canaux, sources, campagnes, pays et villes,
+ * appareils, langues, quand ils viennent. Ce qu'ils font — le parcours en
+ * marches, ce qu'ils regardent et écoutent, pages et chemins, guide, menu,
+ * échantillon offert, accords du parfumeur, ceux qui parlent à Luma.
+ */
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import FilterBar from "../../components/admin/FilterBar.astro";
 import Kpi from "../../components/admin/Kpi.astro";
 import Tip from "../../components/admin/Tip.astro";
+import ProductThumb from "../../components/admin/ProductThumb.astro";
+import ProductModal from "../../components/admin/ProductModal.astro";
 import SourceModal from "../../components/admin/SourceModal.astro";
 import CountryModal from "../../components/admin/CountryModal.astro";
-import DaysModal from "../../components/admin/DaysModal.astro";
-import ProductTiles from "../../components/admin/ProductTiles.astro";
-import ProductModal from "../../components/admin/ProductModal.astro";
+import JourneyDaysModal from "../../components/admin/JourneyDaysModal.astro";
 import { readSession } from "../../lib/admin/auth";
-import { parseRange, fmtInt, fmtPct, fmtDate } from "../../lib/admin/data";
-import { business, parseFilters, fmtMoney, fmtMoneyShort, delta, CHANNEL_COLORS } from "../../lib/admin/business";
-import { timeChart, hbars, donut, funnelSteps, heatmap } from "../../lib/admin/charts";
+import { parseRange, fmtInt, fmtPct, fmtDate, fmtDuration } from "../../lib/admin/data";
+import { journey, parseFilters, delta, thumb, fmtMoney, fmtMoneyShort, CHANNEL_COLORS } from "../../lib/admin/business";
+import { timeChart, hbars, funnelSteps, donut, heatmap } from "../../lib/admin/charts";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const range = parseRange(Astro.url.searchParams);
 const filters = parseFilters(Astro.url.searchParams);
-const b = await business(range, filters);
-const cur = b.currency;
-const k = b.kpis;
-const pk = b.previous.kpis;
+const j = await journey(range, filters);
+const k = j.kpis;
+const pk = j.previous;
+const b = j.biz;
+const pb = j.previousBiz;
+const cur = j.currency;
 const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0).replace(".", ",")} %`);
-const maxSource = Math.max(1, ...b.sources.map((s) => s.visitors));
-const totalDevices = b.devices.reduce((n, d) => n + d.value, 0);
-const totalLocales = b.locales.reduce((n, d) => n + d.value, 0);
-const countryRows = [...b.countries].sort((x, y) => y.visitors - x.visitors).slice(0, 8).map((c) => ({ label: c.name, prefix: c.flag, value: c.visitors, text: `${fmtInt(c.visitors)}${c.orders ? ` · ${fmtInt(c.orders)} cmd` : ""}`, modal: `country:${c.code}` }));
-const landingRows = b.landingPages.map((p) => ({ label: p.path, value: p.visitors, text: fmtInt(p.visitors) }));
-const pageRows = b.topPages.map((p) => ({ label: p.path, value: p.visitors, text: fmtInt(p.visitors) }));
-const perDay = k.visitors ? (b.series.visitors.reduce((n, d) => n + d.value, 0) / Math.max(1, range.days)).toFixed(1).replace(".", ",") : "–";
+const dec = (v: number | null) => (v === null ? "–" : v.toFixed(1).replace(".", ","));
+const thumbPrefix = (image: string | null) => (image ? `<img class="hbar-thumb" src="${thumb(image, 60)}" alt="" loading="lazy">` : "");
+const maxSource = Math.max(1, ...j.sources.map((s) => s.visitors));
+const totalDevices = j.devices.reduce((n, d) => n + d.value, 0);
+const totalLocales = j.locales.reduce((n, d) => n + d.value, 0);
+const countryRows = [...j.countries].sort((x, y) => y.visitors - x.visitors).slice(0, 8).map((c) => ({ label: c.name, prefix: c.flag, value: c.visitors, text: `${fmtInt(c.visitors)}${c.orders ? ` · ${fmtInt(c.orders)} cmd` : ""}`, modal: `country:${c.code}` }));
+const cityRows = j.cities.slice(0, 8).map((c) => ({ label: c.label, value: c.count, text: fmtInt(c.count), color: "var(--ink)" }));
+const pageRows = j.topPages.map((p) => ({ label: p.label, value: p.count, text: fmtInt(p.count) }));
+const landingRows = j.landingPages.slice(0, 6).map((p) => ({ label: p.label, value: p.count, text: fmtInt(p.count), color: "var(--ok)" }));
+const exitRows = j.exitPages.slice(0, 6).map((p) => ({ label: p.label, value: p.count, text: fmtInt(p.count), color: "var(--warn)" }));
+const guideRows = j.guideFilters.slice(0, 6).map((g) => ({ label: g.label, value: g.count, text: fmtInt(g.count) }));
+const mapRows = j.mapSelects.filter((m) => m.count > 0).slice(0, 6).map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), modal: `product:${m.handle}` }));
+const menuRows = j.menu.filter((m) => m.count > 0).map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), modal: `product:${m.handle}` }));
+const sampleRows = j.samplePicks.map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), color: "var(--warn)", modal: `product:${m.handle}` }));
+const listenRows = j.listens.perReflet.filter((l) => l.plays > 0).map((l) => ({ label: l.name, prefix: thumbPrefix(l.image), value: l.plays, text: `${fmtInt(l.plays)} · ${fmtPct(l.completes, l.plays)} au bout`, color: "var(--rose)", modal: `product:${l.handle}` }));
+const sourceRows = j.listens.bySource.map((s) => ({ label: s.label, value: s.count, text: fmtPct(s.count, j.listens.total) }));
+const watched = [...j.perProduct].sort((x, y) => y.views - x.views);
+const subtitle = j.tracked.since ? `Qui vient, d'où, et ce qu'ils font une fois là · ${range.label}, heure de Dubaï.` : "En attente des premières visites suivies.";
 ---
 
-<AdminLayout title="Trafic & sources" section="trafic" admin={admin} range={range} subtitle={b.tracked.since ? `Visites anonymes suivies depuis le ${fmtDate(b.tracked.since)} : d'où elles viennent et ce qu'elles deviennent · ${range.label}.` : "En attente des premières visites suivies."}>
-  <FilterBar slot="filters" filters={filters} facets={b.facets} range={range} testToggle={false} />
+<AdminLayout title="Trafic & sources" section="trafic" admin={admin} range={range} subtitle={subtitle}>
+  <FilterBar slot="filters" filters={filters} facets={j.facets} range={range} testToggle={false} />
 
   <section class="kpis">
-    <Kpi label="Visiteurs" tip="visitors" value={fmtInt(k.visitors)} delta={delta(k.visitors, pk.visitors)} sub={`${perDay} par jour`} modal="days" />
-    <Kpi label="Ont vu une fiche" tip="funnel" value={fmtPct(b.funnel[1].value, b.funnel[0].value)} sub={`${fmtInt(b.funnel[1].value)} visiteurs`} />
-    <Kpi label="Ajout au sac" tip="addRate" value={pct(k.addRate)} delta={delta(k.addRate, pk.addRate)} sub={`${fmtInt(k.adders)} visiteur${k.adders > 1 ? "s" : ""}`} />
-    <Kpi label="Vont au paiement" tip="checkoutRate" value={pct(k.checkoutRate)} delta={delta(k.checkoutRate, pk.checkoutRate)} sub={`${fmtInt(k.checkouts)} départ${k.checkouts > 1 ? "s" : ""}`} />
-    <Kpi tone="rose" label="Conversion" tip="conversion" value={pct(k.conversion)} delta={delta(k.conversion, pk.conversion)} sub={`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""} pour ${fmtInt(k.visitors)} visiteurs`} />
-    <Kpi label="Chiffre par visiteur" tip="revenuePerVisitor" value={k.revenuePerVisitor === null ? "–" : fmtMoneyShort(k.revenuePerVisitor)} unit={k.revenuePerVisitor === null ? undefined : cur} delta={delta(k.revenuePerVisitor, pk.revenuePerVisitor)} sub="ce que vaut une visite" />
+    <Kpi label="Visiteurs" tip="visitors" value={fmtInt(k.visitors)} delta={delta(k.visitors, pk.visitors)} sub={`${fmtInt(k.returning)} revenu${k.returning > 1 ? "s" : ""} au moins une fois`} modal="days" />
+    <Kpi label="Pages par visite" tip="pagesPerVisit" value={dec(k.pagesPerVisit)} delta={delta(k.pagesPerVisit, pk.pagesPerVisit)} sub="vues de page par visiteur" />
+    <Kpi label="Durée moyenne" tip="avgDuration" value={k.avgDurationMs === null ? "–" : fmtDuration(k.avgDurationMs)} delta={delta(k.avgDurationMs, pk.avgDurationMs)} sub="du premier au dernier geste" />
+    <Kpi label="Rebond" tip="bounce" value={pct(k.bounceRate)} delta={delta(k.bounceRate, pk.bounceRate)} deltaInvert sub="une seule page vue" />
+    <Kpi label="Écoutes" tip="listens" value={fmtInt(k.plays)} delta={delta(k.plays, pk.plays)} sub={`${fmtInt(k.listeners)} visiteur${k.listeners > 1 ? "s" : ""} · ${k.plays ? fmtPct(k.completes, k.plays) : "–"} jusqu'au bout`} />
+    <Kpi tone="rose" label="Conversion" tip="conversion" value={pct(b.conversion)} delta={delta(b.conversion, pb.conversion)} sub={`${fmtInt(b.orders)} commande${b.orders > 1 ? "s" : ""} · ${b.revenuePerVisitor === null ? "–" : fmtMoney(b.revenuePerVisitor, cur)} par visiteur`} />
   </section>
+
+  <div class="section-title is-major" id="sources">
+    <h2>D'où ils viennent</h2>
+    <nav class="anchors" aria-label="Aller à"><a href="#sources">D'où ils viennent</a><a href="#parcours">Ce qu'ils font</a></nav>
+  </div>
 
   <section class="grid grid-3">
     <div class="card span-2">
       <div class="card-head"><h2 class="card-title">Visiteurs et départs en paiement, par jour <Tip of="byDay" /></h2><p class="card-note">aire : visiteurs · barres : départs en paiement</p></div>
-      <Fragment set:html={timeChart(b.series.visitors, { secondary: b.series.checkouts, height: 200, primaryColor: "var(--ink)", secondaryColor: "var(--rose)", primaryFormat: (v) => `${v}`, secondaryFormat: (v) => `${v} départ${v > 1 ? "s" : ""}`, primaryLabel: "visiteurs", modal: "days" })} />
+      <Fragment set:html={timeChart(j.series.visitors, { secondary: j.seriesCheckouts, height: 200, primaryColor: "var(--ink)", secondaryColor: "var(--rose)", primaryFormat: (v) => `${v}`, secondaryFormat: (v) => `${v} départ${v > 1 ? "s" : ""}`, primaryLabel: "visiteurs", modal: "days" })} />
     </div>
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Canaux <Tip of="channel" /></h2><p class="card-note">part des visiteurs</p></div>
+      <div class="card-head"><h2 class="card-title">Canaux <Tip of="channel" /></h2><p class="card-note">part des visiteurs · chiffre</p></div>
       <div class="donut-row">
-        <Fragment set:html={donut(b.channels.map((c) => ({ label: c.channel, value: c.visitors, color: c.color })), { size: 120 })} />
+        <Fragment set:html={donut(j.channels.map((c) => ({ label: c.channel, value: c.visitors, color: c.color })), { size: 120 })} />
         <ul class="legend">
-          {b.channels.length === 0 && <li class="muted">Rien encore.</li>}
-          {b.channels.map((c) => <li><span class="dot" style={`background:${c.color}`}></span><span class="legend-label">{c.channel}</span><span class="legend-num">{fmtPct(c.visitors, k.visitors)}{c.revenue ? ` · ${fmtMoneyShort(c.revenue)}` : ""}</span></li>)}
+          {j.channels.length === 0 && <li class="muted">Rien encore.</li>}
+          {j.channels.map((c) => <li><span class="dot" style={`background:${c.color}`}></span><span class="legend-label">{c.channel}</span><span class="legend-num">{fmtPct(c.visitors, k.visitors)}{c.revenue ? ` · ${fmtMoneyShort(c.revenue)}` : ""}</span></li>)}
         </ul>
       </div>
     </div>
@@ -68,9 +92,9 @@ const perDay = k.visitors ? (b.series.visitors.reduce((n, d) => n + d.value, 0) 
       <table class="tbl">
         <thead><tr><th>Source</th><th>Canal</th><th class="cell-gauge">Visiteurs</th><th class="num">Départs paiement</th><th class="num">Commandes</th><th class="num">Conversion</th><th class="num">Chiffre</th><th class="num">Par visiteur</th></tr></thead>
         <tbody>
-          {b.sources.length === 0 && <tr><td colspan="8"><p class="empty">Aucune visite suivie sur la période.</p></td></tr>}
+          {j.sources.length === 0 && <tr><td colspan="8"><p class="empty">Aucune visite suivie sur la période.</p></td></tr>}
           {
-            b.sources.map((s) => (
+            j.sources.map((s) => (
               <tr class:list={{ "is-hl": filters.source === s.label }} data-open-modal={`source:${s.label}`} tabindex="0">
                 <td class="lead">{s.label}</td>
                 <td><span class="badge"><span class="badge-dot" style={`background:${CHANNEL_COLORS[s.channel]}`}></span>{s.channel}</span></td>
@@ -88,78 +112,192 @@ const perDay = k.visitors ? (b.series.visitors.reduce((n, d) => n + d.value, 0) 
     </div>
   </section>
 
-  <section class="grid grid-3">
-    <div class="card">
-      <div class="card-head"><h2 class="card-title">Appareils <Tip of="devices" /></h2></div>
-      <div class="donut-row">
-        <Fragment set:html={donut(b.devices, { size: 110 })} />
-        <ul class="legend">{b.devices.map((d) => <li><span class="dot" style={`background:${d.color}`}></span><span class="legend-label">{d.label}</span><span class="legend-num">{fmtPct(d.value, totalDevices)}</span></li>)}</ul>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2 class="card-title">Langues</h2></div>
-      <div class="donut-row">
-        <Fragment set:html={donut(b.locales, { size: 110 })} />
-        <ul class="legend">{b.locales.map((d) => <li><span class="dot" style={`background:${d.color}`}></span><span class="legend-label">{d.label}</span><span class="legend-num">{fmtPct(d.value, totalLocales)}</span></li>)}</ul>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2 class="card-title">Le parcours <Tip of="funnel" /></h2><p class="card-note">visiteurs distincts</p></div>
-      <Fragment set:html={funnelSteps(b.funnel, fmtInt)} />
-    </div>
-  </section>
+  {
+    j.campaigns.length > 0 && (
+      <section class="card tbl-card">
+        <div class="card-head"><h2 class="card-title">Campagnes (utm) <Tip of="campaigns" /></h2></div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Campagne</th><th>Source</th><th class="num">Visiteurs</th><th class="num">Commandes</th><th class="num">Chiffre</th></tr></thead>
+            <tbody>{j.campaigns.slice(0, 20).map((c) => <tr><td class="lead">{c.campaign}</td><td class="muted">{c.sourceLabel}</td><td class="num">{fmtInt(c.visitors)}</td><td class="num">{fmtInt(c.orders)}</td><td class="num">{c.revenue ? fmtMoney(c.revenue, cur) : "–"}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </section>
+    )
+  }
 
   <section class="grid grid-3">
     <div class="card">
       <div class="card-head"><h2 class="card-title">Pays</h2><p class="card-note">visiteurs · commandes — un clic ouvre le pays</p></div>
       <Fragment set:html={hbars(countryRows)} />
+      {cityRows.length > 0 && <p class="modal-section-title spaced">Villes <Tip of="city" /></p>}
+      {cityRows.length > 0 && <Fragment set:html={hbars(cityRows)} />}
     </div>
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Pages d'arrivée <Tip of="landing" /></h2></div>
-      <div class="paths"><Fragment set:html={hbars(landingRows)} /></div>
+      <div class="card-head"><h2 class="card-title">Appareils et langues <Tip of="devices" /></h2></div>
+      <div class="donut-row">
+        <Fragment set:html={donut(j.devices, { size: 100 })} />
+        <ul class="legend">{j.devices.map((d) => <li><span class="dot" style={`background:${d.color}`}></span><span class="legend-label">{d.label}</span><span class="legend-num">{fmtPct(d.value, totalDevices)}</span></li>)}</ul>
+      </div>
+      <div class="donut-row spaced">
+        <Fragment set:html={donut(j.locales, { size: 100 })} />
+        <ul class="legend">{j.locales.map((d) => <li><span class="dot" style={`background:${d.color}`}></span><span class="legend-label">{d.label}</span><span class="legend-num">{fmtPct(d.value, totalLocales)}</span></li>)}</ul>
+      </div>
     </div>
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Pages les plus vues <Tip of="topPages" /></h2></div>
-      <div class="paths"><Fragment set:html={hbars(pageRows)} /></div>
+      <div class="card-head"><h2 class="card-title">Ils arrivent par <Tip of="landing" /></h2><p class="card-note">la première page d'une visite</p></div>
+      <Fragment set:html={hbars(landingRows)} />
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2 class="card-title">Quand ils viennent <Tip of="heatVisits" /></h2><p class="card-note">visiteurs distincts par heure de Dubaï et jour de semaine</p></div>
+    <Fragment set:html={heatmap(j.heat.visits, { color: "21, 14, 10", format: (v) => `${v} visiteur${v > 1 ? "s" : ""}` })} />
+  </section>
+
+  <div class="section-title is-major" id="parcours">
+    <h2>Ce qu'ils font</h2>
+    <nav class="anchors" aria-label="Aller à"><a href="#sources">D'où ils viennent</a><a href="#parcours">Ce qu'ils font</a></nav>
+  </div>
+
+  <section class="grid grid-3">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Le parcours <Tip of="funnel" /></h2><p class="card-note">visiteurs distincts</p></div>
+      <Fragment set:html={funnelSteps(j.funnel, fmtInt)} />
+      <p class="card-foot">{k.viewers ? `${fmtPct(k.listeners, k.viewers)} de ceux qui ouvrent une fiche écoutent le portrait · ${fmtPct(k.adders, k.viewers)} mettent au sac` : "En attente des premières fiches vues."}</p>
+    </div>
+    <div class="card span-2">
+      <div class="card-head"><h2 class="card-title">Ce qu'ils regardent</h2><p class="card-note">fiches vues · écoutes · ajouts · fiche → achat — un clic ouvre le produit</p></div>
+      <div class="pt-list">
+        {
+          watched.map((p) => (
+            <button type="button" class="pt-row" data-open-modal={`product:${p.handle}`}>
+              <ProductThumb image={p.image} name={p.name} size={36} />
+              <span class="pt-name">{p.name}<span class="pt-sub">{p.kind === "coffret" ? "coffret" : p.views ? `${fmtPct(p.adds, p.views)} des fiches finissent au sac` : "aucune fiche vue"}</span></span>
+              <span class="pt-stats"><span>Fiches<b>{fmtInt(p.views)}</b></span><span>Écoutes<b>{p.kind === "reflet" ? fmtInt(p.plays) : "–"}</b></span><span>Ajouts<b>{fmtInt(p.adds)}</b></span><span>→ achat<b>{p.views ? fmtPct(p.orders, p.views) : "–"}</b></span></span>
+            </button>
+          ))
+        }
+      </div>
     </div>
   </section>
 
   <section class="grid grid-3">
-    <div class="card span-2">
-      <div class="card-head"><h2 class="card-title">Quand ils viennent <Tip of="heatVisits" /></h2><p class="card-note">visiteurs distincts par heure de Dubaï et jour de semaine</p></div>
-      <Fragment set:html={heatmap(b.heat.visits, { color: "21, 14, 10", format: (v) => `${v} visiteur${v > 1 ? "s" : ""}` })} />
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Les pages <Tip of="topPages" /></h2><p class="card-note">visiteurs distincts, toutes langues</p></div>
+      <Fragment set:html={hbars(pageRows)} />
     </div>
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Villes <Tip of="city" /></h2><p class="card-note">visiteurs</p></div>
-      <Fragment set:html={hbars(b.cities.map((c) => ({ label: c.label, value: c.count, text: fmtInt(c.count) })))} />
+      <div class="card-head"><h2 class="card-title">Les chemins les plus suivis <Tip of="sequences" /></h2><p class="card-note">les trois premières pages</p></div>
+      {
+        j.sequences.length === 0 ? (
+          <p class="empty">Pas encore de visite de deux pages ou plus.</p>
+        ) : (
+          <ol class="seqs">
+            {j.sequences.map((s) => (
+              <li class="seq">
+                <span class="seq-steps">{s.steps.map((st, i) => [i > 0 && <span class="seq-arrow" aria-hidden="true">→</span>, <span class="seq-step">{st}</span>])}</span>
+                <span class="seq-count">{fmtInt(s.count)}</span>
+              </li>
+            ))}
+          </ol>
+        )
+      }
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Ils repartent depuis <Tip of="exits" /></h2><p class="card-note">la dernière page vue</p></div>
+      <Fragment set:html={hbars(exitRows)} />
     </div>
   </section>
 
-  <section class="card tbl-card">
-    <div class="card-head"><h2 class="card-title">Campagnes (utm) <Tip of="campaigns" /></h2></div>
-    <div class="tbl-wrap">
-      <table class="tbl">
-        <thead><tr><th>Campagne</th><th>Source</th><th class="num">Visiteurs</th><th class="num">Commandes</th><th class="num">Chiffre</th></tr></thead>
-        <tbody>
-          {b.campaigns.length === 0 && <tr><td colspan="5"><p class="empty">Aucun lien avec utm_campaign sur la période.</p></td></tr>}
-          {b.campaigns.slice(0, 20).map((c) => <tr><td class="lead">{c.campaign}</td><td class="muted">{c.sourceLabel}</td><td class="num">{fmtInt(c.visitors)}</td><td class="num">{fmtInt(c.orders)}</td><td class="num">{c.revenue ? fmtMoney(c.revenue, cur) : "–"}</td></tr>)}
-        </tbody>
-      </table>
+  <section class="grid grid-3">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Le guide des six <Tip of="guideFilters" /></h2><p class="card-note">{fmtInt(j.guideVisitors)} visiteur{j.guideVisitors > 1 ? "s" : ""} sur le guide</p></div>
+      <p class="modal-section-title">Filtres activés</p>
+      <Fragment set:html={hbars(guideRows)} />
+      <p class="modal-section-title spaced">Ouverts sur la carte <Tip of="mapSelects" /></p>
+      <Fragment set:html={hbars(mapRows)} />
+      <p class="card-foot">« Se marie avec… » affiché {fmtInt(j.mapPairs)} fois.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Le menu et l'échantillon</h2></div>
+      <p class="modal-section-title">Reflets mis en avant dans le menu <Tip of="menu" /></p>
+      <Fragment set:html={hbars(menuRows)} />
+      <p class="modal-section-title spaced">L'échantillon offert choisi au panier <Tip of="samplePick" /></p>
+      <Fragment set:html={hbars(sampleRows)} />
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Les écoutes <Tip of="listens" /></h2><p class="card-note">{fmtInt(j.listens.total)} lecture{j.listens.total > 1 ? "s" : ""} · {j.listens.total ? fmtPct(j.listens.completes, j.listens.total) : "–"} jusqu'au bout <Tip of="listenComplete" /></p></div>
+      <div class="donut-row">
+        <Fragment set:html={donut(j.listens.byKind, { size: 100 })} />
+        <ul class="legend">
+          {j.listens.byKind.map((d) => <li><span class="dot" style={`background:${d.color}`}></span><span class="legend-label">{d.label}</span><span class="legend-num">{fmtInt(d.value)}</span></li>)}
+          {sourceRows.map((s) => <li><span class="dot" style="background:var(--sand)"></span><span class="legend-label">{s.label}</span><span class="legend-num">{s.text}</span></li>)}
+        </ul>
+      </div>
+      <p class="modal-section-title spaced">Portraits par Reflet</p>
+      <Fragment set:html={hbars(listenRows)} />
     </div>
   </section>
 
-  <div class="section-title"><h2>Ce qu'ils regardent</h2><p>fiches vues, ajouts, fiche → achat — un clic ouvre le détail</p></div>
-  <ProductTiles products={[...b.perProduct].sort((x, y) => y.views - x.views)} currency={cur} focus={filters.reflet} mode="journey" />
+  <section class="grid grid-3">
+    <div class="card tbl-card span-2">
+      <div class="card-head"><h2 class="card-title">Les accords du parfumeur <Tip of="accords" /></h2><p class="card-note">écoutés, « Ajouter les deux », ajouts depuis le panier, carte</p></div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Accord</th><th>Les deux Reflets</th><th class="num">Écoutes</th><th class="num">Jusqu'au bout</th><th class="num">Ajouter les deux</th><th class="num">Depuis le panier</th><th class="num">Sur la carte</th></tr></thead>
+          <tbody>
+            {
+              j.accords.map((a) => (
+                <tr>
+                  <td class="lead">{a.name}</td>
+                  <td>
+                    <span class="items">
+                      <span class="items-stack">{a.pair.map((pr) => <ProductThumb image={pr.image} name={pr.name} size={28} />)}</span>
+                      <span class="items-text muted">{a.pair.map((pr) => pr.name).join(" + ")}</span>
+                    </span>
+                  </td>
+                  <td class="num">{fmtInt(a.plays)}</td>
+                  <td class="num muted">{a.plays ? fmtPct(a.completes, a.plays) : "–"}</td>
+                  <td class="num strong">{fmtInt(a.addsBoth)}</td>
+                  <td class="num strong">{fmtInt(a.cartAdds)}</td>
+                  <td class="num muted">{fmtInt(a.mapPairs)}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Ceux qui parlent à Luma <Tip of="lumaConversion" /></h2><a class="card-note" href={`/admin/luma?${range.query}`}>Luma →</a></div>
+      {
+        k.lumaTalkers ? (
+          <div class="kpis kpis-luma">
+            <div class="kpi"><span class="kpi-label">Ont parlé à Luma</span><span class="kpi-value">{fmtInt(k.lumaTalkers)}</span><span class="kpi-sub">{fmtPct(k.lumaTalkers, k.visitors)} des visiteurs</span></div>
+            <div class="kpi kpi-rose"><span class="kpi-label">Convertissent</span><span class="kpi-value">{pct(k.lumaConversion)}</span><span class="kpi-sub">contre {pct(k.otherConversion)} pour les autres</span></div>
+            <div class="kpi"><span class="kpi-label">Recommandations suivies <Tip of="lumaFollowed" /></span><span class="kpi-value">{k.lumaRecommendations ? fmtPct(k.lumaFollowed, k.lumaRecommendations) : "–"}</span><span class="kpi-sub">{fmtInt(k.lumaFollowed)} sur {fmtInt(k.lumaRecommendations)}</span></div>
+            <div class="kpi"><span class="kpi-label">Chiffre après Luma</span><span class="kpi-value">{fmtMoneyShort(k.lumaRevenue)}<span class="unit">{cur}</span></span><span class="kpi-sub">{fmtInt(k.lumaOrders)} commande{k.lumaOrders > 1 ? "s" : ""}</span></div>
+          </div>
+        ) : (
+          <p class="note">{fmtInt(j.lumaSessions)} conversation{j.lumaSessions > 1 ? "s" : ""} sur la période. Le lien entre une conversation et un parcours existe pour celles ouvertes depuis le 14 septembre : dès les premières, on saura si parler à Luma fait acheter davantage, et si ses recommandations sont suivies.</p>
+        )
+      }
+    </div>
+  </section>
 
-  <p class="card-foot">Un visiteur = un identifiant anonyme posé par le navigateur (cookie mr_anon) ; sa source est celle de sa première page sur la période. Pas de cookie, pas de visiteur : GA4 et Meta restent les références publicitaires.</p>
+  <p class="card-foot">Un visiteur = un identifiant anonyme posé par le navigateur (cookie mr_anon), jamais d'adresse IP ; sa source est celle de sa première page sur la période. Événements suivis depuis le {j.tracked.since ? fmtDate(j.tracked.since) : "—"}. GA4 et Meta restent les références publicitaires.</p>
 
-  {b.sources.map((s) => <SourceModal source={s} currency={cur} />)}
-  {b.countries.map((c) => <CountryModal country={c} currency={cur} />)}
-  {b.perProduct.map((p) => <ProductModal product={p} currency={cur} totalRevenue={k.revenue} />)}
-  <DaysModal byDay={b.byDay} currency={cur} rangeLabel={range.label} />
+  {j.perProduct.map((p) => <ProductModal product={p} currency={cur} totalRevenue={j.perProduct.reduce((n, x) => n + x.revenue, 0)} />)}
+  {j.sources.map((s) => <SourceModal source={s} currency={cur} />)}
+  {j.countries.map((c) => <CountryModal country={c} currency={cur} />)}
+  <JourneyDaysModal byDay={j.byDay} rangeLabel={range.label} />
 </AdminLayout>
 
 <style>
-  .paths :global(.hbar) { grid-template-columns: minmax(120px, 2fr) minmax(50px, 1fr) 40px; }
-  .paths :global(.hbar-text) { font-size: 12px; font-variant-numeric: tabular-nums; }
+  .spaced { margin-top: 16px; }
+  .card-note :global(.tip) { vertical-align: baseline; }
+  .kpis-luma { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .kpis-luma .kpi-value { font-size: 26px; }
+  .tbl tr.is-hl td { background: rgba(129, 37, 56, 0.05); }
 </style>

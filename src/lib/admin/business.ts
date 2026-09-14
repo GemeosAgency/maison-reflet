@@ -1004,7 +1004,84 @@ export async function journey(range: Range, f: Filters = {}) {
     { label: "Commande", value: now.orders },
   ];
 
-  return { range, previousRange: prev, filters: f, catalog, currency: cur.currency, facets: cur.facets, perProduct: cur.perProduct, tracked: cur.tracked, kpis: now, previous: before, lumaSessions: ctx.luma.sessions.length, funnel, series, byDay, heat: cur.heat, topPages, landingPages, exitPages, sequences, depth, guideFilters, guideVisitors, mapSelects, mapPairs, menu, samplePicks, listens, accords };
+  return {
+    range,
+    previousRange: prev,
+    filters: f,
+    catalog,
+    currency: cur.currency,
+    facets: cur.facets,
+    perProduct: cur.perProduct,
+    tracked: cur.tracked,
+    kpis: now,
+    previous: before,
+    // Le business de la même période, pour la moitié « d'où ils viennent » de la page Trafic & sources.
+    biz: cur.kpis,
+    previousBiz: p.kpis,
+    sources: cur.sources,
+    channels: cur.channels,
+    campaigns: cur.campaigns,
+    countries: cur.countries,
+    cities: cur.cities,
+    devices: cur.devices,
+    locales: cur.locales,
+    seriesCheckouts: cur.series.checkouts,
+    lumaSessions: ctx.luma.sessions.length,
+    funnel,
+    series,
+    byDay,
+    heat: cur.heat,
+    topPages,
+    landingPages,
+    exitPages,
+    sequences,
+    depth,
+    guideFilters,
+    guideVisitors,
+    mapSelects,
+    mapPairs,
+    menu,
+    samplePicks,
+    listens,
+    accords,
+  };
+}
+
+/* ------------------------------------------------------------------ l'état du suivi (page RGPD & suivi) */
+export async function trackingStatus() {
+  const db = adminDb();
+  const one = async (table: string, order: string, filter?: (q: any) => any) => {
+    try {
+      let q = db.from(table).select("created_at").order(order, { ascending: true }).limit(1);
+      if (filter) q = filter(q);
+      const { data } = await q;
+      return (data?.[0] as { created_at: string } | undefined)?.created_at ?? null;
+    } catch {
+      return null;
+    }
+  };
+  const count = async (table: string, filter?: (q: any) => any) => {
+    try {
+      let q = db.from(table).select("id", { count: "exact", head: true });
+      if (filter) q = filter(q);
+      const { count: n } = await q;
+      return n ?? 0;
+    } catch {
+      return 0;
+    }
+  };
+  const [firstEvent, firstOrder, events, orders, testOrders, unlinked, cancelled, withCity, lumaLinked] = await Promise.all([
+    one("site_events", "id"),
+    one("shop_orders", "created_at", (q) => q.eq("test", false)),
+    count("site_events"),
+    count("shop_orders", (q) => q.eq("test", false)),
+    count("shop_orders", (q) => q.eq("test", true)),
+    count("shop_orders", (q) => q.eq("test", false).is("anon_id", null)),
+    count("shop_orders", (q) => q.not("cancelled_at", "is", null)),
+    count("site_events", (q) => q.not("city", "is", null)),
+    count("luma_sessions", (q) => q.gte("created_at", "2026-09-14T00:00:00Z")),
+  ]);
+  return { firstEvent, firstOrder, events, orders, testOrders, unlinked, cancelled, withCity, lumaLinked };
 }
 
 /* ------------------------------------------------------------------ en direct */

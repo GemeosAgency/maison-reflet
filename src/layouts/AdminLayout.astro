@@ -15,7 +15,7 @@ import { RANGES, type Range, rangeForDays } from "../lib/admin/data";
 
 interface Props {
   title: string;
-  section: "overview" | "ventes" | "trafic" | "live" | "luma" | "conversations" | "questions" | "reflets" | "site" | "rgpd";
+  section: "overview" | "ventes" | "trafic" | "live" | "luma" | "conversations" | "questions" | "rgpd";
   admin: { email: string };
   range?: Range;
   subtitle?: string;
@@ -23,12 +23,13 @@ interface Props {
 }
 const { title, section, admin, range = rangeForDays(30), subtitle, showRange = true } = Astro.props;
 
+// Neuf pages, un rôle chacune, aucun bloc en double (redécoupage du 14 septembre avec Sandro).
 const groups = [
   {
     label: "Business",
     items: [
       { key: "overview", href: "/admin", label: "Vue d'ensemble" },
-      { key: "ventes", href: "/admin/ventes", label: "Ventes & paniers" },
+      { key: "ventes", href: "/admin/ventes", label: "Ventes" },
       { key: "trafic", href: "/admin/trafic", label: "Trafic & sources" },
       { key: "live", href: "/admin/live", label: "En direct", live: true },
     ],
@@ -36,18 +37,14 @@ const groups = [
   {
     label: "Luma",
     items: [
-      { key: "luma", href: "/admin/luma", label: "Vue Luma" },
+      { key: "luma", href: "/admin/luma", label: "Luma" },
       { key: "conversations", href: "/admin/conversations", label: "Conversations" },
       { key: "questions", href: "/admin/questions", label: "Questions" },
-      { key: "reflets", href: "/admin/reflets", label: "Reflets & accords" },
     ],
   },
   {
-    label: "Site & données",
-    items: [
-      { key: "site", href: "/admin/site", label: "Parcours sur le site" },
-      { key: "rgpd", href: "/admin/rgpd", label: "RGPD" },
-    ],
+    label: "Données",
+    items: [{ key: "rgpd", href: "/admin/rgpd", label: "RGPD & suivi" }],
   },
 ] as const;
 
@@ -430,6 +427,19 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   .section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 10px 0 -6px; }
   .section-title h2 { margin: 0; font-size: 20px; font-weight: 400; letter-spacing: -0.01em; }
   .section-title p { margin: 0; font-size: 12px; color: var(--muted); }
+  .section-title.is-major { margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--line); }
+  .section-title.is-major h2 { font-size: 24px; }
+  .anchors { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 100px; background: var(--paper); }
+  .anchors a { padding: 6px 14px; border-radius: 100px; font-size: 13px; color: var(--muted); }
+  .anchors a:hover { color: var(--ink); background: rgba(21, 14, 10, 0.04); }
+  .pt-list { display: grid; grid-template-columns: 1fr; gap: 4px; }
+  .pt-row { display: grid; grid-template-columns: 36px minmax(120px, 1fr) auto; align-items: center; gap: 14px; width: 100%; padding: 6px 8px; margin: 0 -8px; border: 0; border-radius: 10px; background: none; text-align: start; color: inherit; cursor: pointer; }
+  .pt-row:hover { background: rgba(21, 14, 10, 0.045); }
+  .pt-name { font-weight: 500; font-size: 14px; }
+  .pt-sub { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+  .pt-stats { display: grid; grid-template-columns: repeat(4, 64px); gap: 8px; text-align: end; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .pt-stats b { display: block; font-weight: 400; color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; }
+  @media (min-width: 1700px) { .pt-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 24px; } }
 
   /* ---- indicateurs ---- */
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
@@ -437,7 +447,7 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   .kpi-click { cursor: pointer; transition: border-color 0.15s ease; }
   .kpi-click:hover, .kpi-click:focus-visible { border-color: var(--line-strong); outline: none; }
   .kpi-label { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-  .kpi-value { font-size: 34px; font-weight: 400; line-height: 1; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
+  .kpi-value { font-size: 32px; font-weight: 400; line-height: 1; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .kpi-value .unit { font-size: 14px; color: var(--muted); margin-inline-start: 6px; letter-spacing: 0.04em; }
   .kpi-foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; font-size: 12px; color: var(--muted); }
   .kpi-sub { font-size: 12px; color: var(--muted); }
