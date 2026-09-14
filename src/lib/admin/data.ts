@@ -113,7 +113,7 @@ export type SignalRow = {
   wears_today: string | null;
   updated_at: string;
 };
-export type SiteEventRow = { id: number; anon_id: string; name: string; props: Record<string, unknown>; path: string | null; locale: string | null; country: string | null; created_at: string };
+export type SiteEventRow = { id: number; anon_id: string; name: string; props: Record<string, unknown>; path: string | null; locale: string | null; country: string | null; city?: string | null; created_at: string };
 export type AuditRow = { id: number; actor: string; action: string; target: string | null; details: Record<string, unknown>; created_at: string };
 
 /* --------------------------------------------------------------- lecture */

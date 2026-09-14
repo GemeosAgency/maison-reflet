@@ -28,10 +28,13 @@ export const prerender = false;
  * passager côté Meta ou GA4.
  *
  * À CONFIGURER (Shopify Admin → Settings → Notifications → Webhooks) :
- *  - créer un webhook "Order payment" (orders/paid) vers
- *    https://maisonreflet.com/api/webhooks/shopify-orders
+ *  - créer TROIS webhooks vers https://maisonreflet.com/api/webhooks/shopify-orders
+ *    (format JSON) : « Paiement de commande » (orders/paid), « Création de
+ *    remboursement » (refunds/create), « Annulation de commande » (orders/cancelled) ;
  *  - copier la clé de signature affichée en bas de la page des webhooks dans
  *    SHOPIFY_WEBHOOK_SECRET (voir .env.example).
+ * Les remboursements et annulations n'alimentent que la tour de contrôle
+ * (chiffre net) ; Meta et GA4 ne reçoivent que le Purchase.
  */
 
 const PIXEL_ID = import.meta.env.PUBLIC_META_PIXEL_ID;
@@ -101,6 +104,9 @@ type ShopifyOrderWebhook = {
   email?: string | null;
   contact_email?: string | null;
   financial_status?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
+  payment_gateway_names?: string[];
   total_price?: string;
   subtotal_price?: string;
   total_discounts?: string;
@@ -212,9 +218,45 @@ async function persistOrder(order: ShopifyOrderWebhook): Promise<void> {
     lines,
     anon_id: anon,
     ga_client: ga,
+    cancelled_at: order.cancelled_at ?? null,
+    gateway: (order.payment_gateway_names ?? []).filter(Boolean).join(", ") || null,
   };
+  // Seules les colonnes fournies sont écrites : les remboursements déjà posés restent.
   const { error } = await adminDb().from("shop_orders").upsert(row, { onConflict: "id" });
   if (error) console.error("[webhooks/shopify-orders] shop_orders :", error.message);
+}
+
+// Le payload refunds/create : le remboursement, pas la commande.
+type ShopifyRefundWebhook = {
+  id?: number;
+  order_id?: number;
+  created_at?: string | null;
+  transactions?: { amount?: string; kind?: string; status?: string }[];
+  refund_line_items?: { subtotal?: string }[];
+};
+
+/**
+ * Un remboursement s'ajoute à la commande (colonne refunds, [{id, amount, at}]) ;
+ * le chiffre net de la tour de contrôle = total − remboursements. Idempotent
+ * sur l'id du remboursement (rejeux Shopify). Une commande inconnue (passée
+ * avant le webhook) est simplement ignorée.
+ */
+async function recordRefund(refund: ShopifyRefundWebhook): Promise<void> {
+  if (!refund.id || !refund.order_id) return;
+  const fromTransactions = (refund.transactions ?? []).filter((t) => t.kind === "refund" && (t.status ?? "success") === "success").reduce((n, t) => n + money(t.amount), 0);
+  const amount = fromTransactions || (refund.refund_line_items ?? []).reduce((n, l) => n + money(l.subtotal), 0);
+  const db = adminDb();
+  const { data, error } = await db.from("shop_orders").select("refunds").eq("id", refund.order_id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) {
+    console.warn(`[webhooks/shopify-orders] remboursement ${refund.id} pour une commande inconnue (${refund.order_id}).`);
+    return;
+  }
+  const refunds: { id: number; amount: number; at: string }[] = Array.isArray(data.refunds) ? data.refunds : [];
+  if (refunds.some((r) => r.id === refund.id)) return;
+  refunds.push({ id: refund.id, amount, at: refund.created_at ?? new Date().toISOString() });
+  const { error: upError } = await db.from("shop_orders").update({ refunds }).eq("id", refund.order_id);
+  if (upError) throw new Error(upError.message);
 }
 
 export const POST: APIRoute = async ({ request }) => {
@@ -237,17 +279,38 @@ export const POST: APIRoute = async ({ request }) => {
   // pas traiter : un non-200 fait rejouer Shopify pour rien, et des échecs
   // répétés finissent par faire SUPPRIMER le webhook par Shopify.
   const topic = request.headers.get("x-shopify-topic");
-  if (topic !== "orders/paid") {
-    return json({ ok: true, skipped: `topic ${topic ?? "inconnu"}` }, 200);
-  }
-
-  let order: ShopifyOrderWebhook;
+  let payload: unknown;
   try {
-    order = JSON.parse(rawBody);
+    payload = JSON.parse(rawBody);
   } catch {
     return json({ ok: true, skipped: "corps illisible" }, 200);
   }
 
+  // Remboursement : la tour de contrôle seulement (chiffre net).
+  if (topic === "refunds/create") {
+    try {
+      await recordRefund(payload as ShopifyRefundWebhook);
+    } catch (error) {
+      console.error("[webhooks/shopify-orders] remboursement :", error);
+    }
+    return json({ ok: true, topic }, 200);
+  }
+  // Annulation : la commande complète revient avec cancelled_at ; on la (re)pose telle quelle.
+  if (topic === "orders/cancelled") {
+    const cancelled = payload as ShopifyOrderWebhook;
+    if (!cancelled.id) return json({ ok: true, skipped: "commande sans id" }, 200);
+    try {
+      await persistOrder(cancelled);
+    } catch (error) {
+      console.error("[webhooks/shopify-orders] annulation :", error);
+    }
+    return json({ ok: true, topic }, 200);
+  }
+  if (topic !== "orders/paid") {
+    return json({ ok: true, skipped: `topic ${topic ?? "inconnu"}` }, 200);
+  }
+
+  const order = payload as ShopifyOrderWebhook;
   if (!order.id) return json({ ok: true, skipped: "commande sans id" }, 200);
 
   // La tour de contrôle d'abord : la commande est posée chez nous quoi qu'il

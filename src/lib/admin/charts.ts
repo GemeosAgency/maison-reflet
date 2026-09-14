@@ -174,6 +174,19 @@ export function funnelSteps(steps: { label: string; value: number }[], fmt: (n: 
     .join("")}</ol>`;
 }
 
+/** Une carte de chaleur 7 jours × 24 heures (Dubaï) : plus la case est foncée, plus la valeur est forte. */
+export function heatmap(matrix: number[][], opts: { color?: string; format?: (v: number) => string } = {}): string {
+  const rgb = opts.color ?? "129, 37, 56";
+  const fmt = opts.format ?? ((v: number) => String(v));
+  const days = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  const max = Math.max(1, ...matrix.flat());
+  const hours = Array.from({ length: 24 }, (_, h) => `<span class="heat-hour">${h % 3 === 0 ? `${h}h` : ""}</span>`).join("");
+  const rows = matrix
+    .map((row, d) => `<span class="heat-day">${days[d]}</span>${row.map((v, h) => `<span class="heat-cell" style="background:rgba(${rgb},${v > 0 ? (0.12 + 0.88 * (v / max)).toFixed(2) : "0.04"})" title="${esc(days[d])} ${h}h–${h + 1}h : ${esc(fmt(v))}"></span>`).join("")}`)
+    .join("");
+  return `<div class="heat" role="img" aria-label="Carte de chaleur par jour et heure"><span class="heat-corner"></span>${hours}${rows}</div>`;
+}
+
 /** Une barre segmentée avec sa légende (paniers, canaux). */
 export function stackBar(parts: { label: string; value: number; color: string; text?: string; modal?: string }[]): string {
   const total = parts.reduce((n, p) => n + p.value, 0);

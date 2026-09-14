@@ -967,6 +967,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     const variantId = btn?.dataset.sampleVariant;
     if (!variantId || !currentCart) return;
     sampleOptionsList.setAttribute("hidden", "");
+    // Tour de contrôle : l'échantillon offert choisi — ce que les gens veulent sentir ensuite.
+    trackSite("sample_pick", { handle: sampleOptions.find((s) => s.variantId === variantId)?.productHandle ?? null });
 
     /*
      * Le choix s'affiche IMMÉDIATEMENT. Avant, on attendait l'aller-retour

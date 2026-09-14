@@ -22,7 +22,7 @@ const money = (n: number) => fmtMoney(n, currency);
     <ProductThumb image={p.image} name={p.name} size={120} ratio="portrait" />
     <div class="kpis">
       <Kpi label="Chiffre d'affaires" value={fmtMoneyShort(p.revenue)} unit={currency} tone="rose" />
-      <Kpi label="Flacons" value={fmtInt(p.units)} sub={`${fmtInt(p.orders)} commande${p.orders > 1 ? "s" : ""}`} />
+      <Kpi label={p.kind === "coffret" ? "Coffrets" : "Flacons"} value={fmtInt(p.units)} sub={`${fmtInt(p.orders)} commande${p.orders > 1 ? "s" : ""}${p.samples ? ` · ${fmtInt(p.samples)} échantillon${p.samples > 1 ? "s" : ""} payant${p.samples > 1 ? "s" : ""}` : ""}`} tip={p.samples ? "samples" : undefined} />
       <Kpi label="Fiches vues" value={fmtInt(p.views)} tip="views" />
       <Kpi label="Ajouts" value={fmtInt(p.adds)} tip="adds" />
       <Kpi label="Fiche → achat" value={p.views ? fmtPct(p.orders, p.views) : "–"} tip="productConversion" />

@@ -13,7 +13,8 @@ import CartsTable from "../../components/admin/CartsTable.astro";
 import { readSession } from "../../lib/admin/auth";
 import { parseRange, fmtInt, fmtPct } from "../../lib/admin/data";
 import { business, parseFilters, fmtMoney, fmtMoneyShort, delta } from "../../lib/admin/business";
-import { timeChart, hbars } from "../../lib/admin/charts";
+import { timeChart, hbars, donut, heatmap } from "../../lib/admin/charts";
+import ModalTemplate from "../../components/admin/ModalTemplate.astro";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
@@ -33,8 +34,9 @@ const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value
   <FilterBar slot="filters" filters={filters} facets={b.facets} range={range} />
 
   <section class="kpis">
-    <Kpi tone="rose" label="Chiffre d'affaires" tip="revenue" value={fmtMoneyShort(k.revenue)} unit={cur} delta={delta(k.revenue, pk.revenue)} sub="TTC, livraison comprise" />
-    <Kpi label="Commandes" tip="orders" value={fmtInt(k.orders)} delta={delta(k.orders, pk.orders)} sub={`${fmtInt(k.units)} flacon${k.units > 1 ? "s" : ""}`} />
+    <Kpi tone="rose" label="Chiffre net" tip="revenue" value={fmtMoneyShort(k.revenue)} unit={cur} delta={delta(k.revenue, pk.revenue)} sub={k.refunded ? `brut ${money(k.revenueGross)} · remboursé ${money(k.refunded)}` : "TTC, livraison comprise, rien de remboursé"} />
+    <Kpi label="Commandes" tip="orders" value={fmtInt(k.orders)} delta={delta(k.orders, pk.orders)} sub={`${fmtInt(k.units)} flacon${k.units > 1 ? "s" : ""} ou coffret${k.units > 1 ? "s" : ""}${k.samples ? ` · ${fmtInt(k.samples)} échantillon${k.samples > 1 ? "s" : ""}` : ""}`} />
+    <Kpi label="Annulées" tip="cancelled" value={fmtInt(k.cancelled)} sub={k.cancelled ? `${money(k.cancelledTotal)} écartés du chiffre` : "aucune sur la période"} modal={k.cancelled ? "cancelled" : undefined} />
     <Kpi label="Panier moyen" tip="aov" value={k.aov === null ? "–" : fmtMoneyShort(k.aov)} unit={k.aov === null ? undefined : cur} delta={delta(k.aov, pk.aov)} sub={k.orders ? `${(k.units / k.orders).toFixed(1).replace(".", ",")} flacon par commande` : undefined} />
     <Kpi label="Par acheteur" tip="aovPerBuyer" value={k.aovPerBuyer === null ? "–" : fmtMoneyShort(k.aovPerBuyer)} unit={k.aovPerBuyer === null ? undefined : cur} delta={delta(k.aovPerBuyer, pk.aovPerBuyer)} sub={`${fmtInt(k.buyers)} acheteur${k.buyers > 1 ? "s" : ""} distinct${k.buyers > 1 ? "s" : ""}`} />
     <Kpi label="Panier moyen, tous paniers" tip="avgCart" value={k.avgCart === null ? "–" : fmtMoneyShort(k.avgCart)} unit={k.avgCart === null ? undefined : cur} delta={delta(k.avgCart, pk.avgCart)} sub={`${fmtInt(k.cartsCount)} panier${k.cartsCount > 1 ? "s" : ""}, payés ou non`} />
@@ -63,15 +65,29 @@ const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value
     <CartsTable carts={b.abandonedCarts} />
   </section>
 
-  <section class="grid grid-2">
+  <section class="grid grid-3">
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Pays, par chiffre d'affaires</h2><p class="card-note">commandes · chiffre — un clic ouvre le pays</p></div>
+      <div class="card-head"><h2 class="card-title">Pays, par chiffre</h2><p class="card-note">commandes · chiffre — un clic ouvre le pays</p></div>
       <Fragment set:html={hbars(countryRows)} />
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Formats et paiement <Tip of="formats" /></h2><p class="card-note">ce qui se vend, comment c'est payé</p></div>
+      <div class="donut-row">
+        <Fragment set:html={donut(b.formats, { size: 100 })} />
+        <ul class="legend">{b.formats.map((d) => <li><span class="dot" style={`background:${d.color}`}></span><span class="legend-label">{d.label}</span><span class="legend-num">{fmtInt(d.value)}</span></li>)}</ul>
+      </div>
+      <p class="modal-section-title spaced">Modes de paiement <Tip of="gateway" /></p>
+      <Fragment set:html={hbars(b.gateways.map((g) => ({ label: g.label, value: g.count, text: `${fmtInt(g.count)} · ${fmtPct(g.count, k.orders)}` })))} />
     </div>
     <div class="card">
       <div class="card-head"><h2 class="card-title">Codes de réduction <Tip of="discounts" /></h2><p class="card-note">commandes · remise</p></div>
       <Fragment set:html={hbars(codeRows)} />
     </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2 class="card-title">Quand ils commandent <Tip of="heatOrders" /></h2><p class="card-note">commandes payées par heure de Dubaï et jour de semaine</p></div>
+    <Fragment set:html={heatmap(b.heat.orders, { format: (v) => `${v} commande${v > 1 ? "s" : ""}` })} />
   </section>
 
   <section class="card tbl-card">
@@ -82,4 +98,11 @@ const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value
   {b.perProduct.map((p) => <ProductModal product={p} currency={cur} totalRevenue={k.revenue} />)}
   {b.countries.map((c) => <CountryModal country={c} currency={cur} />)}
   <DaysModal byDay={b.byDay} currency={cur} rangeLabel={range.label} />
+  <ModalTemplate id="cancelled" title="Commandes annulées" subtitle={`${fmtInt(k.cancelled)} commande${k.cancelled > 1 ? "s" : ""} · ${money(k.cancelledTotal)} écartés du chiffre · ${range.label}`} wide>
+    <div class="card tbl-card"><OrdersTable orders={b.cancelledOrders} showDiscount empty="Aucune commande annulée sur la période." /></div>
+  </ModalTemplate>
 </AdminLayout>
+
+<style>
+  .spaced { margin-top: 16px; }
+</style>

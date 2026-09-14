@@ -16,7 +16,7 @@ import ProductThumb from "../../components/admin/ProductThumb.astro";
 import JourneyDaysModal from "../../components/admin/JourneyDaysModal.astro";
 import { readSession } from "../../lib/admin/auth";
 import { parseRange, fmtInt, fmtPct, fmtDate, fmtDuration } from "../../lib/admin/data";
-import { journey, parseFilters, delta, thumb } from "../../lib/admin/business";
+import { journey, parseFilters, delta, thumb, fmtMoneyShort } from "../../lib/admin/business";
 import { timeChart, hbars, funnelSteps, donut } from "../../lib/admin/charts";
 export const prerender = false;
 
@@ -37,13 +37,14 @@ const depthRows = j.depth.map((d) => ({ label: d.label, value: d.count, text: fm
 const guideRows = j.guideFilters.map((g) => ({ label: g.label, value: g.count, text: fmtInt(g.count) }));
 const mapRows = j.mapSelects.map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), modal: `product:${m.handle}` }));
 const menuRows = j.menu.map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), modal: `product:${m.handle}` }));
+const sampleRows = j.samplePicks.map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), color: "var(--warn)", modal: `product:${m.handle}` }));
 const listenRows = j.listens.perReflet.map((l) => ({ label: l.name, prefix: thumbPrefix(l.image), value: l.plays, text: `${fmtInt(l.plays)}${l.plays ? ` · ${fmtPct(l.completes, l.plays)} au bout` : ""}`, color: "var(--rose)", modal: `product:${l.handle}` }));
 const sourceRows = j.listens.bySource.map((s) => ({ label: s.label, value: s.count, text: fmtPct(s.count, j.listens.total) }));
 const subtitle = j.tracked.since ? `Ce que les visiteurs font, dans l'ordre où ils le font · ${range.label}.` : "En attente des premières visites suivies.";
 ---
 
 <AdminLayout title="Parcours sur le site" section="site" admin={admin} range={range} subtitle={subtitle}>
-  <FilterBar slot="filters" filters={filters} facets={j.facets} range={range} />
+  <FilterBar slot="filters" filters={filters} facets={j.facets} range={range} testToggle={false} />
 
   <section class="kpis">
     <Kpi label="Visiteurs" tip="visitors" value={fmtInt(k.visitors)} delta={delta(k.visitors, pk.visitors)} sub={`${fmtInt(k.returning)} revenu${k.returning > 1 ? "s" : ""} au moins une fois`} modal="days" />
@@ -52,6 +53,22 @@ const subtitle = j.tracked.since ? `Ce que les visiteurs font, dans l'ordre où 
     <Kpi label="Rebond" tip="bounce" value={pct(k.bounceRate)} delta={delta(k.bounceRate, pk.bounceRate)} deltaInvert sub="une seule page vue" />
     <Kpi tone="rose" label="Écoutes" tip="listens" value={fmtInt(k.plays)} delta={delta(k.plays, pk.plays)} sub={`${fmtInt(k.listeners)} visiteur${k.listeners > 1 ? "s" : ""} · ${k.plays ? fmtPct(k.completes, k.plays) : "–"} jusqu'au bout`} />
     <Kpi label="Conversations Luma" tip="lumaSessions" value={fmtInt(j.lumaSessions)} sub={k.visitors ? `${fmtPct(j.lumaSessions, k.visitors)} des visiteurs` : undefined} />
+  </section>
+
+  <section class="card luma-card">
+    <div class="card-head"><h2 class="card-title">Ceux qui parlent à Luma <Tip of="lumaConversion" /></h2><a class="card-note" href={`/admin/luma?${range.query}`}>La vue Luma →</a></div>
+    {
+      k.lumaTalkers ? (
+        <div class="kpis kpis-luma">
+          <div class="kpi"><span class="kpi-label">Ont parlé à Luma</span><span class="kpi-value">{fmtInt(k.lumaTalkers)}</span><span class="kpi-sub">{fmtPct(k.lumaTalkers, k.visitors)} des visiteurs</span></div>
+          <div class="kpi kpi-rose"><span class="kpi-label">Convertissent</span><span class="kpi-value">{pct(k.lumaConversion)}</span><span class="kpi-sub">contre {pct(k.otherConversion)} pour les autres</span></div>
+          <div class="kpi"><span class="kpi-label">Recommandations suivies <Tip of="lumaFollowed" /></span><span class="kpi-value">{k.lumaRecommendations ? fmtPct(k.lumaFollowed, k.lumaRecommendations) : "–"}</span><span class="kpi-sub">{fmtInt(k.lumaFollowed)} sur {fmtInt(k.lumaRecommendations)}</span></div>
+          <div class="kpi"><span class="kpi-label">Chiffre après Luma</span><span class="kpi-value">{fmtMoneyShort(k.lumaRevenue)}<span class="unit">{j.currency}</span></span><span class="kpi-sub">{fmtInt(k.lumaOrders)} commande{k.lumaOrders > 1 ? "s" : ""}</span></div>
+        </div>
+      ) : (
+        <p class="note">Le lien entre une conversation et un parcours existe pour les conversations ouvertes depuis le 14 septembre : dès les premières, on saura si parler à Luma fait acheter davantage, et si ses recommandations sont suivies.</p>
+      )
+    }
   </section>
 
   <section class="grid grid-3">
@@ -112,6 +129,8 @@ const subtitle = j.tracked.since ? `Ce que les visiteurs font, dans l'ordre où 
     <div class="card">
       <div class="card-head"><h2 class="card-title">Le menu <Tip of="menu" /></h2><p class="card-note">Reflets mis en avant</p></div>
       <Fragment set:html={hbars(menuRows.filter((r) => r.value > 0))} />
+      <p class="modal-section-title spaced">L'échantillon offert <Tip of="samplePick" /></p>
+      <Fragment set:html={hbars(sampleRows)} />
       <p class="modal-section-title spaced">Profondeur des visites <Tip of="depth" /></p>
       <Fragment set:html={hbars(depthRows)} />
     </div>
@@ -167,4 +186,7 @@ const subtitle = j.tracked.since ? `Ce que les visiteurs font, dans l'ordre où 
 <style>
   .spaced { margin-top: 16px; }
   .card-note :global(.tip) { vertical-align: baseline; }
+  .kpis-luma { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .kpis-luma :global(.kpi-value) { font-size: 28px; }
+  @media (max-width: 900px) { .kpis-luma { grid-template-columns: 1fr 1fr; } }
 </style>

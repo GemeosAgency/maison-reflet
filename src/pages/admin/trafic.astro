@@ -12,7 +12,7 @@ import ProductModal from "../../components/admin/ProductModal.astro";
 import { readSession } from "../../lib/admin/auth";
 import { parseRange, fmtInt, fmtPct, fmtDate } from "../../lib/admin/data";
 import { business, parseFilters, fmtMoney, fmtMoneyShort, delta, CHANNEL_COLORS } from "../../lib/admin/business";
-import { timeChart, hbars, donut, funnelSteps } from "../../lib/admin/charts";
+import { timeChart, hbars, donut, funnelSteps, heatmap } from "../../lib/admin/charts";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
@@ -34,7 +34,7 @@ const perDay = k.visitors ? (b.series.visitors.reduce((n, d) => n + d.value, 0) 
 ---
 
 <AdminLayout title="Trafic & sources" section="trafic" admin={admin} range={range} subtitle={b.tracked.since ? `Visites anonymes suivies depuis le ${fmtDate(b.tracked.since)} : d'où elles viennent et ce qu'elles deviennent · ${range.label}.` : "En attente des premières visites suivies."}>
-  <FilterBar slot="filters" filters={filters} facets={b.facets} range={range} />
+  <FilterBar slot="filters" filters={filters} facets={b.facets} range={range} testToggle={false} />
 
   <section class="kpis">
     <Kpi label="Visiteurs" tip="visitors" value={fmtInt(k.visitors)} delta={delta(k.visitors, pk.visitors)} sub={`${perDay} par jour`} modal="days" />
@@ -121,6 +121,17 @@ const perDay = k.visitors ? (b.series.visitors.reduce((n, d) => n + d.value, 0) 
     <div class="card">
       <div class="card-head"><h2 class="card-title">Pages les plus vues <Tip of="topPages" /></h2></div>
       <div class="paths"><Fragment set:html={hbars(pageRows)} /></div>
+    </div>
+  </section>
+
+  <section class="grid grid-3">
+    <div class="card span-2">
+      <div class="card-head"><h2 class="card-title">Quand ils viennent <Tip of="heatVisits" /></h2><p class="card-note">visiteurs distincts par heure de Dubaï et jour de semaine</p></div>
+      <Fragment set:html={heatmap(b.heat.visits, { color: "21, 14, 10", format: (v) => `${v} visiteur${v > 1 ? "s" : ""}` })} />
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Villes <Tip of="city" /></h2><p class="card-note">visiteurs</p></div>
+      <Fragment set:html={hbars(b.cities.map((c) => ({ label: c.label, value: c.count, text: fmtInt(c.count) })))} />
     </div>
   </section>
 

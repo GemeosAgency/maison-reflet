@@ -193,8 +193,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     isShippedCountry(cookieCountry) ? cookieCountry : request.headers.get("x-vercel-ip-country")
   );
 
-  // Session : cookie first-party opaque, 30 jours, jamais lisible par un script.
-  const anonId = cookies.get(SESSION_COOKIE)?.value || crypto.randomUUID();
+  // Session : le même identifiant anonyme que le reste du site (mr_anon, envoyé
+  // en X-Anon par le widget) pour que la tour de contrôle relie une conversation
+  // à un parcours et à une commande ; sinon le cookie first-party opaque,
+  // 30 jours, jamais lisible par un script. Le cookie est réaligné à chaque tour.
+  const headerAnon = request.headers.get("x-anon") ?? "";
+  // « anonymous-visitor » est le repli du site quand le stockage local est bloqué : partagé par tous, donc jamais accepté ici.
+  const anonId = (/^[A-Za-z0-9_-]{8,64}$/.test(headerAnon) && headerAnon !== "anonymous-visitor" ? headerAnon : cookies.get(SESSION_COOKIE)?.value) || crypto.randomUUID();
   cookies.set(SESSION_COOKIE, anonId, {
     path: "/",
     maxAge: SESSION_COOKIE_MAX_AGE,

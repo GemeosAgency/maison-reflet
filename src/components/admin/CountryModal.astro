@@ -25,6 +25,10 @@ const { country: c, currency } = Astro.props;
       <Fragment set:html={hbars(c.detail.products.map((p) => ({ label: p.label, value: p.count, text: fmtInt(p.count), color: "var(--rose)" })))} />
     </div>
     <div class="card">
+      <div class="card-head"><h3 class="card-title">Villes</h3><p class="card-note">visiteurs, d'après l'infrastructure</p></div>
+      <Fragment set:html={hbars(c.detail.cities.map((s) => ({ label: s.label, value: s.count, text: fmtInt(s.count), color: "var(--ink)" })))} />
+    </div>
+    <div class="card">
       <div class="card-head"><h3 class="card-title">D'où viennent ses visiteurs</h3></div>
       <Fragment set:html={hbars(c.detail.sources.map((s) => ({ label: s.label, value: s.count, text: fmtInt(s.count) })))} />
     </div>

@@ -65,7 +65,7 @@ const initial = await live().catch(() => null);
 <script>
   import createGlobe, { type Marker } from "cobe";
 
-  type Country = { code: string; name: string; visitors: number; lat: number; lng: number; onMap: boolean; topPath: string | null; lastAt: string };
+  type Country = { code: string; name: string; visitors: number; lat: number; lng: number; onMap: boolean; topPath: string | null; cities: { city: string; visitors: number }[]; lastAt: string };
   type Feed = { at: string; country: string | null; verb: string; what: string; image: string | null; amount: number | null; currency: string | null; anon: string; locale: string | null; kind: string };
   type Payload = {
     at: string;
@@ -192,7 +192,7 @@ const initial = await live().catch(() => null);
         ? p.countries
             .map(
               (c) =>
-                `<li><button type="button" class="live-country" data-lat="${c.lat}" data-lng="${c.lng}" ${c.onMap ? "" : "disabled"}><span class="live-flag">${flag(c.code === "??" ? null : c.code)}</span><span class="live-country-name">${esc(c.name)}</span><span class="live-country-path muted">${esc(c.topPath ?? "")}</span><span class="live-country-n">${fmt.format(c.visitors)}</span></button></li>`
+                `<li><button type="button" class="live-country" data-lat="${c.lat}" data-lng="${c.lng}" ${c.onMap ? "" : "disabled"}><span class="live-flag">${flag(c.code === "??" ? null : c.code)}</span><span class="live-country-name">${esc(c.name)}${c.cities?.length ? ` <span class="muted live-country-cities">· ${esc(c.cities.map((x) => x.city).join(", "))}</span>` : ""}</span><span class="live-country-path muted">${esc(c.topPath ?? "")}</span><span class="live-country-n">${fmt.format(c.visitors)}</span></button></li>`
             )
             .join("")
         : `<li class="muted empty">Personne en ce moment.</li>`;
@@ -294,6 +294,7 @@ const initial = await live().catch(() => null);
   /* Placement explicite : les cellules à ligne fixe seraient sinon posées avant les autres (auto-placement). */
   .live-country .live-flag { grid-column: 1; grid-row: 1 / span 2; }
   .live-country-name { grid-column: 2; grid-row: 1; font-weight: 500; }
+  .live-country-cities { font-weight: 400; font-size: 12px; }
   .live-country-path { grid-column: 2; grid-row: 2; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .live-country-n { grid-column: 3; grid-row: 1 / span 2; font-size: 20px; font-variant-numeric: tabular-nums; color: var(--rose); }
   .live-today { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }

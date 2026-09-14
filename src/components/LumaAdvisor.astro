@@ -140,6 +140,7 @@ const t = useTranslations(lang);
 <script>
   import { addToCart, loadCart, type CartUpdatedEvent } from "../lib/cart";
   import type { ShopifyCart } from "../lib/shopify";
+  import { anonId } from "../lib/site-events";
 
   type Card = {
     handle: string;
@@ -824,7 +825,8 @@ const t = useTranslations(lang);
       try {
         const res = await fetch("/api/luma/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          // X-Anon : le même identifiant anonyme que le suivi du site, pour que la tour de contrôle relie la conversation au parcours.
+          headers: { "Content-Type": "application/json", "X-Anon": anonId() },
           credentials: "same-origin",
           body: JSON.stringify({ message, locale, context: pageContext(), voice: voiceOn }),
         });

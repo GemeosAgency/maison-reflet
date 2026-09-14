@@ -23,6 +23,7 @@ const ALLOWED = new Set([
   "accord_add",
   "add_to_cart",
   "checkout",
+  "sample_pick",
 ]);
 const ALLOWED_ORIGINS = new Set(["https://staging.maisonreflet.com", "https://maisonreflet.com", "https://www.maisonreflet.com", "http://localhost:4321"]);
 const ANON_RE = /^[A-Za-z0-9_-]{8,64}$/;
@@ -46,8 +47,18 @@ export const POST: APIRoute = async ({ request }) => {
   const locale = typeof body.locale === "string" && ["fr", "en", "ar"].includes(body.locale) ? body.locale : null;
   const cookieCountry = request.headers.get("cookie")?.match(/(?:^|;\s*)mr_country=([A-Z]{2})/)?.[1] ?? null;
   const country = cookieCountry ?? request.headers.get("x-vercel-ip-country") ?? null;
+  // La ville d'après l'infrastructure (en-tête encodé en URL), jamais l'adresse IP elle-même.
+  const rawCity = request.headers.get("x-vercel-ip-city");
+  let city: string | null = null;
+  if (rawCity) {
+    try {
+      city = decodeURIComponent(rawCity).slice(0, 80) || null;
+    } catch {
+      city = rawCity.slice(0, 80);
+    }
+  }
   try {
-    const { error } = await adminDb().from("site_events").insert({ anon_id: anon, name, props, path, locale, country });
+    const { error } = await adminDb().from("site_events").insert({ anon_id: anon, name, props, path, locale, country, city });
     if (error) console.error("[site-events]", error.message);
   } catch (error) {
     console.error("[site-events]", error);

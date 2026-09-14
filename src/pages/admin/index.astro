@@ -51,7 +51,7 @@ const channelParts = b.channels.map((c) => ({ label: c.channel, value: c.visitor
   <FilterBar slot="filters" filters={filters} facets={b.facets} range={range} />
 
   <section class="kpis kpis-hero">
-    <Kpi tone="hero" label="Chiffre d'affaires" tip="revenue" value={fmtMoneyShort(k.revenue)} unit={cur} delta={delta(k.revenue, pk.revenue)} sub={`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""} · panier moyen ${k.aov === null ? "–" : money(k.aov)} · ${fmtInt(k.units)} flacon${k.units > 1 ? "s" : ""}`} modal="orders" />
+    <Kpi tone="hero" label="Chiffre d'affaires net" tip="revenue" value={fmtMoneyShort(k.revenue)} unit={cur} delta={delta(k.revenue, pk.revenue)} sub={`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""} · panier moyen ${k.aov === null ? "–" : money(k.aov)} · ${fmtInt(k.units)} flacon${k.units > 1 ? "s" : ""}${k.refunded ? ` · brut ${money(k.revenueGross)}, remboursé ${money(k.refunded)}` : ""}${k.cancelled ? ` · ${fmtInt(k.cancelled)} annulée${k.cancelled > 1 ? "s" : ""}` : ""}`} modal="orders" />
     <Kpi label="Paniers validés" tip="cartsPaid" value={fmtMoneyShort(b.carts.paid.total)} unit={cur} delta={delta(k.orders, pk.orders)} sub={`${fmtInt(b.carts.paid.count)} commande${b.carts.paid.count > 1 ? "s" : ""}`} modal="orders" />
     <Kpi label="Paniers abandonnés" tip="cartsAbandoned" value={fmtMoneyShort(b.carts.abandoned.total)} unit={cur} delta={delta(k.abandonedTotal, pk.abandonedTotal)} deltaInvert sub={`${fmtInt(b.carts.abandoned.count)} panier${b.carts.abandoned.count > 1 ? "s" : ""}${b.carts.abandoned.atCheckout ? `, ${fmtInt(b.carts.abandoned.atCheckout)} au paiement` : ""}${b.carts.open.count ? ` · ${fmtInt(b.carts.open.count)} en cours` : ""}`} modal="carts" />
     <Kpi label="Panier total" tip="cartsAll" value={fmtMoneyShort(b.carts.all.total)} unit={cur} delta={delta(k.cartsTotal, pk.cartsTotal)} sub={`${fmtInt(b.carts.all.count)} panier${b.carts.all.count > 1 ? "s" : ""} · ${b.carts.all.total ? fmtPct(b.carts.paid.total, b.carts.all.total) : "–"} encaissé`} modal="carts-all" />
@@ -121,13 +121,14 @@ const channelParts = b.channels.map((c) => ({ label: c.channel, value: c.visitor
       {
         luma ? (
           <div class="kpis kpis-inline">
-            <div class="kpi"><span class="kpi-label">Conversations</span><span class="kpi-value">{fmtInt(convs.length)}</span><span class="kpi-sub">{fmtPct(convs.filter((c) => c.withCard).length, convs.length)} avec une fiche montrée</span></div>
-            <div class="kpi"><span class="kpi-label">Emails captés</span><span class="kpi-value">{fmtInt(convs.filter((c) => c.hasEmail).length)}</span><span class="kpi-sub">coût estimé {fmtUsd(estimateCost(luma.messages))} <Tip of="lumaCost" /></span></div>
+            <div class="kpi"><span class="kpi-label">Conversations</span><span class="kpi-value">{fmtInt(convs.length)}</span><span class="kpi-sub">{fmtPct(convs.filter((c) => c.withCard).length, convs.length)} avec une fiche montrée · {fmtInt(convs.filter((c) => c.hasEmail).length)} email{convs.filter((c) => c.hasEmail).length > 1 ? "s" : ""} · {fmtUsd(estimateCost(luma.messages))} <Tip of="lumaCost" /></span></div>
+            <div class="kpi"><span class="kpi-label">Convertissent <Tip of="lumaConversion" /></span><span class="kpi-value">{k.lumaTalkers ? pct(k.lumaConversion) : "–"}</span><span class="kpi-sub">{k.lumaTalkers ? `${fmtInt(k.lumaTalkers)} visiteur${k.lumaTalkers > 1 ? "s" : ""} ont parlé à Luma · ${pct(k.otherConversion)} pour les autres` : "en attente de conversations reliées au parcours"}</span></div>
           </div>
         ) : (
           <p class="empty">Indisponible.</p>
         )
       }
+      {k.lumaRecommendations > 0 && <p class="card-foot">{fmtInt(k.lumaFollowed)} recommandation{k.lumaFollowed > 1 ? "s" : ""} suivie{k.lumaFollowed > 1 ? "s" : ""} sur {fmtInt(k.lumaRecommendations)} <Tip of="lumaFollowed" />{k.lumaRevenue ? ` · ${money(k.lumaRevenue)} de chiffre après Luma` : ""}</p>}
     </div>
     <div class="card">
       <div class="card-head"><h2 class="card-title">Le suivi</h2></div>

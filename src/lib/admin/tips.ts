@@ -3,7 +3,20 @@
  * qui mérite une phrase a la sienne, affichée au survol du « ? ».
  */
 export const TIPS = {
-  revenue: "Total TTC des commandes payées sur la période, livraison comprise, remises déduites. Source : le webhook Shopify orders/paid.",
+  revenue: "Chiffre net : total TTC des commandes payées, livraison comprise, remises déduites, moins les remboursements. Les commandes annulées sont écartées. Source : les webhooks Shopify.",
+  revenueGross: "Chiffre brut : le total encaissé avant remboursements.",
+  refunded: "Montants remboursés sur la période (webhook refunds/create), déduits du chiffre net.",
+  cancelled: "Commandes annulées (webhook orders/cancelled) : écartées du chiffre et du compte des commandes.",
+  samples: "Échantillons payants vendus (variantes 2 ml). Ils ne comptent pas dans les flacons.",
+  formats: "Flacons et coffrets d'un côté, échantillons payants de l'autre : ce qui fait le chiffre et ce qui fait découvrir.",
+  gateway: "Mode de paiement déclaré par Shopify : Shop Pay, carte, paiement fractionné (Tabby, Tamara)…",
+  heatVisits: "Visiteurs distincts par heure de Dubaï et jour de la semaine, sur la période. Plus la case est foncée, plus il y a de monde.",
+  heatOrders: "Commandes payées par heure de Dubaï et jour de la semaine.",
+  city: "Ville d'après l'infrastructure (en-tête Vercel), jamais l'adresse IP. Disponible pour les visites depuis le 14 septembre.",
+  samplePick: "L'échantillon offert choisi au panier : un signal sur ce que les gens veulent sentir ensuite.",
+  lumaConversion: "Taux de conversion des visiteurs qui ont parlé à Luma, comparé à celui des autres visiteurs reliés à leur parcours. Le lien Luma ↔ parcours existe pour les conversations ouvertes depuis le 14 septembre.",
+  lumaFollowed: "Recommandations de Luma suivies : le Reflet recommandé a été mis au sac ou commandé par le même visiteur.",
+  testOrders: "Les commandes de test Shopify (passerelle Bogus) sont écartées des chiffres. Cochez pour les voir, le temps de valider la chaîne.",
   orders: "Commandes payées (les commandes de test Shopify sont écartées).",
   aov: "Panier moyen : chiffre d'affaires divisé par le nombre de commandes.",
   units: "Flacons et coffrets payés, échantillons offerts exclus.",
