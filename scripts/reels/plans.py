@@ -9,15 +9,24 @@ Le dossier doit contenir un manifeste `plans.json` :
 Chaque image est d'abord recadrée en 9:16 — sans ça Kling garde le format de la
 source et rend un 4:5. Compte 10 crédits par plan de 5 s en 1080p.
 """
-import json, os, subprocess, sys
+import json, os, re, subprocess, sys
 
 CLI = ["npx", "-y", "-p", "@higgsfield/cli", "higgsfield"]
 MODELE = "kling3_0_turbo"
 
 
 def recadrer(src, dest):
-    """9:16 centré, puis mise à l'échelle en 1080x1920."""
-    subprocess.run(["sips", "-c", "1500", "843", src, "--out", dest],
+    """9:16 centré, quelle que soit la taille de la source, puis 1080x1920.
+
+    Indispensable : Kling garde le format de l'image de départ. Une source en 4:5
+    ressort en 1288x1604 même avec `--aspect_ratio 9:16`.
+    """
+    o = subprocess.run(["sips", "-g", "pixelWidth", "-g", "pixelHeight", src],
+                       capture_output=True, text=True).stdout.split()
+    w, h = int(o[-3]), int(o[-1])
+    cw = min(w, round(h * 9 / 16))
+    ch = min(h, round(cw * 16 / 9))
+    subprocess.run(["sips", "-c", str(ch), str(cw), src, "--out", dest],
                    check=True, capture_output=True)
     subprocess.run(["sips", "-z", "1920", "1080", dest], check=True, capture_output=True)
     return dest
@@ -31,14 +40,35 @@ def envoyer(chemin):
     return d.get("id") or d["media_id"]
 
 
+def _url(sortie):
+    d = json.loads(sortie)
+    return (d[0] if isinstance(d, list) else d)["result_url"]
+
+
 def rendre(media_id, prompt):
     r = subprocess.run(
         CLI + ["generate", "create", MODELE, "--start-image", media_id, "--prompt", prompt,
                "--aspect_ratio", "9:16", "--resolution", "1080p", "--duration", "5",
                "--wait", "--json"],
         capture_output=True, text=True, cwd="/tmp")
-    d = json.loads(r.stdout)
-    return (d[0] if isinstance(d, list) else d)["result_url"]
+    try:
+        return _url(r.stdout)
+    except Exception:
+        pass
+    # `--wait` abandonne parfois alors que le rendu, lui, va au bout côté serveur.
+    # On récupère l'identifiant dans le message d'erreur et on redemande, plutôt que
+    # de relancer une génération et de repayer dix crédits.
+    m = re.search(r"job ([0-9a-f-]{36})", r.stderr + r.stdout)
+    if not m:
+        raise RuntimeError((r.stderr or r.stdout)[-300:])
+    for _ in range(3):
+        w = subprocess.run(CLI + ["generate", "wait", m.group(1), "--json"],
+                           capture_output=True, text=True, cwd="/tmp")
+        try:
+            return _url(w.stdout)
+        except Exception:
+            continue
+    raise RuntimeError(f"rendu {m.group(1)} toujours pas prêt")
 
 
 def main(dossier):

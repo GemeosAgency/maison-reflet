@@ -55,9 +55,11 @@ def rendre(plan, dest, grade):
         pre = (f"fps={FPS},scale={W * 2}:{H * 2}:force_original_aspect_ratio=decrease,"
                f"pad={W * 2}:{H * 2}:(ow-iw)/2:(oh-ih)/2:color={fond}")
     else:
+        # Les tuiles du Figma ne font que 489 px de large : on rattrape la montée
+        # d'échelle par un léger piqué, sinon le plan fixe est mou à côté des clips.
         entree = ["-loop", "1", "-t", f"{duree}", "-i", src]
-        pre = (f"fps={FPS},scale={W * 2}:{H * 2}:force_original_aspect_ratio=increase,"
-               f"crop={W * 2}:{H * 2}")
+        pre = (f"fps={FPS},scale={W * 2}:{H * 2}:force_original_aspect_ratio=increase:flags=lanczos,"
+               f"crop={W * 2}:{H * 2},unsharp=5:5:0.7:5:5:0.0")
 
     z = mouvement(move, frames)
     chaine = pre + "," + grade + "," + (z if z else f"scale={W}:{H}") + ",setsar=1,format=yuv420p"

@@ -1,15 +1,16 @@
-"""Conduite du reel « collection » — plusieurs Reflets, une seule maison.
+"""Conduite du reel « collection » — trois Reflets, une seule maison.
 
     python3 scripts/reels/collection.py <dossier média> [couleur]
 
-Le dossier média contient les sources nommées telles qu'elles apparaissent ci-dessous :
-les plans animés (`plans.py`), deux plans Ultra Cuir, les images d'identité, la carte
-de fin (`carte-fin.py`) et `musique.m4a`.
+Les images viennent **uniquement** des trois grilles Instagram du Figma (ULTRA CUIR,
+MINUIT BOURBON, NEW OUD) : treize d'entre elles sont animées par Higgsfield, les autres
+passent en plan fixe sur les temps courts. La carte de fin est composée sur le papier
+de la campagne.
 
 Le rythme vient de deux mesures, pas d'une intuition :
 
   · la référence qu'on s'est donnée coupe à 0,27 s d'intervalle médian — beaucoup plus
-    vite que les deux premières versions, qui ont été refusées pour ça ;
+    vite que les premières versions, qui ont été refusées pour ça ;
   · la musique bat à 0,600 s (100 BPM). Le demi-temps, 0,30 s, tombe donc pile sur le
     tempo de coupe de la référence.
 
@@ -23,75 +24,71 @@ grille théorique : le morceau dérive d'un tiers de seconde sur sa durée.
     II.B rafale         5,60 → 8,00    8 × 0,30
     III  respiration    8,00 → 10,00   2 × 1,00
     II.C rafale        10,00 → 12,00   5 × 0,40   on décélère
-    IV   respiration   12,00 → 14,40   2 × 1,20   les gestes humains
+    IV   respiration   12,00 → 14,40   2 × 1,20
     V    signature     14,40 → 16,80   0,60 + 1,80
                                       ──────────
                                         16,80 s
 
-Un plan qui revient revient loin de lui-même : les points d'entrée d'une même source
-sont écartés d'au moins trois secondes, sinon les deux passages se ressemblent trop.
+Deux règles tenues d'un bout à l'autre : les trois mondes se relaient d'une coupe à
+l'autre (bordeaux, vert, rose), et un plan qui revient revient loin de lui-même —
+au moins trois secondes d'écart entre deux points d'entrée d'une même source.
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from moteur import monter, NOIR, COULEUR
 
-CLAIR, PAPIER = "0xf1efec", "0xe3e3e3"
-DEMI, TEMPS = 0.30, 0.60          # 9 et 18 trames à 30 i/s
+PAPIER = "0xe6e3dd"
+DEMI = 0.30          # 9 trames à 30 i/s
 
 
 def conduite(m):
     f = lambda n: os.path.join(m, n)
     return [
-        # I. Ouverture — le sceau de cire sur le pétale, la fumée qui passe.
-        # (Le monogramme liquide ferait un plus beau logo, mais Kling ne l'anime
-        #  presque pas : 0,7 de mouvement moyen contre 8,0 ici. Il sert plus loin,
-        #  en ponctuation courte, là où son immobilité devient une qualité.)
-        (f("cire.mp4"),          "clip",  0.2, 1.60, "avant"),
+        # I. Ouverture — le visage dans l'ombre, une lame de lumière sur la bouche
+        (f("uc-visage.mp4"),          "clip",  0.6, 1.60, "avant"),
 
-        # II.A Rafale — huit demi-temps, clair contre sombre à chaque coupe
-        (f("no-fruits.mp4"),     "clip",  0.8, DEMI, "serre"),
-        (f("sceau.mp4"),         "clip",  0.6, DEMI, "avant"),
-        (f("monogramme.jpg"),    "carte", 0,   DEMI, "fixe",    CLAIR),
-        (f("mb-verre.mp4"),      "clip",  0.6, DEMI, "serre"),
-        (f("no-roses.mp4"),      "clip",  0.6, DEMI, "avant"),
-        (f("tranche.jpg"),       "photo", 0,   DEMI, "serre"),
-        (f("ba-flacon.mp4"),     "clip",  0.8, DEMI, "avant"),
-        (f("capsules.jpg"),      "photo", 0,   DEMI, "serre"),
+        # II.A Rafale — huit demi-temps, les trois mondes se relaient
+        (f("no-fruits.mp4"),          "clip",  0.8, DEMI, "serre"),
+        (f("uc-framboises-cuir.png"), "photo", 0,   DEMI, "serre"),
+        (f("mb-livre.png"),           "photo", 0,   DEMI, "avant"),
+        (f("uc-capuchon.mp4"),        "clip",  0.6, DEMI, "serre"),
+        (f("no-petale.png"),          "photo", 0,   DEMI, "avant"),
+        (f("mb-ambre.mp4"),           "clip",  0.6, DEMI, "serre"),
+        (f("no-plateau.png"),         "photo", 0,   DEMI, "avant"),
+        (f("uc-framboises.mp4"),      "clip",  0.8, DEMI, "serre"),
 
-        # Accent — deux temps pleins, on repose l'oreille sur la mesure
-        (f("mm-flacon.mp4"),     "clip",  0.8, 0.80, "avant"),
-        (f("uc-1.mp4"),          "clip",  0.6, 0.80, "serre"),
+        # Accent — deux temps pleins sur les mains : la fleur d'oranger, puis le flacon
+        (f("mb-fleurs.mp4"),          "clip",  0.6, 0.80, "avant"),
+        (f("uc-main.mp4"),            "clip",  0.6, 0.80, "serre"),
 
         # II.B Rafale
-        (f("boites.jpg"),        "photo", 0,   DEMI, "avant"),
-        (f("emboss.jpg"),        "photo", 0,   DEMI, "serre"),
-        (f("fs-flacon.mp4"),     "clip",  0.8, DEMI, "avant"),
-        (f("uc-3.mp4"),          "clip",  1.8, DEMI, "serre"),
-        (f("chrome.mp4"),        "clip",  3.6, DEMI, "avant"),
-        (f("cire.mp4"),          "clip",  3.8, DEMI, "arriere"),
-        (f("no-fruits.mp4"),     "clip",  3.6, DEMI, "avant"),
-        (f("boite-blanche.jpg"), "photo", 0,   DEMI, "serre"),
+        (f("no-bois-flotte.png"),     "photo", 0,   DEMI, "avant"),
+        (f("uc-touches.png"),         "photo", 0,   DEMI, "serre"),
+        (f("mb-gousses.png"),         "photo", 0,   DEMI, "avant"),
+        (f("no-bois.png"),            "photo", 0,   DEMI, "serre"),
+        (f("mb-ecorce.mp4"),          "clip",  0.8, DEMI, "avant"),
+        (f("uc-formules.png"),        "photo", 0,   DEMI, "serre"),
+        (f("no-rosier.mp4"),          "clip",  0.8, DEMI, "avant"),
+        (f("mb-sechoir.png"),         "photo", 0,   DEMI, "serre"),
 
-        # III. Respiration — deux gestes, une seconde chacun
-        (f("mb-mains.mp4"),      "clip",  0.6, 1.00, "avant"),
-        (f("no-roses.mp4"),      "clip",  3.4, 1.00, "avant"),
+        # III. Respiration — la cueilleuse, puis le visage qui revient
+        (f("no-cueilleuse.mp4"),      "clip",  0.6, 1.00, "avant"),
+        (f("uc-visage.mp4"),          "clip",  3.4, 1.00, "arriere"),
 
         # II.C Rafale — cinq coupes un peu plus larges : le film décélère
-        (f("mb-verre.mp4"),      "clip",  3.8, 0.40, "serre"),
-        (f("mm-flacon.mp4"),     "clip",  3.6, 0.40, "avant"),
-        (f("sceau.mp4"),         "clip",  3.6, 0.40, "serre"),
-        (f("ba-flacon.mp4"),     "clip",  3.6, 0.40, "avant"),
-        # (pas la photo du sceau ici : le sceau animé passe deux plans plus tôt
-        #  et les deux images se ressemblent trop à 0,4 s d'écart)
-        (f("papier.jpg"),        "photo", 0,   0.40, "serre"),
+        (f("mb-capuchon.png"),        "photo", 0,   0.40, "serre"),
+        (f("no-fruits.mp4"),          "clip",  3.6, 0.40, "avant"),
+        (f("uc-safran.png"),          "photo", 0,   0.40, "serre"),
+        (f("no-alambic.png"),         "photo", 0,   0.40, "avant"),
+        (f("uc-main.mp4"),            "clip",  3.4, 0.40, "serre"),
 
-        # IV. Respiration — la main et les fleurs d'oranger, deux temps chacun
-        (f("main.mp4"),          "clip",  0.8, 1.20, "avant"),
-        (f("mb-mains.mp4"),      "clip",  3.4, 1.20, "arriere"),
+        # IV. Respiration — deux gestes, deux temps chacun
+        (f("mb-tapis.mp4"),           "clip",  1.0, 1.20, "arriere"),
+        (f("no-petales.mp4"),         "clip",  0.8, 1.20, "avant"),
 
-        # V. Signature — l'affiche puis la carte, chacune posée sur un appui
-        (f("affiche.jpg"),       "carte", 0,   0.60, "souffle", CLAIR),
-        (f("carte-fin.png"),     "carte", 0,   1.80, "souffle", PAPIER),
+        # V. Signature — la pipette de l'atelier, puis la carte sur le papier de la campagne
+        (f("mb-pipette.png"),         "photo", 0,   0.60, "souffle"),
+        (f("carte-fin.png"),          "carte", 0,   1.80, "souffle", PAPIER),
     ]
 
 
