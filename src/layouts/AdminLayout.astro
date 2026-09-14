@@ -436,22 +436,25 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   .kpi { display: flex; flex-direction: column; gap: 8px; text-align: start; }
   .kpi-click { cursor: pointer; transition: border-color 0.15s ease; }
   .kpi-click:hover, .kpi-click:focus-visible { border-color: var(--line-strong); outline: none; }
-  .kpi-hero.kpi-click:hover { border-color: var(--rose); }
   .kpi-label { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
   .kpi-value { font-size: 34px; font-weight: 400; line-height: 1; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
   .kpi-value .unit { font-size: 14px; color: var(--muted); margin-inline-start: 6px; letter-spacing: 0.04em; }
   .kpi-foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; font-size: 12px; color: var(--muted); }
   .kpi-sub { font-size: 12px; color: var(--muted); }
   .kpi-rose .kpi-value { color: var(--rose); }
-  .kpi-hero { grid-column: span 2; background: var(--ink); color: var(--bg); border-color: var(--ink); }
-  .kpi-hero .kpi-label, .kpi-hero .kpi-sub, .kpi-hero .kpi-foot { color: rgba(241, 238, 233, 0.6); }
-  .kpi-hero .kpi-value { font-size: 52px; font-weight: 100; color: var(--bg); }
-  .kpi-hero .kpi-value .unit { color: rgba(241, 238, 233, 0.6); font-size: 16px; }
-  .kpi-hero .tip { border-color: rgba(241, 238, 233, 0.35); color: rgba(241, 238, 233, 0.7); }
-  .kpi-hero .delta.is-good { color: #9fd0ae; }
-  .kpi-hero .delta.is-bad { color: #e7a4b1; }
+  /* La carte du chiffre : dans le rouge de la Maison, pas en noir (Sandro, 14 sept.). */
+  .kpi-hero { grid-column: span 2; background: var(--rose); color: var(--paper); border-color: var(--rose); }
+  .kpi-hero .kpi-label, .kpi-hero .kpi-sub, .kpi-hero .kpi-foot { color: rgba(247, 245, 242, 0.7); }
+  .kpi-hero .kpi-value { font-size: 52px; font-weight: 100; color: var(--paper); }
+  .kpi-hero .kpi-value .unit { color: rgba(247, 245, 242, 0.7); font-size: 16px; }
+  .kpi-hero .tip { border-color: rgba(247, 245, 242, 0.45); color: rgba(247, 245, 242, 0.8); }
+  .kpi-hero .tip:hover, .kpi-hero .tip:focus-visible { border-color: var(--paper); color: var(--paper); }
+  .kpi-hero .delta.is-good { color: #dff2e3; }
+  .kpi-hero .delta.is-bad { color: #f6d3da; }
+  .kpi-hero .delta.is-none { color: rgba(247, 245, 242, 0.55); }
+  .kpi-hero.kpi-click:hover { border-color: var(--rose-deep); background: var(--rose-deep); }
   .kpi-more { margin-top: auto; font-size: 11px; color: var(--rose); letter-spacing: 0.04em; opacity: 0; transition: opacity 0.15s ease; }
-  .kpi-hero .kpi-more { color: rgba(241, 238, 233, 0.75); }
+  .kpi-hero .kpi-more { color: rgba(247, 245, 242, 0.85); }
   .kpi-click:hover .kpi-more, .kpi-click:focus-visible .kpi-more { opacity: 1; }
   .delta { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .delta.is-good { color: var(--ok); }
