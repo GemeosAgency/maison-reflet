@@ -144,7 +144,8 @@ export async function loadLuma(range: Range, withTest = false): Promise<LumaData
   if (ids.length === 0) return { sessions, messages: [], events: [], signals: [] };
   const [messages, events, signals] = await Promise.all([
     fetchAll<MessageRow>("luma_messages", (q) => q.in("session_id", ids).order("id", { ascending: true })),
-    fetchAll<EventRow>("luma_events", (q) => q.gte("created_at", since).lte("created_at", until).order("id", { ascending: true })),
+    // Les événements des SESSIONS retenues seulement : sinon ceux de staging reviendraient dans les incidents.
+    fetchAll<EventRow>("luma_events", (q) => q.in("session_id", ids).gte("created_at", since).lte("created_at", until).order("id", { ascending: true })),
     fetchAll<SignalRow>("luma_profile_signals", (q) => q.in("session_id", ids)),
   ]);
   return { sessions, messages, events, signals };
