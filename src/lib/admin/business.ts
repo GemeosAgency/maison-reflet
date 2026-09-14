@@ -222,9 +222,12 @@ export async function loadOrders(range: Range): Promise<OrderRow[]> {
 
 /** Les conversations Luma de la période (identifiant anonyme, date) et le Reflet recommandé dans chacune. */
 export type LumaLight = { sessions: { id: string; anon_id: string; created_at: string }[]; signals: { session_id: string; recommended_handle: string | null }[] };
-export async function loadLumaLight(range: Range): Promise<LumaLight> {
+export async function loadLumaLight(range: Range, withTest = false): Promise<LumaLight> {
   try {
-    const sessions = await fetchAll<{ id: string; anon_id: string; created_at: string }>("luma_sessions", (q) => q.gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString()).order("created_at", { ascending: false }));
+    const sessions = await fetchAll<{ id: string; anon_id: string; created_at: string }>("luma_sessions", (q) => {
+      const base = q.gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString()).order("created_at", { ascending: false });
+      return withTest ? base : base.eq("test", false);
+    });
     const ids = sessions.map((s) => s.id);
     const signals = ids.length ? await fetchAll<{ session_id: string; recommended_handle: string | null }>("luma_profile_signals", (q) => q.in("session_id", ids)) : [];
     return { sessions, signals };
@@ -823,10 +826,12 @@ const within = (iso: string, r: Range) => {
   const t = new Date(iso).getTime();
   return t >= r.from.getTime() && t <= r.to.getTime();
 };
-async function loadAll(range: Range) {
+async function loadAll(range: Range, filters: Filters) {
   const prev = previousRange(range);
   const span = rangeBetween(prev.from, range.to);
-  const [eventsAll, ordersAll, catalog, lumaAll] = await Promise.all([loadSite(span), loadOrders(span), loadCatalog(), loadLumaLight(span)]);
+  // « Tout ce qui est fait sur staging va dans Test » : écarté sauf quand la case est cochée.
+  const withTest = Boolean(filters.test);
+  const [eventsAll, ordersAll, catalog, lumaAll] = await Promise.all([loadSite(span, withTest), loadOrders(span), loadCatalog(), loadLumaLight(span, withTest)]);
   const ctxFor = (r: Range, f: Filters): Ctx => {
     const sessions = lumaAll.sessions.filter((s) => within(s.created_at, r));
     const ids = new Set(sessions.map((s) => s.id));
@@ -836,7 +841,7 @@ async function loadAll(range: Range) {
 }
 
 export async function business(range: Range, f: Filters = {}) {
-  const { prev, catalog, ctxFor } = await loadAll(range);
+  const { prev, catalog, ctxFor } = await loadAll(range, f);
   const current = summarize(ctxFor(range, f));
   const previous = core(ctxFor(prev, f));
   return { range, previousRange: prev, filters: f, catalog, ...current, previous: { kpis: previous.kpis, carts: previous.carts } };
@@ -868,7 +873,7 @@ const MAX_VISIT_MS = 60 * 60 * 1000;
 export type Journey = Awaited<ReturnType<typeof journey>>;
 /** Ce que les visiteurs font sur le site : pages, chemins, guide, menu, écoutes, accords, échantillon offert, Luma — avec la période d'avant pour comparer. */
 export async function journey(range: Range, f: Filters = {}) {
-  const { prev, catalog, ctxFor } = await loadAll(range);
+  const { prev, catalog, ctxFor } = await loadAll(range, f);
   const ctx = ctxFor(range, f);
   const cur = summarize(ctx);
   const c = core(ctx);
@@ -1070,18 +1075,21 @@ export async function trackingStatus() {
       return 0;
     }
   };
-  const [firstEvent, firstOrder, events, orders, testOrders, unlinked, cancelled, withCity, lumaLinked] = await Promise.all([
-    one("site_events", "id"),
+  const [firstEvent, firstOrder, events, testEvents, orders, testOrders, unlinked, cancelled, withCity, lumaSessions, testLuma, lumaLinked] = await Promise.all([
+    one("site_events", "id", (q) => q.eq("test", false)),
     one("shop_orders", "created_at", (q) => q.eq("test", false)),
-    count("site_events"),
+    count("site_events", (q) => q.eq("test", false)),
+    count("site_events", (q) => q.eq("test", true)),
     count("shop_orders", (q) => q.eq("test", false)),
     count("shop_orders", (q) => q.eq("test", true)),
     count("shop_orders", (q) => q.eq("test", false).is("anon_id", null)),
     count("shop_orders", (q) => q.not("cancelled_at", "is", null)),
-    count("site_events", (q) => q.not("city", "is", null)),
+    count("site_events", (q) => q.eq("test", false).not("city", "is", null)),
+    count("luma_sessions", (q) => q.eq("test", false)),
+    count("luma_sessions", (q) => q.eq("test", true)),
     count("luma_sessions", (q) => q.gte("created_at", "2026-09-14T00:00:00Z")),
   ]);
-  return { firstEvent, firstOrder, events, orders, testOrders, unlinked, cancelled, withCity, lumaLinked };
+  return { firstEvent, firstOrder, events, testEvents, orders, testOrders, unlinked, cancelled, withCity, lumaSessions, testLuma, lumaLinked };
 }
 
 /* ------------------------------------------------------------------ en direct */
@@ -1109,8 +1117,9 @@ export async function live() {
   const since = new Date(now - LIVE_WINDOW_MS).toISOString();
   const dayStart = new Date(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()) + "T00:00:00+04:00").toISOString();
   const [recent, today, ordersToday, catalog] = await Promise.all([
-    fetchAll<SiteEventRow>("site_events", (q) => q.gte("created_at", since).order("id", { ascending: false })).catch(() => [] as SiteEventRow[]),
-    fetchAll<SiteEventRow>("site_events", (q) => q.gte("created_at", dayStart).order("id", { ascending: true })).catch(() => [] as SiteEventRow[]),
+    // Production seulement : ce qui vient de staging est marqué « test ».
+    fetchAll<SiteEventRow>("site_events", (q) => q.gte("created_at", since).eq("test", false).order("id", { ascending: false })).catch(() => [] as SiteEventRow[]),
+    fetchAll<SiteEventRow>("site_events", (q) => q.gte("created_at", dayStart).eq("test", false).order("id", { ascending: true })).catch(() => [] as SiteEventRow[]),
     fetchAll<OrderRow>("shop_orders", (q) => q.gte("created_at", dayStart).eq("test", false).is("cancelled_at", null).order("created_at", { ascending: false })).catch(() => [] as OrderRow[]),
     loadCatalog(),
   ]);

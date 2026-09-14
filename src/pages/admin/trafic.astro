@@ -53,7 +53,7 @@ const subtitle = j.tracked.since ? `Qui vient, d'où, et ce qu'ils font une fois
 ---
 
 <AdminLayout title="Trafic & sources" section="trafic" admin={admin} range={range} subtitle={subtitle}>
-  <FilterBar slot="filters" filters={filters} facets={j.facets} range={range} testToggle={false} />
+  <FilterBar slot="filters" filters={filters} facets={j.facets} range={range} />
 
   <section class="kpis">
     <Kpi label="Visiteurs" tip="visitors" value={fmtInt(k.visitors)} delta={delta(k.visitors, pk.visitors)} sub={`${fmtInt(k.returning)} revenu${k.returning > 1 ? "s" : ""} au moins une fois`} modal="days" />

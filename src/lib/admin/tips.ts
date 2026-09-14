@@ -16,7 +16,7 @@ export const TIPS = {
   samplePick: "L'échantillon offert choisi au panier : un signal sur ce que les gens veulent sentir ensuite.",
   lumaConversion: "Taux de conversion des visiteurs qui ont parlé à Luma, comparé à celui des autres visiteurs reliés à leur parcours. Le lien Luma ↔ parcours existe pour les conversations ouvertes depuis le 14 septembre.",
   lumaFollowed: "Recommandations de Luma suivies : le Reflet recommandé a été mis au sac ou commandé par le même visiteur.",
-  testOrders: "Les commandes de test Shopify (passerelle Bogus) sont écartées des chiffres. Cochez pour les voir, le temps de valider la chaîne.",
+  testData: "Tout ce qui vient de staging, d'une preview ou du développement local est marqué « test » : visites, conversations avec Luma et commandes. Écarté des chiffres par défaut pour que la production reste propre. Cochez pour tout voir.",
   orders: "Commandes payées (les commandes de test Shopify sont écartées).",
   aov: "Panier moyen : chiffre d'affaires divisé par le nombre de commandes.",
   units: "Flacons et coffrets payés, échantillons offerts exclus.",

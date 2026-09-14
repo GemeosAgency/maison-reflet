@@ -18,7 +18,8 @@ export const prerender = false;
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const range = parseRange(Astro.url.searchParams);
-const [o, r, catalog, b] = await Promise.all([overview(range), reflets(range), loadCatalog(), business(range).catch(() => null)]);
+const withTest = Astro.url.searchParams.get("test") === "1";
+const [o, r, catalog, b] = await Promise.all([overview(range, withTest), reflets(range, withTest), loadCatalog(), business(range, { test: withTest || undefined }).catch(() => null)]);
 const imageOf = (handle: string) => catalog.products.find((p) => p.handle === handle)?.image ?? null;
 const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0).replace(".", ",")} %`);
 const perCost = o.conversations ? o.cost / o.conversations : null;
@@ -28,6 +29,12 @@ const maxReco = Math.max(1, ...r.per.map((p) => p.recommended));
 ---
 
 <AdminLayout title="Luma" section="luma" admin={admin} range={range} subtitle={`La conseillère · ${range.label} : conversations, fiches montrées, emails, coût, incidents, ce qu'elle recommande.`}>
+  <form class="adm-filters" method="get" slot="filters" data-filter-bar>
+    {[...new URLSearchParams(range.query).entries()].map(([k, v]) => <input type="hidden" name={k} value={v} />)}
+    <span class="adm-filters-label">Afficher</span>
+    <label class="adm-filters-check"><input type="checkbox" name="test" value="1" checked={withTest} /> données de test <Tip of="testData" /></label>
+    <span class="adm-filters-on">{withTest ? "staging et production" : "production seulement"}</span>
+  </form>
   <section class="kpis">
     <Kpi label="Conversations" value={fmtInt(o.conversations)} sub={`${fmtInt(o.userTurns)} messages de visiteurs · ${o.conversations ? (o.userTurns / o.conversations).toFixed(1).replace(".", ",") : "–"} par conversation`} />
     <Kpi label="Fiches montrées" value={fmtPct(o.withCard, o.conversations)} sub={`${fmtInt(o.withCard)} conversation${o.withCard > 1 ? "s" : ""} avec une carte Reflet`} />

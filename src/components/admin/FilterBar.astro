@@ -15,7 +15,7 @@ interface Props {
   filters: Filters;
   facets: { countries: string[]; sources: string[]; products: Product[] };
   range: Range;
-  /** Afficher l'interrupteur des commandes de test (pages où les ventes comptent). */
+  /** Afficher l'interrupteur des données de test (staging, previews, local). */
   testToggle?: boolean;
 }
 const { filters, facets, range, testToggle = true } = Astro.props;
@@ -48,8 +48,8 @@ const rangeParams = new URLSearchParams(range.query);
     testToggle && (
       <label class="adm-filters-check">
         <input type="checkbox" name="test" value="1" checked={filters.test} />
-        commandes de test
-        <Tip of="testOrders" />
+        données de test
+        <Tip of="testData" />
       </label>
     )
   }

@@ -85,7 +85,9 @@ export async function resumeOrCreateSession(
   anonId: string,
   locale: Locale,
   country: string,
-  currency: string
+  currency: string,
+  /** Staging, preview ou local : la conversation est écartée des chiffres de la tour de contrôle. */
+  test = false
 ): Promise<Session> {
   if (visitor.live) {
     // Pas d'attente : la mise à jour n'a rien à apporter au tour en cours.
@@ -98,7 +100,7 @@ export async function resumeOrCreateSession(
   }
   const { data, error } = await db()
     .from("luma_sessions")
-    .insert({ anon_id: anonId, locale, country, currency })
+    .insert({ anon_id: anonId, locale, country, currency, test })
     .select("id, anon_id, locale, country, currency, initiative, email")
     .single();
   if (error || !data) fail("création session", error);

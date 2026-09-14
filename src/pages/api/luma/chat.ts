@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import { requestIsTest } from "../../../lib/admin/env";
 import { localePath, locales, type Locale } from "../../../i18n";
 import { COUNTRY_COOKIE, getCountry, isShippedCountry } from "../../../lib/markets";
 import { answer } from "../../../lib/luma/agent";
@@ -245,7 +246,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           return;
         }
 
-        const session = await resumeOrCreateSession(visitor, anonId, lang, country.code, knowledge.logistics.currency);
+        const session = await resumeOrCreateSession(visitor, anonId, lang, country.code, knowledge.logistics.currency, requestIsTest(request));
         sessionId = session.id;
 
         const [history, profile, used, spokenSoFar] = await Promise.all([

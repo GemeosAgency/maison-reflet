@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { adminDb } from "../../../lib/admin/db";
+import { isTestHost } from "../../../lib/admin/env";
 import { getAllProducts } from "../../../lib/shopify";
 
 // Rendu à la demande (fonction serverless Vercel), pas prégénéré.
@@ -177,10 +178,13 @@ async function persistOrder(order: ShopifyOrderWebhook): Promise<void> {
   }
   let anon: string | null = null;
   let ga: string | null = null;
+  // Le panier est-il né hors production (staging, preview, local) ? Alors la commande est une donnée de test.
+  let fromTest = false;
   for (const attr of order.note_attributes ?? []) {
     const value = (attr.value ?? "").trim();
     if (attr.name === "mr_anon" && ANON_RE.test(value)) anon = value;
     if (attr.name === "_ga" && GA4_CLIENT_ID_RE.test(value)) ga = value;
+    if (attr.name === "mr_env" && value) fromTest = isTestHost(value);
   }
   const lines = (order.line_items ?? []).map((li) => {
     const quantity = li.quantity ?? 1;
@@ -202,7 +206,7 @@ async function persistOrder(order: ShopifyOrderWebhook): Promise<void> {
     name: order.name ?? null,
     created_at: order.created_at ?? new Date().toISOString(),
     processed_at: order.processed_at ?? null,
-    test: Boolean(order.test),
+    test: Boolean(order.test) || fromTest,
     financial_status: order.financial_status ?? null,
     currency: order.currency ?? null,
     total: money(order.total_price),

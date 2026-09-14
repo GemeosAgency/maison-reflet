@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { adminDb } from "../../lib/admin/db";
+import { requestIsTest } from "../../lib/admin/env";
 
 export const prerender = false;
 
@@ -58,7 +59,8 @@ export const POST: APIRoute = async ({ request }) => {
     }
   }
   try {
-    const { error } = await adminDb().from("site_events").insert({ anon_id: anon, name, props, path, locale, country, city });
+    // Staging, previews et local : marqués « test », écartés des chiffres par défaut.
+    const { error } = await adminDb().from("site_events").insert({ anon_id: anon, name, props, path, locale, country, city, test: requestIsTest(request) });
     if (error) console.error("[site-events]", error.message);
   } catch (error) {
     console.error("[site-events]", error);

@@ -103,6 +103,8 @@ function trackingCartAttributes(): CartAttributeInput[] {
   if (ga4ClientId) attributes.push({ key: "_ga", value: ga4ClientId });
   // Tour de contrôle : l'identifiant anonyme du parcours revient dans la commande (note_attributes) — c'est ce qui relie une vente à ses pages, ses écoutes et son panier.
   attributes.push({ key: "mr_anon", value: anonId() });
+  // L'environnement d'où part le panier : une commande née sur staging ou en local est marquée « test » et n'entre pas dans le chiffre.
+  attributes.push({ key: "mr_env", value: window.location.host.slice(0, 80) });
   return attributes;
 }
 

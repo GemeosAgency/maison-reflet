@@ -17,6 +17,7 @@ const filters = {
   violations: sp.get("violations") === "1",
   q: sp.get("q")?.trim() || undefined,
   page: Number(sp.get("page") ?? 1) || 1,
+  test: sp.get("test") === "1",
 };
 const result = await conversations(range, filters);
 const pageHref = (p: number) => {
@@ -44,6 +45,7 @@ const pageHref = (p: number) => {
     </select>
     <label><input type="checkbox" name="email" value="1" checked={filters.email} /> avec email</label>
     <label><input type="checkbox" name="violations" value="1" checked={filters.violations} /> à revoir</label>
+    <label><input type="checkbox" name="test" value="1" checked={filters.test} /> données de test</label>
     <button type="submit" class="btn btn-sm">Filtrer</button>
     <a class="btn btn-sm btn-ghost" href={`/admin/conversations?${range.query}`}>Effacer</a>
   </form>

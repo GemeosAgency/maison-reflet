@@ -132,10 +132,14 @@ export async function fetchAll<T>(table: string, build: (q: any) => any): Promis
 
 export type LumaData = { sessions: SessionRow[]; messages: MessageRow[]; events: EventRow[]; signals: SignalRow[] };
 
-export async function loadLuma(range: Range): Promise<LumaData> {
+export async function loadLuma(range: Range, withTest = false): Promise<LumaData> {
   const since = range.from.toISOString();
   const until = range.to.toISOString();
-  const sessions = await fetchAll<SessionRow>("luma_sessions", (q) => q.gte("created_at", since).lte("created_at", until).order("created_at", { ascending: false }));
+  // Staging, previews et local sont marqués « test » : écartés sauf demande (Sandro, 14 sept. : « on ne pollue pas »).
+  const sessions = await fetchAll<SessionRow>("luma_sessions", (q) => {
+    const base = q.gte("created_at", since).lte("created_at", until).order("created_at", { ascending: false });
+    return withTest ? base : base.eq("test", false);
+  });
   const ids = sessions.map((s) => s.id);
   if (ids.length === 0) return { sessions, messages: [], events: [], signals: [] };
   const [messages, events, signals] = await Promise.all([
@@ -146,11 +150,14 @@ export async function loadLuma(range: Range): Promise<LumaData> {
   return { sessions, messages, events, signals };
 }
 
-export async function loadSite(range: Range): Promise<SiteEventRow[]> {
+export async function loadSite(range: Range, withTest = false): Promise<SiteEventRow[]> {
   const since = range.from.toISOString();
   const until = range.to.toISOString();
   try {
-    return await fetchAll<SiteEventRow>("site_events", (q) => q.gte("created_at", since).lte("created_at", until).order("id", { ascending: true }));
+    return await fetchAll<SiteEventRow>("site_events", (q) => {
+      const base = q.gte("created_at", since).lte("created_at", until).order("id", { ascending: true });
+      return withTest ? base : base.eq("test", false);
+    });
   } catch (error) {
     // La table n'existe pas encore (migration 0003 pas appliquée) : la page « Site » le dit, le reste vit.
     console.error("[admin/data] site_events", error);
@@ -337,8 +344,8 @@ export function buildConversations(data: LumaData): ConversationRow[] {
   });
 }
 
-export async function overview(range: Range): Promise<Overview> {
-  const [data, site] = await Promise.all([loadLuma(range), loadSite(range)]);
+export async function overview(range: Range, withTest = false): Promise<Overview> {
+  const [data, site] = await Promise.all([loadLuma(range, withTest), loadSite(range, withTest)]);
   const rows = buildConversations(data);
   const replies = data.events.filter((e) => e.name === "reply");
   const latencies = replies.map((e) => num(e.props.total_ms)).filter((n): n is number => n !== null);
@@ -392,11 +399,11 @@ export async function overview(range: Range): Promise<Overview> {
 }
 
 /* ------------------------------------------------------------- conversations */
-export type ConversationFilters = { locale?: string; country?: string; entry?: string; email?: boolean; violations?: boolean; q?: string; page?: number };
+export type ConversationFilters = { locale?: string; country?: string; entry?: string; email?: boolean; violations?: boolean; q?: string; page?: number; test?: boolean };
 export const PER_PAGE = 40;
 
 export async function conversations(range: Range, f: ConversationFilters) {
-  const data = await loadLuma(range);
+  const data = await loadLuma(range, f.test === true);
   let rows = buildConversations(data);
   const facets = {
     locales: countBy(rows, (r) => r.locale),
@@ -446,8 +453,8 @@ const THEMES: { key: string; label: string; re: RegExp }[] = [
 const normalise = (s: string) => s.toLowerCase().replace(/\s+/g, " ").replace(/[\s?!.…]+$/g, "").trim();
 const UNANSWERED = /(je ne (sais|peux) pas|je n'ai pas (l'information|cette information)|pas (d'|l')information|i (don't|do not) (know|have)|i can(not|'t)|لا أستطيع|لا أعرف|ليس لدي)/i;
 
-export async function questions(range: Range) {
-  const data = await loadLuma(range);
+export async function questions(range: Range, withTest = false) {
+  const data = await loadLuma(range, withTest);
   const users = data.messages.filter((m) => m.role === "user" && m.content.trim());
   const grouped = new Map<string, { text: string; count: number; sessions: Set<string>; last: string }>();
   for (const m of users) {
@@ -487,8 +494,8 @@ export async function questions(range: Range) {
 }
 
 /* ------------------------------------------------------------- reflets & accords */
-export async function reflets(range: Range) {
-  const [data, site, names] = await Promise.all([loadLuma(range), loadSite(range), refletNames()]);
+export async function reflets(range: Range, withTest = false) {
+  const [data, site, names] = await Promise.all([loadLuma(range, withTest), loadSite(range, withTest), refletNames()]);
   const uniq = (rows: SiteEventRow[]) => new Set(rows.map((e) => e.anon_id)).size;
   const per = names.map(({ handle, name }) => {
     const plays = site.filter((e) => e.name === "audio_play" && str(e.props.kind) === "portrait" && str(e.props.id) === handle);

@@ -8,11 +8,18 @@ export const prerender = false;
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const range = parseRange(Astro.url.searchParams);
-const q = await questions(range);
+const withTest = Astro.url.searchParams.get("test") === "1";
+const q = await questions(range, withTest);
 const maxTheme = Math.max(1, ...q.themes.map((t) => t.count));
 ---
 
 <AdminLayout title="Questions" section="questions" admin={admin} range={range} subtitle="Les demandes des visiteurs, regroupées par thème, mot pour mot, et celles où Luma a hésité. C'est la matière première de la FAQ et des textes à écrire.">
+  <form class="adm-filters" method="get" slot="filters" data-filter-bar>
+    {[...new URLSearchParams(range.query).entries()].map(([k, v]) => <input type="hidden" name={k} value={v} />)}
+    <span class="adm-filters-label">Afficher</span>
+    <label class="adm-filters-check"><input type="checkbox" name="test" value="1" checked={withTest} /> données de test</label>
+    <span class="adm-filters-on">{withTest ? "staging et production" : "production seulement"}</span>
+  </form>
   <section class="kpis">
     <div class="card kpi"><span class="kpi-label">Messages de visiteurs</span><span class="kpi-value">{fmtInt(q.total)}</span></div>
     <div class="card kpi"><span class="kpi-label">Questions distinctes</span><span class="kpi-value">{fmtInt(q.distinct)}</span></div>
