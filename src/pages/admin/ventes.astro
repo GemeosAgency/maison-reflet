@@ -11,6 +11,7 @@ import DaysModal from "../../components/admin/DaysModal.astro";
 import OrdersTable from "../../components/admin/OrdersTable.astro";
 import CartsTable from "../../components/admin/CartsTable.astro";
 import { readSession } from "../../lib/admin/auth";
+import { panne } from "../../lib/admin/panne";
 import { parseRange, fmtInt, fmtPct } from "../../lib/admin/data";
 import { business, parseFilters, fmtMoney, fmtMoneyShort, delta } from "../../lib/admin/business";
 import { TIPS } from "../../lib/admin/tips";
@@ -22,7 +23,12 @@ const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const range = parseRange(Astro.url.searchParams);
 const filters = parseFilters(Astro.url.searchParams);
-const b = await business(range, filters);
+let b: Awaited<ReturnType<typeof business>>;
+try {
+  b = await business(range, filters);
+} catch (error) {
+  return panne(error, "Ventes", Astro.url);
+}
 const cur = b.currency;
 const money = (n: number) => fmtMoney(n, cur);
 const k = b.kpis;

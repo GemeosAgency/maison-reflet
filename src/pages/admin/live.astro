@@ -12,7 +12,12 @@ export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
-const initial = await live().catch(() => null);
+// Le globe se rafraîchit seul toutes les dix secondes : un premier appel raté
+// n'est pas une panne, la page se remplira au tour suivant.
+const initial = await live().catch((error) => {
+  console.error("[admin/live]", error);
+  return null;
+});
 ---
 
 <AdminLayout title="En direct" section="live" admin={admin} showRange={false} subtitle="Qui est sur le site maintenant, d'où, et ce qu'il fait — le globe tourne, les points vivent.">

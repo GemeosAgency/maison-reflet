@@ -13,8 +13,8 @@
 import { adminDb } from "./db";
 import { COUNTRY_CENTROIDS, countryName } from "./geo";
 import { LAYERING } from "../layering";
-import { getAllProducts, isCoffret, isSampleVariantTitle } from "../shopify";
-import { dailySeries, dayKey, daysOf, fetchAll, loadSite, previousRange, rangeBetween, refletNames, TZ, type Range, type SiteEventRow } from "./data";
+import { isCoffret, isSampleVariantTitle } from "../shopify";
+import { allProducts, dailySeries, dayKey, daysOf, fetchAll, fetchIn, loadSite, previousRange, rangeBetween, refletNames, TZ, type Range, type SiteEventRow } from "./data";
 
 /* ------------------------------------------------------------------ types */
 export type OrderLine = { variant_id: number | null; product_id: number | null; handle: string | null; title: string; variant_title: string | null; sku: string | null; quantity: number; price: number; total: number };
@@ -200,51 +200,67 @@ function orderSource(o: OrderRow): Source {
 }
 
 /* ------------------------------------------------------------------ lecture */
+/** Les commandes de la période. Ne rattrape rien : une panne doit se voir, pas ressembler à zéro vente. */
 export async function loadOrders(range: Range): Promise<OrderRow[]> {
-  try {
-    const rows = await fetchAll<OrderRow>("shop_orders", (q) => q.gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString()).order("created_at", { ascending: false }));
-    return rows.map((r) => ({
-      ...r,
-      total: Number(r.total),
-      subtotal: Number(r.subtotal),
-      discounts: Number(r.discounts),
-      shipping: Number(r.shipping),
-      lines: Array.isArray(r.lines) ? r.lines : [],
-      refunds: Array.isArray(r.refunds) ? r.refunds.map((x) => ({ id: Number(x.id), amount: Number(x.amount) || 0, at: String(x.at ?? "") })) : [],
-      cancelled_at: r.cancelled_at ?? null,
-      gateway: r.gateway ?? null,
-    }));
-  } catch (error) {
-    console.error("[admin/business] shop_orders", error);
-    return [];
-  }
+  const rows = await fetchAll<OrderRow>("shop_orders", (q) => q.gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString()).order("created_at", { ascending: false }));
+  return rows.map((r) => ({
+    ...r,
+    total: Number(r.total),
+    subtotal: Number(r.subtotal),
+    discounts: Number(r.discounts),
+    shipping: Number(r.shipping),
+    lines: Array.isArray(r.lines) ? r.lines : [],
+    refunds: Array.isArray(r.refunds) ? r.refunds.map((x) => ({ id: Number(x.id), amount: Number(x.amount) || 0, at: String(x.at ?? "") })) : [],
+    cancelled_at: r.cancelled_at ?? null,
+    gateway: r.gateway ?? null,
+  }));
 }
 
 /** Les conversations Luma de la période (identifiant anonyme, date) et le Reflet recommandé dans chacune. */
 export type LumaLight = { sessions: { id: string; anon_id: string; created_at: string }[]; signals: { session_id: string; recommended_handle: string | null }[] };
 export async function loadLumaLight(range: Range, withTest = false): Promise<LumaLight> {
-  try {
-    const sessions = await fetchAll<{ id: string; anon_id: string; created_at: string }>("luma_sessions", (q) => {
+  const sessions = await fetchAll<{ id: string; anon_id: string; created_at: string }>(
+    "luma_sessions",
+    (q) => {
       const base = q.gte("created_at", range.from.toISOString()).lte("created_at", range.to.toISOString()).order("created_at", { ascending: false });
       return withTest ? base : base.eq("test", false);
-    });
-    const ids = sessions.map((s) => s.id);
-    const signals = ids.length ? await fetchAll<{ session_id: string; recommended_handle: string | null }>("luma_profile_signals", (q) => q.in("session_id", ids)) : [];
-    return { sessions, signals };
-  } catch (error) {
-    console.error("[admin/business] luma", error);
-    return { sessions: [], signals: [] };
-  }
+    },
+    "id,anon_id,created_at",
+  );
+  const signals = await fetchIn<{ session_id: string; recommended_handle: string | null }>(
+    "luma_profile_signals",
+    "session_id",
+    sessions.map((s) => s.id),
+    (q) => q,
+    "session_id,recommended_handle",
+  );
+  return { sessions, signals };
 }
 
-/** Le catalogue Shopify : les six Reflets et les coffrets, avec image et prix, pour les vignettes et les estimations. */
-export async function loadCatalog(): Promise<Catalog> {
+/**
+ * Le catalogue Shopify : les six Reflets et les coffrets, avec image et prix,
+ * pour les vignettes et les estimations. Gardé cinq minutes, comme la réponse
+ * Shopify elle-même — la mise en forme aussi était refaite à chaque affichage.
+ */
+const CATALOGUE_TTL = 5 * 60 * 1000;
+let catalogueCache: { at: number; value: Promise<Catalog> } | null = null;
+export function loadCatalog(): Promise<Catalog> {
+  if (catalogueCache && Date.now() - catalogueCache.at < CATALOGUE_TTL) return catalogueCache.value;
+  const value = buildCatalog();
+  catalogueCache = { at: Date.now(), value };
+  value.catch(() => {
+    if (catalogueCache?.value === value) catalogueCache = null;
+  });
+  return value;
+}
+
+async function buildCatalog(): Promise<Catalog> {
   const products: Product[] = [];
   const variantPrice = new Map<string, { price: number; handle: string }>();
   const handlePrice = new Map<string, number>();
   const byProductId = new Map<number, string>();
   try {
-    for (const p of await getAllProducts()) {
+    for (const p of await allProducts()) {
       const productId = Number(p.id.split("/").pop()) || null;
       if (productId) byProductId.set(productId, p.handle);
       for (const v of p.variants.nodes) {
@@ -530,7 +546,10 @@ function core({ events, orders: allOrders, catalog, range, filters: f, luma }: C
 
 /** Tout le reste : séries, jour par jour, produits, sources, pays, listes — pour la période regardée. */
 function summarize(ctx: Ctx) {
-  const { products, productOf, handleOf, formatOf, itemOf, cartItemOf, visitorsAll, sourceOf, facets, keepOrder, visitors, orders, cancelledOrders, ev, currency, revenue, cartsByAnon, withCart, withCheckout, statusOf, abandoned, open, carts, kpis, events, allOrders, range, lumaAnons } = core(ctx);
+  // `noyau` est ressorti tel quel : `journey()` en a besoin et le recalculait
+  // une seconde fois sur le même contexte, pour rien.
+  const noyau = core(ctx);
+  const { products, productOf, handleOf, formatOf, itemOf, cartItemOf, visitorsAll, sourceOf, facets, keepOrder, visitors, orders, cancelledOrders, ev, currency, revenue, cartsByAnon, withCart, withCheckout, statusOf, abandoned, open, carts, kpis, events, allOrders, range, lumaAnons } = noyau;
 
   const toRecent = (o: OrderRow): RecentOrder => ({
     id: o.id,
@@ -814,7 +833,7 @@ function summarize(ctx: Ctx) {
   const earliest = (rows: { created_at: string }[]) => rows.reduce<string | null>((min, r) => (min === null || r.created_at < min ? r.created_at : min), null);
   const tracked = { since: earliest(events), firstOrder: earliest(allOrders), testOrders: allOrders.filter((o) => o.test).length, unlinkedOrders: orders.filter((o) => !o.anon_id).length, beforeTracking: visitors.filter((v) => v.source.channel === "Inconnue").length };
 
-  return { kpis, carts, currency, facets, perProduct, other, formats, campaigns, sources, channels, countries, cities, gateways, devices, locales, series, byDay, heat, funnel, abandonedCarts, allCarts, recentOrders, cancelledOrders: cancelledList, discountCodes, topPages, landingPages, tracked } as const;
+  return { noyau, kpis, carts, currency, facets, perProduct, other, formats, campaigns, sources, channels, countries, cities, gateways, devices, locales, series, byDay, heat, funnel, abandonedCarts, allCarts, recentOrders, cancelledOrders: cancelledList, discountCodes, topPages, landingPages, tracked } as const;
 }
 
 export type Business = Awaited<ReturnType<typeof business>>;
@@ -826,12 +845,39 @@ const within = (iso: string, r: Range) => {
   const t = new Date(iso).getTime();
   return t >= r.from.getTime() && t <= r.to.getTime();
 };
+/**
+ * Les lignes brutes d'une période, gardées trente secondes.
+ *
+ * Passer d'un onglet à l'autre relançait tout : la vue d'ensemble, Ventes,
+ * Trafic et Luma lisent exactement les mêmes tables sur la même période. Deux
+ * personnes connectées doublaient la charge. La clé tient compte de la case
+ * « données de test », qui change le jeu de lignes.
+ */
+const BRUT_TTL = 30 * 1000;
+const BRUT_MAX = 8;
+type Brut = { eventsAll: SiteEventRow[]; ordersAll: OrderRow[]; catalog: Catalog; lumaAll: LumaLight };
+const brutCache = new Map<string, { at: number; value: Promise<Brut> }>();
+
+function lignes(span: Range, withTest: boolean): Promise<Brut> {
+  const cle = `${span.from.toISOString()}|${span.to.toISOString()}|${withTest ? "test" : "prod"}`;
+  const garde = brutCache.get(cle);
+  if (garde && Date.now() - garde.at < BRUT_TTL) return garde.value;
+  const value = (async () => {
+    const [eventsAll, ordersAll, catalog, lumaAll] = await Promise.all([loadSite(span, withTest), loadOrders(span), loadCatalog(), loadLumaLight(span, withTest)]);
+    return { eventsAll, ordersAll, catalog, lumaAll };
+  })();
+  brutCache.set(cle, { at: Date.now(), value });
+  value.catch(() => brutCache.delete(cle)); // un échec ne se garde pas
+  if (brutCache.size > BRUT_MAX) for (const k of [...brutCache.keys()].slice(0, brutCache.size - BRUT_MAX)) brutCache.delete(k);
+  return value;
+}
+
 async function loadAll(range: Range, filters: Filters) {
   const prev = previousRange(range);
   const span = rangeBetween(prev.from, range.to);
   // « Tout ce qui est fait sur staging va dans Test » : écarté sauf quand la case est cochée.
   const withTest = Boolean(filters.test);
-  const [eventsAll, ordersAll, catalog, lumaAll] = await Promise.all([loadSite(span, withTest), loadOrders(span), loadCatalog(), loadLumaLight(span, withTest)]);
+  const { eventsAll, ordersAll, catalog, lumaAll } = await lignes(span, withTest);
   const ctxFor = (r: Range, f: Filters): Ctx => {
     const sessions = lumaAll.sessions.filter((s) => within(s.created_at, r));
     const ids = new Set(sessions.map((s) => s.id));
@@ -876,7 +922,7 @@ export async function journey(range: Range, f: Filters = {}) {
   const { prev, catalog, ctxFor } = await loadAll(range, f);
   const ctx = ctxFor(range, f);
   const cur = summarize(ctx);
-  const c = core(ctx);
+  const c = cur.noyau;
   const p = core(ctxFor(prev, f));
   const products = catalog.products;
   const name = (path: string | null) => pageName(path, products);

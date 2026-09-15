@@ -2,6 +2,7 @@
 /** Les droits des personnes, la rétention, le journal des accès — et ce qu'on stocke, noir sur blanc. */
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { readSession } from "../../lib/admin/auth";
+import { panne } from "../../lib/admin/panne";
 import { rgpdSearch, retentionStatus, auditLog, fmtDate, fmtInt, localeLabel } from "../../lib/admin/data";
 import { trackingStatus } from "../../lib/admin/business";
 import Tip from "../../components/admin/Tip.astro";
@@ -11,7 +12,15 @@ const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const q = Astro.url.searchParams.get("q")?.trim() ?? "";
 const deleted = Astro.url.searchParams.get("deleted");
-const [found, retention, log, tracking] = await Promise.all([rgpdSearch(q), retentionStatus(), auditLog(60), trackingStatus()]);
+let found: Awaited<ReturnType<typeof rgpdSearch>>;
+let retention: Awaited<ReturnType<typeof retentionStatus>>;
+let log: Awaited<ReturnType<typeof auditLog>>;
+let tracking: Awaited<ReturnType<typeof trackingStatus>>;
+try {
+  [found, retention, log, tracking] = await Promise.all([rgpdSearch(q), retentionStatus(), auditLog(60), trackingStatus()]);
+} catch (error) {
+  return panne(error, "RGPD & suivi", Astro.url);
+}
 const ACTION_LABEL: Record<string, string> = {
   login: "connexion",
   logout: "déconnexion",

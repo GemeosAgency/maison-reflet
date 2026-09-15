@@ -16,6 +16,7 @@ import SourceModal from "../../components/admin/SourceModal.astro";
 import CountryModal from "../../components/admin/CountryModal.astro";
 import JourneyDaysModal from "../../components/admin/JourneyDaysModal.astro";
 import { readSession } from "../../lib/admin/auth";
+import { panne } from "../../lib/admin/panne";
 import { parseRange, fmtInt, fmtPct, fmtDate, fmtDuration } from "../../lib/admin/data";
 import { journey, parseFilters, delta, thumb, fmtMoney, fmtMoneyShort, CHANNEL_COLORS } from "../../lib/admin/business";
 import { timeChart, hbars, funnelSteps, donut, heatmap } from "../../lib/admin/charts";
@@ -25,7 +26,12 @@ const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const range = parseRange(Astro.url.searchParams);
 const filters = parseFilters(Astro.url.searchParams);
-const j = await journey(range, filters);
+let j: Awaited<ReturnType<typeof journey>>;
+try {
+  j = await journey(range, filters);
+} catch (error) {
+  return panne(error, "Trafic & sources", Astro.url);
+}
 const k = j.kpis;
 const pk = j.previous;
 const b = j.biz;

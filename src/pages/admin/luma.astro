@@ -10,6 +10,7 @@ import Kpi from "../../components/admin/Kpi.astro";
 import Tip from "../../components/admin/Tip.astro";
 import ProductThumb from "../../components/admin/ProductThumb.astro";
 import { readSession } from "../../lib/admin/auth";
+import { panne } from "../../lib/admin/panne";
 import { overview, reflets, parseRange, fmtInt, fmtPct, fmtMs, fmtUsd, fmtDate, entryLabel, localeLabel } from "../../lib/admin/data";
 import { business, loadCatalog, delta } from "../../lib/admin/business";
 import { timeChart, sparkline, hbars } from "../../lib/admin/charts";
@@ -19,7 +20,15 @@ const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const range = parseRange(Astro.url.searchParams);
 const withTest = Astro.url.searchParams.get("test") === "1";
-const [o, r, catalog, b] = await Promise.all([overview(range, withTest), reflets(range, withTest), loadCatalog(), business(range, { test: withTest || undefined }).catch(() => null)]);
+let o: Awaited<ReturnType<typeof overview>>;
+let r: Awaited<ReturnType<typeof reflets>>;
+let catalog: Awaited<ReturnType<typeof loadCatalog>>;
+let b: Awaited<ReturnType<typeof business>> | null = null;
+try {
+  [o, r, catalog, b] = await Promise.all([overview(range, withTest), reflets(range, withTest), loadCatalog(), business(range, { test: withTest || undefined }).catch(() => null)]);
+} catch (error) {
+  return panne(error, "Luma", Astro.url);
+}
 const imageOf = (handle: string) => catalog.products.find((p) => p.handle === handle)?.image ?? null;
 const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0).replace(".", ",")} %`);
 const perCost = o.conversations ? o.cost / o.conversations : null;

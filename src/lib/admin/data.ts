@@ -118,21 +118,77 @@ export type AuditRow = { id: number; actor: string; action: string; target: stri
 
 /* --------------------------------------------------------------- lecture */
 const PAGE = 1000;
-export async function fetchAll<T>(table: string, build: (q: any) => any): Promise<T[]> {
+const MAX_PAGES = 50;
+
+/**
+ * Lit une table page par page.
+ *
+ * `columns` permet de ne demander que ce qu'on utilise : sur `luma_messages`,
+ * le corps des conversations pèse cent fois le reste.
+ *
+ * Si la période dépasse le plafond, on **lève** au lieu de tronquer : un
+ * tableau de bord qui affiche un chiffre faux sans le dire est pire qu'un
+ * tableau de bord en panne.
+ */
+export async function fetchAll<T>(table: string, build: (q: any) => any, columns = "*"): Promise<T[]> {
   const out: T[] = [];
-  for (let page = 0; page < 20; page++) {
-    const q = build(adminDb().from(table).select("*")).range(page * PAGE, page * PAGE + PAGE - 1);
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const q = build(adminDb().from(table).select(columns)).range(page * PAGE, page * PAGE + PAGE - 1);
     const { data, error } = await q;
     if (error) throw new Error(`[admin/data] ${table} : ${error.message}`);
     out.push(...((data ?? []) as T[]));
-    if (!data || data.length < PAGE) break;
+    if (!data || data.length < PAGE) return out;
   }
+  throw new Error(`[admin/data] ${table} : plus de ${MAX_PAGES * PAGE} lignes sur la période demandée. Les chiffres seraient faux — réduis la période.`);
+}
+
+/**
+ * Filtre sur une liste d'identifiants, par paquets.
+ *
+ * PostgREST écrit la liste dans l'URL : mesuré sur ce projet, 600 identifiants
+ * passent et 650 sont refusés en HTTP 400. Au-delà d'environ six cents
+ * conversations sur la période, six pages de la tour de contrôle tombaient.
+ * On découpe par 200 et on lit les paquets en parallèle.
+ */
+const IN_CHUNK = 200;
+/** Découpe une liste d'identifiants en paquets tenant dans une URL. */
+export function paquets(values: string[]): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < values.length; i += IN_CHUNK) out.push(values.slice(i, i + IN_CHUNK));
   return out;
+}
+export async function fetchIn<T>(table: string, column: string, values: string[], build: (q: any) => any = (q) => q, columns = "*"): Promise<T[]> {
+  if (!values.length) return [];
+  const lots = await Promise.all(paquets(values).map((p) => fetchAll<T>(table, (q) => build(q.in(column, p)), columns)));
+  return lots.flat();
+}
+
+/** Compte les lignes portant l'un des identifiants, par paquets (même limite d'URL que `fetchIn`). */
+export async function countIn(table: string, column: string, values: string[]): Promise<number> {
+  if (!values.length) return 0;
+  let total = 0;
+  for (let i = 0; i < values.length; i += IN_CHUNK) {
+    const { count, error } = await adminDb()
+      .from(table)
+      .select("id", { count: "exact", head: true })
+      .in(column, values.slice(i, i + IN_CHUNK));
+    if (error) throw new Error(`[admin/data] ${table} : ${error.message}`);
+    total += count ?? 0;
+  }
+  return total;
 }
 
 export type LumaData = { sessions: SessionRow[]; messages: MessageRow[]; events: EventRow[]; signals: SignalRow[] };
 
-export async function loadLuma(range: Range, withTest = false): Promise<LumaData> {
+/**
+ * Les conversations de la période, avec leurs messages, événements et signaux.
+ *
+ * `sansTexte` laisse le corps des messages dans la base : la vue d'ensemble n'en
+ * tire que des compteurs et des jetons, et téléchargeait tout le corpus pour
+ * quatre chiffres. Conversations et Questions, elles, ont besoin du texte.
+ */
+const COLONNES_MESSAGE_LEGER = "id,session_id,role,model,tokens_in,tokens_out,violations,regenerated,created_at";
+export async function loadLuma(range: Range, withTest = false, sansTexte = false): Promise<LumaData> {
   const since = range.from.toISOString();
   const until = range.to.toISOString();
   // Staging, previews et local sont marqués « test » : écartés sauf demande (Sandro, 14 sept. : « on ne pollue pas »).
@@ -143,27 +199,28 @@ export async function loadLuma(range: Range, withTest = false): Promise<LumaData
   const ids = sessions.map((s) => s.id);
   if (ids.length === 0) return { sessions, messages: [], events: [], signals: [] };
   const [messages, events, signals] = await Promise.all([
-    fetchAll<MessageRow>("luma_messages", (q) => q.in("session_id", ids).order("id", { ascending: true })),
+    fetchIn<MessageRow>("luma_messages", "session_id", ids, (q) => q.order("id", { ascending: true }), sansTexte ? COLONNES_MESSAGE_LEGER : "*"),
     // Les événements des SESSIONS retenues seulement : sinon ceux de staging reviendraient dans les incidents.
-    fetchAll<EventRow>("luma_events", (q) => q.in("session_id", ids).gte("created_at", since).lte("created_at", until).order("id", { ascending: true })),
-    fetchAll<SignalRow>("luma_profile_signals", (q) => q.in("session_id", ids)),
+    fetchIn<EventRow>("luma_events", "session_id", ids, (q) => q.gte("created_at", since).lte("created_at", until).order("id", { ascending: true })),
+    fetchIn<SignalRow>("luma_profile_signals", "session_id", ids),
   ]);
   return { sessions, messages, events, signals };
 }
 
+/**
+ * Les événements du site sur la période.
+ *
+ * Aucun filet ici : si Supabase répond mal, on lève. Avant, on rendait une
+ * liste vide et le tableau de bord affichait « 0 € » — une panne réseau
+ * ressemblait à une journée sans vente. C'est la page qui attrape et le dit.
+ */
 export async function loadSite(range: Range, withTest = false): Promise<SiteEventRow[]> {
   const since = range.from.toISOString();
   const until = range.to.toISOString();
-  try {
-    return await fetchAll<SiteEventRow>("site_events", (q) => {
-      const base = q.gte("created_at", since).lte("created_at", until).order("id", { ascending: true });
-      return withTest ? base : base.eq("test", false);
-    });
-  } catch (error) {
-    // La table n'existe pas encore (migration 0003 pas appliquée) : la page « Site » le dit, le reste vit.
-    console.error("[admin/data] site_events", error);
-    return [];
-  }
+  return fetchAll<SiteEventRow>("site_events", (q) => {
+    const base = q.gte("created_at", since).lte("created_at", until).order("id", { ascending: true });
+    return withTest ? base : base.eq("test", false);
+  });
 }
 
 /* ------------------------------------------------------------- utilitaires */
@@ -242,10 +299,30 @@ export function estimateCost(messages: MessageRow[]): number {
   return (tin / 1e6) * PRICE_IN + (tout / 1e6) * PRICE_OUT;
 }
 
+/**
+ * Le catalogue Shopify, gardé cinq minutes.
+ *
+ * Il ne bouge pas dans la journée et coûtait 250 à 400 ms à chaque affichage —
+ * trois fois sur la seule page Luma, qui appelait `loadCatalog`, `business` et
+ * `reflets`. On garde la promesse elle-même : deux appels lancés dans le même
+ * rendu partagent le même aller-retour.
+ */
+const CATALOGUE_TTL = 5 * 60 * 1000;
+let catalogue: { at: number; value: Promise<Awaited<ReturnType<typeof getAllProducts>>> } | null = null;
+export function allProducts(): Promise<Awaited<ReturnType<typeof getAllProducts>>> {
+  if (catalogue && Date.now() - catalogue.at < CATALOGUE_TTL) return catalogue.value;
+  const value = getAllProducts();
+  catalogue = { at: Date.now(), value };
+  value.catch(() => {
+    if (catalogue?.value === value) catalogue = null; // un échec ne se garde pas
+  });
+  return value;
+}
+
 /** Les noms des Reflets, depuis Shopify (repli sur le handle). */
 export async function refletNames(): Promise<{ handle: string; name: string }[]> {
   try {
-    return (await getAllProducts()).filter((p) => !isCoffret(p)).map((p) => ({ handle: p.handle, name: p.title }));
+    return (await allProducts()).filter((p) => !isCoffret(p)).map((p) => ({ handle: p.handle, name: p.title }));
   } catch {
     return [...new Set(LAYERING.flatMap((d) => d.pair))].map((h) => ({ handle: h, name: h }));
   }
@@ -593,58 +670,41 @@ export async function rgpdSearch(q: string) {
   if (error) throw new Error(`[admin/rgpd] ${error.message}`);
   const sessions = (data ?? []) as SessionRow[];
   const anonIds = [...new Set([...sessions.map((s) => s.anon_id), ...(mode === "id" ? [needle] : [])])];
-  let siteEvents = 0;
-  try {
-    const { count } = await adminDb().from("site_events").select("id", { count: "exact", head: true }).in("anon_id", anonIds.length ? anonIds : ["-"]);
-    siteEvents = count ?? 0;
-  } catch {
-    siteEvents = 0;
-  }
   // Les commandes reliées au parcours (shop_orders.anon_id) : aucune donnée personnelle dedans, mais le lien, lui, s'efface.
-  let orders = 0;
-  try {
-    const { count } = await adminDb().from("shop_orders").select("id", { count: "exact", head: true }).in("anon_id", anonIds.length ? anonIds : ["-"]);
-    orders = count ?? 0;
-  } catch {
-    orders = 0;
-  }
+  const [siteEvents, orders] = await Promise.all([countIn("site_events", "anon_id", anonIds), countIn("shop_orders", "anon_id", anonIds)]);
   return { sessions, anonIds, siteEvents, orders, mode };
 }
 export async function rgpdExport(q: string) {
   const found = await rgpdSearch(q);
   const ids = found.sessions.map((s) => s.id);
   const [messages, events, signals, siteEvents, orders] = await Promise.all([
-    ids.length ? fetchAll<MessageRow>("luma_messages", (x) => x.in("session_id", ids).order("id", { ascending: true })) : [],
-    ids.length ? fetchAll<EventRow>("luma_events", (x) => x.in("session_id", ids).order("id", { ascending: true })) : [],
-    ids.length ? fetchAll<SignalRow>("luma_profile_signals", (x) => x.in("session_id", ids)) : [],
-    found.anonIds.length ? fetchAll<SiteEventRow>("site_events", (x) => x.in("anon_id", found.anonIds).order("id", { ascending: true })).catch(() => []) : [],
-    found.anonIds.length ? fetchAll<Record<string, unknown>>("shop_orders", (x) => x.in("anon_id", found.anonIds).order("created_at", { ascending: true })).catch(() => []) : [],
+    fetchIn<MessageRow>("luma_messages", "session_id", ids, (x) => x.order("id", { ascending: true })),
+    fetchIn<EventRow>("luma_events", "session_id", ids, (x) => x.order("id", { ascending: true })),
+    fetchIn<SignalRow>("luma_profile_signals", "session_id", ids),
+    fetchIn<SiteEventRow>("site_events", "anon_id", found.anonIds, (x) => x.order("id", { ascending: true })),
+    fetchIn<Record<string, unknown>>("shop_orders", "anon_id", found.anonIds, (x) => x.order("created_at", { ascending: true })),
   ]);
   return { exportedAt: new Date().toISOString(), query: q, sessions: found.sessions, messages, events, signals, siteEvents, orders };
 }
 export async function rgpdDelete(q: string) {
   const found = await rgpdSearch(q);
   const ids = found.sessions.map((s) => s.id);
+  // Par paquets, comme les lectures : une liste d'identifiants trop longue est refusée par PostgREST.
+  // Et rien n'est rattrapé en silence : un effacement RGPD à moitié fait doit se voir.
   let sessions = 0;
   let events = 0;
-  if (ids.length) {
-    const { error, count } = await adminDb().from("luma_sessions").delete({ count: "exact" }).in("id", ids);
-    if (error) throw new Error(`[admin/rgpd] effacement : ${error.message}`);
-    sessions = count ?? ids.length;
+  for (const paquet of paquets(ids)) {
+    const { error, count } = await adminDb().from("luma_sessions").delete({ count: "exact" }).in("id", paquet);
+    if (error) throw new Error(`[admin/rgpd] effacement des conversations : ${error.message}`);
+    sessions += count ?? paquet.length;
   }
-  if (found.anonIds.length) {
-    try {
-      const { count } = await adminDb().from("site_events").delete({ count: "exact" }).in("anon_id", found.anonIds);
-      events = count ?? 0;
-    } catch {
-      events = 0;
-    }
+  for (const paquet of paquets(found.anonIds)) {
+    const { error, count } = await adminDb().from("site_events").delete({ count: "exact" }).in("anon_id", paquet);
+    if (error) throw new Error(`[admin/rgpd] effacement du parcours : ${error.message}`);
+    events += count ?? 0;
     // La commande reste (comptabilité, sans donnée personnelle) ; son lien au parcours, non.
-    try {
-      await adminDb().from("shop_orders").update({ anon_id: null, ga_client: null }).in("anon_id", found.anonIds);
-    } catch {
-      /* table absente : rien à délier */
-    }
+    const { error: err2 } = await adminDb().from("shop_orders").update({ anon_id: null, ga_client: null }).in("anon_id", paquet);
+    if (err2) throw new Error(`[admin/rgpd] déliaison des commandes : ${err2.message}`);
   }
   return { sessions, events };
 }

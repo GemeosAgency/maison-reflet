@@ -2,6 +2,7 @@
 /** Toutes les conversations Luma de la période, filtrables, une ligne par session. */
 import AdminLayout from "../../../layouts/AdminLayout.astro";
 import { readSession } from "../../../lib/admin/auth";
+import { panne } from "../../../lib/admin/panne";
 import { conversations, parseRange, fmtInt, fmtDate, fmtDuration, entryLabel, localeLabel, pageLabel, PER_PAGE } from "../../../lib/admin/data";
 export const prerender = false;
 
@@ -19,7 +20,12 @@ const filters = {
   page: Number(sp.get("page") ?? 1) || 1,
   test: sp.get("test") === "1",
 };
-const result = await conversations(range, filters);
+let result: Awaited<ReturnType<typeof conversations>>;
+try {
+  result = await conversations(range, filters);
+} catch (error) {
+  return panne(error, "Conversations", Astro.url);
+}
 const pageHref = (p: number) => {
   const u = new URL(Astro.url);
   u.searchParams.set("page", String(p));

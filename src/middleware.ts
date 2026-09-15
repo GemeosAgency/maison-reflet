@@ -205,17 +205,28 @@ const HOLDING_PAGE = `<!doctype html>
 </html>
 `;
 
-export const onRequest = defineMiddleware((context, next) => {
+export const onRequest = defineMiddleware(async (context, next) => {
   // On ne remplace que les routes de pages : les fichiers (images du teaser,
   // robots.txt, css…) ont une extension et passent normalement, et l'API de
   // collecte d'emails (/api/*) doit rester joignable même en mode teaser.
+  //
+  // /admin est exclu aussi : la tour de contrôle sert justement à surveiller la
+  // production, et le teaser la rendait inatteignable là où elle est utile.
   const path = context.url.pathname;
-  const isAsset = /\.[a-z0-9]+$/i.test(path) || path.startsWith("/api/");
+  const admin = path === "/admin" || path.startsWith("/admin/");
+  const isAsset = /\.[a-z0-9]+$/i.test(path) || path.startsWith("/api/") || admin;
   if (COMING_SOON && !isAsset) {
     return new Response(HOLDING_PAGE, {
       status: 200,
       headers: { "Content-Type": "text/html; charset=utf-8" },
     });
   }
-  return next();
+  const res = await next();
+  // Une page d'administration ne se garde nulle part : ni dans un cache partagé,
+  // ni dans l'historique du navigateur après déconnexion.
+  if (admin) {
+    res.headers.set("Cache-Control", "private, no-store");
+    res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+  return res;
 });

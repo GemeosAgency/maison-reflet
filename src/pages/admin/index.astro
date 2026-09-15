@@ -18,6 +18,7 @@ import ModalTemplate from "../../components/admin/ModalTemplate.astro";
 import OrdersTable from "../../components/admin/OrdersTable.astro";
 import CartsTable from "../../components/admin/CartsTable.astro";
 import { readSession } from "../../lib/admin/auth";
+import { panne } from "../../lib/admin/panne";
 import { parseRange, fmtInt, fmtPct, fmtUsd, loadLuma, buildConversations, estimateCost } from "../../lib/admin/data";
 import { business, parseFilters, hasFilters, fmtMoney, fmtMoneyShort, delta, filtersQuery } from "../../lib/admin/business";
 import { timeChart, hbars, stackBar } from "../../lib/admin/charts";
@@ -27,7 +28,14 @@ const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const range = parseRange(Astro.url.searchParams);
 const filters = parseFilters(Astro.url.searchParams);
-const [b, luma] = await Promise.all([business(range, filters), loadLuma(range).catch(() => null)]);
+let b: Awaited<ReturnType<typeof business>>;
+let luma: Awaited<ReturnType<typeof loadLuma>> | null = null;
+try {
+  // Luma peut manquer sans que la page tombe : le bloc conversations le dira.
+  [b, luma] = await Promise.all([business(range, filters), loadLuma(range, false, true).catch(() => null)]);
+} catch (error) {
+  return panne(error, "Vue d'ensemble", Astro.url);
+}
 const convs = luma ? buildConversations(luma) : [];
 const cur = b.currency;
 const money = (n: number) => fmtMoney(n, cur);

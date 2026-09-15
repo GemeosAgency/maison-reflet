@@ -2,6 +2,7 @@
 /** Ce que les visiteurs demandent à Luma, par thème et mot pour mot, et là où elle n'a pas su répondre. */
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import { readSession } from "../../lib/admin/auth";
+import { panne } from "../../lib/admin/panne";
 import { questions, parseRange, fmtInt, fmtPct, fmtDate } from "../../lib/admin/data";
 export const prerender = false;
 
@@ -9,7 +10,12 @@ const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 const range = parseRange(Astro.url.searchParams);
 const withTest = Astro.url.searchParams.get("test") === "1";
-const q = await questions(range, withTest);
+let q: Awaited<ReturnType<typeof questions>>;
+try {
+  q = await questions(range, withTest);
+} catch (error) {
+  return panne(error, "Questions", Astro.url);
+}
 const maxTheme = Math.max(1, ...q.themes.map((t) => t.count));
 ---
 
