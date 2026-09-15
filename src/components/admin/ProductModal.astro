@@ -15,9 +15,10 @@ interface Props {
 }
 const { product: p, currency, totalRevenue } = Astro.props;
 const money = (n: number) => fmtMoney(n, currency);
+const c = p.couleur;
 ---
 
-<ModalTemplate id={`product:${p.handle}`} title={p.name} subtitle={`${p.kind === "coffret" ? "Coffret" : "Reflet"} · ${money(p.price)} · ${totalRevenue ? fmtPct(p.revenue, totalRevenue) : "–"} du chiffre d'affaires`} wide>
+<ModalTemplate id={`product:${p.handle}`} titleColor={c.encre} accent={c.teinte} title={p.name} subtitle={`${p.kind === "coffret" ? "Coffret" : "Reflet"} · ${money(p.price)} · ${totalRevenue ? fmtPct(p.revenue, totalRevenue) : "–"} du chiffre d'affaires`} wide>
   <div class="modal-hero">
     <ProductThumb image={p.image} name={p.name} size={120} ratio="portrait" />
     <div class="kpis">
@@ -33,7 +34,7 @@ const money = (n: number) => fmtMoney(n, currency);
   <div class="modal-grid">
     <div class="card">
       <div class="card-head"><h3 class="card-title">Fiches vues et flacons vendus, par jour</h3><p class="card-note">aire : fiches vues · barres : flacons</p></div>
-      <Fragment set:html={timeChart(p.detail.seriesViews, { secondary: p.detail.seriesUnits, height: 150, primaryColor: "var(--ink)", secondaryColor: "var(--rose)", primaryLabel: "fiches vues", secondaryLabel: "flacons" })} />
+      <Fragment set:html={timeChart(p.detail.seriesViews, { secondary: p.detail.seriesUnits, height: 150, primaryColor: "var(--ink)", secondaryColor: c.trait, primaryLabel: "fiches vues", secondaryLabel: "flacons" })} />
     </div>
     <div class="card">
       <div class="card-head"><h3 class="card-title">Où il part</h3><p class="card-note">flacons par pays de livraison</p></div>

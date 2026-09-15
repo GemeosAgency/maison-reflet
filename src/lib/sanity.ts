@@ -263,6 +263,14 @@ export async function getInspiredByMap(): Promise<Record<string, string>> {
   return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.inspiredBy]));
 }
 
+/** Map handle -> couleur signature (accent de la fiche produit, repris par la tour de contrôle). */
+export async function getSignatureColorMap(): Promise<Record<string, string>> {
+  const rows = await sanityClient.fetch<{ shopifyHandle: string; couleurSignature: string }[]>(
+    `*[_type == "parfum" && defined(couleurSignature) && defined(shopifyHandle)]{ shopifyHandle, couleurSignature }`
+  );
+  return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.couleurSignature]));
+}
+
 /** Map handle -> badge "best seller" (cartes produit). */
 export async function getBestSellerMap(): Promise<Record<string, boolean>> {
   const rows = await sanityClient.fetch<{ shopifyHandle: string }[]>(

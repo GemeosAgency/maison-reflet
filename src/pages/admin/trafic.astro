@@ -40,6 +40,10 @@ const cur = j.currency;
 const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0).replace(".", ",")} %`);
 const dec = (v: number | null) => (v === null ? "–" : v.toFixed(1).replace(".", ","));
 const thumbPrefix = (image: string | null) => (image ? `<img class="hbar-thumb" src="${thumb(image, 60)}" alt="" loading="lazy">` : "");
+// Chaque Reflet garde sa couleur signature d'une page à l'autre : c'est ce qui
+// permet de le reconnaître dans une barre sans lire son nom.
+const teintes = new Map(j.perProduct.map((p) => [p.handle, p.couleur]));
+const traitDe = (handle: string) => teintes.get(handle)?.trait ?? "var(--ink)";
 const maxSource = Math.max(1, ...j.sources.map((s) => s.visitors));
 const totalDevices = j.devices.reduce((n, d) => n + d.value, 0);
 const totalLocales = j.locales.reduce((n, d) => n + d.value, 0);
@@ -49,10 +53,10 @@ const pageRows = j.topPages.map((p) => ({ label: p.label, value: p.count, text: 
 const landingRows = j.landingPages.slice(0, 6).map((p) => ({ label: p.label, value: p.count, text: fmtInt(p.count), color: "var(--ok)" }));
 const exitRows = j.exitPages.slice(0, 6).map((p) => ({ label: p.label, value: p.count, text: fmtInt(p.count), color: "var(--warn)" }));
 const guideRows = j.guideFilters.slice(0, 6).map((g) => ({ label: g.label, value: g.count, text: fmtInt(g.count) }));
-const mapRows = j.mapSelects.filter((m) => m.count > 0).slice(0, 6).map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), modal: `product:${m.handle}` }));
-const menuRows = j.menu.filter((m) => m.count > 0).map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), modal: `product:${m.handle}` }));
-const sampleRows = j.samplePicks.map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), color: "var(--warn)", modal: `product:${m.handle}` }));
-const listenRows = j.listens.perReflet.filter((l) => l.plays > 0).map((l) => ({ label: l.name, prefix: thumbPrefix(l.image), value: l.plays, text: `${fmtInt(l.plays)} · ${fmtPct(l.completes, l.plays)} au bout`, color: "var(--rose)", modal: `product:${l.handle}` }));
+const mapRows = j.mapSelects.filter((m) => m.count > 0).slice(0, 6).map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), color: traitDe(m.handle), modal: `product:${m.handle}` }));
+const menuRows = j.menu.filter((m) => m.count > 0).map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), color: traitDe(m.handle), modal: `product:${m.handle}` }));
+const sampleRows = j.samplePicks.map((m) => ({ label: m.name, prefix: thumbPrefix(m.image), value: m.count, text: fmtInt(m.count), color: traitDe(m.handle), modal: `product:${m.handle}` }));
+const listenRows = j.listens.perReflet.filter((l) => l.plays > 0).map((l) => ({ label: l.name, prefix: thumbPrefix(l.image), value: l.plays, text: `${fmtInt(l.plays)} · ${fmtPct(l.completes, l.plays)} au bout`, color: traitDe(l.handle), modal: `product:${l.handle}` }));
 const sourceRows = j.listens.bySource.map((s) => ({ label: s.label, value: s.count, text: fmtPct(s.count, j.listens.total) }));
 const watched = [...j.perProduct].sort((x, y) => y.views - x.views);
 const subtitle = j.tracked.since ? `Qui vient, d'où, et ce qu'ils font une fois là · ${range.label}, heure de Dubaï.` : "En attente des premières visites suivies.";

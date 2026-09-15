@@ -161,6 +161,9 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
         subEl.textContent = tpl.dataset.subtitle ?? "";
         subEl.hidden = !tpl.dataset.subtitle;
         dialog.classList.toggle("is-wide", tpl.dataset.wide === "1");
+        // La fenêtre d'un Reflet reprend sa couleur signature ; les autres restent neutres.
+        titleEl.style.color = tpl.dataset.titleColor ?? "";
+        dialog.style.setProperty("--accent", tpl.dataset.accent ?? "transparent");
         body.replaceChildren(tpl.content.cloneNode(true));
         paginate(body);
         if (!dialog.open) dialog.showModal();
@@ -572,16 +575,20 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   .items-text { min-width: 0; }
   .pcell { display: inline-flex; align-items: center; gap: 10px; }
   .ptiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-  .ptile { display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: start; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); text-align: start; cursor: pointer; box-shadow: var(--shadow); transition: border-color 0.15s ease, transform 0.2s ease, box-shadow 0.2s ease; color: inherit; }
+  /* --teinte, --trait, --encre et --voile sont posés par la vignette elle-même,
+     d'après la couleur signature du Reflet (voir lib/admin/couleurs.ts). */
+  .ptile { position: relative; display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: start; padding: 14px 14px 14px 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); text-align: start; cursor: pointer; box-shadow: var(--shadow); transition: border-color 0.15s ease, transform 0.2s ease, box-shadow 0.2s ease; color: inherit; overflow: hidden; }
+  .ptile::before { content: ""; position: absolute; inset-inline-start: 0; inset-block: 0; width: 4px; background: var(--teinte, var(--sand)); }
   .ptile:hover { border-color: var(--line-strong); transform: translateY(-2px); box-shadow: 0 1px 2px rgba(21, 14, 10, 0.05), 0 18px 34px -20px rgba(21, 14, 10, 0.3); }
-  .ptile.is-focus { border-color: var(--rose); }
+  .ptile:hover { background: linear-gradient(var(--voile, transparent), var(--voile, transparent)), var(--paper); }
+  .ptile.is-focus { border-color: var(--trait, var(--rose)); }
   .ptile-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .ptile-name { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 500; line-height: 1.2; }
+  .ptile-name { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 500; line-height: 1.2; color: var(--encre, var(--ink)); }
   .ptile-kind { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-2); }
   .ptile-revenue { font-size: 22px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; line-height: 1.1; }
   .ptile-revenue .unit { font-size: 12px; color: var(--muted); margin-inline-start: 4px; }
-  .ptile-share { display: block; height: 4px; border-radius: 2px; background: var(--sand); overflow: hidden; }
-  .ptile-share span { display: block; height: 100%; background: var(--rose); }
+  .ptile-share { display: block; height: 4px; border-radius: 2px; background: var(--voile, var(--sand)); overflow: hidden; }
+  .ptile-share span { display: block; height: 100%; background: var(--trait, var(--rose)); }
   .ptile-stats { display: grid; grid-template-columns: repeat(3, minmax(0, auto)); justify-content: start; gap: 4px 12px; margin: 2px 0 0; font-size: 11px; color: var(--muted); white-space: nowrap; }
   .ptile-stats b { display: block; font-weight: 400; color: var(--ink); font-variant-numeric: tabular-nums; font-size: 13px; }
   .ptile-warn { font-size: 11px; color: var(--warn); }
@@ -595,6 +602,10 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   .adm-filters-check:has(input:checked) { border-color: var(--warn); color: var(--warn); }
   .adm-filters-check input { accent-color: var(--warn); margin: 0; }
   .hbar-thumb { display: block; width: 22px; height: 22px; border-radius: 5px; object-fit: cover; background: var(--sand); }
+  /* Le repère d'un Reflet, partout où son nom apparaît sans sa photo. */
+  .pastille { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--teinte, var(--sand)); }
+  /* Une carte qui ne porte qu'un graphique : moins d'air autour, pas d'ombre. */
+  .card-flat { padding: 14px 16px; box-shadow: none; }
   .seqs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   .seq { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, 0.4); font-size: 13px; }
   .seq-steps { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
@@ -647,7 +658,9 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   .facts dd { margin: 0; }
 
   /* ---- fenêtre de détail ---- */
-  .adm-modal { width: min(920px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 0; border-radius: 16px; background: var(--paper); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(21, 14, 10, 0.5); }
+  /* --accent est posé à l'ouverture : la couleur du Reflet, ou transparent. */
+  .adm-modal { position: relative; width: min(920px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 0; border-radius: 16px; background: var(--paper); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(21, 14, 10, 0.5); overflow: hidden; }
+  .adm-modal::after { content: ""; position: absolute; inset-inline: 0; inset-block-start: 0; height: 3px; background: var(--accent, transparent); pointer-events: none; }
   .adm-modal.is-wide { width: min(1180px, calc(100vw - 32px)); }
   .adm-modal::backdrop { background: rgba(21, 14, 10, 0.45); backdrop-filter: blur(3px); }
   .adm-modal-box { display: flex; flex-direction: column; max-height: calc(100vh - 48px); }

@@ -15,7 +15,7 @@ import { panne } from "../../lib/admin/panne";
 import { parseRange, fmtInt, fmtPct } from "../../lib/admin/data";
 import { business, parseFilters, fmtMoney, fmtMoneyShort, delta } from "../../lib/admin/business";
 import { TIPS } from "../../lib/admin/tips";
-import { timeChart, hbars, donut, heatmap } from "../../lib/admin/charts";
+import { timeChart, hbars, donut, heatmap, stackBar } from "../../lib/admin/charts";
 import ModalTemplate from "../../components/admin/ModalTemplate.astro";
 export const prerender = false;
 
@@ -34,6 +34,14 @@ const money = (n: number) => fmtMoney(n, cur);
 const k = b.kpis;
 const pk = b.previous.kpis;
 const countryRows = b.countries.filter((c) => c.orders).slice(0, 10).map((c) => ({ label: c.name, prefix: c.flag, value: c.revenue, text: `${fmtInt(c.orders)} · ${fmtMoneyShort(c.revenue)} ${cur}`, color: "var(--rose)", modal: `country:${c.code}` }));
+// Quand un Reflet est filtré, la courbe prend sa couleur : on sait de qui on parle
+// sans relire l'en-tête.
+const teintes = new Map(b.perProduct.map((p) => [p.handle, p.couleur]));
+const courbe = filters.reflet ? teintes.get(filters.reflet)?.trait : undefined;
+// La part de chaque Reflet dans le chiffre, en une seule barre.
+const partParts = b.perProduct
+  .filter((p) => p.revenue > 0)
+  .map((p) => ({ label: p.name, value: p.revenue, color: p.couleur.trait, text: `${fmtMoneyShort(p.revenue)} ${cur}`, modal: `product:${p.handle}` }));
 const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value: d.orders, text: `${fmtInt(d.orders)} · −${fmtMoneyShort(d.discounts)} ${cur}`, color: "var(--warn)" }));
 ---
 
@@ -52,7 +60,7 @@ const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value
   <section class="grid grid-2">
     <div class="card">
       <div class="card-head"><h2 class="card-title">Chiffre d'affaires et commandes, par jour <Tip of="byDay" /></h2><p class="card-note">aire : {cur} · barres : commandes</p></div>
-      <Fragment set:html={timeChart(b.series.revenue, { secondary: b.series.orders, height: 190, primaryFormat: (v) => fmtMoneyShort(v), secondaryFormat: (v) => `${v} commande${v > 1 ? "s" : ""}`, primaryLabel: "chiffre", modal: "days" })} />
+      <Fragment set:html={timeChart(b.series.revenue, { secondary: b.series.orders, height: 190, primaryColor: courbe, primaryFormat: (v) => fmtMoneyShort(v), secondaryFormat: (v) => `${v} commande${v > 1 ? "s" : ""}`, primaryLabel: "chiffre", modal: "days" })} />
     </div>
     <div class="card">
       <div class="card-head"><h2 class="card-title">Paniers abandonnés, par jour <Tip of="cartsAbandoned" /></h2><p class="card-note">{money(b.carts.abandoned.total)} au total</p></div>
@@ -61,6 +69,7 @@ const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value
   </section>
 
   <div class="section-title"><h2>Par produit</h2><p>chiffre, part, flacons, paniers abandonnés — un clic ouvre le détail</p></div>
+  {partParts.length > 1 && <div class="card card-flat"><Fragment set:html={stackBar(partParts)} /></div>}
   <ProductTiles products={b.perProduct} currency={cur} focus={filters.reflet} />
   {b.other.units > 0 && <p class="card-foot">Autres articles vendus : {b.other.titles.join(", ")} — {fmtInt(b.other.units)} unité{b.other.units > 1 ? "s" : ""}, {money(b.other.revenue)}.</p>}
 

@@ -41,6 +41,8 @@ const cur = b.currency;
 const money = (n: number) => fmtMoney(n, cur);
 const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0).replace(".", ",")} %`);
 const q = `${range.query}${filtersQuery(filters)}`;
+// Même règle que sur Ventes : la courbe prend la couleur du Reflet filtré.
+const courbe = filters.reflet ? b.perProduct.find((p) => p.handle === filters.reflet)?.couleur.trait : undefined;
 const k = b.kpis;
 const pk = b.previous.kpis;
 const subtitle = hasFilters(filters) ? `Vue filtrée · ${range.label}, heure de Dubaï.` : `Le business depuis le site, en un regard · ${range.label}, heure de Dubaï.`;
@@ -75,7 +77,7 @@ const heroSub = [`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""}`, `${fm
   <section class="grid grid-3">
     <div class="card span-2">
       <div class="card-head"><h2 class="card-title">Chiffre d'affaires et commandes, par jour <Tip of="byDay" /></h2><p class="card-note">aire : {cur} encaissés · barres : commandes · un clic ouvre le jour</p></div>
-      <Fragment set:html={timeChart(b.series.revenue, { secondary: b.series.orders, height: 210, primaryFormat: (v) => fmtMoneyShort(v), secondaryFormat: (v) => `${v} commande${v > 1 ? "s" : ""}`, primaryLabel: "chiffre", modal: "days" })} />
+      <Fragment set:html={timeChart(b.series.revenue, { secondary: b.series.orders, height: 210, primaryColor: courbe, primaryFormat: (v) => fmtMoneyShort(v), secondaryFormat: (v) => `${v} commande${v > 1 ? "s" : ""}`, primaryLabel: "chiffre", modal: "days" })} />
     </div>
     <div class="card">
       <div class="card-head"><h2 class="card-title">Les paniers <Tip of="cartsAbandoned" /></h2><a class="card-note" href={`/admin/ventes?${q}`}>Ventes →</a></div>

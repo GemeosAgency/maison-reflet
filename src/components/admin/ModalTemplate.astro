@@ -9,8 +9,18 @@ interface Props {
   title: string;
   subtitle?: string;
   wide?: boolean;
+  /** Couleur du titre et filet d'accent : la couleur signature du Reflet, quand il y en a une. */
+  titleColor?: string;
+  accent?: string;
 }
-const { id, title, subtitle, wide = false } = Astro.props;
+const { id, title, subtitle, wide = false, titleColor, accent } = Astro.props;
 ---
 
-<template data-modal-template={id} data-title={title} data-subtitle={subtitle} data-wide={wide ? "1" : undefined}><slot /></template>
+<template
+  data-modal-template={id}
+  data-title={title}
+  data-subtitle={subtitle}
+  data-wide={wide ? "1" : undefined}
+  data-title-color={titleColor}
+  data-accent={accent}
+><slot /></template>

@@ -16,7 +16,12 @@ const maxShare = Math.max(0.0001, ...products.map((p) => p.share));
 <div class="ptiles">
   {
     products.map((p) => (
-      <button type="button" class:list={["ptile", { "is-focus": focus === p.handle }]} data-open-modal={`product:${p.handle}`}>
+      <button
+        type="button"
+        class:list={["ptile", { "is-focus": focus === p.handle }]}
+        data-open-modal={`product:${p.handle}`}
+        style={`--teinte:${p.couleur.teinte};--trait:${p.couleur.trait};--encre:${p.couleur.encre};--voile:${p.couleur.voile}`}
+      >
         <ProductThumb image={p.image} name={p.name} size={72} ratio="portrait" />
         <span class="ptile-body">
           <span class="ptile-name">{p.name}{p.kind === "coffret" && <span class="ptile-kind">coffret</span>}</span>

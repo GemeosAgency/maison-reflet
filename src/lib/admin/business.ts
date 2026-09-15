@@ -14,6 +14,8 @@ import { adminDb } from "./db";
 import { COUNTRY_CENTROIDS, countryName } from "./geo";
 import { LAYERING } from "../layering";
 import { isCoffret, isSampleVariantTitle } from "../shopify";
+import { getSignatureColorMap } from "../sanity";
+import { couleurDe, teintesDe, type Teintes } from "./couleurs";
 import { allProducts, dailySeries, dayKey, daysOf, fetchAll, fetchIn, loadSite, previousRange, rangeBetween, refletNames, TZ, type Range, type SiteEventRow } from "./data";
 
 /* ------------------------------------------------------------------ types */
@@ -47,7 +49,7 @@ export type OrderRow = {
 };
 const refundedOf = (o: OrderRow) => o.refunds.reduce((n, r) => n + r.amount, 0);
 
-export type Product = { handle: string; name: string; image: string | null; price: number; kind: "reflet" | "coffret"; productId: number | null };
+export type Product = { handle: string; name: string; image: string | null; price: number; kind: "reflet" | "coffret"; productId: number | null; couleur: Teintes };
 export type Catalog = { products: Product[]; variantPrice: Map<string, { price: number; handle: string }>; handlePrice: Map<string, number>; byProductId: Map<number, string> };
 /** Une vignette Shopify à la largeur voulue (le CDN redimensionne à la demande). */
 export const thumb = (url: string | null | undefined, w = 160) => (url ? `${url}${url.includes("?") ? "&" : "?"}width=${w}` : null);
@@ -259,6 +261,13 @@ async function buildCatalog(): Promise<Catalog> {
   const variantPrice = new Map<string, { price: number; handle: string }>();
   const handlePrice = new Map<string, number>();
   const byProductId = new Map<number, string>();
+  // La couleur d'un Reflet vient de Sanity, jointe sur le handle Shopify. Si Sanity
+  // est injoignable, tout reste lisible en neutre : une couleur manquante ne doit
+  // jamais empêcher un chiffre de s'afficher.
+  const couleurs = await getSignatureColorMap().catch((error) => {
+    console.error("[admin/business] couleurs signature indisponibles", error);
+    return {} as Record<string, string>;
+  });
   try {
     for (const p of await allProducts()) {
       const productId = Number(p.id.split("/").pop()) || null;
@@ -268,11 +277,11 @@ async function buildCatalog(): Promise<Catalog> {
         variantPrice.set(v.id, { price, handle: p.handle });
         if (price > 0 && !isSampleVariantTitle(v.title) && !handlePrice.has(p.handle)) handlePrice.set(p.handle, price);
       }
-      products.push({ handle: p.handle, name: p.title, image: p.featuredImage?.url ?? null, price: handlePrice.get(p.handle) ?? Number(p.priceRange.minVariantPrice.amount), kind: isCoffret(p) ? "coffret" : "reflet", productId });
+      products.push({ handle: p.handle, name: p.title, image: p.featuredImage?.url ?? null, price: handlePrice.get(p.handle) ?? Number(p.priceRange.minVariantPrice.amount), kind: isCoffret(p) ? "coffret" : "reflet", productId, couleur: teintesDe(couleurDe(p.handle, couleurs)) });
     }
   } catch (error) {
     console.error("[admin/business] catalogue Shopify indisponible", error);
-    for (const h of [...new Set(LAYERING.flatMap((d) => d.pair))]) products.push({ handle: h, name: h, image: null, price: 0, kind: "reflet", productId: null });
+    for (const h of [...new Set(LAYERING.flatMap((d) => d.pair))]) products.push({ handle: h, name: h, image: null, price: 0, kind: "reflet", productId: null, couleur: teintesDe(couleurDe(h, couleurs)) });
   }
   products.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "reflet" ? -1 : 1));
   return { products, variantPrice, handlePrice, byProductId };

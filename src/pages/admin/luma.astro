@@ -30,6 +30,9 @@ try {
   return panne(error, "Luma", Astro.url);
 }
 const imageOf = (handle: string) => catalog.products.find((p) => p.handle === handle)?.image ?? null;
+// Mêmes couleurs que sur Ventes et Trafic : un Reflet se reconnaît partout pareil.
+const teintes = new Map(catalog.products.map((p) => [p.handle, p.couleur]));
+const traitDe = (handle: string) => teintes.get(handle)?.trait ?? "var(--rose)";
 const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(v < 0.1 ? 1 : 0).replace(".", ",")} %`);
 const perCost = o.conversations ? o.cost / o.conversations : null;
 const rows = (list: { label: string; count: number }[], color = "var(--ink)") => list.slice(0, 7).map((x) => ({ label: x.label, value: x.count, text: fmtInt(x.count), color }));
@@ -85,8 +88,8 @@ const maxReco = Math.max(1, ...r.per.map((p) => p.recommended));
             {
               recoRows.map((p) => (
                 <tr>
-                  <td><span class="pcell"><ProductThumb image={imageOf(p.handle)} name={p.name} size={36} /><strong>{p.name}</strong></span></td>
-                  <td class="cell-gauge"><span class="mono">{fmtInt(p.recommended)}</span><span class="gauge"><span class="gauge-fill" style={`width:${(p.recommended / maxReco) * 100}%;background:var(--rose)`}></span></span></td>
+                  <td><span class="pcell"><ProductThumb image={imageOf(p.handle)} name={p.name} size={36} /><strong style={`color:${teintes.get(p.handle)?.encre ?? "var(--ink)"}`}>{p.name}</strong></span></td>
+                  <td class="cell-gauge"><span class="mono">{fmtInt(p.recommended)}</span><span class="gauge"><span class="gauge-fill" style={`width:${(p.recommended / maxReco) * 100}%;background:${traitDe(p.handle)}`}></span></span></td>
                   <td class="num muted">{fmtPct(p.recommended, r.recommendedTotal)}</td>
                   <td class="num">{fmtInt(p.alternative)}</td>
                 </tr>
