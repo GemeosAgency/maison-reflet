@@ -153,7 +153,6 @@ const gaugeLabel = (value: number | null, low: string, mid: string, high: string
   if (value == null) return null;
   return value <= 2 ? low : value === 3 ? mid : high;
 };
-const intensite = parfum?.intensite ?? null;
 const sillage = parfum?.sillage ?? null;
 
 // Contenance affichée à côté du titre (variante principale Shopify).
@@ -379,9 +378,6 @@ const productJsonLd = {
         pyramidLabel={t("product.pyramid")}
         pyramidImg={pyramidImg}
         noteLevels={scentLevels.map((l) => ({ label: l.label, notes: l.notes }))}
-        intensityLabel={t("product.intensity")}
-        intensity={intensite}
-        intensityValueLabel={gaugeLabel(intensite, t("product.intensityLow"), t("product.intensityMid"), t("product.intensityHigh"))}
         sillageLabel={t("product.sillage")}
         sillage={sillage}
         sillageValueLabel={gaugeLabel(sillage, t("product.sillageLow"), t("product.sillageMid"), t("product.sillageHigh"))}

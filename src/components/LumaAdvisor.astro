@@ -935,6 +935,9 @@ const t = useTranslations(lang);
     pointer-events: none;
   }
   .luma-pill.is-visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  /* Sur une fiche produit, la barre d'achat collante occupe le bas de l'écran :
+     la pastille se relève au-dessus plutôt que de passer dessous. */
+  body.pbuy-on .luma-pill { bottom: 84px; }
   .luma-pill-open {
     display: flex;
     align-items: baseline;
@@ -1245,6 +1248,7 @@ const t = useTranslations(lang);
     .luma-voice { top: 20px; inset-inline-end: 56px; }
     .luma-card-img { width: 72px; height: 72px; }
     .luma-pill { bottom: 16px; max-width: calc(100vw - 32px); }
+    body.pbuy-on .luma-pill { bottom: 80px; }
     .luma-pill-line { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   }
 

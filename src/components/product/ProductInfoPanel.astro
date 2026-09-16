@@ -27,9 +27,6 @@ interface Props {
   pyramidLabel: string;
   pyramidImg: string | null;
   noteLevels: NoteLevel[];
-  intensityLabel: string;
-  intensity: number | null;
-  intensityValueLabel: string | null;
   sillageLabel: string;
   sillage: number | null;
   sillageValueLabel: string | null;
@@ -62,9 +59,6 @@ const {
   pyramidLabel,
   pyramidImg,
   noteLevels,
-  intensityLabel,
-  intensity,
-  intensityValueLabel,
   sillageLabel,
   sillage,
   sillageValueLabel,
@@ -80,10 +74,9 @@ const {
   lang,
 } = Astro.props;
 
-const gauges = [
-  { label: intensityLabel, value: intensity, valueLabel: intensityValueLabel },
-  { label: sillageLabel, value: sillage, valueLabel: sillageValueLabel },
-].filter((g) => g.value != null);
+// Une seule jauge : le sillage. L'intensité affichait la même valeur sur les six
+// Reflets, elle ne disait donc rien de ce parfum-ci (Sandro, 16 sept.).
+const gauges = [{ label: sillageLabel, value: sillage, valueLabel: sillageValueLabel }].filter((g) => g.value != null);
 
 const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length > 0);
 ---
@@ -196,6 +189,21 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   </div>
 </div>
 
+{/*
+  La barre d'achat collante, mobile seulement. La fiche fait près de quatorze
+  écrans de haut : passé le bouton principal, situé au deuxième écran, plus rien
+  ne permettait d'acheter sans remonter. Elle ne refait pas la logique d'ajout,
+  elle relaie le clic au bouton du panneau — quantité, libellés et états restent
+  à un seul endroit.
+*/}
+<div class="pbuy" data-sticky-buy hidden>
+  <span class="pbuy-name">{title}{sizeLabel && <span class="pbuy-size">{sizeLabel}</span>}</span>
+  <button type="button" class="pbuy-add" data-sticky-add>
+    <span>{addLabel}</span>
+    <span data-money={variantId}>{priceLabel}</span>
+  </button>
+</div>
+
 <script>
   import { addToCart } from "../../lib/cart";
 
@@ -207,6 +215,60 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   document
     .querySelector<HTMLButtonElement>("[data-pyramid-open]")
     ?.addEventListener("click", () => document.dispatchEvent(new CustomEvent("pyramid:open")));
+
+  /*
+   * La barre collante : elle apparaît quand le bouton principal sort de l'écran
+   * par le haut, et se retire dès qu'il revient. Elle relaie son clic, donc elle
+   * hérite de la quantité choisie et des états sans les redéclarer.
+   */
+  /*
+   * La barre collante : elle apparaît quand le bouton principal est sorti par le
+   * haut, et se retire dès qu'il revient. Elle ne refait pas la logique d'ajout,
+   * elle relaie le clic du bouton du panneau — quantité, libellés et états
+   * restent à un seul endroit.
+   *
+   * Les éléments sont cherchés au moment du montage, pas à l'évaluation du
+   * module : la barre est rendue après le panneau et n'existe pas encore quand
+   * ce fichier est évalué.
+   */
+  const monterBarre = () => {
+    const barre = document.querySelector<HTMLElement>("[data-sticky-buy]");
+    const principal = document.querySelector<HTMLElement>(".ppanel-buy-row");
+    if (!barre || !principal) return;
+
+    let affichee = false;
+    const relire = () => {
+      const sortie = principal.getBoundingClientRect().bottom < 0;
+      if (sortie === affichee) return;
+      affichee = sortie;
+      barre.hidden = !sortie;
+      // La pastille Luma se pose au même endroit : on la relève le temps que la
+      // barre est là, sinon les deux se superposent.
+      document.body.classList.toggle("pbuy-on", sortie);
+    };
+
+    let enAttente = false;
+    const auDefilement = () => {
+      if (enAttente) return;
+      enAttente = true;
+      requestAnimationFrame(() => {
+        enAttente = false;
+        relire();
+      });
+    };
+    addEventListener("scroll", auDefilement, { passive: true });
+    addEventListener("resize", auDefilement, { passive: true });
+    relire();
+
+    barre.querySelector<HTMLButtonElement>("[data-sticky-add]")?.addEventListener("click", () => {
+      document.querySelector<HTMLButtonElement>("[data-panel-add]")?.click();
+    });
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", monterBarre, { once: true });
+  } else {
+    monterBarre();
+  }
 
   // Quantité + ajout au panier (quantité choisie, d'où un câblage dédié)
   const addBtn = document.querySelector<HTMLButtonElement>("[data-panel-add]");
@@ -248,6 +310,63 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
 </script>
 
 <style>
+  /* ---- barre d'achat collante (mobile) ---- */
+  .pbuy {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 60;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: var(--paper, #f7f5f2);
+    border-top: 1px solid rgba(21, 14, 10, 0.1);
+    box-shadow: 0 -8px 24px -16px rgba(21, 14, 10, 0.4);
+  }
+  .pbuy[hidden] { display: none; }
+  .pbuy-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+  }
+  .pbuy-size { margin-inline-start: 6px; color: var(--muted, rgba(21, 14, 10, 0.56)); }
+  /* Sous 400 px, le nom et la contenance ne tiennent pas : « FIFTH SEASON 7… »
+     ne rend service à personne, on garde le nom seul. */
+  @media (max-width: 399px) {
+    .pbuy-size { display: none; }
+  }
+  .pbuy-add {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 18px;
+    border: 0;
+    border-radius: 2px;
+    background: var(--rose, #812538);
+    color: var(--paper, #f7f5f2);
+    font: inherit;
+    font-size: 13px;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .pbuy-add:active { opacity: 0.9; }
+  /* La fiche est très longue : sur mobile la barre est la seule façon d'acheter
+     une fois le bouton principal dépassé. Sur ordinateur, la colonne de droite
+     est collante et le bouton reste à portée — la barre n'a pas lieu d'être. */
+  @media (max-width: 899px) {
+    .pbuy:not([hidden]) { display: flex; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pbuy { transition: none; }
+  }
+
   .ppanel {
     display: flex;
     flex-direction: column;
