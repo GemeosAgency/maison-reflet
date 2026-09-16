@@ -97,6 +97,8 @@ export function timeChart(
     secondaryFormat?: (v: number) => string;
     primaryLabel?: string;
     secondaryLabel?: string;
+    /** Courbe étroite (fenêtre de détail) : moitié moins d'étiquettes de dates. */
+    compact?: boolean;
     modal?: string;
     area?: boolean;
   } = {}
@@ -140,7 +142,11 @@ export function timeChart(
   const line = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
   const area = opts.area === false ? "" : `<path d="${line} L${pts[pts.length - 1][0].toFixed(1)},1000 L${pts[0][0].toFixed(1)},1000 Z" fill="${pc}" opacity="0.08"/>`;
   const dots = primary.map((s, i) => (s.value > 0 ? `<span class="tchart-dot${n > 45 ? " is-small" : ""}" style="left:${(X(i) / 10).toFixed(2)}%;top:${(Y(s.value) / 10).toFixed(2)}%;background:${pc}"></span>` : "")).join("");
-  const every = n > 60 ? 14 : n > 31 ? 7 : n > 14 ? 3 : 1;
+  // Une étiquette sur `every`. Dans une fenêtre de détail la courbe n'a que la
+  // moitié de la largeur : on en garde deux fois moins, sinon les dates se
+  // chevauchent et la courbe paraît écrasée.
+  const base = n > 60 ? 14 : n > 31 ? 7 : n > 14 ? 3 : 1;
+  const every = opts.compact ? base * 2 : base;
   const xLabels = primary.map((s, i) => (i % every === 0 || i === n - 1 ? `<span class="tchart-xlabel" style="left:${(X(i) / 10).toFixed(2)}%">${esc(s.label)}</span>` : "")).join("");
   const yLabels = ticks.map((k) => `<span class="tchart-ylabel" style="top:${(100 - k.t * 100).toFixed(1)}%">${esc(k.label)}</span>`).join("");
   const points = primary.map((s, i) => ({ k: s.key, l: s.label, p: fp(s.value), s: opts.secondary ? fs(opts.secondary[i]?.value ?? 0) : null }));

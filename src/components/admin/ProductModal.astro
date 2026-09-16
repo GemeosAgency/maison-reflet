@@ -19,10 +19,10 @@ const c = p.couleur;
 ---
 
 <ModalTemplate id={`product:${p.handle}`} titleColor={c.encre} accent={c.teinte} title={p.name} subtitle={`${p.kind === "coffret" ? "Coffret" : "Reflet"} · ${money(p.price)} · ${totalRevenue ? fmtPct(p.revenue, totalRevenue) : "–"} du chiffre d'affaires`} wide>
-  <div class="modal-hero">
-    <ProductThumb image={p.image} name={p.name} size={120} ratio="portrait" />
+  <div class="modal-hero" style={`--teinte:${c.teinte};--trait:${c.trait};--encre:${c.encre}`}>
+    <ProductThumb image={p.image} name={p.name} size={148} ratio="portrait" />
     <div class="kpis">
-      <Kpi label="Chiffre d'affaires" value={fmtMoneyShort(p.revenue)} unit={currency} tone="rose" />
+      <Kpi label="Chiffre d'affaires" value={fmtMoneyShort(p.revenue)} unit={currency} class="kpi-teinte" />
       <Kpi label={p.kind === "coffret" ? "Coffrets" : "Flacons"} value={fmtInt(p.units)} sub={`${fmtInt(p.orders)} commande${p.orders > 1 ? "s" : ""}${p.samples ? ` · ${fmtInt(p.samples)} échantillon${p.samples > 1 ? "s" : ""} payant${p.samples > 1 ? "s" : ""}` : ""}`} tip={p.samples ? "samples" : undefined} />
       <Kpi label="Fiches vues" value={fmtInt(p.views)} tip="views" />
       <Kpi label="Ajouts" value={fmtInt(p.adds)} tip="adds" />
@@ -34,11 +34,11 @@ const c = p.couleur;
   <div class="modal-grid">
     <div class="card">
       <div class="card-head"><h3 class="card-title">Fiches vues et flacons vendus, par jour</h3><p class="card-note">aire : fiches vues · barres : flacons</p></div>
-      <Fragment set:html={timeChart(p.detail.seriesViews, { secondary: p.detail.seriesUnits, height: 150, primaryColor: "var(--ink)", secondaryColor: c.trait, primaryLabel: "fiches vues", secondaryLabel: "flacons" })} />
+      <Fragment set:html={timeChart(p.detail.seriesViews, { secondary: p.detail.seriesUnits, height: 150, compact: true, primaryColor: "var(--ink)", secondaryColor: c.trait, primaryLabel: "fiches vues", secondaryLabel: "flacons" })} />
     </div>
     <div class="card">
       <div class="card-head"><h3 class="card-title">Où il part</h3><p class="card-note">flacons par pays de livraison</p></div>
-      <Fragment set:html={hbars(p.detail.countries.map((c) => ({ label: c.name, prefix: c.flag, value: c.units, text: fmtInt(c.units), color: "var(--rose)" })))} />
+      <Fragment set:html={hbars(p.detail.countries.map((pays) => ({ label: pays.name, prefix: pays.flag, value: pays.units, text: fmtInt(pays.units), color: c.trait })))} />
     </div>
   </div>
   <div>

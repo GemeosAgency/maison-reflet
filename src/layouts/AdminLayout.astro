@@ -166,6 +166,7 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
         dialog.style.setProperty("--accent", tpl.dataset.accent ?? "transparent");
         body.replaceChildren(tpl.content.cloneNode(true));
         paginate(body);
+        brancherCourbes(body);
         if (!dialog.open) dialog.showModal();
         body.scrollTop = 0;
         if (highlight) {
@@ -250,9 +251,15 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
         { passive: true }
       );
 
-      /* ---- les courbes du temps : survol = infobulle et repère ; clic = le jour par jour ---- */
+      /* ---- les courbes du temps : survol = infobulle et repère ; clic = le jour par jour ----
+         Branché par portée, pas une fois pour toutes : les courbes des fenêtres
+         de détail sont clonées depuis un <template> après coup et n'existaient
+         pas au chargement — elles restaient muettes au survol. */
       type Pt = { k: string; l: string; p: string; s: string | null };
-      for (const chart of document.querySelectorAll<HTMLElement>("[data-chart]")) {
+      const brancherCourbes = (scope: ParentNode) => {
+      for (const chart of scope.querySelectorAll<HTMLElement>("[data-chart]")) {
+        if (chart.dataset.branchee) continue;
+        chart.dataset.branchee = "1";
         const plot = chart.querySelector<HTMLElement>("[data-plot]");
         if (!plot) continue;
         const points = JSON.parse(chart.dataset.points ?? "[]") as Pt[];
@@ -290,6 +297,8 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
           });
         }
       }
+      };
+      brancherCourbes(document);
 
       /* ---- pagination des longs tableaux : 50 lignes, puis « les 50 suivantes » ---- */
       const paginate = (scope: ParentNode) => {
@@ -455,6 +464,9 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   .kpi-foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; font-size: 12px; color: var(--muted); }
   .kpi-sub { font-size: 12px; color: var(--muted); }
   .kpi-rose .kpi-value { color: var(--rose); }
+  /* Le chiffre d'un Reflet dans sa propre couleur plutôt que dans le rouge de la
+     Maison : c'est de ce parfum-là qu'on parle. */
+  .kpi-teinte .kpi-value { color: var(--encre, var(--rose)); }
   /* La carte du chiffre : dans le rouge de la Maison, pas en noir (Sandro, 14 sept.). */
   .kpi-hero { grid-column: span 2; background: var(--rose); color: var(--paper); border-color: var(--rose); }
   .kpi-hero .kpi-label, .kpi-hero .kpi-sub, .kpi-hero .kpi-foot { color: rgba(247, 245, 242, 0.7); }
@@ -646,6 +658,11 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   .adm-filters .adm-filters-on { font-size: 12px; color: var(--rose); }
 
   .empty { padding: 22px 0; text-align: center; color: var(--muted); font-size: 13px; }
+  /* Dans une fenêtre de détail, une section sans donnée ne mérite pas la même
+     hauteur qu'une section pleine : elle se replie. */
+  .adm-modal .empty { padding: 10px 0; font-size: 12.5px; }
+  .adm-modal .tbl-card:has(.empty) { padding-block: 6px; }
+  .adm-modal .card:has(> .hbars:empty), .adm-modal .card:has(> .empty) { align-self: start; }
   .note { padding: 14px 16px; border: 1px dashed var(--line-strong); border-radius: 10px; font-size: 13px; color: var(--muted); }
   .note strong { color: var(--ink); font-weight: 500; }
   .mono { font-variant-numeric: tabular-nums; }
@@ -673,10 +690,17 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   .adm-modal-body .card { box-shadow: none; }
   .adm-modal-body .tbl th { padding: 8px 12px; }
   .adm-modal-body .tbl td { padding: 10px 12px; }
-  .modal-hero { display: grid; grid-template-columns: 120px 1fr; gap: 20px; align-items: center; }
-  .modal-hero .kpis { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
-  .modal-hero .kpi { padding: 12px 14px; border-radius: 10px; box-shadow: none; }
-  .modal-hero .kpi-value { font-size: 24px; }
+  /* La photo porte la couleur du Reflet, comme sa vignette dans la grille. */
+  .modal-hero { display: grid; grid-template-columns: 148px 1fr; gap: 22px; align-items: start; }
+  .modal-hero .pthumb { position: relative; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px var(--line), 0 14px 30px -20px rgba(21, 14, 10, 0.5); }
+  .modal-hero .pthumb::after { content: ""; position: absolute; inset-inline: 0; inset-block-end: 0; height: 4px; background: var(--accent, transparent); }
+  /* 120 px forçaient sept indicateurs sur une seule ligne : les étiquettes
+     passaient à la ligne et tout paraissait écrasé. À 156 px ils se répartissent
+     sur deux rangs et chaque étiquette tient sur une ligne. */
+  .modal-hero .kpis { grid-template-columns: repeat(auto-fit, minmax(156px, 1fr)); gap: 12px; }
+  .modal-hero .kpi { padding: 14px 16px; border-radius: 12px; box-shadow: none; gap: 10px; }
+  .modal-hero .kpi-value { font-size: 26px; }
+  .modal-hero .kpi-label { font-size: 10.5px; letter-spacing: 0.1em; }
   .modal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .modal-section-title { margin: 0 0 8px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 
