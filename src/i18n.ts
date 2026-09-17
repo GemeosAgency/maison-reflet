@@ -96,7 +96,7 @@ const ui = {
     "product.perkTreat": "Une attention offerte avec chaque commande",
     "product.longevity": "Eau de parfum, 8 h de tenue et plus",
     "product.perkSampleNote":
-      "Vous pouvez choisir l'échantillon du parfum que vous commandez : vous le portez d'abord, et vous n'ouvrez le flacon qu'une fois décidé. Tant qu'il est scellé, nous le reprenons.",
+      "Choisissez l'échantillon du parfum que vous commandez : vous le portez d'abord, sur votre peau. Votre flacon vous attend scellé, et vous restez libre de nous le renvoyer.",
     "product.tipOpen": "En savoir plus",
     "luma.listenNote": "Vous ne pouvez pas le sentir d'ici. Luma vous le décrit en moins d'une minute.",
     "product.faqTitle": "Questions fréquentes",
@@ -397,7 +397,7 @@ const ui = {
     "product.perkTreat": "لفتة خاصة مع كل طلب",
     "product.longevity": "أو دو بارفان، ثبات ٨ ساعات وأكثر",
     "product.perkSampleNote":
-      "يمكنك اختيار عيّنة العطر نفسه الذي تطلبه: جرّبها أولًا، ولا تفتح الزجاجة إلا بعد أن تقرر. وما دامت مغلقة، نستردّها.",
+      "اختر عيّنة العطر نفسه الذي تطلبه: تجرّبها أولًا على بشرتك. زجاجتك تنتظرك مغلقة، وتبقى حرًّا في إعادتها.",
     "product.tipOpen": "اعرف المزيد",
     "luma.listenNote": "لا يمكنك شمّه من هنا. لوما تصفه لك في أقل من دقيقة.",
     "product.faqTitle": "الأسئلة الشائعة",
@@ -694,7 +694,7 @@ const ui = {
     "product.perkTreat": "A special treat with every order",
     "product.longevity": "Eau de parfum, 8 hours of wear and more",
     "product.perkSampleNote":
-      "You can pick the sample of the very perfume you are ordering: wear it first, and only open the bottle once you are sure. As long as it is sealed, we take it back.",
+      "Pick the sample of the very perfume you are ordering: you wear it first, on your own skin. Your bottle waits for you sealed, and you stay free to send it back.",
     "product.tipOpen": "Learn more",
     "luma.listenNote": "You cannot smell it from here. Luma describes it to you in under a minute.",
     "product.faqTitle": "Frequently asked questions",
