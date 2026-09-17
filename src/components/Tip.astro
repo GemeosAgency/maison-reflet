@@ -69,7 +69,7 @@ const { text, label, align = "centre" } = Astro.props;
     bottom: calc(100% + 10px);
     z-index: 5;
     width: max-content;
-    max-width: min(300px, 78vw);
+    max-width: min(300px, calc(100vw - 32px));
     padding: 11px 14px;
     border-radius: 10px;
     /* Fond sombre : en clair, le papier de la bulle (#f7f5f2) est à deux points
@@ -91,7 +91,7 @@ const { text, label, align = "centre" } = Astro.props;
     transition: opacity 0.18s, visibility 0.18s;
   }
   .is-centre .tip-box { inset-inline-start: 50%; transform: translateX(-50%); }
-  .is-fin .tip-box { inset-inline-end: -8px; }
+  .is-fin .tip-box { inset-inline-end: 0; }
   /* `:focus-within` épinglait la bulle : après un clic, le bouton gardait le
      focus et le second clic ne la refermait plus. On ne montre donc au focus
      que pour le clavier, où c'est le seul moyen de la lire. */
@@ -100,7 +100,7 @@ const { text, label, align = "centre" } = Astro.props;
   .tip.is-open .tip-box { opacity: 1; visibility: visible; }
   /* Près du bord, la bulle se recale sur le bouton plutôt que de déborder. */
   @media (max-width: 560px) {
-    .is-centre .tip-box { inset-inline-start: auto; inset-inline-end: -8px; transform: none; }
+    .is-centre .tip-box { inset-inline-start: auto; inset-inline-end: 0; transform: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     .tip-box { transition: none; }

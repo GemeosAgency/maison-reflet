@@ -161,12 +161,14 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           <p>{t("cart.selectSample")}</p>
           <span class="cart-badge">{t("cart.free")}</span>
         </div>
-        <button type="button" class="cart-sample-row" data-cart-sample-toggle>
+        <button type="button" class="cart-sample-row" data-cart-sample-toggle aria-expanded="false">
           <img data-cart-sample-img alt="" width="48" height="48" />
           <span data-cart-sample-label></span>
           <img src="/brand/chevron.svg" class="chev-down" alt="" width="8" height="8" />
         </button>
-        <ul class="cart-sample-options" data-cart-sample-options hidden></ul>
+        <div class="cart-sample-wrap" data-cart-sample-wrap>
+          <ul class="cart-sample-options" data-cart-sample-options hidden></ul>
+        </div>
       </div>
 
       {/* L'accord du parfumeur : le Reflet qui se marie avec celui du panier, sa recommandation à écouter, un geste pour l'ajouter. */}
@@ -197,7 +199,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           <div class="cart-coffret-body">
             <p class="cart-coffret-kicker">
               <span data-cart-coffret-args></span>
-              <Tip text={t("coffret.creditNote")} label={t("product.tipOpen")} />
+              <Tip text={t("coffret.creditNote")} label={t("product.tipOpen")} align="fin" />
             </p>
             <p class="cart-coffret-title">{coffretUpsell.title}</p>
             <div class="cart-coffret-cta">
@@ -357,6 +359,16 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   const sampleLabel = drawer?.querySelector<HTMLElement>("[data-cart-sample-label]");
   const sampleToggle = drawer?.querySelector<HTMLButtonElement>("[data-cart-sample-toggle]");
   const sampleOptionsList = drawer?.querySelector<HTMLElement>("[data-cart-sample-options]");
+  const sampleWrap = drawer?.querySelector<HTMLElement>("[data-cart-sample-wrap]");
+  /** Ouvre ou ferme la liste des échantillons, en gardant l'état lisible pour tous. */
+  const ouvrirEchantillons = (ouvert: boolean) => {
+    if (!sampleWrap) return;
+    sampleToggle?.setAttribute("aria-expanded", String(ouvert));
+    // `hidden` part AVANT la mesure, sinon la liste mesurerait zéro.
+    sampleOptionsList?.toggleAttribute("hidden", !ouvert);
+    sampleWrap.classList.toggle("is-open", ouvert);
+    sampleWrap.style.maxHeight = ouvert ? `${sampleOptionsList?.scrollHeight ?? 0}px` : "0px";
+  };
   const accordDivider = drawer?.querySelector<HTMLElement>("[data-cart-accord-divider]");
   const accordSection = drawer?.querySelector<HTMLElement>("[data-cart-accord-section]");
   const accordBody = drawer?.querySelector<HTMLElement>("[data-cart-accord-body]");
@@ -385,7 +397,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     drawer?.classList.remove("is-open");
     drawer?.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
-    sampleOptionsList?.setAttribute("hidden", "");
+    ouvrirEchantillons(false);
   }
 
   document.addEventListener("cart:open", openDrawer);
@@ -1060,13 +1072,13 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
 
   // Choix de l'échantillon
   sampleToggle?.addEventListener("click", () => {
-    sampleOptionsList?.toggleAttribute("hidden");
+    ouvrirEchantillons(!sampleWrap?.classList.contains("is-open"));
   });
   sampleOptionsList?.addEventListener("click", async (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-sample-variant]");
     const variantId = btn?.dataset.sampleVariant;
     if (!variantId || !currentCart) return;
-    sampleOptionsList.setAttribute("hidden", "");
+    ouvrirEchantillons(false);
     // Tour de contrôle : l'échantillon offert choisi — ce que les gens veulent sentir ensuite.
     trackSite("sample_pick", { handle: sampleOptions.find((s) => s.variantId === variantId)?.productHandle ?? null });
 
@@ -1209,8 +1221,42 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-sample-row img:first-child { width: 48px; height: 48px; object-fit: cover; }
   .cart-sample-row span { flex: 1 0 0; min-width: 0; font-size: 14px; font-weight: 500; color: var(--ink); }
   .chev-down { transform: rotate(180deg); flex-shrink: 0; }
-  .cart-sample-options { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-  .cart-sample-options[hidden] { display: none; }
+  /*
+   * La liste s'ouvre en douceur : `hidden` la faisait surgir d'un coup et
+   * poussait tout le panier d'un cran.
+   *
+   * La hauteur est posée en pixels par le script, pas par l'astuce des lignes de
+   * grille (0fr → 1fr) : celle-ci retombait à zéro ici, le conteneur parent
+   * étant lui-même en flex. Mesurer `scrollHeight` au moment du clic marche quel
+   * que soit le nombre de Reflets proposés, et reste juste si la liste change.
+   */
+  .cart-sample-wrap {
+    /* `flex-shrink: 0` n'est pas décoratif : le tiroir est une colonne flex qui
+       défile, et sans lui le conteneur se faisait écraser à zéro malgré sa
+       hauteur maximale. */
+    flex-shrink: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .cart-sample-options {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+  }
+  .cart-sample-wrap.is-open .cart-sample-options { opacity: 1; }
+  .cart-sample-options[hidden] { display: flex; }
+  /* Le chevron suit l'état, comme partout ailleurs sur le site. */
+  .cart-sample-row .chev-down { transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1); }
+  .cart-sample-row[aria-expanded="true"] .chev-down { transform: rotate(0deg); }
+  @media (prefers-reduced-motion: reduce) {
+    .cart-sample-wrap, .cart-sample-options, .cart-sample-row .chev-down { transition: none; }
+  }
   .cart-sample-option {
     display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: var(--cream);
     padding: 8px 16px; cursor: pointer; font: inherit; font-size: 14px; color: var(--ink); text-align: start;
