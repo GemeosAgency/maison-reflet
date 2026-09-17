@@ -65,9 +65,10 @@ const CREE_CODE = `
 export type Avoir = {
   code: string;
   montant: number;
-  devise: string;
   minimum: number;
   produits: string[];
+  /** Le client à qui le code est réservé : personne d'autre ne peut l'utiliser. */
+  clientGid: string;
   fin: Date;
   titre: string;
 };
@@ -89,8 +90,17 @@ export async function creerAvoir(a: Avoir): Promise<Emission> {
       endsAt: a.fin.toISOString(),
       usageLimit: 1,
       appliesOncePerCustomer: true,
-      customerSelection: { all: true },
+      /*
+       * `context` remplace `customerSelection`, déprécié depuis 2025 — et il
+       * apporte ce qui nous manquait : le code est RÉSERVÉ à son client. Même
+       * partagé ou deviné, il ne sert à personne d'autre. Avec usageLimit à 1,
+       * l'avoir est donc utilisable une fois, par ce compte, et une seule.
+       */
+      context: { customers: { add: [a.clientGid] } },
+      // Jamais cumulable : l'avoir ne doit pas s'ajouter à une autre remise.
+      combinesWith: { productDiscounts: false, orderDiscounts: false, shippingDiscounts: false },
       customerGets: {
+        appliesOnOneTimePurchase: true,
         value: { discountAmount: { amount: a.montant, appliesOnEachItem: false } },
         items: a.produits.length ? { products: { productsToAdd: a.produits } } : { all: true },
       },
@@ -104,4 +114,60 @@ export async function creerAvoir(a: Avoir): Promise<Emission> {
   if (erreurs.some((e) => /unique|taken|already/i.test(e.message))) return "existe";
   console.error("[shopify-admin] avoir refusé :", JSON.stringify(erreurs).slice(0, 300));
   return "impossible";
+}
+
+
+const CHERCHE_CODE = `
+  query avoir($code: String!) {
+    codeDiscountNodeByCode(code: $code) { id }
+  }
+`;
+
+const DESACTIVE = `
+  mutation desactive($id: ID!) {
+    discountCodeDeactivate(id: $id) {
+      userErrors { field message }
+    }
+  }
+`;
+
+/**
+ * Désactive un avoir. Sert quand la commande qui l'a ouvert est annulée ou
+ * remboursée : sans ça, on pouvait acheter le coffret, recevoir les 160 AED,
+ * se faire rembourser le coffret et garder l'avoir.
+ *
+ * Renvoie `true` si le code est bien hors service après l'appel, y compris
+ * quand il n'existait pas (rien à désactiver, donc rien à craindre).
+ */
+export async function desactiverAvoir(code: string): Promise<boolean> {
+  const d = await admin<{ codeDiscountNodeByCode: { id: string } | null }>(CHERCHE_CODE, { code });
+  if (!d) return false;
+  const id = d.codeDiscountNodeByCode?.id;
+  if (!id) return true;
+  const r = await admin<{ discountCodeDeactivate: { userErrors: { message: string }[] } }>(DESACTIVE, { id });
+  if (!r) return false;
+  const erreurs = r.discountCodeDeactivate.userErrors ?? [];
+  // Déjà expiré ou déjà désactivé : c'est le résultat voulu.
+  if (erreurs.length && !erreurs.some((e) => /already|expired|inactive/i.test(e.message))) {
+    console.error("[shopify-admin] désactivation refusée :", JSON.stringify(erreurs).slice(0, 300));
+    return false;
+  }
+  return true;
+}
+
+const CLIENT_DE_COMMANDE = `
+  query commande($id: ID!) {
+    order(id: $id) { customer { id } }
+  }
+`;
+
+/** Le client d'une commande : le payload d'un remboursement ne le porte pas. */
+export async function clientDeCommande(orderId: number | string): Promise<number | null> {
+  const d = await admin<{ order: { customer: { id: string } | null } | null }>(CLIENT_DE_COMMANDE, {
+    id: `gid://shopify/Order/${orderId}`,
+  });
+  const gid = d?.order?.customer?.id;
+  if (!gid) return null;
+  const n = Number(gid.split("/").pop());
+  return Number.isFinite(n) ? n : null;
 }

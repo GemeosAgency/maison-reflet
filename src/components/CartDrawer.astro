@@ -21,6 +21,7 @@ import { getInspiredByMap } from "../lib/sanity";
 import { LAYERING, accordAudioPath } from "../lib/layering";
 import { type Locale, localePath, useTranslations } from "../i18n";
 import { DEFAULT_COUNTRY, freeShippingThreshold, getCountry, intlLocale } from "../lib/markets";
+import { COFFRET_HANDLE } from "../lib/coffret";
 
 interface Props {
   lang: Locale;
@@ -181,6 +182,14 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       */}
       <ul class="cart-drawer-perks">
         <li data-cart-perk-shipping hidden><img src="/brand/reassurance-livraison.svg" alt="" width="20" height="20" /> {t("cart.perkShipping")}</li>
+        {/*
+          Panier qui ne contient que le coffret : on rappelle l'avoir, parce que
+          c'est exactement le moment où l'on se demande si 160 AED valent la
+          peine. Dès qu'un flacon entre au panier, la ligne s'efface : le client
+          achète déjà, lui rappeler un avoir futur ne ferait que l'inviter à
+          repousser son achat.
+        */}
+        <li data-cart-perk-coffret hidden><img src="/brand/reassurance-echantillons.svg" alt="" width="20" height="20" /> {t("cart.coffretCredit")}</li>
         <li><img src="/brand/reassurance-cadeau.svg" alt="" width="20" height="20" /> {t("cart.perkGift")}</li>
         <li><img src="/brand/reassurance-paiement.svg" alt="" width="20" height="20" /> {t("cart.perkSecure")}</li>
       </ul>
@@ -198,6 +207,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   is:inline
   set:html={JSON.stringify({
     freeShippingRemaining: t("cart.freeShippingRemaining"),
+    coffretHandle: COFFRET_HANDLE,
     freeShippingUnlocked: t("cart.freeShippingUnlocked"),
     free: t("cart.free"),
     add: t("cart.add"),
@@ -281,6 +291,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   const shippingThumb = drawer?.querySelector<HTMLElement>("[data-cart-shipping-thumb]");
   const shippingLabel = drawer?.querySelector<HTMLElement>("[data-cart-shipping-label]");
   const shippingPerk = drawer?.querySelector<HTMLElement>("[data-cart-perk-shipping]");
+  const coffretPerk = drawer?.querySelector<HTMLElement>("[data-cart-perk-coffret]");
   const linesEl = drawer?.querySelector<HTMLElement>("[data-cart-drawer-lines]");
   const sampleDivider = drawer?.querySelector<HTMLElement>("[data-cart-sample-divider]");
   const sampleSection = drawer?.querySelector<HTMLElement>("[data-cart-sample-section]");
@@ -799,6 +810,13 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     // en permanence, elle se lisait comme un acquis alors qu'elle ne l'était pas.
     shippingLabel?.toggleAttribute("hidden", remaining > 0);
     shippingPerk?.toggleAttribute("hidden", remaining > 0);
+
+    // L'avoir du coffret, tant qu'il n'y a que le coffret dans le panier.
+    const lignes = cart?.lines.nodes ?? [];
+    const handleDe = (l: (typeof lignes)[number]) => l.merchandise.product?.handle ?? "";
+    const queLeCoffret =
+      lignes.length > 0 && lignes.every((l) => handleDe(l) === I18N.coffretHandle);
+    coffretPerk?.toggleAttribute("hidden", !queLeCoffret);
 
     // Échantillon offert
     const hasSampleFeature = sampleOptions.length > 0;

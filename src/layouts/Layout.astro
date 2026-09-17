@@ -366,16 +366,26 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
       document.cookie = "lang=" + lang + ";path=/;max-age=31536000;samesite=lax";
     </script>
 
+    {/*
+      Deux messages qui alternent : la livraison offerte et l'avoir du coffret.
+      Ils tournent en CSS, sans script — un bandeau promo ne mérite pas du
+      JavaScript, et l'alternance continue de fonctionner si celui de la page
+      tombe. Les deux textes sont dans le DOM, donc lisibles par un lecteur
+      d'écran et par les moteurs ; `prefers-reduced-motion` fige le premier.
+    */}
     <div class="promo-banner">
-      {/*
-        Le seuil dépend de la devise du pays choisi (voir src/lib/markets.ts).
-        Le HTML statique porte celui du marché primaire ; l'attribut garde le
-        gabarit traduit pour que `hydrateShippingThresholds` n'ait plus qu'à
-        remplacer le montant, sans retraduire la phrase dans le navigateur.
-      */}
-      <p data-free-shipping-threshold={t("banner.promo")}>
-        {t("banner.promo").replace("{amount}", initialThreshold)}
-      </p>
+      <div class="promo-rotor">
+        {/*
+          Le seuil dépend de la devise du pays choisi (voir src/lib/markets.ts).
+          Le HTML statique porte celui du marché primaire ; l'attribut garde le
+          gabarit traduit pour que `hydrateShippingThresholds` n'ait plus qu'à
+          remplacer le montant, sans retraduire la phrase dans le navigateur.
+        */}
+        <p data-free-shipping-threshold={t("banner.promo")}>
+          {t("banner.promo").replace("{amount}", initialThreshold)}
+        </p>
+        <p>{t("banner.coffret")}</p>
+      </div>
     </div>
 
     {/*
@@ -562,9 +572,27 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
 
     <style>
       .promo-banner { background: #efc5a9; }
+      /* Les deux messages occupent la MÊME cellule et se croisent en fondu.
+         Un glissement vertical aurait demandé de connaître la hauteur d'une
+         ligne, qui change avec la langue et la largeur d'écran ; ici le bandeau
+         prend la hauteur du plus long et ne bouge plus jamais. */
+      .promo-rotor { display: grid; }
       .promo-banner p {
+        grid-area: 1 / 1;
         margin: 0; padding: 10.5px 48px; text-align: center;
         color: var(--rose); font-size: 14px; font-weight: 500; text-transform: uppercase;
+        animation: promo-fondu 12s infinite;
+      }
+      .promo-banner p:nth-child(2) { animation-delay: -6s; }
+      @keyframes promo-fondu {
+        0%, 44% { opacity: 1; }
+        50%, 94% { opacity: 0; }
+        100% { opacity: 1; }
+      }
+      /* Mouvement réduit : le premier message reste, le second disparaît. */
+      @media (prefers-reduced-motion: reduce) {
+        .promo-banner p { animation: none; }
+        .promo-banner p:nth-child(2) { display: none; }
       }
       /* z-index 20 : au-dessus du contenu, en dessous du panier (60). */
       .site-header-sticky {

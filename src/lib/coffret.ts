@@ -39,14 +39,20 @@ export const REFLETS = [
 ] as const;
 
 /**
- * Le code envoyé au client. Il est dérivé du numéro de commande, donc stable :
- * Shopify rejoue ses webhooks jusqu'à 19 fois sur 48 h, et un code dérivé nous
- * évite d'émettre dix-neuf avoirs pour une seule commande. Le sel empêche de
- * deviner le code d'un voisin à partir du sien.
+ * Le code envoyé au client, dérivé du COMPTE et non de la commande.
+ *
+ * Ce choix fait deux choses d'un coup. Shopify rejoue ses webhooks jusqu'à dix-
+ * neuf fois sur quarante-huit heures : un code stable lui fait refuser le
+ * doublon, ce qu'on lit comme « déjà émis ». Et l'avoir n'est dû qu'une fois par
+ * compte (Sandro) : un deuxième coffret redonne le même code, donc le même
+ * refus, donc aucun second avoir. Aucune table à tenir pour ça.
+ *
+ * Le sel empêche de deviner le code d'un voisin ; le code est de toute façon
+ * réservé à son client chez Shopify, ce qui le rend inutilisable par un autre.
  */
-export function codeAvoir(orderId: number | string, sel: string): string {
+export function codeAvoir(compte: number | string, sel: string): string {
   let h = 0;
-  for (const c of `${orderId}:${sel}`) h = (Math.imul(31, h) + c.charCodeAt(0)) | 0;
+  for (const c of `${compte}:${sel}`) h = (Math.imul(31, h) + c.charCodeAt(0)) | 0;
   const base = Math.abs(h).toString(36).toUpperCase().padStart(6, "0").slice(0, 6);
   return `REFLET${base}`;
 }

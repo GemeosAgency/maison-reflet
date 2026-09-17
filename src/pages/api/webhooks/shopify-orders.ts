@@ -4,7 +4,7 @@ import { adminDb } from "../../../lib/admin/db";
 import { isTestHost } from "../../../lib/admin/env";
 import { getAllProducts } from "../../../lib/shopify";
 import { AVOIR_AED, COFFRET_HANDLE, MINIMUM_AED, REFLETS, VALIDITE_JOURS, codeAvoir, finValidite } from "../../../lib/coffret";
-import { creerAvoir, idsProduits } from "../../../lib/shopify-admin";
+import { clientDeCommande, creerAvoir, desactiverAvoir, idsProduits } from "../../../lib/shopify-admin";
 
 // Rendu à la demande (fonction serverless Vercel), pas prégénéré.
 export const prerender = false;
@@ -98,24 +98,45 @@ async function emettreAvoirCoffret(order: ShopifyOrderWebhook) {
     return;
   }
 
-  const code = codeAvoir(order.id!, AVOIR_SEL);
+  /*
+   * L'avoir est réservé à un compte : sans identifiant client, on ne pourrait
+   * ni le restreindre chez Shopify ni garantir « une fois par compte ». Mieux
+   * vaut ne rien émettre que d'émettre un code de 160 AED utilisable par
+   * n'importe qui.
+   */
+  const clientId = order.customer?.id;
+  if (!clientId) {
+    console.warn(`[avoir-coffret] commande ${order.name ?? order.id} sans client : avoir non émis.`);
+    return;
+  }
+
+  const code = codeAvoir(clientId, AVOIR_SEL);
   const fin = finValidite();
   const devise = order.currency ?? "AED";
   const produits = await idsProduits(REFLETS);
   const etat = await creerAvoir({
     code,
     montant: AVOIR_AED,
-    devise,
     minimum: MINIMUM_AED,
     produits,
+    clientGid: `gid://shopify/Customer/${clientId}`,
     fin,
-    titre: `Avoir coffret découverte — commande ${order.name ?? order.id}`,
+    titre: `Avoir coffret découverte, commande ${order.name ?? order.id}`,
   });
   if (etat === "impossible") return;
+  /*
+   * « existe » veut dire que ce compte a déjà son avoir : soit Shopify rejoue le
+   * webhook, soit le client rachète un coffret. Dans les deux cas on ne renvoie
+   * rien — l'avoir est dû une fois par compte.
+   */
+  if (etat === "existe") {
+    console.info(`[avoir-coffret] ${code} déjà émis pour le client ${clientId}, rien renvoyé.`);
+    return;
+  }
 
   const email = (order.email ?? order.contact_email ?? "").trim();
   if (!email || !KLAVIYO_API_KEY) {
-    console.warn(`[avoir-coffret] ${code} ${etat}, mais non remis (email ou clé Klaviyo manquants).`);
+    console.warn(`[avoir-coffret] ${code} créé, mais non remis (email ou clé Klaviyo manquants).`);
     return;
   }
 
@@ -156,7 +177,25 @@ async function emettreAvoirCoffret(order: ShopifyOrderWebhook) {
     console.error("[avoir-coffret] Klaviyo injoignable :", error);
     return;
   }
-  console.info(`[avoir-coffret] ${code} ${etat} pour la commande ${order.name ?? order.id}.`);
+  console.info(`[avoir-coffret] ${code} créé et remis pour la commande ${order.name ?? order.id}.`);
+}
+
+/**
+ * Retire l'avoir quand la commande qui l'a ouvert est annulée ou remboursée.
+ *
+ * Sans ça, la faille est franche : acheter le coffret, recevoir les 160 AED,
+ * annuler le coffret, et garder l'avoir. Le code étant dérivé du compte, on sait
+ * le recalculer sans rien avoir stocké.
+ *
+ * On ne vérifie pas si le remboursement est partiel : un remboursement sur une
+ * commande qui contenait le coffret suffit à retirer l'avoir. C'est volontaire —
+ * mieux vaut redonner un code à la main dans un cas rare que financer la faille.
+ */
+async function retirerAvoirCoffret(clientId: number | null | undefined, quoi: string) {
+  if (!clientId || !AVOIR_SEL) return;
+  const code = codeAvoir(clientId, AVOIR_SEL);
+  const ok = await desactiverAvoir(code);
+  console.info(`[avoir-coffret] ${code} ${ok ? "désactivé" : "NON désactivé"} (${quoi}).`);
 }
 
 const MAX_EVENT_AGE_MS = 7 * 24 * 60 * 60 * 1000; // limite dure côté CAPI
@@ -238,6 +277,8 @@ type ShopifyOrderWebhook = {
     total_discount?: string;
   }[];
   customer?: {
+    /** Sert à réserver l'avoir du coffret à ce compte (voir emettreAvoirCoffret). */
+    id?: number | null;
     first_name?: string | null;
     last_name?: string | null;
     phone?: string | null;
@@ -398,10 +439,18 @@ export const POST: APIRoute = async ({ request }) => {
 
   // Remboursement : la tour de contrôle seulement (chiffre net).
   if (topic === "refunds/create") {
+    const refund = payload as ShopifyRefundWebhook;
     try {
-      await recordRefund(payload as ShopifyRefundWebhook);
+      await recordRefund(refund);
     } catch (error) {
       console.error("[webhooks/shopify-orders] remboursement :", error);
+    }
+    try {
+      if (refund.order_id) {
+        await retirerAvoirCoffret(await clientDeCommande(refund.order_id), `remboursement ${refund.order_id}`);
+      }
+    } catch (error) {
+      console.error("[webhooks/shopify-orders] retrait de l'avoir :", error);
     }
     return json({ ok: true, topic }, 200);
   }
@@ -413,6 +462,12 @@ export const POST: APIRoute = async ({ request }) => {
       await persistOrder(cancelled);
     } catch (error) {
       console.error("[webhooks/shopify-orders] annulation :", error);
+    }
+    try {
+      // Le payload d'annulation porte le client : pas besoin de le redemander.
+      await retirerAvoirCoffret(cancelled.customer?.id, `annulation ${cancelled.name ?? cancelled.id}`);
+    } catch (error) {
+      console.error("[webhooks/shopify-orders] retrait de l'avoir :", error);
     }
     return json({ ok: true, topic }, 200);
   }
