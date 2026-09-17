@@ -666,15 +666,42 @@ function summarize(ctx: Ctx) {
     checkouts: dailySeries(ev.filter((e) => e.name === "checkout"), range),
     abandoned: sumByDay(abandoned.map((v) => ({ created_at: cartsByAnon.get(v.anon)!.at, amount: cartsByAnon.get(v.anon)!.total }))),
   };
+  /*
+   * Un seul passage sur les événements et les commandes, au lieu d'un balayage
+   * complet PAR JOUR. Sur trente jours et douze mille événements, la version
+   * précédente faisait sept cent mille comparaisons de dates ; celle-ci en fait
+   * douze mille.
+   */
+  const parJour = new Map<string, { views: number; adds: number }>();
+  for (const e of ev) {
+    if (e.name !== "product_view" && e.name !== "add_to_cart") continue;
+    const k = dayKey(e.created_at);
+    const cell = parJour.get(k) ?? { views: 0, adds: 0 };
+    if (e.name === "product_view") cell.views++;
+    else cell.adds++;
+    parJour.set(k, cell);
+  }
+  const commandesParJour = new Map<string, OrderRow[]>();
+  for (const o of orders) {
+    const k = dayKey(o.created_at);
+    (commandesParJour.get(k) ?? commandesParJour.set(k, []).get(k)!).push(o);
+  }
+  const abandonsParJour = new Map<string, Visitor[]>();
+  for (const v of abandoned) {
+    const k = dayKey(cartsByAnon.get(v.anon)!.at);
+    (abandonsParJour.get(k) ?? abandonsParJour.set(k, []).get(k)!).push(v);
+  }
+  const labelJour = new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, weekday: "short", day: "numeric", month: "short" });
   const byDay = daysOf(range).map((d, i) => {
-    const dayOrders = orders.filter((o) => dayKey(o.created_at) === d.key);
-    const dayAbandoned = abandoned.filter((v) => dayKey(cartsByAnon.get(v.anon)!.at) === d.key);
+    const dayOrders = commandesParJour.get(d.key) ?? [];
+    const dayAbandoned = abandonsParJour.get(d.key) ?? [];
+    const compte = parJour.get(d.key);
     return {
       key: d.key,
-      label: new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, weekday: "short", day: "numeric", month: "short" }).format(d.date),
+      label: labelJour.format(d.date),
       visitors: series.visitors[i].value,
-      views: ev.filter((e) => e.name === "product_view" && dayKey(e.created_at) === d.key).length,
-      adds: ev.filter((e) => e.name === "add_to_cart" && dayKey(e.created_at) === d.key).length,
+      views: compte?.views ?? 0,
+      adds: compte?.adds ?? 0,
       checkouts: series.checkouts[i].value,
       orders: dayOrders.length,
       revenue: dayOrders.reduce((n, o) => n + o.total - refundedOf(o), 0),

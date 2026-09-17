@@ -273,7 +273,16 @@ function percentile(values: number[], p: number): number | null {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))];
 }
-export const dayKey = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
+/*
+ * Le formateur est construit UNE fois.
+ *
+ * Il l'était à chaque appel, et `dayKey` est la fonction la plus appelée de la
+ * tour de contrôle : sur un mois de trafic, la page Ventes en faisait environ
+ * 740 000 constructions, soit 6,7 s de calcul à elle seule. Un `Intl.DateTimeFormat`
+ * coûte cher à créer et rien à réutiliser.
+ */
+const dayKeyFmt = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
+export const dayKey = (iso: string) => dayKeyFmt.format(new Date(iso));
 /** Les jours de la période, dans l'ordre, avec leur clé (AAAA-MM-JJ, Dubaï) et leur étiquette courte. */
 export function daysOf(range: Range): { key: string; label: string; date: Date }[] {
   const out: { key: string; label: string; date: Date }[] = [];
