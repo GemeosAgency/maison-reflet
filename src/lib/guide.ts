@@ -153,8 +153,8 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
       {
         window: { fr: "le reste de la journée", en: "the rest of the day", ar: "بقية اليوم" },
         effect: {
-          fr: "Cèdre et cuir, une traîne sèche. C'est ce qui reste sur le pull le lendemain.",
-          en: "Cedar and leather, a dry trail. This is what is left on your jumper the next morning.",
+          fr: "Cèdre et cuir, une traîne sèche. C'est ce qui reste sur vos vêtements le lendemain.",
+          en: "Cedar and leather, a dry trail. This is what is left on your clothes the next morning.",
           ar: "أرز وجلد، أثر جافّ. هذا ما يبقى على ثيابك في اليوم التالي.",
         },
       },
