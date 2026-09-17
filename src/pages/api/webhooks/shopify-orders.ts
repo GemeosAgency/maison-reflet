@@ -256,6 +256,8 @@ type ShopifyOrderWebhook = {
   total_price?: string;
   subtotal_price?: string;
   total_discounts?: string;
+  total_tax?: string;
+  taxes_included?: boolean;
   total_shipping_price_set?: { shop_money?: { amount?: string } } | null;
   currency?: string;
   customer_locale?: string | null;
@@ -360,6 +362,10 @@ async function persistOrder(order: ShopifyOrderWebhook): Promise<void> {
     subtotal: money(order.subtotal_price),
     discounts: money(order.total_discounts),
     shipping: money(order.total_shipping_price_set?.shop_money?.amount),
+    // La TVA, pour que la marge se calcule sur le hors taxes : les prix sont
+    // TTC, donc le total encaissé contient une taxe qui n'est pas un revenu.
+    tax: money(order.total_tax),
+    taxes_included: order.taxes_included ?? true,
     country: order.shipping_address?.country_code ?? order.billing_address?.country_code ?? null,
     locale: order.customer_locale ?? null,
     source_name: order.source_name ?? null,

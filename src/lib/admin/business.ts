@@ -34,6 +34,12 @@ export type OrderRow = {
   subtotal: number;
   discounts: number;
   shipping: number;
+  /**
+   * La TVA de la commande. Facultative : les commandes enregistrées avant la
+   * migration 0008 ne l'ont pas, et une taxe inventée après coup serait pire
+   * qu'une taxe absente.
+   */
+  tax?: number | null;
   country: string | null;
   locale: string | null;
   source_name: string | null;
@@ -408,6 +414,8 @@ export type Kpis = {
   margeTaux: number | null;
   cout: number | null;
   coutsManquants: number;
+  /** La TVA encaissée sur la période : elle transite, elle n'est pas un revenu. */
+  tax: number;
   /** Le coût détaillé, pour la fenêtre de la marge. */
   coutDetail: { flacons: number; coffrets: number; echantillons: number };
   visitors: number;
@@ -580,13 +588,26 @@ function core({ events, orders: allOrders, catalog, range, filters: f, luma }: C
         else detail.flacons += montant;
       }
     }
-    const marge = connu ? revenue - cout : null;
+    /*
+     * La marge se calcule sur le HORS TAXES.
+     *
+     * Les prix sont TTC (Sandro, 18 septembre 2026) : le chiffre d'affaires
+     * contient donc une TVA que la Maison ne garde pas. La comparer au coût de
+     * revient, qui est hors taxes, surévaluait la marge d'environ 5 %.
+     *
+     * Le taux est rapporté au hors taxes et non au chiffre encaissé, sinon un
+     * même produit paraîtrait plus rentable en vendant plus de TVA.
+     */
+    const tax = orders.reduce((n, o) => n + Number(o.tax ?? 0), 0);
+    const revenueHT = revenue - tax;
+    const marge = connu ? revenueHT - cout : null;
     return {
       cout: connu ? cout : null,
       marge,
-      margeTaux: marge != null && revenue > 0 ? marge / revenue : null,
+      margeTaux: marge != null && revenueHT > 0 ? marge / revenueHT : null,
       coutsManquants: manquants.size,
       coutDetail: detail,
+      tax,
     };
   })();
   const kpis: Kpis = {

@@ -206,6 +206,8 @@ async function main() {
 
       if (rnd() > 0.62) continue;
       const port = total >= 400 ? 0 : 25;
+      // Prix TTC, TVA émiratie à 5 % : la part de taxe contenue dans le total.
+      const tva = Math.round(((total + port) - (total + port) / 1.05) * 100) / 100;
       const quand = new Date(t0.getTime() + (12 + profondeur * 2) * 60000).toISOString();
       orders.push({
         id: ID_BASE + noCommande++,
@@ -219,6 +221,8 @@ async function main() {
         subtotal: total,
         discounts: 0,
         shipping: port,
+        tax: tva,
+        taxes_included: true,
         country: pays.code,
         locale: pays.locale,
         source_name: "web",

@@ -39,6 +39,10 @@ const { k, rangeLabel, money, fmtInt } = Astro.props;
             <dd>{k.discounts ? `– ${money(k.discounts)}` : "aucun"}</dd>
           </div>
           <div class="marge-ligne is-total">
+            <dt>TVA encaissée pour l'État</dt>
+            <dd>{k.tax ? `– ${money(k.tax)}` : "non enregistrée"}</dd>
+          </div>
+          <div class="marge-ligne is-total">
             <dt>Coût de revient des unités vendues</dt>
             <dd>– {money(k.cout ?? 0)}</dd>
           </div>
@@ -60,7 +64,8 @@ const { k, rangeLabel, money, fmtInt } = Astro.props;
           </div>
         </dl>
         <p class="card-foot">
-          Ce qui n'est pas déduit ici, faute de le connaître : le transport que nous payons au transporteur (la ligne ci-dessus est ce que le client a payé, pas notre facture), les frais de paiement, la publicité et les charges fixes. La marge brute dit si le produit gagne de l'argent, pas si l'entreprise en gagne.
+          Les prix sont TTC : la marge se calcule donc sur le hors taxes, et son taux s'y rapporte. Ce qui n'est pas déduit ici, faute de le connaître : le transport que nous payons au transporteur (la ligne ci-dessus est ce que le client a payé, pas notre facture), les frais de paiement, la publicité et les charges fixes. La marge brute dit si le produit gagne de l'argent, pas si l'entreprise en gagne.
+          {k.tax === 0 ? " Aucune TVA n'est enregistrée sur la période : les commandes d'avant la migration 0008 n'en portent pas, et la marge est alors surévaluée d'autant." : ""}
           {k.coutsManquants > 0 ? ` ${fmtInt(k.coutsManquants)} produit${k.coutsManquants > 1 ? "s" : ""} vendu${k.coutsManquants > 1 ? "s" : ""} sur la période n'a pas de coût de revient dans Sanity : il n'est pas compté.` : ""}
         </p>
       </div>
