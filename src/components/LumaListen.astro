@@ -46,9 +46,13 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
   src && (
     <div class="listen-wrap" data-luma-listen data-track-kind={trackKind} data-track-id={trackId}>
       <div class="listen" data-listen-pill>
-        {/* Le remplissage de la lecture, et l'ombre qui suit le pointeur au survol. */}
-        <span class="listen-fill" data-listen-fill aria-hidden="true"></span>
-        <span class="listen-ghost" aria-hidden="true"></span>
+        {/* Le remplissage de la lecture, et l'ombre qui suit le pointeur au survol.
+            Ils vivent dans leur propre calque découpé : c'est lui qui porte
+            l'`overflow`, pas la pilule, sinon l'infobulle serait rognée avec eux. */}
+        <span class="listen-clip" aria-hidden="true">
+          <span class="listen-fill" data-listen-fill></span>
+          <span class="listen-ghost"></span>
+        </span>
         <button type="button" class="listen-icon" data-listen-toggle aria-pressed="false" aria-label={label}>
           <svg class="listen-play" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1.5v9l8-4.5z" fill="currentColor" /></svg>
           <svg class="listen-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
@@ -57,9 +61,9 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
         {/* Le corps de la pilule est le curseur : clic, glissé, flèches. */}
         <div class="listen-body" data-listen-seek role="slider" tabindex="0" aria-label={t("luma.seek")} aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span class="listen-label">{label}</span>
+          {note && <Tip text={note} label={t("product.tipOpen")} />}
           <span class="listen-time" data-listen-time aria-hidden="true">0:00 / –:––</span>
         </div>
-        {note && <Tip text={note} label={t("product.tipOpen")} align="fin" />}
       </div>
       <audio preload="metadata" src={src} data-listen-audio></audio>
     </div>
@@ -134,7 +138,11 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
       render();
     };
     let wasPaused = false;
+    // Le point d'interrogation vit dans le curseur : sans cette garde, l'ouvrir
+    // déplacerait la lecture là où l'on a cliqué.
+    const surTip = (e: Event) => Boolean((e.target as Element | null)?.closest("[data-tip]"));
     seek.addEventListener("pointerdown", (e) => {
+      if (surTip(e)) return;
       e.preventDefault();
       wasPaused = audio.paused;
       root.classList.add("is-seeking");
@@ -146,6 +154,7 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
       seekTo(e.clientX);
     });
     seek.addEventListener("pointermove", (e) => {
+      if (surTip(e)) return;
       if (root.classList.contains("is-seeking")) seekTo(e.clientX);
       else pill.style.setProperty("--ghost", `${ratioAt(e.clientX) * 100}%`);
     });
@@ -160,6 +169,7 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
     seek.addEventListener("pointerup", endSeek);
     seek.addEventListener("pointercancel", endSeek);
     seek.addEventListener("keydown", (e) => {
+      if (surTip(e)) return;
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         toggle();
@@ -195,12 +205,12 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
     font-size: 16px;
     letter-spacing: 0.06em;
     line-height: 1;
-    overflow: hidden;
     cursor: pointer;
     transition: border-color 0.25s ease;
   }
   .listen:hover, .is-playing .listen { border-color: rgba(21, 14, 10, 0.28); }
-  .listen-fill, .listen-ghost { position: absolute; inset-block: 0; inset-inline-start: 0; z-index: -1; pointer-events: none; }
+  .listen-clip { position: absolute; inset: 0; z-index: -1; border-radius: inherit; overflow: hidden; pointer-events: none; }
+  .listen-fill, .listen-ghost { position: absolute; inset-block: 0; inset-inline-start: 0; }
   .listen-fill { width: 0; background: rgba(21, 14, 10, 0.05); transition: width 0.25s linear; }
   .is-seeking .listen-fill { transition: none; }
   .listen-ghost { width: var(--ghost, 0%); background: rgba(21, 14, 10, 0.03); }
@@ -223,7 +233,7 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
   .listen-icon:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
   /* La pastille est déjà pleine : au survol elle se fonce un peu, rien de plus. */
   .listen:hover .listen-icon, .is-playing .listen-icon { background: color-mix(in srgb, var(--rose) 88%, var(--ink)); }
-  .listen-body { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 12px; align-self: stretch; touch-action: none; }
+  .listen-body { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; align-self: stretch; touch-action: none; }
   .listen-body:focus { outline: none; }
   .listen-body:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 4px; border-radius: 100px; }
   .listen-label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
