@@ -241,13 +241,11 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
 
 
   /*
-   * La rangée n'ouvre pas le tiroir elle-même : elle émet `pyramid:open`, et
-   * c'est PyramidDrawer qui écoute. Le tiroir est monté par la page, hors du
-   * panneau — voir le commentaire du composant.
+   * La rangée n'ouvre pas le tiroir elle-même : elle porte `data-pyramid-open`,
+   * et c'est PyramidDrawer qui écoute tous les boutons de la page. Le tiroir est
+   * monté par la page, hors du panneau, parce que celui-ci est `sticky` : voir
+   * le commentaire du composant.
    */
-  document
-    .querySelector<HTMLButtonElement>("[data-pyramid-open]")
-    ?.addEventListener("click", () => document.dispatchEvent(new CustomEvent("pyramid:open")));
 
   /*
    * La barre collante : elle apparaît quand le bouton principal sort de l'écran

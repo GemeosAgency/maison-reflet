@@ -17,6 +17,10 @@
 export interface NoteLevel {
   label: string;
   notes: string[];
+  /** « les 20 premières minutes » : quand on porte ce temps du parfum. */
+  window?: string | null;
+  /** Ce qu'on sent et ce que ça fait, pour qui ne peut pas sentir. Voir lib/guide.ts. */
+  effect?: string | null;
 }
 
 interface Props {
@@ -34,6 +38,9 @@ interface Props {
 const { title, img = null, levels, ingredients = [], ingredientsLabel = "", closeLabel } = Astro.props;
 
 const filledLevels = levels.filter((l) => l.notes.length > 0);
+// Dès qu'un temps est raconté, les rangées passent en colonnes : une ligne
+// « libellé à gauche, liste à droite » ne tient pas une phrase.
+const raconte = filledLevels.some((l) => l.effect);
 const inciList = ingredients.filter((i): i is string => Boolean(i));
 const hasContent = img !== null || filledLevels.length > 0 || inciList.length > 0;
 ---
@@ -52,11 +59,17 @@ const hasContent = img !== null || filledLevels.length > 0 || inciList.length > 
         <div class="pyr-body">
           <h2 class="pyr-title">{title}</h2>
           {filledLevels.length > 0 && (
-            <dl class="pyr-rows">
+            <dl class:list={["pyr-rows", { "is-told": raconte }]}>
               {filledLevels.map((l) => (
                 <div class="pyr-row">
-                  <dt>{l.label}</dt>
-                  <dd>{l.notes.join(", ")}</dd>
+                  <dt>
+                    {l.label}
+                    {l.window && <span class="pyr-window">{l.window}</span>}
+                  </dt>
+                  <dd>
+                    {l.effect && <span class="pyr-effect">{l.effect}</span>}
+                    <span class="pyr-notes">{l.notes.join(", ")}</span>
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -81,15 +94,29 @@ const hasContent = img !== null || filledLevels.length > 0 || inciList.length > 
       document.body.style.overflow = "hidden";
       drawer.querySelector<HTMLButtonElement>("[data-pyramid-close]")?.focus();
     };
+    // Le focus revient là où l'on a cliqué, pas systématiquement sur la rangée
+    // du panneau : le tiroir s'ouvre aussi depuis les colonnes du triptyque.
+    let ouvreur: HTMLElement | null = null;
     const close = () => {
       drawer.classList.remove("is-open");
       drawer.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
-      // Le focus retourne à la rangée qui a ouvert le tiroir.
-      document.querySelector<HTMLButtonElement>("[data-pyramid-open]")?.focus();
+      (ouvreur ?? document.querySelector<HTMLButtonElement>("[data-pyramid-open]"))?.focus();
     };
 
     document.addEventListener("pyramid:open", open);
+    /*
+     * N'importe quel `[data-pyramid-open]` ouvre le tiroir : la rangée du
+     * panneau, et les trois colonnes des notes olfactives. La délégation est
+     * ici plutôt que chez l'appelant, sinon seul le premier bouton de la page
+     * serait branché — c'était le cas, et les colonnes ne faisaient rien.
+     */
+    document.addEventListener("click", (e) => {
+      const btn = (e.target as Element | null)?.closest<HTMLElement>("[data-pyramid-open]");
+      if (!btn) return;
+      ouvreur = btn;
+      open();
+    });
     for (const el of drawer.querySelectorAll<HTMLElement>("[data-pyramid-close]")) {
       el.addEventListener("click", close);
     }
@@ -186,6 +213,20 @@ const hasContent = img !== null || filledLevels.length > 0 || inciList.length > 
   .pyr-row + .pyr-row { padding-top: 12px; border-top: 1px solid rgba(21, 14, 10, 0.12); }
   .pyr-row dt { font-weight: 500; white-space: nowrap; }
   .pyr-row dd { margin: 0; max-width: 272px; letter-spacing: 0.96px; text-align: end; }
+
+  /* Version racontée : le temps sous le niveau, la phrase, puis les matières. */
+  .is-told .pyr-row { flex-direction: column; gap: 8px; }
+  .is-told .pyr-row dt { display: flex; align-items: baseline; gap: 10px; white-space: normal; }
+  .is-told .pyr-row dd { max-width: none; text-align: start; letter-spacing: normal; }
+  .pyr-window { font-size: 14px; font-weight: 400; opacity: 0.62; }
+  .pyr-effect { display: block; margin-bottom: 8px; line-height: 1.42; }
+  .is-told .pyr-notes {
+    display: block;
+    font-size: 13px;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    opacity: 0.66;
+  }
   .pyr-inci { margin: 0; font-size: 14px; line-height: 1.32; letter-spacing: 0.84px; }
   .pyr-inci strong { font-weight: 500; letter-spacing: normal; }
 

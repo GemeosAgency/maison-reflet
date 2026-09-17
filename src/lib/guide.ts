@@ -37,8 +37,11 @@ export type GuideReflet = {
    * Les trois temps du parfum, dans l'ordre tête / cœur / fond, écrits pour
    * quelqu'un qui ne peut pas le sentir : la fenêtre pendant laquelle on le
    * porte, puis ce que ça fait. Une liste de matières est simultanée, un parfum
-   * est une séquence — c'est le temps qui manquait. Facultatif : une fiche sans
-   * `phases` affiche le triptyque tel qu'avant.
+   * est une séquence, et c'est le temps qui manquait. Ils se lisent dans le
+   * tiroir de la pyramide, qu'on ouvre depuis la rangée du panneau ou en
+   * cliquant une colonne du triptyque : posés sur les photos, ils faisaient
+   * cheap (Sandro, 17 septembre 2026). Facultatif : une fiche sans `phases`
+   * garde le tiroir tel qu'avant.
    */
   phases?: [Phase, Phase, Phase];
 };

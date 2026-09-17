@@ -430,7 +430,7 @@ const productJsonLd = {
     </aside>
   </div>
 
-  <ScentNotes title={t("product.notes")} levels={scentLevels} />
+  <ScentNotes title={t("product.notes")} levels={scentLevels} openLabel={t("product.pyramid")} />
 
   {specificTwist && <TwistSection title={t("product.specificTwist")} text={specificTwist} img={twistImg} />}
 
@@ -509,7 +509,7 @@ const productJsonLd = {
   <PyramidDrawer
     title={t("product.pyramid")}
     img={pyramidImg}
-    levels={scentLevels.map((l) => ({ label: l.label, notes: l.notes }))}
+    levels={scentLevels.map((l) => ({ label: l.label, notes: l.notes, window: l.window, effect: l.effect }))}
     ingredients={parfum?.ingredients ?? []}
     ingredientsLabel={t("product.ingredientsLabel")}
     closeLabel={t("product.close")}

@@ -32,10 +32,6 @@ import type { ResponsiveImage } from "../../lib/sanity";
 
 interface Level {
   label: string;
-  /** « les 20 premières minutes » : le moment où l'on porte ce temps du parfum. */
-  window?: string | null;
-  /** Ce que ça fait, pour qui ne peut pas le sentir. Voir lib/guide.ts. */
-  effect?: string | null;
   notes: string[];
   /** Index de la note dont la photo est affichée, -1 si aucune. */
   keyIndex: number;
@@ -51,13 +47,15 @@ interface Tab {
 
 interface Props {
   title: string;
+  /** Rend chaque colonne cliquable : elle ouvre le tiroir de la pyramide. */
+  openLabel?: string | null;
   /** Mode « un seul parfum ». Ignoré si `tabs` est fourni. */
   levels?: Level[];
   /** Mode « plusieurs parfums » : une barre d'onglets au-dessus du triptyque. */
   tabs?: Tab[];
 }
 
-const { title, levels = [], tabs } = Astro.props;
+const { title, levels = [], tabs, openLabel = null } = Astro.props;
 
 // Un panneau = un triptyque. Une colonne vide (ni note ni photo) est retirée
 // plutôt qu'affichée en cadre sable vide.
@@ -106,7 +104,7 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
           hidden={hasTabs && i > 0}
         >
           {p.levels.map((l) => (
-            <div class="snotes-col">
+            <div class:list={["snotes-col", { "is-clickable": Boolean(openLabel) }]}>
               {l.img && (
                 /* Colonne = un tiers de la fenêtre, la bande allant
                    maintenant bord à bord. Sans ce `sizes` juste, le
@@ -122,23 +120,24 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
                   decoding="async"
                 />
               )}
-              <span class="snotes-level">
-                {l.label}
-                {l.window && <span class="snotes-window">{l.window}</span>}
-              </span>
-              {/* Le pied porte la phrase puis les matières : la photo cesse
-                  d'être un fond et devient l'illustration d'un moment. */}
-              <div class:list={["snotes-foot", { "has-effect": Boolean(l.effect) }]}>
-                {l.effect && <p class="snotes-effect">{l.effect}</p>}
-                <p class="snotes-list">
-                  {l.notes.map((n, j) => (
-                    <span class:list={["snotes-note", { "is-key": j === l.keyIndex }]}>
-                      {n}
-                      {j < l.notes.length - 1 ? "," : ""}
-                    </span>
-                  ))}
-                </p>
-              </div>
+              <span class="snotes-level">{l.label}</span>
+              {openLabel && (
+                /* Toute la colonne ouvre le tiroir : le libellé n'est là que
+                   pour les lecteurs d'écran et le clavier. */
+                <button type="button" class="snotes-open" data-pyramid-open aria-label={`${openLabel} : ${l.label}`}>
+                  <span class="snotes-open-sign" aria-hidden="true">
+                    <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" /></svg>
+                  </span>
+                </button>
+              )}
+              <p class="snotes-list">
+                {l.notes.map((n, j) => (
+                  <span class:list={["snotes-note", { "is-key": j === l.keyIndex }]}>
+                    {n}
+                    {j < l.notes.length - 1 ? "," : ""}
+                  </span>
+                ))}
+              </p>
             </div>
           ))}
         </div>
@@ -424,6 +423,33 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
        qui repose sur le bas du cadre. */
     object-position: center bottom;
   }
+  /* Le bouton couvre toute la colonne, sous le texte et au-dessus de la photo :
+     on clique où l'on veut, et le signe ne sert qu'à dire que c'est cliquable. */
+  .snotes-open {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .snotes-open:focus-visible { outline: 2px solid var(--ink); outline-offset: -6px; }
+  .snotes-open-sign {
+    position: absolute;
+    inset-block-start: 28px;
+    inset-inline-end: 28px;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(21, 14, 10, 0.28);
+    border-radius: 50%;
+    color: var(--ink);
+    transition: background-color 0.22s ease, border-color 0.22s ease, color 0.22s ease;
+  }
+  .snotes-open-sign svg { width: 16px; height: 16px; }
+  .is-clickable:hover .snotes-open-sign { background: var(--ink); border-color: var(--ink); color: var(--bg); }
   .snotes-level {
     position: relative;
     z-index: 1;
@@ -432,39 +458,11 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
     text-transform: uppercase;
     line-height: 1.2;
   }
-  .snotes-window {
-    display: block;
-    margin-top: 6px;
-    font-size: 13px;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-    text-transform: none;
-    opacity: 0.66;
-  }
-  .snotes-foot {
+  .snotes-list {
     position: absolute;
     z-index: 1;
-    inset-inline: 32px;
+    inset-inline-start: 32px;
     bottom: 32px;
-  }
-  /* Un voile très doux sous le pied : la phrase est plus longue que les
-     matières et peut tomber sur une zone claire de la photo. Il n'apparaît que
-     là où il y a une phrase, pour ne rien changer aux fiches sans texte. */
-  .snotes-foot.has-effect::before {
-    content: "";
-    position: absolute;
-    inset: -28px -32px -32px;
-    z-index: -1;
-    background: linear-gradient(to top, rgba(21, 14, 10, 0.16), rgba(21, 14, 10, 0));
-    pointer-events: none;
-  }
-  .snotes-effect {
-    margin: 0 0 14px;
-    max-width: 34ch;
-    font-size: 15px;
-    line-height: 1.4;
-  }
-  .snotes-list {
     margin: 0;
     display: flex;
     flex-direction: column;
