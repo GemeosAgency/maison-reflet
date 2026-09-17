@@ -189,7 +189,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         c'est l'arithmétique qui décide ici, pas l'envie.
       */}
       {coffretUpsell && (
-        <div class="cart-coffret" data-cart-coffret hidden>
+        <div class="cart-coffret-wrap" data-cart-coffret hidden>
+        <div class="cart-coffret">
           <a class="cart-coffret-img" href={coffretUpsell.href} tabindex="-1" aria-hidden="true">
             {coffretUpsell.img && <img src={coffretUpsell.img} alt="" width="120" height="120" />}
           </a>
@@ -204,6 +205,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
               <span class="cart-upsell-price" data-money={coffretUpsell.variantId}>{formatMoney(coffretUpsell.price, getCountry(DEFAULT_COUNTRY).currency, lang)}</span>
             </div>
           </div>
+        </div>
         </div>
       )}
       <div class="cart-drawer-divider" data-cart-upsell-divider hidden></div>
@@ -1297,22 +1299,24 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
      même fond crème, même vignette à ras bord, même rythme. Le fond teinté en
      faisait une réclame au milieu du panier ; ce qui la distingue doit être son
      texte, pas sa couleur. */
+  /* Exactement la boîte de `.cart-accord-card` : la relance était en retrait de
+     24 px quand sa voisine allait bord à bord, ce qui décalait tout le bloc. */
+  .cart-coffret-wrap { display: flex; flex-direction: column; }
   .cart-coffret {
     display: flex;
     gap: 20px;
     align-items: center;
-    margin: 0 24px;
     background: var(--cream);
-    padding-inline-end: 24px;
+    padding-inline-end: 20px;
   }
   .cart-coffret-img { flex: 0 0 120px; line-height: 0; }
   .cart-coffret-img img { width: 120px; height: 120px; object-fit: cover; display: block; }
-  .cart-coffret-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; justify-content: center; }
+  .cart-coffret-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; justify-content: center; }
   /* L'argument prend la place de l'exergue de la carte d'accord : c'est lui la
      raison d'ajouter, le nom du produit ne fait que la nommer. */
-  .cart-coffret-kicker { margin: 0; font-size: 11px; line-height: 1.35; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); }
-  .cart-coffret-title { margin: 0; font-size: 16px; font-weight: 500; text-transform: uppercase; color: var(--ink); }
-  .cart-coffret-cta { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .cart-coffret-kicker { margin: 0; font-size: 11px; line-height: 1.3; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); }
+  .cart-coffret-title { margin: -4px 0 0; font-size: 16px; font-weight: 500; text-transform: uppercase; color: var(--ink); }
+  .cart-coffret-cta { display: flex; align-items: center; gap: 12px; }
 
   .cart-drawer-footer { flex-shrink: 0; border-top: 1px solid rgba(21, 14, 10, 0.12); padding: 24px 32px 32px; display: flex; flex-direction: column; gap: 16px; }
   .cart-drawer-subtotal-row { display: flex; align-items: baseline; justify-content: space-between; }

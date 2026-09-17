@@ -20,7 +20,7 @@ const initial = await live().catch((error) => {
 });
 ---
 
-<AdminLayout title="En direct" section="live" admin={admin} showRange={false} subtitle="Qui est sur le site maintenant, d'où, et ce qu'il fait — le globe tourne, les points vivent.">
+<AdminLayout title="En direct" section="live" admin={admin} showRange={false} subtitle="Qui est sur le site maintenant, d'où il vient et ce qu'il fait. Le globe tourne, les points vivent.">
   {/*
     Disposition de la vue en direct de Shopify (Sandro) : un rail étroit à gauche
     qui empile les chiffres, et le globe qui prend tout le reste de l'écran. La
@@ -120,7 +120,7 @@ const initial = await live().catch((error) => {
     // Le cadre fait maintenant toute la hauteur de la fenêtre : borner sur la
     // seule largeur débordait vers le bas. On prend le plus petit des deux, avec
     // une marge pour la légende et le repère du bas.
-    const size = () => Math.max(260, Math.min(wrap.clientWidth - 32, wrap.clientHeight - 72, 720));
+    const size = () => Math.max(260, Math.min(wrap.clientWidth - 48, wrap.clientHeight - 120, 680));
     // cobe 2 n'a plus de onRender : on tient la boucle nous-mêmes et on pousse l'état à chaque image.
     const globe = createGlobe(canvas, {
       devicePixelRatio: Math.min(2, window.devicePixelRatio || 1),
@@ -297,10 +297,13 @@ const initial = await live().catch((error) => {
      fenêtre : c'est une page qu'on laisse ouverte, elle ne doit pas défiler. */
   .live { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 16px; align-items: start; }
   .live-rail { display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 190px); overflow-y: auto; padding-inline-end: 4px; }
-  .live-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .live-tile { padding: 12px 14px; }
-  .live-tile .live-now { font-size: 34px; }
-  .live-tile .live-pulse-svg { width: 100%; height: 34px; margin-top: 8px; }
+  /* Une tuile par ligne : à deux colonnes dans un rail de 340 px, « Les deux
+     dernières heures » tombait sur trois lignes et « Sur le site maintenant »
+     sur deux. Le chiffre et son libellé se lisent maintenant d'un trait. */
+  .live-tiles { display: flex; flex-direction: column; gap: 12px; }
+  .live-tile { padding: 14px 16px; }
+  .live-tile .live-now { font-size: 40px; }
+  .live-tile .live-pulse-svg { width: 100%; height: 38px; margin-top: 10px; }
   .live-now { margin: 4px 0 0; display: flex; align-items: baseline; gap: 10px; font-size: 56px; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--rose); }
   .live-now-unit { font-size: 16px; color: var(--muted); letter-spacing: 0.02em; }
   .live-window { margin: 6px 0 0; font-size: 12px; }
@@ -318,8 +321,9 @@ const initial = await live().catch((error) => {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: calc(100vh - 190px);
-    min-height: 420px;
+    /* Bornée en haut : sur un grand écran, `100vh` laissait un vide immense
+       autour d'un globe qui, lui, ne dépasse jamais 720 px. */
+    height: clamp(420px, calc(100vh - 190px), 760px);
     border-radius: 14px;
     overflow: hidden;
     background:
@@ -346,10 +350,21 @@ const initial = await live().catch((error) => {
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+    margin: auto;
     filter: drop-shadow(0 26px 60px rgba(21, 14, 10, 0.22));
   }
   .live-globe:active { cursor: grabbing; }
-  .live-globe-empty { position: absolute; inset: auto 0 16%; margin: 0; text-align: center; font-size: 13px; color: var(--muted); pointer-events: none; }
+  /* Le message d'attente se pose SOUS le globe et non au bas du cadre, où il
+     flottait à trois cents pixels de lui. */
+  .live-globe-empty {
+    position: absolute;
+    inset: auto 0 52px;
+    margin: 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    pointer-events: none;
+  }
   .live-badge {
     position: absolute;
     inset: 16px auto auto 16px;
