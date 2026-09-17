@@ -28,6 +28,7 @@ const ui = {
   fr: {
     "banner.promo": "Livraison offerte dès {amount}",
     "banner.coffret": "Un avoir de 160 AED avec le coffret découverte",
+    "banner.coffretCta": "Découvrir",
     "nav.discovery": "Coffrets",
     "menu.open": "Menu",
     "menu.close": "Fermer le menu",
@@ -92,14 +93,13 @@ const ui = {
     "product.sillageHigh": "Fort",
     "product.perkSample": "Échantillon offert pour l'achat d'un parfum",
     "product.setsTitle": "Pas encore décidé ?",
-    "coffret.creditShort": "Les 160 AED sont déduits de votre premier flacon",
+    "coffret.creditShort": "Déduit de votre premier flacon",
     "coffret.creditEyebrow": "Votre avoir",
     "cart.coffretCredit": "Un avoir de 160 AED pour votre premier flacon",
-    "cart.coffretCreditNote":
-      "Il vous est envoyé par e-mail avec votre commande, valable 90 jours sur le Reflet de votre choix. Le prix du flacon ne change pas : c'est la découverte qui devient gratuite.",
-    "coffret.creditTitle": "Le coffret ne vous coûte rien si vous achetez ensuite",
-    "coffret.creditBody":
-      "Vous recevez 160 AED à valoir sur un flacon, envoyés par e-mail avec votre commande. Le prix du flacon ne change pas : c'est la découverte qui devient gratuite. À utiliser dans les 90 jours, sur le Reflet de votre choix.",
+    "coffret.creditNote":
+      "En achetant le coffret, vous recevez par e-mail un avoir de 160 AED, valable 90 jours sur le Reflet de votre choix. Le prix du flacon ne change pas : c'est la découverte qui devient gratuite.",
+    "coffret.creditAmount": "160 AED",
+    "coffret.creditHeadline": "d'avoir sur votre premier flacon",
     "product.discoverSet": "Découvrir le coffret",
     "product.securePayment": "Paiement sécurisé",
     "product.perkTreat": "Une attention offerte avec chaque commande",
@@ -341,6 +341,7 @@ const ui = {
   ar: {
     "banner.promo": "شحن مجاني للطلبات من {amount}",
     "banner.coffret": "رصيد ١٦٠ درهمًا مع علبة الاكتشاف",
+    "banner.coffretCta": "اكتشفها",
     "nav.discovery": "العلب",
     "menu.open": "القائمة",
     "menu.close": "إغلاق القائمة",
@@ -405,14 +406,13 @@ const ui = {
     "product.sillageHigh": "قوي",
     "product.perkSample": "عيّنة مجانية مع شراء أي عطر",
     "product.setsTitle": "لم تقرّر بعد؟",
-    "coffret.creditShort": "تُخصم الـ ١٦٠ درهمًا من زجاجتك الأولى",
+    "coffret.creditShort": "يُخصم من زجاجتك الأولى",
     "coffret.creditEyebrow": "رصيدك",
     "cart.coffretCredit": "رصيد ١٦٠ درهمًا لزجاجتك الأولى",
-    "cart.coffretCreditNote":
-      "يصلك بالبريد مع طلبك، وصالح ٩٠ يومًا على العطر الذي تختاره. سعر الزجاجة لا يتغيّر: الاكتشاف هو ما يصبح مجانيًا.",
-    "coffret.creditTitle": "العلبة لا تكلّفك شيئًا إن اشتريت بعدها",
-    "coffret.creditBody":
-      "تحصل على ١٦٠ درهمًا لتستخدمها عند شراء زجاجة، تصلك بالبريد مع طلبك. سعر الزجاجة لا يتغيّر: الاكتشاف هو ما يصبح مجانيًا. تُستخدم خلال ٩٠ يومًا، على العطر الذي تختاره.",
+    "coffret.creditNote":
+      "بشراء العلبة تصلك بالبريد قيمة ١٦٠ درهمًا، صالحة ٩٠ يومًا على العطر الذي تختاره. سعر الزجاجة لا يتغيّر: الاكتشاف هو ما يصبح مجانيًا.",
+    "coffret.creditAmount": "١٦٠ درهمًا",
+    "coffret.creditHeadline": "رصيد لزجاجتك الأولى",
     "product.discoverSet": "اكتشف الصندوق",
     "product.securePayment": "دفع آمن",
     "product.perkTreat": "لفتة خاصة مع كل طلب",
@@ -650,6 +650,7 @@ const ui = {
   en: {
     "banner.promo": "Free shipping on orders over {amount}",
     "banner.coffret": "A 160 AED credit with the discovery set",
+    "banner.coffretCta": "Discover",
     "nav.discovery": "Sets",
     "menu.open": "Menu",
     "menu.close": "Close menu",
@@ -714,14 +715,13 @@ const ui = {
     "product.sillageHigh": "High",
     "product.perkSample": "Free sample with the purchase of a perfume",
     "product.setsTitle": "Not sure yet?",
-    "coffret.creditShort": "The 160 AED come off your first bottle",
+    "coffret.creditShort": "Taken off your first bottle",
     "coffret.creditEyebrow": "Your credit",
     "cart.coffretCredit": "A 160 AED credit for your first bottle",
-    "cart.coffretCreditNote":
-      "It reaches you by email with your order, valid for 90 days on the Reflet of your choice. The price of the bottle does not change: it is the discovery that becomes free.",
-    "coffret.creditTitle": "The set costs you nothing if you buy afterwards",
-    "coffret.creditBody":
-      "You receive 160 AED to spend on a bottle, sent by email with your order. The price of the bottle does not change: it is the discovery that becomes free. To be used within 90 days, on the Reflet of your choice.",
+    "coffret.creditNote":
+      "Buying the set earns you a 160 AED credit by email, valid for 90 days on the Reflet of your choice. The price of the bottle does not change: it is the discovery that becomes free.",
+    "coffret.creditAmount": "160 AED",
+    "coffret.creditHeadline": "of credit towards your first bottle",
     "product.discoverSet": "Discover the set",
     "product.securePayment": "Secure payment",
     "product.perkTreat": "A special treat with every order",

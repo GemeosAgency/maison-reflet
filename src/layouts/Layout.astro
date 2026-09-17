@@ -9,6 +9,7 @@ import {
   useTranslations,
 } from "../i18n";
 import CartDrawer from "../components/CartDrawer.astro";
+import { COFFRET_HANDLE } from "../lib/coffret";
 import CountryDrawer from "../components/CountryDrawer.astro";
 import LumaAdvisor from "../components/LumaAdvisor.astro";
 import SiteMenu from "../components/SiteMenu.astro";
@@ -384,7 +385,10 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         <p data-free-shipping-threshold={t("banner.promo")}>
           {t("banner.promo").replace("{amount}", initialThreshold)}
         </p>
-        <p>{t("banner.coffret")}</p>
+        <p>
+          {t("banner.coffret")}
+          <a href={localePath(lang, `/coffrets/${COFFRET_HANDLE}`)}>{t("banner.coffretCta")}</a>
+        </p>
       </div>
     </div>
 
@@ -584,15 +588,38 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         animation: promo-fondu 12s infinite;
       }
       .promo-banner p:nth-child(2) { animation-delay: -6s; }
+      .promo-banner a {
+        margin-inline-start: 10px;
+        color: inherit;
+        text-underline-offset: 3px;
+        text-decoration-thickness: 1px;
+      }
+      .promo-banner a:hover { text-decoration-thickness: 2px; }
+      /*
+       * `visibility` accompagne l'opacité, et ce n'est pas cosmétique : les deux
+       * messages occupent la même cellule, donc le lien du second restait
+       * cliquable et atteignable au clavier pendant qu'il était invisible,
+       * par-dessus le texte de la livraison.
+       */
+      /*
+       * Les deux messages ne doivent JAMAIS être visibles ensemble : ils
+       * occupent la même cellule, et un croisement les superposait en un
+       * illisible. Le second est décalé d'exactement une demi-période, et la
+       * disparition de l'un (42 → 46 %) se termine là où commence l'apparition
+       * de l'autre (96 → 100 % de son propre cycle, soit 46 → 50 % ici).
+       */
       @keyframes promo-fondu {
-        0%, 44% { opacity: 1; }
-        50%, 94% { opacity: 0; }
-        100% { opacity: 1; }
+        0%, 42% { opacity: 1; visibility: visible; }
+        46%, 96% { opacity: 0; visibility: hidden; }
+        100% { opacity: 1; visibility: visible; }
       }
       /* Mouvement réduit : le premier message reste, le second disparaît. */
+      /* Mouvement réduit : les deux messages se suivent au lieu d'alterner,
+         plutôt que d'en perdre un — celui du coffret porte un lien. */
       @media (prefers-reduced-motion: reduce) {
+        .promo-rotor { display: block; }
         .promo-banner p { animation: none; }
-        .promo-banner p:nth-child(2) { display: none; }
+        .promo-banner p + p { padding-top: 0; }
       }
       /* z-index 20 : au-dessus du contenu, en dessous du panier (60). */
       .site-header-sticky {
