@@ -1,0 +1,153 @@
+---
+/**
+ * Le coffret découverte, dans la colonne d'achat sous le bloc Luma.
+ *
+ * Pourquoi ici : l'échantillon offert n'arrive qu'après l'achat, il récompense
+ * une décision déjà prise et ne rassure pas celui qui hésite encore. Le coffret
+ * découverte est la seule vraie porte d'entrée pour qui n'a rien choisi — mais
+ * sa grande bannière vit tout en bas de la fiche, à près de 7 000 px, alors que
+ * le doute se joue au niveau du bouton d'achat, vers 720 px.
+ *
+ * Un seul coffret ici, volontairement : la collection à 2 200 AED répond à une
+ * autre intention et brouillerait le message (Sandro, 17 sept. : « l'autre
+ * c'est too much »).
+ */
+import type { ResponsiveImage } from "../../lib/sanity";
+
+interface Props {
+  eyebrow: string;
+  title: string;
+  description: string | null;
+  priceLabel: string;
+  href: string;
+  img: ResponsiveImage | null;
+  ctaLabel: string;
+}
+
+const { eyebrow, title, description, priceLabel, href, img, ctaLabel } = Astro.props;
+---
+
+<a class="pdisc" href={href}>
+  <span class="pdisc-media">
+    {
+      img && (
+        <img
+          src={img.src}
+          srcset={img.srcset}
+          sizes="(max-width: 900px) 92vw, 460px"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+      )
+    }
+    <span class="pdisc-eyebrow">{eyebrow}</span>
+  </span>
+  <span class="pdisc-body">
+    <span class="pdisc-head">
+      <span class="pdisc-title">{title}</span>
+      <span class="pdisc-price">{priceLabel}</span>
+    </span>
+    {description && <span class="pdisc-desc">{description}</span>}
+    <span class="pdisc-cta">
+      {ctaLabel}
+      <svg viewBox="0 0 14 12" fill="none" aria-hidden="true">
+        <path d="M1 6h11M8 1.5 12.5 6 8 10.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </span>
+  </span>
+</a>
+
+<style>
+  .pdisc {
+    display: block;
+    margin-block-start: 28px;
+    border: 1px solid var(--line, rgba(21, 14, 10, 0.12));
+    background: var(--paper, #f7f5f2);
+    color: inherit;
+    text-decoration: none;
+    overflow: hidden;
+    transition: border-color 0.25s ease;
+  }
+  .pdisc:hover,
+  .pdisc:focus-visible {
+    border-color: rgba(21, 14, 10, 0.3);
+  }
+  .pdisc-media {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 10;
+    background: var(--sand, #e7dfd0);
+    overflow: hidden;
+  }
+  .pdisc-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .pdisc:hover .pdisc-media img,
+  .pdisc:focus-visible .pdisc-media img {
+    transform: scale(1.05);
+  }
+  /* L'accroche posée sur la photo, pas au-dessus : le bloc reste un objet. */
+  .pdisc-eyebrow {
+    position: absolute;
+    inset-block-start: 14px;
+    inset-inline-start: 14px;
+    padding: 6px 11px;
+    border-radius: 999px;
+    background: rgba(247, 245, 242, 0.92);
+    backdrop-filter: blur(6px);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .pdisc-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px 20px 20px;
+  }
+  .pdisc-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .pdisc-title { font-size: 17px; line-height: 1.2; }
+  .pdisc-price {
+    flex: none;
+    font-size: 14px;
+    color: var(--muted, rgba(21, 14, 10, 0.56));
+    font-variant-numeric: tabular-nums;
+  }
+  .pdisc-desc {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--muted, rgba(21, 14, 10, 0.56));
+  }
+  .pdisc-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-block-start: 4px;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .pdisc-cta svg {
+    width: 14px;
+    height: 12px;
+    transition: transform 0.25s ease;
+  }
+  .pdisc:hover .pdisc-cta svg,
+  .pdisc:focus-visible .pdisc-cta svg {
+    transform: translateX(4px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pdisc-media img, .pdisc-cta svg { transition: none; }
+    .pdisc:hover .pdisc-media img { transform: none; }
+    .pdisc:hover .pdisc-cta svg { transform: none; }
+  }
+</style>

@@ -22,7 +22,7 @@ import TwistSection from "../../../components/product/TwistSection.astro";
 import PerfumerWord from "../../../components/product/PerfumerWord.astro";
 import TwistLine from "../../../components/product/TwistLine.astro";
 import LayeringRow from "../../../components/product/LayeringRow.astro";
-import PanelSets from "../../../components/product/PanelSets.astro";
+import PanelDiscovery from "../../../components/product/PanelDiscovery.astro";
 import LayeringDrawer from "../../../components/product/LayeringDrawer.astro";
 import {
   formatPrice,
@@ -403,7 +403,18 @@ const productJsonLd = {
           du doute. Cette rangée le remet sous les yeux au bon endroit.
           « Se marie avec » n'y figure pas : il est déjà une rangée du panneau.
         */}
-        <PanelSets slot="after-perks" title={t("product.setsTitle")} items={discoveryCandidates} />
+        {discovery && (
+          <PanelDiscovery
+            slot="after-perks"
+            eyebrow={t("product.setsTitle")}
+            title={discovery.titre}
+            description={discovery.description}
+            priceLabel={discovery.price}
+            href={discovery.href}
+            img={discovery.img}
+            ctaLabel={t("product.discoverSet")}
+          />
+        )}
       </ProductInfoPanel>
     </aside>
   </div>
