@@ -1283,15 +1283,19 @@ const EVENT_LABEL: Record<string, string> = {
 };
 
 /** Ce qui se passe maintenant : les visiteurs des dix dernières minutes par pays (et ville), le fil des gestes, la journée. */
-export async function live() {
+export async function live(withTest = false) {
   const now = Date.now();
   const since = new Date(now - LIVE_WINDOW_MS).toISOString();
   const dayStart = new Date(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()) + "T00:00:00+04:00").toISOString();
   const [recent, today, ordersToday, catalog] = await Promise.all([
-    // Production seulement : ce qui vient de staging est marqué « test ».
-    fetchAll<SiteEventRow>("site_events", (q) => q.gte("created_at", since).eq("test", false).order("id", { ascending: false })).catch(() => [] as SiteEventRow[]),
-    fetchAll<SiteEventRow>("site_events", (q) => q.gte("created_at", dayStart).eq("test", false).order("id", { ascending: true })).catch(() => [] as SiteEventRow[]),
-    fetchAll<OrderRow>("shop_orders", (q) => q.gte("created_at", dayStart).eq("test", false).is("cancelled_at", null).order("created_at", { ascending: false })).catch(() => [] as OrderRow[]),
+    /*
+     * Production seulement par défaut : ce qui vient de staging est marqué
+     * « test ». L'interrupteur de la barre latérale les fait entrer ici comme
+     * ailleurs — il était sans effet sur cette page, seule à filtrer en dur.
+     */
+    fetchAll<SiteEventRow>("site_events", (q) => (withTest ? q : q.eq("test", false)).gte("created_at", since).order("id", { ascending: false })).catch(() => [] as SiteEventRow[]),
+    fetchAll<SiteEventRow>("site_events", (q) => (withTest ? q : q.eq("test", false)).gte("created_at", dayStart).order("id", { ascending: true })).catch(() => [] as SiteEventRow[]),
+    fetchAll<OrderRow>("shop_orders", (q) => (withTest ? q : q.eq("test", false)).gte("created_at", dayStart).is("cancelled_at", null).order("created_at", { ascending: false })).catch(() => [] as OrderRow[]),
     loadCatalog(),
   ]);
   const productOf = (h: string | null) => catalog.products.find((p) => p.handle === h) ?? null;

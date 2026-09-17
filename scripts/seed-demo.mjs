@@ -14,6 +14,7 @@
  *
  *   node scripts/seed-demo.mjs            # 30 jours
  *   node scripts/seed-demo.mjs --jours 60
+ *   node scripts/seed-demo.mjs --live     # juste une vague pour « En direct »
  *   node scripts/seed-demo.mjs --purge    # retire tout ce que ce script a posé
  */
 import { createClient as pg } from "@supabase/supabase-js";
@@ -24,6 +25,12 @@ const arg = (n, d) => {
   return i > -1 && process.argv[i + 1] ? Number(process.argv[i + 1]) : d;
 };
 const PURGE = process.argv.includes("--purge");
+/*
+ * « En direct » ne regarde que les dix dernières minutes : une vague posée à
+ * midi a disparu à midi dix. `--live` en repose une, sans toucher au reste, pour
+ * regarder la page quand on veut.
+ */
+const LIVE_SEUL = process.argv.includes("--live");
 const JOURS = arg("jours", 30);
 
 /** Marqueur porté par chaque ligne posée ici : c'est lui qui rend le retrait sûr. */
@@ -103,6 +110,13 @@ async function purge() {
 async function main() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("SUPABASE_SERVICE_ROLE_KEY manquant.");
   if (PURGE) return purge();
+  if (LIVE_SEUL) {
+    const vague = vagueLive();
+    const { error } = await db.from("site_events").insert(vague);
+    if (error) throw error;
+    console.log(`${vague.length} événements posés sur les dix dernières minutes. « En direct » a de quoi montrer.`);
+    return;
+  }
 
   const events = [];
   const orders = [];
@@ -215,30 +229,7 @@ async function main() {
     }
   }
 
-  /*
-   * La vue « En direct » ne regarde que les dix dernières minutes : sans cette
-   * vague, elle reste à zéro pendant que tout le reste déborde de chiffres.
-   */
-  const maintenant = Date.now();
-  for (let v = 0; v < 7; v++) {
-    const pays = pese(PAYS);
-    const anon = `demo-live-${v}-${entier(1000, 9999)}`;
-    const base = { anon_id: anon, locale: pays.locale, country: pays.code, city: pays.ville, test: true };
-    const props = (extra = {}) => ({ seed: MARQUE, device: pick(APPAREILS), ...extra });
-    const il_y_a = (min) => new Date(maintenant - min * 60000).toISOString();
-    const r = pese(REFLETS);
-    events.push({ ...base, name: "page_view", path: "/", created_at: il_y_a(entier(6, 9)), props: props({ ref: pese(SOURCES).ref }) });
-    events.push({ ...base, name: "page_view", path: `/${pays.locale}/parfums/${r.handle}`, created_at: il_y_a(entier(3, 5)), props: props() });
-    events.push({ ...base, name: "product_view", path: `/${pays.locale}/parfums/${r.handle}`, created_at: il_y_a(entier(2, 4)), props: props({ handle: r.handle }) });
-    if (v < 3) {
-      events.push({
-        ...base,
-        name: "add_to_cart",
-        created_at: il_y_a(1),
-        props: props({ total: r.prix, currency: "AED", handles: [r.handle], lines: [{ handle: r.handle, quantity: 1, amount: r.prix }] }),
-      });
-    }
-  }
+  events.push(...vagueLive());
 
   console.log(`${events.length} événements et ${orders.length} commandes à poser (${JOURS} jours).`);
   for (let i = 0; i < events.length; i += 500) {
@@ -339,4 +330,33 @@ async function poserLuma(events) {
     if (error) throw error;
   }
   console.log(`${sessions.length} conversations Luma, ${messages.length} messages, ${signaux.length} profils.`);
+}
+
+/** Une poignée de visiteurs sur les dix dernières minutes, pour « En direct ». */
+function vagueLive() {
+  const maintenant = Date.now();
+  const out = [];
+  for (let v = 0; v < 9; v++) {
+    const pays = pese(PAYS);
+    const anon = `demo-live-${v}-${entier(1000, 9999)}`;
+    const base = { anon_id: anon, locale: pays.locale, country: pays.code, city: pays.ville, test: true };
+    const props = (extra = {}) => ({ seed: MARQUE, device: pick(APPAREILS), ...extra });
+    // Réparti sur les huit dernières minutes : une vague toute en même temps se
+    // vide d'un coup et la page clignote.
+    const ilYA = (min) => new Date(maintenant - min * 60000).toISOString();
+    const r = pese(REFLETS);
+    out.push({ ...base, name: "page_view", path: "/", created_at: ilYA(entier(5, 8)), props: props({ ref: pese(SOURCES).ref }) });
+    out.push({ ...base, name: "page_view", path: `/${pays.locale}/parfums/${r.handle}`, created_at: ilYA(entier(2, 4)), props: props() });
+    out.push({ ...base, name: "product_view", path: `/${pays.locale}/parfums/${r.handle}`, created_at: ilYA(entier(1, 3)), props: props({ handle: r.handle }) });
+    if (v < 4) {
+      out.push({
+        ...base,
+        name: "add_to_cart",
+        created_at: ilYA(entier(0, 2)),
+        props: props({ total: r.prix, currency: "AED", handles: [r.handle], lines: [{ handle: r.handle, quantity: 1, amount: r.prix }] }),
+      });
+    }
+    if (v < 2) out.push({ ...base, name: "checkout", created_at: ilYA(0), props: props({ total: r.prix, currency: "AED", lines: [{ handle: r.handle, quantity: 1, amount: r.prix }] }) });
+  }
+  return out;
 }

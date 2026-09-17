@@ -14,7 +14,8 @@ const admin = await readSession(Astro.cookies);
 if (!admin) return Astro.redirect(`/admin/login?next=${encodeURIComponent(Astro.url.pathname)}`);
 // Le globe se rafraîchit seul toutes les dix secondes : un premier appel raté
 // n'est pas une panne, la page se remplira au tour suivant.
-const initial = await live().catch((error) => {
+const avecTest = Astro.url.searchParams.get("test") === "1";
+const initial = await live(avecTest).catch((error) => {
   console.error("[admin/live]", error);
   return null;
 });
@@ -29,7 +30,7 @@ const initial = await live().catch((error) => {
     rôle, elles deviennent des tuiles compactes, et le globe cesse d'être une
     carte parmi d'autres pour devenir le fond de la page.
   */}
-  <section class="live" data-live data-initial={JSON.stringify(initial)}>
+  <section class="live" data-live data-test={avecTest ? "1" : undefined} data-initial={JSON.stringify(initial)}>
     <div class="live-rail">
       <div class="live-tiles">
         <div class="card live-tile">
@@ -269,7 +270,9 @@ const initial = await live().catch((error) => {
     const tick = async () => {
       if (document.hidden) return;
       try {
-        const res = await fetch("/api/admin/live", { cache: "no-store" });
+        // Le rafraîchissement garde le réglage : sans lui, la page s'ouvrait avec
+        // les données de test puis les perdait dix secondes plus tard.
+        const res = await fetch(`/api/admin/live${root.dataset.test === "1" ? "?test=1" : ""}`, { cache: "no-store" });
         if (res.status === 401) {
           window.location.href = "/admin/login?next=/admin/live";
           return;
