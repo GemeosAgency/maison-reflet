@@ -408,6 +408,8 @@ export type Kpis = {
   margeTaux: number | null;
   cout: number | null;
   coutsManquants: number;
+  /** Le coût détaillé, pour la fenêtre de la marge. */
+  coutDetail: { flacons: number; coffrets: number; echantillons: number };
   visitors: number;
   conversion: number | null;
   checkoutRate: number | null;
@@ -560,16 +562,22 @@ function core({ events, orders: allOrders, catalog, range, filters: f, luma }: C
     let cout = 0;
     let connu = false;
     const manquants = new Set<string>();
+    const detail = { flacons: 0, coffrets: 0, echantillons: 0 };
     for (const o of orders) {
       for (const l of o.lines) {
         const h = handleOf(l);
-        const c = formatOf(l) === "sample" ? coutEchantillon : h ? coutDe.get(h) : undefined;
+        const format = formatOf(l);
+        const c = format === "sample" ? coutEchantillon : h ? coutDe.get(h) : undefined;
         if (c == null) {
           if (h) manquants.add(h);
           continue;
         }
         connu = true;
-        cout += c * l.quantity;
+        const montant = c * l.quantity;
+        cout += montant;
+        if (format === "sample") detail.echantillons += montant;
+        else if (format === "coffret") detail.coffrets += montant;
+        else detail.flacons += montant;
       }
     }
     const marge = connu ? revenue - cout : null;
@@ -578,6 +586,7 @@ function core({ events, orders: allOrders, catalog, range, filters: f, luma }: C
       marge,
       margeTaux: marge != null && revenue > 0 ? marge / revenue : null,
       coutsManquants: manquants.size,
+      coutDetail: detail,
     };
   })();
   const kpis: Kpis = {
@@ -1325,14 +1334,42 @@ export async function live(withTest = false) {
       lastAt: c.lastAt,
     }))
     .sort((a, b) => b.visitors - a.visitors);
-  const feed = recent.slice(0, 40).map((e) => {
-    const handle = str(e.props.handle) ?? str(e.props.id);
-    const handles = Array.isArray(e.props.handles) ? (e.props.handles as string[]) : handle ? [handle] : [];
-    const what = e.name === "add_to_cart" || e.name === "checkout" ? handles.map(nameOf).join(" + ") : e.name === "layering_add" || e.name === "accord_add" ? duoName(str(e.props.duo)) : e.name === "guide_filter" ? `${str(e.props.group) ?? ""} · ${str(e.props.value) ?? ""}` : handle ? nameOf(handle) : e.path ?? "";
-    const image = thumb(handles.map((h) => productOf(h)?.image ?? null).find(Boolean) ?? null, 96);
-    const amount = num(e.props.total);
-    return { at: e.created_at, country: e.country, city: e.city ?? null, verb: EVENT_LABEL[e.name] ?? e.name, what, image, amount, currency: str(e.props.currency), anon: e.anon_id.slice(0, 6), locale: e.locale, kind: e.name };
-  });
+  /*
+   * Trié sur l'HEURE, pas sur l'identifiant. Les événements arrivent par le
+   * relais first-party et peuvent être écrits dans le désordre : le fil sautait
+   * de 23 h 53 à 23 h 49 puis revenait à 23 h 52, ce qui est illisible sur une
+   * page qui prétend dire ce qui se passe maintenant.
+   */
+  const feed = [...recent]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, 40)
+    .map((e) => {
+      const handle = str(e.props.handle) ?? str(e.props.id);
+      /*
+       * `checkout` n'envoie que `lines`, jamais `handles` (voir CartDrawer) : le
+       * fil affichait « part payer » suivi de rien. On retombe donc sur les
+       * lignes du panier.
+       */
+      const desLignes = Array.isArray(e.props.lines)
+        ? (e.props.lines as { handle?: unknown }[]).map((l) => str(l?.handle)).filter((h): h is string => Boolean(h))
+        : [];
+      const handles = Array.isArray(e.props.handles)
+        ? (e.props.handles as string[])
+        : desLignes.length
+          ? desLignes
+          : handle
+            ? [handle]
+            : [];
+    /*
+     * Le nom de la page, jamais son chemin : « Accueil » plutôt que « / », et
+     * « Ultra Cuir » plutôt que « /ar/parfums/ultra-cuir », qui débordait sur
+     * trois lignes et ne se lisait pas.
+     */
+    const what = e.name === "add_to_cart" || e.name === "checkout" ? handles.map(nameOf).join(" + ") : e.name === "layering_add" || e.name === "accord_add" ? duoName(str(e.props.duo)) : e.name === "guide_filter" ? `${str(e.props.group) ?? ""} · ${str(e.props.value) ?? ""}` : handle ? nameOf(handle) : pageName(e.path, catalog.products);
+      const image = thumb(handles.map((h) => productOf(h)?.image ?? null).find(Boolean) ?? null, 96);
+      const amount = num(e.props.total);
+      return { at: e.created_at, country: e.country, city: e.city ?? null, verb: EVENT_LABEL[e.name] ?? e.name, what, image, amount, currency: str(e.props.currency), anon: e.anon_id.slice(0, 6), locale: e.locale, kind: e.name };
+    });
   const revenueToday = ordersToday.reduce((n, o) => n + Number(o.total) - (Array.isArray(o.refunds) ? o.refunds.reduce((m, r) => m + Number(r.amount || 0), 0) : 0), 0);
   const visitorsNow = new Set(recent.map((e) => e.anon_id)).size;
   const visitorsToday = new Set(today.map((e) => e.anon_id)).size;

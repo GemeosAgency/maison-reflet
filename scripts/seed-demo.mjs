@@ -143,7 +143,9 @@ async function main() {
       };
       const props = (extra = {}) => ({ seed: MARQUE, device: appareil, ...extra });
 
-      events.push({ ...base, name: "page_view", path: "/", created_at: at(0), props: props({ ref: src.ref, ...(src.utm ?? {}) }) });
+      // `landing: true` et `utm` en objet : c'est la forme que le site envoie
+      // (voir lib/site-events.ts), et la seule que la tour de contrôle sait lire.
+      events.push({ ...base, name: "page_view", path: "/", created_at: at(0), props: props({ landing: true, ref: src.ref, utm: src.utm }) });
 
       const profondeur = entier(1, 5);
       const vus = [];
@@ -345,7 +347,8 @@ function vagueLive() {
     // vide d'un coup et la page clignote.
     const ilYA = (min) => new Date(maintenant - min * 60000).toISOString();
     const r = pese(REFLETS);
-    out.push({ ...base, name: "page_view", path: "/", created_at: ilYA(entier(5, 8)), props: props({ ref: pese(SOURCES).ref }) });
+    const srcLive = pese(SOURCES);
+    out.push({ ...base, name: "page_view", path: "/", created_at: ilYA(entier(5, 8)), props: props({ landing: true, ref: srcLive.ref, utm: srcLive.utm }) });
     out.push({ ...base, name: "page_view", path: `/${pays.locale}/parfums/${r.handle}`, created_at: ilYA(entier(2, 4)), props: props() });
     out.push({ ...base, name: "product_view", path: `/${pays.locale}/parfums/${r.handle}`, created_at: ilYA(entier(1, 3)), props: props({ handle: r.handle }) });
     if (v < 4) {

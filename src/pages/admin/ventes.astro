@@ -57,6 +57,7 @@ const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value
       tone={k.marge !== null && k.marge < 0 ? "rose" : undefined}
       label="Marge brute"
       tip="marge"
+      modal={k.marge === null ? undefined : "marge"}
       value={k.marge === null ? "–" : fmtMoneyShort(k.marge)}
       unit={k.marge === null ? undefined : cur}
       sub={
@@ -125,6 +126,56 @@ const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value
   {b.perProduct.map((p) => <ProductModal product={p} currency={cur} totalRevenue={k.revenue} />)}
   {b.countries.map((c) => <CountryModal country={c} currency={cur} />)}
   <DaysModal byDay={b.byDay} currency={cur} rangeLabel={range.label} />
+  {/*
+    Le détail de la marge : d'où part le chiffre, ce qu'on en retire, ce qu'il
+    reste. Chaque ligne dit AUSSI ce qu'elle ne couvre pas, parce qu'une marge
+    incomplète qu'on croit complète est pire qu'une marge absente.
+  */}
+  {k.marge !== null && (
+    <ModalTemplate id="marge" title="La marge brute, ligne à ligne" subtitle={`${range.label} · ${money(k.marge)} sur ${money(k.revenue)}`}>
+      <div class="card">
+        <dl class="marge-lignes">
+          <div class="marge-ligne">
+            <dt>Chiffre net encaissé</dt>
+            <dd>{money(k.revenue)}</dd>
+          </div>
+          <div class="marge-ligne is-sub">
+            <dt>dont livraison facturée au client</dt>
+            <dd>{money(k.shipping)}</dd>
+          </div>
+          <div class="marge-ligne is-sub">
+            <dt>remises et bons d'achat accordés</dt>
+            <dd>{k.discounts ? `– ${money(k.discounts)}` : "aucun"}</dd>
+          </div>
+          <div class="marge-ligne is-total">
+            <dt>Coût de revient des unités vendues</dt>
+            <dd>– {money(k.cout ?? 0)}</dd>
+          </div>
+          <div class="marge-ligne is-sub">
+            <dt>flacons</dt>
+            <dd>– {money(k.coutDetail.flacons)}</dd>
+          </div>
+          <div class="marge-ligne is-sub">
+            <dt>coffrets</dt>
+            <dd>– {money(k.coutDetail.coffrets)}</dd>
+          </div>
+          <div class="marge-ligne is-sub">
+            <dt>échantillons offerts</dt>
+            <dd>– {money(k.coutDetail.echantillons)}</dd>
+          </div>
+          <div class="marge-ligne is-result">
+            <dt>Marge brute</dt>
+            <dd>{money(k.marge)}{k.margeTaux !== null ? ` · ${Math.round(k.margeTaux * 100)} %` : ""}</dd>
+          </div>
+        </dl>
+        <p class="card-foot">
+          Ce qui n'est PAS déduit ici, faute de le connaître : le transport que nous payons au transporteur (la ligne ci-dessus est ce que le client a payé, pas notre facture), les frais de paiement, la publicité et les charges fixes. La marge brute dit si le produit gagne de l'argent, pas si l'entreprise en gagne.
+          {k.coutsManquants > 0 ? ` ${fmtInt(k.coutsManquants)} produit${k.coutsManquants > 1 ? "s" : ""} vendu${k.coutsManquants > 1 ? "s" : ""} sur la période n'a pas de coût de revient dans Sanity : il n'est pas compté.` : ""}
+        </p>
+      </div>
+    </ModalTemplate>
+  )}
+
   <ModalTemplate id="cancelled" title="Commandes annulées" subtitle={`${fmtInt(k.cancelled)} commande${k.cancelled > 1 ? "s" : ""} · ${money(k.cancelledTotal)} écartés du chiffre · ${range.label}`} wide>
     <div class="card tbl-card"><OrdersTable orders={b.cancelledOrders} showDiscount empty="Aucune commande annulée sur la période." /></div>
   </ModalTemplate>
@@ -132,4 +183,11 @@ const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value
 
 <style>
   .spaced { margin-top: 16px; }
+  .marge-lignes { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  .marge-ligne { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; font-size: 15px; }
+  .marge-ligne dd { margin: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* Les sous-lignes détaillent la ligne au-dessus : décalées, plus petites, plus pâles. */
+  .marge-ligne.is-sub { padding-inline-start: 18px; font-size: 13.5px; color: var(--muted); }
+  .marge-ligne.is-total { padding-top: 10px; border-top: 1px solid var(--line); }
+  .marge-ligne.is-result { padding-top: 12px; border-top: 1px solid var(--ink); font-size: 17px; font-weight: 500; }
 </style>

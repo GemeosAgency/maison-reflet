@@ -40,7 +40,13 @@ const initial = await live(avecTest).catch((error) => {
         </div>
         <div class="card live-tile">
           <p class="kpi-label">Les deux dernières heures <button type="button" class="tip" aria-label="Explication" data-tip="Visiteurs distincts par tranche de cinq minutes, sur les deux dernières heures. La dernière tranche est en rose.">?</button></p>
-          <svg class="live-pulse-svg" viewBox="0 0 240 40" width="240" height="40" preserveAspectRatio="none" aria-label="Visiteurs par tranche de cinq minutes" data-live-pulse></svg>
+          {/* L'infobulle est dessinée par nous : celle du navigateur (`title`)
+              met une seconde à venir, se pose n'importe où et ne ressemble à
+              rien du reste de la tour de contrôle. */}
+          <div class="live-pulse-wrap">
+            <svg class="live-pulse-svg" viewBox="0 0 240 40" width="240" height="40" preserveAspectRatio="none" aria-label="Visiteurs par tranche de cinq minutes" data-live-pulse></svg>
+            <span class="live-pulse-tip" data-pulse-tip hidden></span>
+          </div>
         </div>
       </div>
 
@@ -241,11 +247,36 @@ const initial = await live(avecTest).catch((error) => {
       }
       // Le pouls.
       const svg = $<SVGSVGElement>("[data-live-pulse]");
+      const pulseTip = $<HTMLElement>("[data-pulse-tip]");
+      const pulseWrap = svg?.parentElement ?? null;
+      if (svg && pulseTip && pulseWrap && !svg.dataset.tipBound) {
+        svg.dataset.tipBound = "1";
+        svg.addEventListener("pointermove", (e) => {
+          const r = (e.target as Element).closest<SVGRectElement>("rect[data-v]");
+          if (!r) {
+            pulseTip.hidden = true;
+            return;
+          }
+          const v = Number(r.dataset.v ?? 0);
+          const i = Number(r.dataset.i ?? 0);
+          // Chaque barre couvre cinq minutes ; la dernière est celle en cours.
+          const reste = (24 - 1 - i) * 5;
+          const quand = reste === 0 ? "en ce moment" : reste < 60 ? `il y a ${reste} min` : `il y a ${Math.round(reste / 60)} h`;
+          pulseTip.textContent = `${v} visiteur${v > 1 ? "s" : ""} · ${quand}`;
+          pulseTip.hidden = false;
+          const box = pulseWrap.getBoundingClientRect();
+          const x = e.clientX - box.left;
+          pulseTip.style.insetInlineStart = `${Math.min(Math.max(x, 44), box.width - 44)}px`;
+        });
+        svg.addEventListener("pointerleave", () => {
+          pulseTip.hidden = true;
+        });
+      }
       const w = 240;
       const h = 40;
       const maxP = Math.max(1, ...p.pulse);
       const bw = w / p.pulse.length;
-      svg.innerHTML = p.pulse.map((v, i) => `<rect x="${(i * bw + 1).toFixed(1)}" y="${(h - 2 - (v / maxP) * (h - 6)).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${Math.max(v > 0 ? 2 : 1, (v / maxP) * (h - 6)).toFixed(1)}" rx="1" fill="${i === p.pulse.length - 1 ? "#812538" : "#150e0a"}" opacity="${v > 0 ? 0.8 : 0.15}"><title>${v} visiteur${v > 1 ? "s" : ""}</title></rect>`).join("");
+      svg.innerHTML = p.pulse.map((v, i) => `<rect data-v="${v}" data-i="${i}" x="${(i * bw + 1).toFixed(1)}" y="${(h - 2 - (v / maxP) * (h - 6)).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${Math.max(v > 0 ? 2 : 1, (v / maxP) * (h - 6)).toFixed(1)}" rx="1" fill="${i === p.pulse.length - 1 ? "#812538" : "#150e0a"}" opacity="${v > 0 ? 0.8 : 0.15}"></rect>`).join("");
     };
     root.addEventListener("click", (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".live-country");
@@ -312,6 +343,21 @@ const initial = await live(avecTest).catch((error) => {
   .live-window { margin: 6px 0 0; font-size: 12px; }
   .live-pulse { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
   .live-pulse-svg { display: block; }
+  .live-pulse-wrap { position: relative; }
+  .live-pulse-tip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    transform: translateX(-50%);
+    z-index: 3;
+    padding: 5px 9px;
+    border-radius: 7px;
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 11.5px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .live-pulse-tip[hidden] { display: none; }
   /*
    * Le globe n'est plus une carte : il occupe le cadre entier, sur un fond qui
    * le pose. Trois couches de décor, toutes en CSS, aucune dépendance de plus :
