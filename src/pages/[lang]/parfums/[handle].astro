@@ -391,6 +391,7 @@ const productJsonLd = {
         decreaseLabel={t("cart.decrease")}
         increaseLabel={t("cart.increase")}
         perks={perks}
+        secureLabel={t("product.securePayment")}
       >
         <TwistLine slot="after-description" lang={lang} handle={product.handle} inspiredBy={inspiredMap[product.handle] ?? null} />
         <LumaListen slot="after-description" lang={lang} handle={product.handle} name={product.title} />
@@ -408,7 +409,6 @@ const productJsonLd = {
             slot="after-perks"
             eyebrow={t("product.setsTitle")}
             title={discovery.titre}
-            description={discovery.description}
             priceLabel={discovery.price}
             href={discovery.href}
             img={discovery.img}

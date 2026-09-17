@@ -120,7 +120,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         <div class="cart-shipping">
           <div class="cart-shipping-row">
             <span data-cart-shipping-msg></span>
-            <span class="cart-shipping-static">{t("cart.freeShippingLabel")}</span>
+            <span class="cart-shipping-static" data-cart-shipping-label hidden>{t("cart.freeShippingLabel")}</span>
           </div>
           <div class="cart-shipping-track">
             <div class="cart-shipping-fill" data-cart-shipping-fill></div>
@@ -273,6 +273,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   const shippingMsg = drawer?.querySelector<HTMLElement>("[data-cart-shipping-msg]");
   const shippingFill = drawer?.querySelector<HTMLElement>("[data-cart-shipping-fill]");
   const shippingThumb = drawer?.querySelector<HTMLElement>("[data-cart-shipping-thumb]");
+  const shippingLabel = drawer?.querySelector<HTMLElement>("[data-cart-shipping-label]");
   const linesEl = drawer?.querySelector<HTMLElement>("[data-cart-drawer-lines]");
   const sampleDivider = drawer?.querySelector<HTMLElement>("[data-cart-sample-divider]");
   const sampleSection = drawer?.querySelector<HTMLElement>("[data-cart-sample-section]");
@@ -780,13 +781,16 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     const pct = Math.max(0, Math.min(100, (subtotal / threshold) * 100));
     if (shippingFill) shippingFill.style.width = `${pct}%`;
     if (shippingThumb) shippingThumb.style.left = `${pct}%`;
+    const remaining = threshold - subtotal;
     if (shippingMsg) {
-      const remaining = threshold - subtotal;
       shippingMsg.textContent =
         remaining > 0
           ? I18N.freeShippingRemaining.replace("{amount}", money(remaining))
           : I18N.freeShippingUnlocked;
     }
+    // « Livraison offerte » ne s'affiche qu'une fois le seuil franchi : annoncée
+    // en permanence, elle se lisait comme un acquis alors qu'elle ne l'était pas.
+    shippingLabel?.toggleAttribute("hidden", remaining > 0);
 
     // Échantillon offert
     const hasSampleFeature = sampleOptions.length > 0;
