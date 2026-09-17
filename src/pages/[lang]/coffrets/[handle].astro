@@ -94,8 +94,11 @@ const gallery = shopifyGallery.length
 // ---------- Panneau d'achat ----------
 const descriptionHtml = description ? `<p>${description.replace(/\n/g, "</p><p>")}</p>` : "";
 
-// Avantages sous le CTA — la maquette n'en garde que deux sur la page coffret.
-const perks = [
+// Avantages sous le CTA. L'échantillon offert ne vaut que pour l'achat d'un
+// parfum, et « l'attention offerte » a été retirée du site : il ne reste que le
+// retour, qui s'applique au coffret comme au flacon.
+const perks: { icon: string; label: string; note?: string }[] = [
+  { icon: "/brand/reassurance-retour.svg", label: t("product.perkReturn"), note: t("product.perkReturnNote") },
 ];
 
 // Note / avis : placeholders (pas encore de système d'avis branché).
@@ -306,6 +309,7 @@ const productJsonLd = {
         decreaseLabel={t("cart.decrease")}
         increaseLabel={t("cart.increase")}
         perks={perks}
+        tipLabel={t("product.tipOpen")}
       >
         <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={title} kind="coffret" />
         {product.handle === COFFRET_HANDLE && (

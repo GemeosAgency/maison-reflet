@@ -2,6 +2,7 @@
 import Layout from "../../../layouts/Layout.astro";
 import ProductCard from "../../../components/ProductCard.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
+import { COFFRET_HANDLE } from "../../../lib/coffret";
 import Faq from "../../../components/Faq.astro";
 import Pillars from "../../../components/Pillars.astro";
 import LumaDoors from "../../../components/LumaDoors.astro";
@@ -178,6 +179,9 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
         href={discovery.href}
         img={discovery.img}
         ctaLabel={t("home.hero.cta")}
+        creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
+        creditNote={discovery.handle === COFFRET_HANDLE ? t("coffret.creditNote") : null}
+        tipLabel={t("product.tipOpen")}
       />
     )
   }

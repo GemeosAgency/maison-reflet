@@ -14,6 +14,7 @@
 import Layout from "../../../layouts/Layout.astro";
 import LumaListen from "../../../components/LumaListen.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
+import { COFFRET_HANDLE } from "../../../lib/coffret";
 import { formatPrice, getAllProducts, getDisplayPrice, getPrimaryVariant, isCoffret, shopifyImage } from "../../../lib/shopify";
 import { getCoffrets, getInspiredByMap, getParfumContent, responsiveImage } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
@@ -603,6 +604,9 @@ const duos = LAYERING.map((d) => ({
         href={discovery.href}
         img={discovery.img}
         ctaLabel={t("home.hero.cta")}
+        creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
+        creditNote={discovery.handle === COFFRET_HANDLE ? t("coffret.creditNote") : null}
+        tipLabel={t("product.tipOpen")}
       />
     )
   }

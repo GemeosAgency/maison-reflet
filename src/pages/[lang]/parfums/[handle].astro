@@ -505,6 +505,9 @@ const productJsonLd = {
         href={discovery.href}
         img={discovery.img}
         ctaLabel={t("home.hero.cta")}
+        creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
+        creditNote={discovery.handle === COFFRET_HANDLE ? t("coffret.creditNote") : null}
+        tipLabel={t("product.tipOpen")}
       />
     )
   }

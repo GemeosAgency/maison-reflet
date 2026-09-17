@@ -184,11 +184,10 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       <ul class="cart-drawer-perks">
         <li data-cart-perk-shipping hidden><img src="/brand/reassurance-livraison.svg" alt="" width="20" height="20" /> {t("cart.perkShipping")}</li>
         {/*
-          Panier qui ne contient que le coffret : on rappelle l'avoir, parce que
-          c'est exactement le moment où l'on se demande si 160 AED valent la
-          peine. Dès qu'un flacon entre au panier, la ligne s'efface : le client
-          achète déjà, lui rappeler un avoir futur ne ferait que l'inviter à
-          repousser son achat.
+          Dès que le coffret est au panier, l'avoir se dit. Il porte sur la
+          commande SUIVANTE : le rappeler n'invite donc pas à repousser celle en
+          cours, il la récompense. D'où « votre prochain flacon », qui reste vrai
+          que le panier contienne déjà un parfum ou non.
         */}
         <li data-cart-perk-coffret hidden>
           <img src="/brand/reassurance-echantillons.svg" alt="" width="20" height="20" />
@@ -815,12 +814,10 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     shippingLabel?.toggleAttribute("hidden", remaining > 0);
     shippingPerk?.toggleAttribute("hidden", remaining > 0);
 
-    // L'avoir du coffret, tant qu'il n'y a que le coffret dans le panier.
+    // L'avoir du coffret, dès que le coffret est au panier.
     const lignes = cart?.lines.nodes ?? [];
-    const handleDe = (l: (typeof lignes)[number]) => l.merchandise.product?.handle ?? "";
-    const queLeCoffret =
-      lignes.length > 0 && lignes.every((l) => handleDe(l) === I18N.coffretHandle);
-    coffretPerk?.toggleAttribute("hidden", !queLeCoffret);
+    const avecCoffret = lignes.some((l) => (l.merchandise.product?.handle ?? "") === I18N.coffretHandle);
+    coffretPerk?.toggleAttribute("hidden", !avecCoffret);
 
     // Échantillon offert
     const hasSampleFeature = sampleOptions.length > 0;

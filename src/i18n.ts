@@ -95,7 +95,7 @@ const ui = {
     "product.setsTitle": "Pas encore décidé ?",
     "coffret.creditShort": "Déduit de votre premier flacon",
     "coffret.creditEyebrow": "Votre avoir",
-    "cart.coffretCredit": "Un avoir de 160 AED pour votre premier flacon",
+    "cart.coffretCredit": "Un avoir de 160 AED pour votre prochain flacon",
     "coffret.creditNote":
       "En achetant le coffret, vous recevez par e-mail un avoir de 160 AED, valable 90 jours sur le Reflet de votre choix.",
     "coffret.creditAmount": "160 AED",
@@ -408,7 +408,7 @@ const ui = {
     "product.setsTitle": "لم تقرّر بعد؟",
     "coffret.creditShort": "يُخصم من زجاجتك الأولى",
     "coffret.creditEyebrow": "رصيدك",
-    "cart.coffretCredit": "رصيد ١٦٠ درهمًا لزجاجتك الأولى",
+    "cart.coffretCredit": "رصيد ١٦٠ درهمًا لزجاجتك القادمة",
     "coffret.creditNote":
       "بشراء العلبة تصلك بالبريد قيمة ١٦٠ درهمًا، صالحة ٩٠ يومًا على العطر الذي تختاره.",
     "coffret.creditAmount": "١٦٠ درهمًا",
@@ -717,7 +717,7 @@ const ui = {
     "product.setsTitle": "Not sure yet?",
     "coffret.creditShort": "Taken off your first bottle",
     "coffret.creditEyebrow": "Your credit",
-    "cart.coffretCredit": "A 160 AED credit for your first bottle",
+    "cart.coffretCredit": "A 160 AED credit for your next bottle",
     "coffret.creditNote":
       "Buying the set earns you a 160 AED credit by email, valid for 90 days on the Reflet of your choice.",
     "coffret.creditAmount": "160 AED",

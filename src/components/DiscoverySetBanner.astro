@@ -1,9 +1,14 @@
 ---
 /**
- * Bannière « The Discovery Set » : image à gauche, titre + description +
- * prix + CTA à droite. Contenu éditorial depuis Sanity (coffret), prix
- * depuis Shopify — assemblés par la page appelante.
+ * Bannière « The Discovery Set » : image à gauche, titre, description, mention
+ * de l'avoir et bouton à droite. Contenu éditorial depuis Sanity (coffret),
+ * prix depuis Shopify, assemblés par la page appelante.
+ *
+ * Le bouton porte le prix à sa droite et prend le bordeaux de la maison, comme
+ * le bouton d'achat des fiches : c'était le seul appel du site à ressembler à
+ * un lien de rubrique alors qu'il vend un produit (Sandro).
  */
+import Tip from "./Tip.astro";
 import type { ResponsiveImage } from "../lib/sanity";
 
 interface Props {
@@ -13,9 +18,14 @@ interface Props {
   href: string;
   img: ResponsiveImage | null;
   ctaLabel: string;
+  /** « Déduit de votre premier flacon » : la raison d'acheter, au-dessus du bouton. */
+  creditLabel?: string | null;
+  creditNote?: string | null;
+  tipLabel?: string | null;
 }
 
-const { title, description, priceLabel, href, img, ctaLabel } = Astro.props;
+const { title, description, priceLabel, href, img, ctaLabel, creditLabel = null, creditNote = null, tipLabel = null } =
+  Astro.props;
 ---
 
 <section class="dset">
@@ -36,10 +46,17 @@ const { title, description, priceLabel, href, img, ctaLabel } = Astro.props;
   <div class="dset-text">
     <h2>{title}</h2>
     {description && <p class="dset-desc">{description}</p>}
-    <p class="dset-price">{priceLabel}</p>
+    {
+      creditLabel && (
+        <p class="dset-credit">
+          <span>{creditLabel}</span>
+          {creditNote && <Tip text={creditNote} label={tipLabel ?? ""} />}
+        </p>
+      )
+    }
     <a class="dset-cta" href={href}>
-      {ctaLabel}
-      <img src="/brand/arrow-right.svg" alt="" width="12" height="12" />
+      <span>{ctaLabel}</span>
+      <span class="dset-cta-price">{priceLabel}</span>
     </a>
   </div>
 </section>
@@ -88,26 +105,40 @@ const { title, description, priceLabel, href, img, ctaLabel } = Astro.props;
     line-height: 1.32;
     letter-spacing: 1.08px;
   }
-  .dset-price {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 400;
-    letter-spacing: 0.96px;
-  }
-  .dset-cta {
+  /* L'avoir se dit juste avant le bouton, sur un fond légèrement teinté : à
+     l'encre et non en bordeaux, qui est ici la couleur des alertes. */
+  .dset-credit {
     display: inline-flex;
     align-items: center;
-    gap: 12px;
-    height: 48px;
-    padding: 0 20px;
-    background: var(--sand);
+    gap: 7px;
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--rose) 8%, transparent);
+    font-size: 14px;
+    font-weight: 500;
     color: var(--ink);
+  }
+  /* Même dessin que le bouton d'achat des fiches : libellé à gauche, prix à
+     droite, sur toute la largeur du texte. */
+  .dset-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    max-width: 420px;
+    height: 56px;
+    padding: 0 22px;
+    background: var(--rose);
+    color: var(--bg);
     font-size: 16px;
     font-weight: 500;
     text-transform: uppercase;
     transition: opacity 0.15s;
   }
-  .dset-cta:hover { opacity: 0.85; }
+  .dset-cta:hover { opacity: 0.92; }
+  .dset-cta-price { font-variant-numeric: tabular-nums; }
 
   @media (max-width: 900px) {
     .dset { flex-direction: column; align-items: stretch; gap: 24px; padding: 56px var(--gutter-x) 40px; }
