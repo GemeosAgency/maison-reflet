@@ -161,7 +161,7 @@ const sizeLabel = variant.title !== "Default Title" ? variant.title : null;
 
 // Avantages sous le CTA (fixes, i18n — icônes locales).
 const perks = [
-  { icon: "/brand/gift.svg", label: t("product.perkSample") },
+  { icon: "/brand/gift.svg", label: t("product.perkSample"), note: t("product.perkSampleNote") },
   { icon: "/brand/love.svg", label: t("product.perkTreat") },
 ];
 
@@ -392,8 +392,7 @@ const productJsonLd = {
         increaseLabel={t("cart.increase")}
         perks={perks}
         longevityLabel={t("product.longevity")}
-        tryTitle={t("product.tryTitle")}
-        tryBody={t("product.tryBody")}
+        tipLabel={t("product.tipOpen")}
         inspiredByLabel={t("product.inspiredBy")}
         inspiredBy={inspiredMap[product.handle] ?? null}
       >
