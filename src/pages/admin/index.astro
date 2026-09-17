@@ -67,25 +67,27 @@ const heroSub = [`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""}`, `${fm
 <AdminLayout title="Vue d'ensemble" section="overview" admin={admin} range={range} subtitle={subtitle}>
   <FilterBar slot="filters" filters={filters} facets={b.facets} range={range} />
 
-  <section class="kpis kpis-hero">
+  <section class="kpis-hero">
     <Kpi tone="hero" label="Chiffre d'affaires net" tip="revenue" value={fmtMoneyShort(k.revenue)} unit={cur} delta={delta(k.revenue, pk.revenue)} sub={heroSub} modal="orders" />
-    <Kpi
-      tone={k.marge !== null && k.marge < 0 ? "rose" : undefined}
-      label="Marge brute"
-      tip="marge"
-      modal={k.marge === null ? undefined : "marge"}
-      value={k.marge === null ? "–" : fmtMoneyShort(k.marge)}
-      unit={k.marge === null ? undefined : cur}
-      sub={
-        k.marge === null
-          ? "aucun coût de revient saisi dans Sanity"
-          : `${k.margeTaux === null ? "–" : `${Math.round(k.margeTaux * 100)} %`} du chiffre · ${money(k.cout ?? 0)} de coût${k.coutsManquants ? ` · ${k.coutsManquants} sans coût` : ""}`
-      }
-    />
-    <Kpi label="Paniers validés" tip="cartsPaid" value={fmtMoneyShort(b.carts.paid.total)} unit={cur} delta={delta(k.orders, pk.orders)} sub={`${fmtInt(b.carts.paid.count)} commande${b.carts.paid.count > 1 ? "s" : ""}`} modal="orders" />
-    <Kpi label="Paniers abandonnés" tip="cartsAbandoned" value={fmtMoneyShort(b.carts.abandoned.total)} unit={cur} delta={delta(k.abandonedTotal, pk.abandonedTotal)} deltaInvert sub={`${fmtInt(b.carts.abandoned.count)} panier${b.carts.abandoned.count > 1 ? "s" : ""}${b.carts.abandoned.atCheckout ? `, ${fmtInt(b.carts.abandoned.atCheckout)} au paiement` : ""}${b.carts.open.count ? ` · ${fmtInt(b.carts.open.count)} en cours` : ""}`} modal="carts" />
-    <Kpi label="Panier total" tip="cartsAll" value={fmtMoneyShort(b.carts.all.total)} unit={cur} delta={delta(k.cartsTotal, pk.cartsTotal)} sub={`${fmtInt(b.carts.all.count)} panier${b.carts.all.count > 1 ? "s" : ""} · ${b.carts.all.total ? fmtPct(b.carts.paid.total, b.carts.all.total) : "–"} encaissé`} modal="carts-all" />
-    <Kpi label="Visiteurs" tip="visitors" value={fmtInt(k.visitors)} delta={delta(k.visitors, pk.visitors)} sub={`${fmtInt(k.buyers)} acheteur${k.buyers > 1 ? "s" : ""}`} modal="days" />
+    <div class="kpis kpis-cote">
+      <Kpi
+        tone={k.marge !== null && k.marge < 0 ? "rose" : undefined}
+        label="Marge brute"
+        tip="marge"
+        modal={k.marge === null ? undefined : "marge"}
+        value={k.marge === null ? "–" : fmtMoneyShort(k.marge)}
+        unit={k.marge === null ? undefined : cur}
+        sub={
+          k.marge === null
+            ? "aucun coût de revient saisi dans Sanity"
+            : `${k.margeTaux === null ? "–" : `${Math.round(k.margeTaux * 100)} %`} du chiffre · ${money(k.cout ?? 0)} de coût${k.coutsManquants ? ` · ${k.coutsManquants} sans coût` : ""}`
+        }
+      />
+      <Kpi label="Paniers validés" tip="cartsPaid" value={fmtMoneyShort(b.carts.paid.total)} unit={cur} delta={delta(k.orders, pk.orders)} sub={`${fmtInt(b.carts.paid.count)} commande${b.carts.paid.count > 1 ? "s" : ""}`} modal="orders" />
+      <Kpi label="Paniers abandonnés" tip="cartsAbandoned" value={fmtMoneyShort(b.carts.abandoned.total)} unit={cur} delta={delta(k.abandonedTotal, pk.abandonedTotal)} deltaInvert sub={`${fmtInt(b.carts.abandoned.count)} panier${b.carts.abandoned.count > 1 ? "s" : ""}${b.carts.abandoned.atCheckout ? `, ${fmtInt(b.carts.abandoned.atCheckout)} au paiement` : ""}${b.carts.open.count ? ` · ${fmtInt(b.carts.open.count)} en cours` : ""}`} modal="carts" />
+      <Kpi label="Panier total" tip="cartsAll" value={fmtMoneyShort(b.carts.all.total)} unit={cur} delta={delta(k.cartsTotal, pk.cartsTotal)} sub={`${fmtInt(b.carts.all.count)} panier${b.carts.all.count > 1 ? "s" : ""} · ${b.carts.all.total ? fmtPct(b.carts.paid.total, b.carts.all.total) : "–"} encaissé`} modal="carts-all" />
+      <Kpi label="Visiteurs" tip="visitors" value={fmtInt(k.visitors)} delta={delta(k.visitors, pk.visitors)} sub={`${fmtInt(k.buyers)} acheteur${k.buyers > 1 ? "s" : ""}`} modal="days" />
+    </div>
   </section>
 
   <section class="kpis kpis-rates">
@@ -160,13 +162,28 @@ const heroSub = [`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""}`, `${fm
 </AdminLayout>
 
 <style>
-  .kpis-hero { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  /*
+   * Le chiffre d'affaires tient la colonne de gauche sur toute la hauteur ;
+   * les cinq autres se rangent à sa droite, trois puis deux. En colonnes
+   * égales, le cinquième restait orphelin sur une ligne à lui : ici les deux
+   * du bas s'étirent et le pavé de droite est un rectangle plein.
+   */
+  .kpis-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 14px; }
+  .kpis-cote { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); }
+  .kpis-cote > :global(:nth-child(-n + 3)) { grid-column: span 2; }
+  .kpis-cote > :global(:nth-child(n + 4)) { grid-column: span 3; }
   .kpis-rates { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
   .kpis-rates :global(.kpi) { padding: 14px 16px; border-radius: 12px; gap: 6px; }
   .kpis-rates :global(.kpi-value) { font-size: 24px; }
   .kpis-inline { gap: 10px; }
   .kpis-inline :global(.kpi-value), .kpis-inline .kpi-value { font-size: 26px; }
   .sources-list { margin-top: 16px; }
-  @media (max-width: 1300px) { .kpis-hero { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  @media (max-width: 900px) { .kpis-hero, .kpis-rates { grid-template-columns: 1fr; } }
+  /* Sous 1100 px la colonne de gauche devient trop étroite pour le grand
+     chiffre : le pavé passe sous lui, toujours trois puis deux. */
+  @media (max-width: 1100px) { .kpis-hero { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) {
+    .kpis-rates { grid-template-columns: 1fr; }
+    .kpis-cote { grid-template-columns: 1fr; }
+    .kpis-cote > :global(*) { grid-column: auto; }
+  }
 </style>

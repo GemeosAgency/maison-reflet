@@ -196,6 +196,7 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
       const openModal = (id: string, highlight?: string, from?: HTMLElement) => {
         const tpl = document.querySelector<HTMLTemplateElement>(`template[data-modal-template="${id}"]`);
         if (!tpl) return;
+        quitterCourbes();
         opener = from ?? null;
         titleEl.textContent = tpl.dataset.title ?? "";
         subEl.textContent = tpl.dataset.subtitle ?? "";
@@ -251,13 +252,24 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
         // Les infobulles retournent dans la page, où elles servent aussi.
         document.body.append(tipbox, chartTip);
         tipbox.hidden = true;
-        chartTip.hidden = true;
+        quitterCourbes();
         opener?.focus();
       });
 
       /* ---- infobulles : le « ? » et tout élément data-tip ---- */
       const tipbox = document.querySelector<HTMLElement>("[data-tipbox]")!;
       const chartTip = document.querySelector<HTMLElement>("[data-chart-tip]")!;
+      /*
+       * Refermer le survol d'une courbe, d'un coup : l'infobulle et tous les
+       * repères verticaux. Le départ du pointeur ne suffit pas à le faire —
+       * quand un clic sur la courbe ouvre une fenêtre par-dessus, le pointeur
+       * ne quitte jamais la courbe, et l'infobulle restait posée au milieu de
+       * la fenêtre, sur le tableau.
+       */
+      const quitterCourbes = () => {
+        chartTip.hidden = true;
+        for (const g of document.querySelectorAll<HTMLElement>("[data-guide]")) g.hidden = true;
+      };
       let tipFor: HTMLElement | null = null;
       const showTip = (el: HTMLElement) => {
         tipFor = el;
@@ -293,13 +305,15 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
         e.preventDefault();
         tipFor === el && !tipbox.hidden ? hideTip() : showTip(el);
       });
-      window.addEventListener(
+      document.addEventListener(
         "scroll",
         () => {
           if (tipFor) hideTip();
-          chartTip.hidden = true;
+          quitterCourbes();
         },
-        { passive: true }
+        // En capture : le corps d'une fenêtre de détail défile sans que
+        // `window` bouge, et l'infobulle restait accrochée à l'ancien point.
+        { passive: true, capture: true }
       );
 
       /* ---- les courbes du temps : survol = infobulle et repère ; clic = le jour par jour ----
@@ -335,7 +349,8 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
           let x = e.clientX + 14;
           if (x + w > window.innerWidth - 12) x = e.clientX - w - 14;
           chartTip.style.left = `${x}px`;
-          chartTip.style.top = `${e.clientY - chartTip.offsetHeight / 2}px`;
+          const h = chartTip.offsetHeight;
+          chartTip.style.top = `${Math.max(12, Math.min(window.innerHeight - h - 12, e.clientY - h / 2))}px`;
         });
         plot.addEventListener("pointerleave", () => {
           chartTip.hidden = true;
@@ -549,23 +564,9 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
      Maison : c'est de ce parfum-là qu'on parle. */
   .kpi-teinte .kpi-value { color: var(--encre, var(--rose)); }
   /* La carte du chiffre : dans le rouge de la Maison, pas en noir (Sandro, 14 sept.). */
-  /*
-   * Trois colonnes fixes, et le chiffre d'affaires occupe un bloc de deux sur
-   * deux : les six chiffres remplissent alors exactement une grille de trois
-   * sur trois. En colonnes automatiques, le dernier restait orphelin sur une
-   * ligne à lui, ce qui donnait l'impression qu'il manquait quelque chose.
-   */
-  .kpis-hero { grid-template-columns: repeat(3, 1fr); }
-  .kpis-hero .kpi-hero { grid-column: span 2; grid-row: span 2; justify-content: space-between; }
-  .kpi-hero { background: var(--rose); color: var(--paper); border-color: var(--rose); }
+  .kpi-hero { justify-content: space-between; background: var(--rose); color: var(--paper); border-color: var(--rose); }
   .kpi-hero .kpi-label, .kpi-hero .kpi-sub, .kpi-hero .kpi-foot { color: rgba(247, 245, 242, 0.7); }
   .kpi-hero .kpi-value { font-size: 52px; font-weight: 100; color: var(--paper); }
-  /* Sous 900 px, la grille retombe sur une colonne unique et le bloc héros
-     reprend sa taille normale : deux sur deux n'a plus de sens sans voisins. */
-  @media (max-width: 900px) {
-    .kpis-hero { grid-template-columns: 1fr; }
-    .kpis-hero .kpi-hero { grid-column: auto; grid-row: auto; }
-  }
   .kpi-hero .kpi-value .unit { color: rgba(247, 245, 242, 0.7); font-size: 16px; }
   .kpi-hero .tip { border-color: rgba(247, 245, 242, 0.45); color: rgba(247, 245, 242, 0.8); }
   .kpi-hero .tip:hover, .kpi-hero .tip:focus-visible { border-color: var(--paper); color: var(--paper); }
@@ -587,6 +588,10 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   .tip:hover, .tip:focus-visible { border-color: var(--ink); color: var(--ink); outline: none; }
   .adm-tipbox { position: fixed; z-index: 60; padding: 10px 12px; border: 1px solid rgba(241, 238, 233, 0.22); border-radius: 10px; background: var(--ink); color: var(--bg); font-size: 12.5px; line-height: 1.45; box-shadow: 0 12px 30px -12px rgba(21, 14, 10, 0.5); pointer-events: none; }
   .adm-chart-tip { position: fixed; z-index: 60; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 12px; line-height: 1.4; pointer-events: none; white-space: nowrap; }
+  /* `display: flex` l'emporte sur le `display: none` de l'attribut `hidden` :
+     sans cette ligne l'infobulle ne se refermait jamais et restait posée sur la
+     page, souvent loin de la courbe. */
+  .adm-chart-tip[hidden] { display: none; }
   .adm-chart-tip strong { font-weight: 500; }
   .adm-chart-tip .muted { color: rgba(241, 238, 233, 0.6); }
 
