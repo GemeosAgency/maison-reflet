@@ -21,33 +21,28 @@ const initial = await live().catch((error) => {
 ---
 
 <AdminLayout title="En direct" section="live" admin={admin} showRange={false} subtitle="Qui est sur le site maintenant, d'où, et ce qu'il fait — le globe tourne, les points vivent.">
+  {/*
+    Disposition de la vue en direct de Shopify (Sandro) : un rail étroit à gauche
+    qui empile les chiffres, et le globe qui prend tout le reste de l'écran. La
+    logique est la bonne : sur une page qu'on laisse ouverte, le globe est ce
+    qu'on regarde, les chiffres ce qu'on consulte. Les cartes changent donc de
+    rôle, elles deviennent des tuiles compactes, et le globe cesse d'être une
+    carte parmi d'autres pour devenir le fond de la page.
+  */}
   <section class="live" data-live data-initial={JSON.stringify(initial)}>
-    <div class="card live-globe-card">
-      <div class="live-globe-head">
-        <div>
+    <div class="live-rail">
+      <div class="live-tiles">
+        <div class="card live-tile">
           <p class="kpi-label">Sur le site maintenant <button type="button" class="tip" aria-label="Explication" data-tip="Visiteurs distincts ayant fait au moins un geste ces dix dernières minutes. Un visiteur = un identifiant anonyme posé par le navigateur.">?</button></p>
           <p class="live-now"><span data-live-now>{initial?.visitorsNow ?? 0}</span><span class="live-now-unit">visiteur<span data-live-plural>{(initial?.visitorsNow ?? 0) > 1 ? "s" : ""}</span></span></p>
-          <p class="muted live-window">ces <span data-live-window>{initial?.windowMinutes ?? 10}</span> dernières minutes · mis à jour <span data-live-at>—</span></p>
+          <p class="muted live-window">ces <span data-live-window>{initial?.windowMinutes ?? 10}</span> dernières minutes · <span data-live-at>—</span></p>
         </div>
-        <div class="live-pulse">
+        <div class="card live-tile">
           <p class="kpi-label">Les deux dernières heures <button type="button" class="tip" aria-label="Explication" data-tip="Visiteurs distincts par tranche de cinq minutes, sur les deux dernières heures. La dernière tranche est en rose.">?</button></p>
           <svg class="live-pulse-svg" viewBox="0 0 240 40" width="240" height="40" preserveAspectRatio="none" aria-label="Visiteurs par tranche de cinq minutes" data-live-pulse></svg>
         </div>
       </div>
-      <div class="live-globe-wrap" data-globe-wrap>
-        <canvas class="live-globe" data-globe aria-label="Globe des visiteurs"></canvas>
-        <p class="live-globe-empty" data-live-empty hidden>Personne en ce moment. Le globe attend la prochaine visite.</p>
-      </div>
-      <p class="live-hint muted">Glisser pour tourner · un pays dans la liste pour s'y rendre</p>
-    </div>
 
-    <div class="live-side">
-      <div class="card">
-        <div class="card-head"><h2 class="card-title">Par pays</h2><p class="card-note">visiteurs maintenant</p></div>
-        <ul class="live-countries" data-live-countries>
-          <li class="muted empty">En attente…</li>
-        </ul>
-      </div>
       <div class="card">
         <div class="card-head"><h2 class="card-title">Aujourd'hui</h2><p class="card-note">heure de Dubaï</p></div>
         <div class="live-today">
@@ -58,11 +53,29 @@ const initial = await live().catch((error) => {
         </div>
         <p class="card-foot" data-today="last"></p>
       </div>
+
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Par pays</h2><p class="card-note">visiteurs maintenant</p></div>
+        <ul class="live-countries" data-live-countries>
+          <li class="muted empty">En attente…</li>
+        </ul>
+      </div>
+
+      <div class="card live-feed-card">
+        <div class="card-head"><h2 class="card-title">Ce qui se passe</h2><p class="card-note">les derniers gestes, anonymes</p></div>
+        <ol class="live-feed" data-live-feed><li class="muted empty">En attente…</li></ol>
+      </div>
     </div>
 
-    <div class="card live-feed-card">
-      <div class="card-head"><h2 class="card-title">Ce qui se passe</h2><p class="card-note">les derniers gestes, anonymes</p></div>
-      <ol class="live-feed" data-live-feed><li class="muted empty">En attente…</li></ol>
+    <div class="live-globe-wrap" data-globe-wrap>
+      <canvas class="live-globe" data-globe aria-label="Globe des visiteurs"></canvas>
+      <p class="live-globe-empty" data-live-empty hidden>Personne en ce moment. Le globe attend la prochaine visite.</p>
+      <p class="live-hint muted">Glisser pour tourner · un pays dans la liste pour s'y rendre</p>
+      {/* Repères posés sur le globe : l'état du flux en haut à gauche, la
+          légende des points en bas à droite. Ils tiennent le cadre, qui sans eux
+          n'était qu'une sphère au milieu du vide. */}
+      <p class="live-badge"><span class="live-badge-dot" aria-hidden="true"></span>En direct</p>
+      <p class="live-legend"><span class="live-legend-dot" aria-hidden="true"></span>Visiteurs maintenant</p>
     </div>
   </section>
 </AdminLayout>
@@ -104,7 +117,10 @@ const initial = await live().catch((error) => {
     let resumeAt = 0;
     let pointerStart: number | null = null;
     let phiAtStart = 0;
-    const size = () => Math.min(wrap.clientWidth, 640);
+    // Le cadre fait maintenant toute la hauteur de la fenêtre : borner sur la
+    // seule largeur débordait vers le bas. On prend le plus petit des deux, avec
+    // une marge pour la légende et le repère du bas.
+    const size = () => Math.max(260, Math.min(wrap.clientWidth - 32, wrap.clientHeight - 72, 720));
     // cobe 2 n'a plus de onRender : on tient la boucle nous-mêmes et on pousse l'état à chaque image.
     const globe = createGlobe(canvas, {
       devicePixelRatio: Math.min(2, window.devicePixelRatio || 1),
@@ -277,18 +293,114 @@ const initial = await live().catch((error) => {
 
 <style is:global>
   /* Global (préfixe .live-) : la liste des pays et le fil sont injectés par le script, hors portée des styles scopés. */
-  .live { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
-  .live-globe-card { display: flex; flex-direction: column; gap: 8px; }
-  .live-globe-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+  /* Le rail à gauche, le globe partout ailleurs. La hauteur est calée sur la
+     fenêtre : c'est une page qu'on laisse ouverte, elle ne doit pas défiler. */
+  .live { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .live-rail { display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 190px); overflow-y: auto; padding-inline-end: 4px; }
+  .live-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .live-tile { padding: 12px 14px; }
+  .live-tile .live-now { font-size: 34px; }
+  .live-tile .live-pulse-svg { width: 100%; height: 34px; margin-top: 8px; }
   .live-now { margin: 4px 0 0; display: flex; align-items: baseline; gap: 10px; font-size: 56px; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--rose); }
   .live-now-unit { font-size: 16px; color: var(--muted); letter-spacing: 0.02em; }
   .live-window { margin: 6px 0 0; font-size: 12px; }
   .live-pulse { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
   .live-pulse-svg { display: block; }
-  .live-globe-wrap { position: relative; display: flex; justify-content: center; align-items: center; min-height: 320px; margin: 4px 0; }
-  .live-globe { display: block; max-width: 100%; aspect-ratio: 1; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
-  .live-globe-empty { position: absolute; inset: auto 0 12%; margin: 0; text-align: center; font-size: 13px; color: var(--muted); pointer-events: none; }
-  .live-hint { margin: 0; text-align: center; font-size: 11px; letter-spacing: 0.04em; }
+  /*
+   * Le globe n'est plus une carte : il occupe le cadre entier, sur un fond qui
+   * le pose. Trois couches de décor, toutes en CSS, aucune dépendance de plus :
+   * une lueur derrière lui pour le détacher du fond, une grille très pâle qui
+   * donne une profondeur d'atelier, et un halo au-dessus qui évite que la
+   * sphère paraisse collée. Les repères (fuseau, légende) sont posés par-dessus.
+   */
+  .live-globe-wrap {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: calc(100vh - 190px);
+    min-height: 420px;
+    border-radius: 14px;
+    overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 50% 45%, color-mix(in srgb, var(--rose) 12%, transparent), transparent 62%),
+      linear-gradient(180deg, var(--paper), var(--bg));
+  }
+  .live-globe-wrap::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(21, 14, 10, 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(21, 14, 10, 0.045) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(70% 70% at 50% 50%, #000 35%, transparent 78%);
+    pointer-events: none;
+  }
+  .live-globe {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 1;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    filter: drop-shadow(0 26px 60px rgba(21, 14, 10, 0.22));
+  }
+  .live-globe:active { cursor: grabbing; }
+  .live-globe-empty { position: absolute; inset: auto 0 16%; margin: 0; text-align: center; font-size: 13px; color: var(--muted); pointer-events: none; }
+  .live-badge {
+    position: absolute;
+    inset: 16px auto auto 16px;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--paper) 86%, transparent);
+    backdrop-filter: blur(6px);
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .live-badge-dot,
+  .live-legend-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--rose); flex-shrink: 0; }
+  .live-badge-dot { animation: live-battement 2.4s ease-in-out infinite; }
+  @keyframes live-battement {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.82); }
+  }
+  @media (prefers-reduced-motion: reduce) { .live-badge-dot { animation: none; } }
+  .live-legend {
+    position: absolute;
+    inset: auto 16px 44px auto;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--paper) 86%, transparent);
+    backdrop-filter: blur(6px);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .live-hint {
+    position: absolute;
+    inset: auto 0 14px;
+    margin: 0;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    pointer-events: none;
+  }
   .live-side { display: flex; flex-direction: column; gap: 16px; }
   .live-countries { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 360px; overflow-y: auto; }
   .live-country { display: grid; grid-template-columns: 24px 1fr auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; width: 100%; padding: 8px 10px; border: 1px solid transparent; border-radius: 8px; background: none; text-align: start; cursor: pointer; font-size: 14px; transition: background-color 0.15s ease, border-color 0.15s ease; }
@@ -316,5 +428,9 @@ const initial = await live().catch((error) => {
   .live-item.kind-checkout .live-item-text, .live-item.kind-add_to_cart .live-item-text { color: var(--rose); }
   .live-item.kind-checkout strong, .live-item.kind-add_to_cart strong { color: var(--ink); }
   .empty { padding: 12px 0; font-size: 13px; }
-  @media (max-width: 1100px) { .live { grid-template-columns: 1fr; } }
+  @media (max-width: 1100px) {
+    .live { grid-template-columns: 1fr; }
+    .live-rail { max-height: none; overflow: visible; }
+    .live-globe-wrap { height: auto; aspect-ratio: 1; }
+  }
 </style>
