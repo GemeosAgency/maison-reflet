@@ -94,6 +94,10 @@ const ui = {
     "product.discoverSet": "Découvrir le coffret",
     "product.securePayment": "Paiement sécurisé",
     "product.perkTreat": "Une attention offerte avec chaque commande",
+    "product.longevity": "Eau de parfum — 8 h de tenue et plus",
+    "product.tryTitle": "Essayez sans rien risquer",
+    "product.tryBody":
+      "Chaque flacon part avec un échantillon 2 ml offert, du Reflet de votre choix. Prenez celui du parfum que vous commandez : portez-le d'abord, et si ce n'est pas le vôtre, renvoyez le flacon encore scellé.",
     "product.faqTitle": "Questions fréquentes",
     "product.bestSeller": "Best seller",
     "nav.home": "Accueil",
@@ -390,6 +394,10 @@ const ui = {
     "product.discoverSet": "اكتشف الصندوق",
     "product.securePayment": "دفع آمن",
     "product.perkTreat": "لفتة خاصة مع كل طلب",
+    "product.longevity": "أو دو بارفان — ثبات ٨ ساعات وأكثر",
+    "product.tryTitle": "جرّبه دون مخاطرة",
+    "product.tryBody":
+      "مع كل زجاجة عيّنة ٢ مل مجانية من العطر الذي تختاره. اختر عيّنة العطر نفسه الذي تطلبه: جرّبها أولًا، وإن لم يكن عطرك، أعد الزجاجة وهي ما زالت مغلقة.",
     "product.faqTitle": "الأسئلة الشائعة",
     "product.bestSeller": "الأكثر مبيعًا",
     "nav.home": "الرئيسية",
@@ -682,6 +690,10 @@ const ui = {
     "product.discoverSet": "Discover the set",
     "product.securePayment": "Secure payment",
     "product.perkTreat": "A special treat with every order",
+    "product.longevity": "Eau de parfum — 8 hours of wear and more",
+    "product.tryTitle": "Try it without risking anything",
+    "product.tryBody":
+      "Every bottle ships with a free 2 ml sample of the Reflet of your choice. Pick the one you are ordering: wear the sample first, and if it is not yours, send the bottle back still sealed.",
     "product.faqTitle": "Frequently asked questions",
     "product.bestSeller": "Best seller",
     "nav.home": "Home",

@@ -391,6 +391,9 @@ const productJsonLd = {
         decreaseLabel={t("cart.decrease")}
         increaseLabel={t("cart.increase")}
         perks={perks}
+        longevityLabel={t("product.longevity")}
+        tryTitle={t("product.tryTitle")}
+        tryBody={t("product.tryBody")}
         inspiredByLabel={t("product.inspiredBy")}
         inspiredBy={inspiredMap[product.handle] ?? null}
       >
@@ -463,13 +466,13 @@ const productJsonLd = {
     </div>
   </section>
 
-  <RelatedProducts
-    title={t("product.related")}
-    items={related}
-    addLabel={t("product.addToCart")}
-    addedLabel={t("cart.added")}
-    errorLabel={t("product.error")}
-  />
+  {/*
+    Sans bouton d'ajout : sur un parfum qu'on ne peut pas sentir, cinq
+    alternatives achetables au moment de la décision ne font pas vendre cinq
+    fois plus, elles repoussent le choix. Les cartes restent des portes vers
+    les fiches.
+  */}
+  <RelatedProducts title={t("product.related")} items={related} />
 
   <Pillars
     title1={t("home.pillars.title1")}

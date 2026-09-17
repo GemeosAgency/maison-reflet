@@ -46,6 +46,11 @@ interface Props {
   decreaseLabel: string;
   increaseLabel: string;
   perks: { icon: string; label: string }[];
+  /** « Eau de parfum — 8 h de tenue et plus » : au Golfe, la tenue est le premier critère. */
+  longevityLabel?: string;
+  /** L'essai sans risque : l'échantillon offert sert à décider avant d'ouvrir le flacon. */
+  tryTitle?: string;
+  tryBody?: string;
   /** Langue de la page — pour la promesse de livraison. */
   lang: Locale;
 }
@@ -76,6 +81,9 @@ const {
   decreaseLabel,
   increaseLabel,
   perks,
+  longevityLabel,
+  tryTitle,
+  tryBody,
   lang,
 } = Astro.props;
 
@@ -198,7 +206,29 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
           </li>
         ))
       }
+      {
+        longevityLabel && (
+          <li>
+            <img src="/brand/reassurance-tenue.svg" alt="" width="20" height="20" />
+            {longevityLabel}
+          </li>
+        )
+      }
     </ul>
+    {/*
+      Le vrai frein d'un parfum acheté en ligne n'est pas le prix, c'est de ne
+      pas pouvoir le sentir. L'échantillon offert répond exactement à ça quand
+      on prend celui du parfum commandé : on décide sur la peau, et le flacon
+      scellé reste renvoyable. C'est la règle d'hygiène retournée en garantie.
+    */}
+    {
+      tryBody && (
+        <div class="ppanel-try">
+          <p class="ppanel-try-title">{tryTitle}</p>
+          <p class="ppanel-try-body">{tryBody}</p>
+        </div>
+      )
+    }
     </div>
     <slot name="after-perks" />
   </div>
@@ -507,6 +537,27 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   }
   .ppanel-perks li { display: flex; align-items: center; gap: 10px; font-size: 16px; }
   .ppanel-perks img { flex-shrink: 0; }
+
+  /* Discret : un filet à gauche, pas de fond ni de cadre. Le bloc doit se lire
+     comme une précision de la maison, pas comme une promotion. */
+  .ppanel-try {
+    margin-top: 2px;
+    padding-inline-start: 14px;
+    border-inline-start: 1px solid var(--line, rgba(21, 14, 10, 0.14));
+  }
+  .ppanel-try-title {
+    margin: 0 0 4px;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rose);
+  }
+  .ppanel-try-body {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--muted, rgba(21, 14, 10, 0.62));
+  }
 
   /* Sur petit écran, le libellé + prix du bouton ne tiennent pas à côté du
      sélecteur de quantité : le CTA passe en pleine largeur en dessous. */
