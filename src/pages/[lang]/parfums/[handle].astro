@@ -397,7 +397,7 @@ const productJsonLd = {
         inspiredBy={inspiredMap[product.handle] ?? null}
       >
         <TwistLine slot="after-description" lang={lang} handle={product.handle} />
-        <LumaListen slot="after-description" lang={lang} handle={product.handle} name={product.title} />
+        <LumaListen slot="after-description" lang={lang} handle={product.handle} name={product.title} note={t("luma.listenNote")} />
         <LayeringRow slot="after-rows" lang={lang} handle={product.handle} products={products} />
         <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={product.title} kind="parfum" />
         {/*

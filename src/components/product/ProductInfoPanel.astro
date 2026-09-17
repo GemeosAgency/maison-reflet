@@ -8,6 +8,7 @@
  * Le bouton d'achat gère sa propre quantité (pas le câblage global
  * [data-add-to-cart] qui ajoute toujours 1) — voir le <script> plus bas.
  */
+import Tip from "../Tip.astro";
 import ShippingPromise from "../ShippingPromise.astro";
 import type { Locale } from "../../i18n";
 interface NoteLevel {
@@ -202,14 +203,7 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
           <li>
             <img src={p.icon} alt="" width="20" height="20" />
             <span>{p.label}</span>
-            {p.note && (
-              <span class="ppanel-tip" data-tip>
-                <button type="button" class="ppanel-tip-btn" data-tip-btn aria-expanded="false" aria-label={tipLabel}>
-                  ?
-                </button>
-                <span class="ppanel-tip-box" role="tooltip">{p.note}</span>
-              </span>
-            )}
+            {p.note && <Tip text={p.note} label={tipLabel ?? ""} />}
           </li>
         ))
       }
@@ -245,29 +239,6 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
 <script>
   import { addToCart } from "../../lib/cart";
 
-  /*
-   * Infobulle des réassurances : le survol suffit au pointeur, mais au doigt il
-   * n'existe pas. Le clic ouvre et ferme, un clic ailleurs ou Échap referme, et
-   * une seule bulle reste ouverte à la fois.
-   */
-  const fermerTips = (sauf?: Element | null) => {
-    for (const tip of document.querySelectorAll<HTMLElement>("[data-tip].is-open")) {
-      if (tip === sauf) continue;
-      tip.classList.remove("is-open");
-      tip.querySelector("[data-tip-btn]")?.setAttribute("aria-expanded", "false");
-    }
-  };
-  document.addEventListener("click", (e) => {
-    const btn = (e.target as Element | null)?.closest("[data-tip-btn]");
-    const tip = btn?.closest<HTMLElement>("[data-tip]");
-    if (!tip) return fermerTips();
-    const ouvert = tip.classList.toggle("is-open");
-    btn?.setAttribute("aria-expanded", String(ouvert));
-    fermerTips(tip);
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") fermerTips();
-  });
 
   /*
    * La rangée n'ouvre pas le tiroir elle-même : elle émet `pyramid:open`, et
@@ -555,57 +526,6 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   .ppanel-perks li { display: flex; align-items: center; gap: 10px; font-size: 16px; }
   .ppanel-perks img { flex-shrink: 0; }
 
-  /* L'explication de l'échantillon tient dans une infobulle : la colonne d'achat
-     garde son rythme, et le détail n'apparaît qu'à qui le demande. Survol au
-     pointeur, clic au doigt, focus au clavier. */
-  .ppanel-tip { position: relative; display: inline-flex; flex-shrink: 0; }
-  .ppanel-tip-btn {
-    width: 17px;
-    height: 17px;
-    padding: 0;
-    border: 1px solid rgba(21, 14, 10, 0.3);
-    border-radius: 50%;
-    background: transparent;
-    color: var(--muted, rgba(21, 14, 10, 0.62));
-    font: inherit;
-    font-size: 11px;
-    line-height: 1;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-  }
-  .ppanel-tip-btn:hover { border-color: var(--ink); color: var(--ink); }
-  .ppanel-tip-btn:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
-  .ppanel-tip-box {
-    position: absolute;
-    bottom: calc(100% + 10px);
-    inset-inline-start: 50%;
-    transform: translateX(-50%);
-    z-index: 5;
-    width: max-content;
-    max-width: min(300px, 78vw);
-    padding: 12px 14px;
-    border: 1px solid var(--line, rgba(21, 14, 10, 0.14));
-    border-radius: 10px;
-    background: var(--paper, #f7f5f2);
-    box-shadow: 0 10px 26px rgba(21, 14, 10, 0.1);
-    color: var(--ink);
-    font-size: 13.5px;
-    line-height: 1.45;
-    text-align: start;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.18s, visibility 0.18s;
-  }
-  .ppanel-tip:hover .ppanel-tip-box,
-  .ppanel-tip:focus-within .ppanel-tip-box,
-  .ppanel-tip.is-open .ppanel-tip-box { opacity: 1; visibility: visible; }
-  /* Près du bord, la bulle se recale sur le bouton plutôt que de déborder. */
-  @media (max-width: 560px) {
-    .ppanel-tip-box { inset-inline-start: auto; inset-inline-end: -8px; transform: none; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .ppanel-tip-box { transition: none; }
-  }
 
   /* Sur petit écran, le libellé + prix du bouton ne tiennent pas à côté du
      sélecteur de quantité : le CTA passe en pleine largeur en dessous. */

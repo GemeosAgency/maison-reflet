@@ -17,6 +17,7 @@
  * celle du menu (320 px). Plus de « Lire le portrait » : la description est
  * toujours juste au-dessus.
  */
+import Tip from "./Tip.astro";
 import { useTranslations, type Locale } from "../i18n";
 import { portraitAudioPath } from "../lib/luma/portraits";
 
@@ -28,9 +29,11 @@ interface Props {
   /** …ou n'importe quel audio statique : la recommandation du parfumeur sur un accord, par exemple. */
   src?: string | null;
   label?: string;
+  /** Une infobulle au bout de la pilule : dit ce que l'écoute apporte, sans charger la ligne. */
+  note?: string;
 }
 
-const { lang, handle, name } = Astro.props;
+const { lang, handle, name, note } = Astro.props;
 const t = useTranslations(lang);
 const src = Astro.props.src ?? (handle ? portraitAudioPath(lang, handle) : null);
 const label = Astro.props.label ?? t("luma.discover").replace("{name}", name ?? "");
@@ -56,6 +59,7 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
           <span class="listen-label">{label}</span>
           <span class="listen-time" data-listen-time aria-hidden="true">0:00 / –:––</span>
         </div>
+        {note && <Tip text={note} label={t("product.tipOpen")} align="fin" />}
       </div>
       <audio preload="metadata" src={src} data-listen-audio></audio>
     </div>

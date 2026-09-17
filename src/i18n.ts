@@ -98,6 +98,7 @@ const ui = {
     "product.perkSampleNote":
       "Vous pouvez choisir l'échantillon du parfum que vous commandez : vous le portez d'abord, et vous n'ouvrez le flacon qu'une fois décidé. Tant qu'il est scellé, nous le reprenons.",
     "product.tipOpen": "En savoir plus",
+    "luma.listenNote": "Vous ne pouvez pas le sentir d'ici. Luma vous le décrit en moins d'une minute.",
     "product.faqTitle": "Questions fréquentes",
     "product.bestSeller": "Best seller",
     "nav.home": "Accueil",
@@ -398,6 +399,7 @@ const ui = {
     "product.perkSampleNote":
       "يمكنك اختيار عيّنة العطر نفسه الذي تطلبه: جرّبها أولًا، ولا تفتح الزجاجة إلا بعد أن تقرر. وما دامت مغلقة، نستردّها.",
     "product.tipOpen": "اعرف المزيد",
+    "luma.listenNote": "لا يمكنك شمّه من هنا. لوما تصفه لك في أقل من دقيقة.",
     "product.faqTitle": "الأسئلة الشائعة",
     "product.bestSeller": "الأكثر مبيعًا",
     "nav.home": "الرئيسية",
@@ -694,6 +696,7 @@ const ui = {
     "product.perkSampleNote":
       "You can pick the sample of the very perfume you are ordering: wear it first, and only open the bottle once you are sure. As long as it is sealed, we take it back.",
     "product.tipOpen": "Learn more",
+    "luma.listenNote": "You cannot smell it from here. Luma describes it to you in under a minute.",
     "product.faqTitle": "Frequently asked questions",
     "product.bestSeller": "Best seller",
     "nav.home": "Home",

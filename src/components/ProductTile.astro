@@ -82,7 +82,7 @@ const SIZES = "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw";
     <div class="ptile-overlay" aria-hidden="true"></div>
     {badge && <span class="ptile-badge">{badge}</span>}
     {
-      variantId && (
+      variantId && addLabel && (
         <div class="ptile-add-wrap">
           <button
             type="button"
