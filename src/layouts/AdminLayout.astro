@@ -122,6 +122,18 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
         }
       </nav>
       <div class="adm-side-foot">
+        {/* Un interrupteur, pas une case : il change ce qu'on lit sur TOUTES les
+            pages, et il doit se voir au premier coup d'œil quand il est allumé. */}
+        <a
+          class:list={["adm-switch", { "is-on": avecTest }]}
+          href={lienTest}
+          role="switch"
+          aria-checked={avecTest ? "true" : "false"}
+          title={avecTest ? "Masquer les données de staging, des previews et du local" : "Afficher aussi les données de staging, des previews et du local"}
+        >
+          <span class="adm-switch-track" aria-hidden="true"><span class="adm-switch-knob"></span></span>
+          <span class="adm-switch-label">Données de test</span>
+        </a>
         <a class="adm-side-link" href="/" target="_blank" rel="noopener">Voir le site ↗</a>
         <p class="adm-user">{admin.email}</p>
         <form method="post" action="/api/admin/logout"><button type="submit" class="adm-link-btn">Se déconnecter</button></form>
@@ -134,17 +146,6 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
           <h1 class="adm-title">{title}</h1>
           {subtitle && <p class="adm-subtitle">{subtitle}</p>}
         </div>
-        <div class="adm-head-tools">
-          {/* Toujours visible, y compris sur les pages sans période (En direct) :
-              c'est un réglage de lecture, pas un filtre de page. */}
-          <a
-            class:list={["adm-test", { "is-on": avecTest }]}
-            href={lienTest}
-            title={avecTest ? "Masquer les données de staging, des previews et du local" : "Afficher aussi les données de staging, des previews et du local"}
-          >
-            <span class="adm-test-dot" aria-hidden="true"></span>
-            {avecTest ? "Données de test affichées" : "Données de test"}
-          </a>
         {
           showRange && (
             <div class="adm-range-wrap">
@@ -164,7 +165,6 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
             </div>
           )
         }
-        </div>
       </header>
       <slot name="filters" />
       <slot />
@@ -459,26 +459,36 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   /* ---- en-tête et période ---- */
   .adm-main { padding: 30px 40px 72px; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
   .adm-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding-bottom: 4px; }
-  .adm-head-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-  /* Éteint, il se fait oublier ; allumé, il se voit de loin — on doit savoir en
-     un coup d'œil qu'on ne regarde pas les vrais chiffres. */
-  .adm-test {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    border: 1px solid var(--line);
+  /* Éteint il se fait oublier, allumé il passe en bordeaux : on doit savoir d'un
+     coup d'œil qu'on ne regarde pas les vrais chiffres. */
+  .adm-switch { display: flex; align-items: center; gap: 10px; padding: 4px 0 10px; color: var(--muted); font-size: 13px; }
+  .adm-switch:hover { color: var(--ink); }
+  .adm-switch-track {
+    position: relative;
+    flex-shrink: 0;
+    width: 32px;
+    height: 18px;
     border-radius: 999px;
-    color: var(--muted);
-    font-size: 12px;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-    transition: border-color 0.18s, color 0.18s, background-color 0.18s;
+    background: rgba(21, 14, 10, 0.16);
+    transition: background-color 0.2s ease;
   }
-  .adm-test:hover { border-color: var(--ink); color: var(--ink); }
-  .adm-test-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.4; }
-  .adm-test.is-on { border-color: var(--rose); background: color-mix(in srgb, var(--rose) 10%, transparent); color: var(--rose); }
-  .adm-test.is-on .adm-test-dot { opacity: 1; }
+  .adm-switch-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--paper);
+    box-shadow: 0 1px 2px rgba(21, 14, 10, 0.22);
+    transition: transform 0.2s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .adm-switch.is-on { color: var(--rose); }
+  .adm-switch.is-on .adm-switch-track { background: var(--rose); }
+  .adm-switch.is-on .adm-switch-knob { transform: translateX(14px); }
+  @media (prefers-reduced-motion: reduce) {
+    .adm-switch-track, .adm-switch-knob { transition: none; }
+  }
   .adm-kicker { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
   .adm-kicker::first-letter { text-transform: uppercase; }
   .adm-title { margin: 0; font-size: 34px; font-weight: 400; line-height: 1.05; letter-spacing: -0.015em; }

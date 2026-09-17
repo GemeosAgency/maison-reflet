@@ -86,23 +86,23 @@ const { text, label, align = "centre" } = Astro.props;
     text-transform: none;
     text-align: start;
     white-space: normal;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.18s, visibility 0.18s;
+    /*
+     * Fermée, la bulle est RETIRÉE du flux et non seulement masquée : un élément
+     * en position absolue compte dans le débordement même invisible, et celle-ci
+     * ajoutait sept pixels de défilement horizontal à toute la page. Elle
+     * apparaît donc d'un coup, sans fondu : animer une propriété discrète
+     * demandait `allow-discrete` et `@starting-style`, dont le résultat était
+     * une bulle ouverte restée transparente. Une infobulle instantanée est la
+     * norme, une infobulle invisible est un bug.
+     */
+    display: none;
   }
-  .is-centre .tip-box { inset-inline-start: 50%; transform: translateX(-50%); }
+  .is-centre .tip-box,
   .is-fin .tip-box { inset-inline-end: 0; }
   /* `:focus-within` épinglait la bulle : après un clic, le bouton gardait le
      focus et le second clic ne la refermait plus. On ne montre donc au focus
      que pour le clavier, où c'est le seul moyen de la lire. */
   .tip:hover .tip-box,
   .tip-btn:focus-visible ~ .tip-box,
-  .tip.is-open .tip-box { opacity: 1; visibility: visible; }
-  /* Près du bord, la bulle se recale sur le bouton plutôt que de déborder. */
-  @media (max-width: 560px) {
-    .is-centre .tip-box { inset-inline-start: auto; inset-inline-end: 0; transform: none; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .tip-box { transition: none; }
-  }
+  .tip.is-open .tip-box { display: block; }
 </style>
