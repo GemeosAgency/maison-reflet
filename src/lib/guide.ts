@@ -33,6 +33,21 @@ export type GuideReflet = {
   twistLine: L10n;
   /** Le twist en quelques mots, pour le panneau d'achat : « notre twist : … ». */
   twistShort: L10n;
+  /**
+   * Les trois temps du parfum, dans l'ordre tête / cœur / fond, écrits pour
+   * quelqu'un qui ne peut pas le sentir : la fenêtre pendant laquelle on le
+   * porte, puis ce que ça fait. Une liste de matières est simultanée, un parfum
+   * est une séquence — c'est le temps qui manquait. Facultatif : une fiche sans
+   * `phases` affiche le triptyque tel qu'avant.
+   */
+  phases?: [Phase, Phase, Phase];
+};
+
+export type Phase = {
+  /** « les 20 premières minutes ». */
+  window: L10n;
+  /** Ce qu'on sent et ce que ça fait, sans nomenclature. */
+  effect: L10n;
 };
 
 export const GUIDE_REFLETS: Record<string, GuideReflet> = {
@@ -115,6 +130,32 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
       en: "a livelier raspberry, a trio of saffrons, a facet of orris",
       ar: "توت عليق أكثر حيوية، ثلاثية من الزعفران، ولمسة سوسن",
     },
+    phases: [
+      {
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        effect: {
+          fr: "Framboise écrasée, vive et acidulée. C'est ce que les gens sentent quand vous entrez.",
+          en: "Crushed raspberry, sharp and tart. This is what people smell when you walk in.",
+          ar: "توت عليق مهروس، حادّ ومنعش. هذا ما يشمّه الناس حين تدخل.",
+        },
+      },
+      {
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        effect: {
+          fr: "Le safran s'installe, chaud et un peu cuiré. Le parfum cesse d'être fruité, il devient dense.",
+          en: "Saffron settles in, warm and faintly leathery. The perfume stops being fruity and turns dense.",
+          ar: "يستقرّ الزعفران، دافئًا وبلمسة جلدية. يتوقف العطر عن كونه فاكهيًا ويصبح كثيفًا.",
+        },
+      },
+      {
+        window: { fr: "le reste de la journée", en: "the rest of the day", ar: "بقية اليوم" },
+        effect: {
+          fr: "Cèdre et cuir, une traîne sèche. C'est ce qui reste sur le pull le lendemain.",
+          en: "Cedar and leather, a dry trail. This is what is left on your jumper the next morning.",
+          ar: "أرز وجلد، أثر جافّ. هذا ما يبقى على ثيابك في اليوم التالي.",
+        },
+      },
+    ],
   },
   "minuit-bourbon": {
     materials: [

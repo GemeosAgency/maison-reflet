@@ -21,6 +21,7 @@ import ScentNotes from "../../../components/product/ScentNotes.astro";
 import TwistSection from "../../../components/product/TwistSection.astro";
 import PerfumerWord from "../../../components/product/PerfumerWord.astro";
 import TwistLine from "../../../components/product/TwistLine.astro";
+import { GUIDE_REFLETS } from "../../../lib/guide";
 import LayeringRow from "../../../components/product/LayeringRow.astro";
 import PanelDiscovery from "../../../components/product/PanelDiscovery.astro";
 import LayeringDrawer from "../../../components/product/LayeringDrawer.astro";
@@ -226,11 +227,18 @@ const scentLevel = (label: string, notes: { nom: string | null; image?: unknown 
   };
 };
 
+// Les trois temps du parfum (lib/guide.ts) se posent sur le triptyque : la
+// fenêtre sous le niveau, la phrase au-dessus des matières.
+const phases = GUIDE_REFLETS[product.handle]?.phases ?? null;
 const scentLevels = [
   scentLevel(t("product.notes.tete"), parfum?.notes.tete),
   scentLevel(t("product.notes.coeur"), parfum?.notes.coeur),
   scentLevel(t("product.notes.fond"), parfum?.notes.fond),
-];
+].map((l, i) => ({
+  ...l,
+  window: phases?.[i]?.window[lang] ?? null,
+  effect: phases?.[i]?.effect[lang] ?? null,
+}));
 
 // Bandeau de réassurance : sélection/ordre gérés dans Sanity.
 const reassurances = (parfum?.reassurances ?? []).map((r) => ({

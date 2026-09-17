@@ -32,6 +32,10 @@ import type { ResponsiveImage } from "../../lib/sanity";
 
 interface Level {
   label: string;
+  /** « les 20 premières minutes » : le moment où l'on porte ce temps du parfum. */
+  window?: string | null;
+  /** Ce que ça fait, pour qui ne peut pas le sentir. Voir lib/guide.ts. */
+  effect?: string | null;
   notes: string[];
   /** Index de la note dont la photo est affichée, -1 si aucune. */
   keyIndex: number;
@@ -118,15 +122,23 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
                   decoding="async"
                 />
               )}
-              <span class="snotes-level">{l.label}</span>
-              <p class="snotes-list">
-                {l.notes.map((n, j) => (
-                  <span class:list={["snotes-note", { "is-key": j === l.keyIndex }]}>
-                    {n}
-                    {j < l.notes.length - 1 ? "," : ""}
-                  </span>
-                ))}
-              </p>
+              <span class="snotes-level">
+                {l.label}
+                {l.window && <span class="snotes-window">{l.window}</span>}
+              </span>
+              {/* Le pied porte la phrase puis les matières : la photo cesse
+                  d'être un fond et devient l'illustration d'un moment. */}
+              <div class:list={["snotes-foot", { "has-effect": Boolean(l.effect) }]}>
+                {l.effect && <p class="snotes-effect">{l.effect}</p>}
+                <p class="snotes-list">
+                  {l.notes.map((n, j) => (
+                    <span class:list={["snotes-note", { "is-key": j === l.keyIndex }]}>
+                      {n}
+                      {j < l.notes.length - 1 ? "," : ""}
+                    </span>
+                  ))}
+                </p>
+              </div>
             </div>
           ))}
         </div>
@@ -420,11 +432,39 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
     text-transform: uppercase;
     line-height: 1.2;
   }
-  .snotes-list {
+  .snotes-window {
+    display: block;
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    opacity: 0.66;
+  }
+  .snotes-foot {
     position: absolute;
     z-index: 1;
-    inset-inline-start: 32px;
+    inset-inline: 32px;
     bottom: 32px;
+  }
+  /* Un voile très doux sous le pied : la phrase est plus longue que les
+     matières et peut tomber sur une zone claire de la photo. Il n'apparaît que
+     là où il y a une phrase, pour ne rien changer aux fiches sans texte. */
+  .snotes-foot.has-effect::before {
+    content: "";
+    position: absolute;
+    inset: -28px -32px -32px;
+    z-index: -1;
+    background: linear-gradient(to top, rgba(21, 14, 10, 0.16), rgba(21, 14, 10, 0));
+    pointer-events: none;
+  }
+  .snotes-effect {
+    margin: 0 0 14px;
+    max-width: 34ch;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  .snotes-list {
     margin: 0;
     display: flex;
     flex-direction: column;
