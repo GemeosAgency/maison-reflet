@@ -15,7 +15,7 @@ import { panne } from "../../lib/admin/panne";
 import { parseRange, fmtInt, fmtPct } from "../../lib/admin/data";
 import { business, parseFilters, fmtMoney, fmtMoneyShort, delta } from "../../lib/admin/business";
 import { TIPS } from "../../lib/admin/tips";
-import { timeChart, hbars, donut, heatmap, stackBar } from "../../lib/admin/charts";
+import { timeChart, hbars, donut, heatmap } from "../../lib/admin/charts";
 import ModalTemplate from "../../components/admin/ModalTemplate.astro";
 export const prerender = false;
 
@@ -39,9 +39,6 @@ const countryRows = b.countries.filter((c) => c.orders).slice(0, 10).map((c) => 
 const teintes = new Map(b.perProduct.map((p) => [p.handle, p.couleur]));
 const courbe = filters.reflet ? teintes.get(filters.reflet)?.trait : undefined;
 // La part de chaque Reflet dans le chiffre, en une seule barre.
-const partParts = b.perProduct
-  .filter((p) => p.revenue > 0)
-  .map((p) => ({ label: p.name, value: p.revenue, color: p.couleur.trait, text: `${fmtMoneyShort(p.revenue)} ${cur}`, modal: `product:${p.handle}` }));
 const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value: d.orders, text: `${fmtInt(d.orders)} · −${fmtMoneyShort(d.discounts)} ${cur}`, color: "var(--warn)" }));
 ---
 
@@ -82,10 +79,9 @@ const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value
     </div>
   </section>
 
-  <div class="section-title"><h2>Par produit</h2><p>chiffre, part, flacons, paniers abandonnés — un clic ouvre le détail</p></div>
-  {partParts.length > 1 && <div class="card card-flat"><Fragment set:html={stackBar(partParts)} /></div>}
+  <div class="section-title"><h2>Par produit</h2><p>chiffre, part, flacons et marge · un clic ouvre le détail</p></div>
   <ProductTiles products={b.perProduct} currency={cur} focus={filters.reflet} />
-  {b.other.units > 0 && <p class="card-foot">Autres articles vendus : {b.other.titles.join(", ")} — {fmtInt(b.other.units)} unité{b.other.units > 1 ? "s" : ""}, {money(b.other.revenue)}.</p>}
+  {b.other.units > 0 && <p class="card-foot">Autres articles vendus : {b.other.titles.join(", ")} · {fmtInt(b.other.units)} unité{b.other.units > 1 ? "s" : ""}, {money(b.other.revenue)}.</p>}
 
   <section class="card tbl-card">
     <div class="card-head"><h2 class="card-title">Paniers abandonnés et en cours <Tip of="cartsAbandoned" /></h2><p class="card-note">≈ montant estimé d'après le catalogue</p></div>
@@ -94,7 +90,7 @@ const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value
 
   <section class:list={["grid", b.discountCodes.length ? "grid-3" : "grid-2"]}>
     <div class="card">
-      <div class="card-head"><h2 class="card-title">Pays, par chiffre</h2><p class="card-note">commandes · chiffre — un clic ouvre le pays</p></div>
+      <div class="card-head"><h2 class="card-title">Pays, par chiffre</h2><p class="card-note">commandes et chiffre · un clic ouvre le pays</p></div>
       <Fragment set:html={hbars(countryRows)} />
     </div>
     <div class="card">

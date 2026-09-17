@@ -282,7 +282,7 @@ const initial = await live(avecTest).catch((error) => {
         failures = 0;
       } catch {
         failures++;
-        if (failures > 5) $("[data-live-at]").textContent = "— connexion perdue, nouvel essai…";
+        if (failures > 5) $("[data-live-at]").textContent = "connexion perdue, nouvel essai…";
       }
     };
     setInterval(tick, 10000);
