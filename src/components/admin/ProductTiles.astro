@@ -31,7 +31,9 @@ const maxShare = Math.max(0.0001, ...products.map((p) => p.share));
             <span class="ptile-stats">
               <span>Flacons<b>{fmtInt(p.units)}</b></span>
               <span>Cmd<b>{fmtInt(p.orders)}</b></span>
-              <span>Part<b>{p.share ? `${Math.round(p.share * 100)} %` : "–"}</b></span>
+              {/* La marge remplace la part : la part se lit déjà sur la barre
+                  juste au-dessus, la marge ne se lit nulle part ailleurs. */}
+              <span>Marge<b>{p.marge === null ? "–" : `${Math.round((p.margeTaux ?? 0) * 100)} %`}</b></span>
             </span>
           ) : (
             <span class="ptile-stats">

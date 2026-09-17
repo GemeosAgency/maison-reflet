@@ -263,6 +263,22 @@ export async function getInspiredByMap(): Promise<Record<string, string>> {
   return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.inspiredBy]));
 }
 
+/**
+ * Map handle -> coût de revient unitaire, en AED.
+ *
+ * Saisi dans Sanity par la Maison, parce que ces montants bougent à chaque
+ * réappro et qu'attendre un déploiement pour les corriger reviendrait à ne
+ * jamais les corriger. Sert la marge de la tour de contrôle ; un produit sans
+ * coût connu y est signalé plutôt que compté à zéro, sans quoi sa marge
+ * paraîtrait totale.
+ */
+export async function getCostMap(): Promise<Record<string, number>> {
+  const rows = await sanityClient.fetch<{ shopifyHandle: string; coutRevient: number }[]>(
+    `*[_type in ["parfum","coffret"] && defined(coutRevient) && defined(shopifyHandle)]{ shopifyHandle, coutRevient }`
+  );
+  return Object.fromEntries(rows.map((r) => [r.shopifyHandle, r.coutRevient]));
+}
+
 /** Map handle -> couleur signature (accent de la fiche produit, repris par la tour de contrôle). */
 export async function getSignatureColorMap(): Promise<Record<string, string>> {
   const rows = await sanityClient.fetch<{ shopifyHandle: string; couleurSignature: string }[]>(

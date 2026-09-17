@@ -65,6 +65,15 @@ export default defineType({
       description: "Les coffrets s'affichent du plus petit au plus grand nombre.",
     }),
     defineField({
+      name: "coutRevient",
+      title: "Coût de revient (AED)",
+      description:
+        "Ce que coûte UNE unité, tout compris : jus, flacon, bouchon, étiquette, étui. Hors livraison et hors frais de paiement, qui sont comptés par commande. Sert à la marge de la tour de contrôle ; laisser vide si on ne le connaît pas encore.",
+      type: "number",
+      group: "contenu",
+      validation: (Rule) => Rule.min(0),
+    }),
+    defineField({
       name: "faqs",
       title: "FAQ",
       description: "Questions fréquentes affichées sur cette fiche. Choisis lesquelles et dans quel ordre.",

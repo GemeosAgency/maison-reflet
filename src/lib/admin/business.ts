@@ -14,7 +14,7 @@ import { adminDb } from "./db";
 import { COUNTRY_CENTROIDS, countryName } from "./geo";
 import { LAYERING } from "../layering";
 import { isCoffret, isSampleVariantTitle } from "../shopify";
-import { getSignatureColorMap } from "../sanity";
+import { getCostMap, getSignatureColorMap } from "../sanity";
 import { couleurDe, teintesDe, type Teintes } from "./couleurs";
 import { allProducts, dailySeries, dayKey, daysOf, fetchAll, fetchIn, loadSite, previousRange, rangeBetween, refletNames, TZ, type Range, type SiteEventRow } from "./data";
 
@@ -49,7 +49,8 @@ export type OrderRow = {
 };
 const refundedOf = (o: OrderRow) => o.refunds.reduce((n, r) => n + r.amount, 0);
 
-export type Product = { handle: string; name: string; image: string | null; price: number; kind: "reflet" | "coffret"; productId: number | null; couleur: Teintes };
+/** `cout` est le coût de revient unitaire saisi dans Sanity, `null` s'il est inconnu. */
+export type Product = { handle: string; name: string; image: string | null; price: number; kind: "reflet" | "coffret"; productId: number | null; couleur: Teintes; cout: number | null };
 export type Catalog = { products: Product[]; variantPrice: Map<string, { price: number; handle: string }>; handlePrice: Map<string, number>; byProductId: Map<number, string> };
 /** Une vignette Shopify à la largeur voulue (le CDN redimensionne à la demande). */
 export const thumb = (url: string | null | undefined, w = 160) => (url ? `${url}${url.includes("?") ? "&" : "?"}width=${w}` : null);
@@ -268,6 +269,12 @@ async function buildCatalog(): Promise<Catalog> {
     console.error("[admin/business] couleurs signature indisponibles", error);
     return {} as Record<string, string>;
   });
+  // Même règle pour les coûts : Sanity injoignable ne doit jamais masquer un
+  // chiffre d'affaires. La marge se dira simplement « inconnue ».
+  const couts = await getCostMap().catch((error) => {
+    console.error("[admin/business] coûts de revient indisponibles", error);
+    return {} as Record<string, number>;
+  });
   try {
     for (const p of await allProducts()) {
       const productId = Number(p.id.split("/").pop()) || null;
@@ -277,11 +284,11 @@ async function buildCatalog(): Promise<Catalog> {
         variantPrice.set(v.id, { price, handle: p.handle });
         if (price > 0 && !isSampleVariantTitle(v.title) && !handlePrice.has(p.handle)) handlePrice.set(p.handle, price);
       }
-      products.push({ handle: p.handle, name: p.title, image: p.featuredImage?.url ?? null, price: handlePrice.get(p.handle) ?? Number(p.priceRange.minVariantPrice.amount), kind: isCoffret(p) ? "coffret" : "reflet", productId, couleur: teintesDe(couleurDe(p.handle, couleurs)) });
+      products.push({ handle: p.handle, name: p.title, image: p.featuredImage?.url ?? null, price: handlePrice.get(p.handle) ?? Number(p.priceRange.minVariantPrice.amount), kind: isCoffret(p) ? "coffret" : "reflet", productId, couleur: teintesDe(couleurDe(p.handle, couleurs)), cout: couts[p.handle] ?? null });
     }
   } catch (error) {
     console.error("[admin/business] catalogue Shopify indisponible", error);
-    for (const h of [...new Set(LAYERING.flatMap((d) => d.pair))]) products.push({ handle: h, name: h, image: null, price: 0, kind: "reflet", productId: null, couleur: teintesDe(couleurDe(h, couleurs)) });
+    for (const h of [...new Set(LAYERING.flatMap((d) => d.pair))]) products.push({ handle: h, name: h, image: null, price: 0, kind: "reflet", productId: null, couleur: teintesDe(couleurDe(h, couleurs)), cout: couts[h] ?? null });
   }
   products.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "reflet" ? -1 : 1));
   return { products, variantPrice, handlePrice, byProductId };
@@ -390,6 +397,16 @@ export type Kpis = {
   samples: number;
   discounts: number;
   shipping: number;
+  /**
+   * La marge brute de la période : chiffre net moins le coût de revient des
+   * unités vendues. `null` tant qu'aucun coût n'est saisi dans Sanity, et
+   * `coutsManquants` dit combien de produits vendus n'en ont pas — sans quoi on
+   * lirait une marge flatteuse calculée sur la moitié du catalogue.
+   */
+  marge: number | null;
+  margeTaux: number | null;
+  cout: number | null;
+  coutsManquants: number;
   visitors: number;
   conversion: number | null;
   checkoutRate: number | null;
@@ -516,6 +533,41 @@ function core({ events, orders: allOrders, catalog, range, filters: f, luma }: C
 
   const adders = new Set(ev.filter((e) => e.name === "add_to_cart").map((e) => e.anon_id)).size;
   const buyers = new Set(orders.map((o) => o.anon_id ?? `commande:${o.id}`)).size;
+
+  /*
+   * Coût de revient et marge brute de la période.
+   *
+   * On additionne ligne à ligne plutôt que produit par produit : une commande
+   * peut contenir un handle absent du catalogue (produit retiré depuis), et il
+   * doit alors compter comme « coût manquant » et non disparaître. Les
+   * échantillons offerts comptent en coût pour zéro de recette, ce qui est le
+   * but : un cadeau a un prix, et c'est ici qu'on le voit.
+   */
+  const cogs = (() => {
+    const coutDe = new Map(products.map((p) => [p.handle, p.cout]));
+    let cout = 0;
+    let connu = false;
+    const manquants = new Set<string>();
+    for (const o of orders) {
+      for (const l of o.lines) {
+        const h = handleOf(l);
+        const c = h ? coutDe.get(h) : undefined;
+        if (c == null) {
+          if (h) manquants.add(h);
+          continue;
+        }
+        connu = true;
+        cout += c * l.quantity;
+      }
+    }
+    const marge = connu ? revenue - cout : null;
+    return {
+      cout: connu ? cout : null,
+      marge,
+      margeTaux: marge != null && revenue > 0 ? marge / revenue : null,
+      coutsManquants: manquants.size,
+    };
+  })();
   const kpis: Kpis = {
     revenue,
     revenueGross,
@@ -528,6 +580,7 @@ function core({ events, orders: allOrders, catalog, range, filters: f, luma }: C
     samples,
     discounts: orders.reduce((n, o) => n + o.discounts, 0),
     shipping: orders.reduce((n, o) => n + o.shipping, 0),
+    ...cogs,
     visitors: visitors.length,
     conversion: visitors.length ? orders.length / visitors.length : null,
     checkoutRate: visitors.length ? withCheckout.length / visitors.length : null,
@@ -664,9 +717,26 @@ function summarize(ctx: Ctx) {
       if (code) countriesMap.set(code, (countriesMap.get(code) ?? 0) + l.quantity);
     }
     const productRevenue = lines.reduce((n, l) => n + l.total, 0);
+    /*
+     * La marge brute du produit sur la période : chiffre d'affaires moins le
+     * coût de revient des unités réellement vendues. Les échantillons (format
+     * « sample », à 0 AED) comptent dans le coût mais rapportent 0 : c'est
+     * exactement ce qu'on veut voir, un cadeau a un prix.
+     *
+     * `cout` inconnu ⇒ marge `null` et non zéro. Compter un coût manquant
+     * comme nul afficherait 100 % de marge sur un produit dont on ne sait rien,
+     * ce qui est la pire erreur possible sur un tableau de bord.
+     */
+    const unitesVendues = lines.reduce((n, l) => n + l.quantity, 0);
+    const coutTotal = p.cout == null ? null : p.cout * unitesVendues;
+    const marge = coutTotal == null ? null : productRevenue - coutTotal;
     return {
       ...p,
       revenue: productRevenue,
+      cout: p.cout,
+      coutTotal,
+      marge,
+      margeTaux: marge == null || productRevenue <= 0 ? null : marge / productRevenue,
       units: lines.filter((l) => l.format !== "sample").reduce((n, l) => n + l.quantity, 0),
       samples: lines.filter((l) => l.format === "sample").reduce((n, l) => n + l.quantity, 0),
       orders: orderIds.size,

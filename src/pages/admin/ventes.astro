@@ -54,6 +54,20 @@ const codeRows = b.discountCodes.slice(0, 10).map((d) => ({ label: d.code, value
     {k.cancelled > 0 && <Kpi label="Annulées" tip="cancelled" value={fmtInt(k.cancelled)} sub={`${money(k.cancelledTotal)} écartés du chiffre`} modal="cancelled" />}
     <Kpi label="Panier moyen" tip="aov" value={k.aov === null ? "–" : fmtMoneyShort(k.aov)} unit={k.aov === null ? undefined : cur} delta={delta(k.aov, pk.aov)} sub={k.orders ? `${(k.units / k.orders).toFixed(1).replace(".", ",")} flacon par commande · ${k.aovPerBuyer === null ? "–" : money(k.aovPerBuyer)} par acheteur` : undefined} tipText={`${TIPS.aov} ${TIPS.aovPerBuyer}`} />
     <Kpi label="Abandonnés" tip="cartsAbandoned" value={fmtMoneyShort(b.carts.abandoned.total)} unit={cur} delta={delta(k.abandonedTotal, pk.abandonedTotal)} deltaInvert sub={`${fmtInt(b.carts.abandoned.count)} panier${b.carts.abandoned.count > 1 ? "s" : ""}${b.carts.abandoned.atCheckout ? `, ${fmtInt(b.carts.abandoned.atCheckout)} au paiement` : ""} · ${b.carts.all.count ? fmtPct(b.carts.abandoned.count, b.carts.all.count) : "–"} des paniers`} modal="carts" />
+    {/* La marge se met juste après le panier moyen : c'est la question qui suit
+        « combien j'ai vendu », et elle n'a de sens qu'à côté du chiffre. */}
+    <Kpi
+      tone={k.marge !== null && k.marge < 0 ? "rose" : undefined}
+      label="Marge brute"
+      tip="marge"
+      value={k.marge === null ? "–" : fmtMoneyShort(k.marge)}
+      unit={k.marge === null ? undefined : cur}
+      sub={
+        k.marge === null
+          ? "aucun coût de revient saisi dans Sanity"
+          : `${k.margeTaux === null ? "–" : `${Math.round(k.margeTaux * 100)} %`} du chiffre · ${money(k.cout ?? 0)} de coût${k.coutsManquants ? ` · ${k.coutsManquants} produit${k.coutsManquants > 1 ? "s" : ""} sans coût` : ""}`
+      }
+    />
     {k.discounts > 0 && <Kpi label="Remises" tip="discounts" value={fmtMoneyShort(k.discounts)} unit={cur} sub={`${b.discountCodes.length} code${b.discountCodes.length > 1 ? "s" : ""} utilisé${b.discountCodes.length > 1 ? "s" : ""}`} />}
   </section>
 

@@ -3,6 +3,7 @@
  * qui mérite une phrase a la sienne, affichée au survol du « ? ».
  */
 export const TIPS = {
+  marge: "Marge brute : chiffre net moins le coût de revient des unités vendues sur la période. Le coût se saisit dans Sanity, sur chaque parfum et chaque coffret : ce que coûte une unité tout compris, jus, flacon, bouchon, étiquette et étui. Il n'inclut ni la livraison ni les frais de paiement, qui se comptent par commande. Un produit vendu sans coût saisi n'est pas compté à zéro, il est signalé : une marge calculée sur la moitié du catalogue vaut moins que pas de marge du tout.",
   revenue: "Chiffre net : total TTC des commandes payées, livraison comprise, remises déduites, moins les remboursements. Les commandes annulées sont écartées. Source : les webhooks Shopify.",
   revenueGross: "Chiffre brut : le total encaissé avant remboursements.",
   refunded: "Montants remboursés sur la période (webhook refunds/create), déduits du chiffre net.",
