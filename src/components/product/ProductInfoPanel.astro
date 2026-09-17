@@ -35,6 +35,9 @@ interface Props {
    * « 6 x 2 ML individual samples ». Affichées avant les rangées libellées.
    */
   plainRows?: string[];
+  /** « INSPIRÉ DE » et sa référence — première rangée de la liste (Figma 11088-3736). */
+  inspiredByLabel?: string;
+  inspiredBy?: string | null;
   variantId: string;
   priceLabel: string;
   addLabel: string;
@@ -43,8 +46,6 @@ interface Props {
   decreaseLabel: string;
   increaseLabel: string;
   perks: { icon: string; label: string }[];
-  /** « Paiement sécurisé », affiché juste sous le bouton d'ajout. */
-  secureLabel: string;
   /** Langue de la page — pour la promesse de livraison. */
   lang: Locale;
 }
@@ -65,6 +66,8 @@ const {
   sillage,
   sillageValueLabel,
   plainRows = [],
+  inspiredByLabel,
+  inspiredBy,
   variantId,
   priceLabel,
   addLabel,
@@ -73,7 +76,6 @@ const {
   decreaseLabel,
   increaseLabel,
   perks,
-  secureLabel,
   lang,
 } = Astro.props;
 
@@ -102,6 +104,14 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   </div>
 
   <div class="ppanel-meta">
+    {
+      inspiredBy && (
+        <div class="ppanel-row">
+          <span class="ppanel-row-label">{inspiredByLabel}</span>
+          <span class="ppanel-row-value">{inspiredBy}</span>
+        </div>
+      )
+    }
     {
       plainRows.map((row) => (
         <div class="ppanel-row is-plain">
@@ -175,15 +185,6 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
       l'ajout au panier — « quand est-ce que je le reçois, et combien ça
       coûte ». À Dubaï, le rebours du jour même s'y affiche.
     */}
-    {/*
-      Le paiement sécurisé se dit juste sous le bouton, au moment où l'on sort sa
-      carte. La même réassurance existe plus bas dans la bande de la page, mais à
-      près de 3 000 px du bouton, donc trop tard.
-    */}
-    <p class="ppanel-secure">
-      <img src="/brand/reassurance-paiement.svg" alt="" width="16" height="16" />
-      {secureLabel}
-    </p>
     <div class="ppanel-reassure">
     <div class="ppanel-ship">
       <ShippingPromise lang={lang} />
@@ -492,17 +493,6 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   /* Livraison et réassurances : une seule liste, un seul rythme. Le bloc gardait
      32 px entre la livraison et les deux lignes suivantes, puis 12 px entre
      elles : l'œil y lisait deux groupes au lieu d'un. */
-  .ppanel-secure {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    margin: -18px 0 0;
-    font-size: 12.5px;
-    letter-spacing: 0.02em;
-    color: var(--muted, rgba(21, 14, 10, 0.56));
-  }
-  .ppanel-secure img { opacity: 0.55; }
   .ppanel-reassure { display: flex; flex-direction: column; gap: 14px; }
   .ppanel-ship { padding-top: 0; }
   /* Aligné sur la promesse de livraison juste au-dessus : même bord gauche,

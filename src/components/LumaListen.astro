@@ -3,11 +3,11 @@
  * Le portrait audio d'un Reflet, sur sa fiche : « Découvrir Melting Mango »
  * (le verbe de Luma, sans mention de qui parle — la voix arabe est celle de
  * la Maison). Un fichier statique pré-généré (portraits.ts), donc zéro
- * crédit à l'écoute. Le dessin est celui de la pilule d'écoute du menu
- * (Sandro, 12 septembre 2026 : « le même design partout si ça passe ») : une
- * pilule cerclée, toute cliquable, la pastille ronde avec le glyphe, le
- * libellé, la durée à droite ; au survol et en lecture le contour s'affirme
- * et seule la pastille se remplit (l'onde y bat pendant la lecture). La
+ * crédit à l'écoute. Dessin repris du Figma `11088-3736` (17 septembre 2026) :
+ * une pilule pleine largeur cerclée d'un filet clair, la pastille ronde déjà
+ * pleine dans le bordeaux de la maison, le libellé en 16 px, et à droite le
+ * temps écoulé sur la durée totale (« 0:24 / 0:37 ») plutôt qu'une seule
+ * valeur. L'onde bat dans la pastille pendant la lecture. La
  * pilule est elle-même la timeline (Sandro, 13 septembre 2026, après une
  * première version en filet + point jugée « pas design ») : une teinte
  * légère la remplit au fil de la lecture, un clic ou un glissé n'importe où
@@ -54,7 +54,7 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
         {/* Le corps de la pilule est le curseur : clic, glissé, flèches. */}
         <div class="listen-body" data-listen-seek role="slider" tabindex="0" aria-label={t("luma.seek")} aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span class="listen-label">{label}</span>
-          <span class="listen-time" data-listen-time aria-hidden="true">–:––</span>
+          <span class="listen-time" data-listen-time aria-hidden="true">0:00 / –:––</span>
         </div>
       </div>
       <audio preload="metadata" src={src} data-listen-audio></audio>
@@ -84,7 +84,7 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
       fill.style.width = `${pct}%`;
       seek.setAttribute("aria-valuenow", String(Math.round(pct)));
       seek.setAttribute("aria-valuetext", `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`);
-      time.textContent = playing || started ? fmt(audio.currentTime) : fmt(audio.duration);
+      time.textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
     };
     const play = () => {
       // Un seul portrait à la fois sur la page.
@@ -95,6 +95,9 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
     const toggle = () => (audio.paused ? play() : audio.pause());
     btn.addEventListener("click", toggle);
     for (const ev of ["play", "pause", "ended", "timeupdate", "loadedmetadata", "seeked"]) audio.addEventListener(ev, render);
+    // Le fichier est souvent déjà décrit quand le script arrive : sans cet appel,
+    // « loadedmetadata » est passé et la durée resterait sur son tiret.
+    render();
     // Tour de contrôle : une écoute par lecteur et par page, et « jusqu'au bout » à 90 %.
     let played = false;
     let completed = false;
@@ -172,30 +175,31 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
 </script>
 
 <style>
-  .listen-wrap { margin-top: 14px; width: 100%; max-width: 320px; }
+  .listen-wrap { margin-top: 20px; width: 100%; }
   /* La pilule du menu, qui est aussi la barre : le remplissage et l'ombre du survol vivent derrière le contenu. */
   .listen {
     position: relative;
     isolation: isolate;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     width: 100%;
-    padding: 10px 14px;
-    border: 1px solid rgba(21, 14, 10, 0.3);
-    border-radius: 100px;
+    padding: 12px 16px 12px 12px;
+    border: 1px solid var(--line-pill, #dbd8d3);
+    border-radius: 48px;
     color: var(--ink);
-    font-size: 14px;
+    font-size: 16px;
+    letter-spacing: 0.06em;
     line-height: 1;
     overflow: hidden;
     cursor: pointer;
     transition: border-color 0.25s ease;
   }
-  .listen:hover, .is-playing .listen { border-color: var(--ink); }
+  .listen:hover, .is-playing .listen { border-color: rgba(21, 14, 10, 0.28); }
   .listen-fill, .listen-ghost { position: absolute; inset-block: 0; inset-inline-start: 0; z-index: -1; pointer-events: none; }
-  .listen-fill { width: 0; background: rgba(21, 14, 10, 0.08); transition: width 0.25s linear; }
+  .listen-fill { width: 0; background: rgba(21, 14, 10, 0.05); transition: width 0.25s linear; }
   .is-seeking .listen-fill { transition: none; }
-  .listen-ghost { width: var(--ghost, 0%); background: rgba(21, 14, 10, 0.045); }
+  .listen-ghost { width: var(--ghost, 0%); background: rgba(21, 14, 10, 0.03); }
   .listen-icon {
     flex-shrink: 0;
     display: inline-flex;
@@ -204,22 +208,22 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
     width: 24px;
     height: 24px;
     padding: 0;
-    border: 1px solid rgba(21, 14, 10, 0.4);
+    border: 0;
     border-radius: 50%;
-    background: transparent;
-    color: var(--ink);
+    background: var(--rose);
+    color: var(--bg);
     cursor: pointer;
-    transition: border-color 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+    transition: background-color 0.25s ease;
   }
   .listen-icon:focus { outline: none; }
   .listen-icon:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
-  /* Survol et lecture : seule la pastille se remplit — le plein noir sur toute la pilule faisait « cheap ». */
-  .listen:hover .listen-icon, .is-playing .listen-icon { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  /* La pastille est déjà pleine : au survol elle se fonce un peu, rien de plus. */
+  .listen:hover .listen-icon, .is-playing .listen-icon { background: color-mix(in srgb, var(--rose) 88%, var(--ink)); }
   .listen-body { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 12px; align-self: stretch; touch-action: none; }
   .listen-body:focus { outline: none; }
   .listen-body:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 4px; border-radius: 100px; }
-  .listen-label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .listen-time { margin-inline-start: auto; flex-shrink: 0; font-size: 13px; opacity: 0.55; font-variant-numeric: tabular-nums; }
+  .listen-label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  .listen-time { margin-inline-start: auto; flex-shrink: 0; font-size: 14px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
   .listen-pause, .listen-eq { display: none; }
   .is-playing .listen-play { display: none; }
   .is-playing .listen-icon .listen-eq { display: inline-flex; }
