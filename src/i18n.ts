@@ -97,7 +97,7 @@ const ui = {
     "coffret.creditEyebrow": "Votre avoir",
     "cart.coffretCredit": "Un avoir de 160 AED pour votre premier flacon",
     "coffret.creditNote":
-      "En achetant le coffret, vous recevez par e-mail un avoir de 160 AED, valable 90 jours sur le Reflet de votre choix. Le prix du flacon ne change pas : c'est la découverte qui devient gratuite.",
+      "En achetant le coffret, vous recevez par e-mail un avoir de 160 AED, valable 90 jours sur le Reflet de votre choix.",
     "coffret.creditAmount": "160 AED",
     "coffret.creditHeadline": "d'avoir sur votre premier flacon",
     "product.discoverSet": "Découvrir le coffret",
@@ -410,7 +410,7 @@ const ui = {
     "coffret.creditEyebrow": "رصيدك",
     "cart.coffretCredit": "رصيد ١٦٠ درهمًا لزجاجتك الأولى",
     "coffret.creditNote":
-      "بشراء العلبة تصلك بالبريد قيمة ١٦٠ درهمًا، صالحة ٩٠ يومًا على العطر الذي تختاره. سعر الزجاجة لا يتغيّر: الاكتشاف هو ما يصبح مجانيًا.",
+      "بشراء العلبة تصلك بالبريد قيمة ١٦٠ درهمًا، صالحة ٩٠ يومًا على العطر الذي تختاره.",
     "coffret.creditAmount": "١٦٠ درهمًا",
     "coffret.creditHeadline": "رصيد لزجاجتك الأولى",
     "product.discoverSet": "اكتشف الصندوق",
@@ -719,7 +719,7 @@ const ui = {
     "coffret.creditEyebrow": "Your credit",
     "cart.coffretCredit": "A 160 AED credit for your first bottle",
     "coffret.creditNote":
-      "Buying the set earns you a 160 AED credit by email, valid for 90 days on the Reflet of your choice. The price of the bottle does not change: it is the discovery that becomes free.",
+      "Buying the set earns you a 160 AED credit by email, valid for 90 days on the Reflet of your choice.",
     "coffret.creditAmount": "160 AED",
     "coffret.creditHeadline": "of credit towards your first bottle",
     "product.discoverSet": "Discover the set",
