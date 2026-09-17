@@ -15,6 +15,7 @@ import ProductModal from "../../components/admin/ProductModal.astro";
 import SourceModal from "../../components/admin/SourceModal.astro";
 import DaysModal from "../../components/admin/DaysModal.astro";
 import ModalTemplate from "../../components/admin/ModalTemplate.astro";
+import MargeModal from "../../components/admin/MargeModal.astro";
 import OrdersTable from "../../components/admin/OrdersTable.astro";
 import CartsTable from "../../components/admin/CartsTable.astro";
 import { readSession } from "../../lib/admin/auth";
@@ -68,6 +69,19 @@ const heroSub = [`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""}`, `${fm
 
   <section class="kpis kpis-hero">
     <Kpi tone="hero" label="Chiffre d'affaires net" tip="revenue" value={fmtMoneyShort(k.revenue)} unit={cur} delta={delta(k.revenue, pk.revenue)} sub={heroSub} modal="orders" />
+    <Kpi
+      tone={k.marge !== null && k.marge < 0 ? "rose" : undefined}
+      label="Marge brute"
+      tip="marge"
+      modal={k.marge === null ? undefined : "marge"}
+      value={k.marge === null ? "–" : fmtMoneyShort(k.marge)}
+      unit={k.marge === null ? undefined : cur}
+      sub={
+        k.marge === null
+          ? "aucun coût de revient saisi dans Sanity"
+          : `${k.margeTaux === null ? "–" : `${Math.round(k.margeTaux * 100)} %`} du chiffre · ${money(k.cout ?? 0)} de coût${k.coutsManquants ? ` · ${k.coutsManquants} sans coût` : ""}`
+      }
+    />
     <Kpi label="Paniers validés" tip="cartsPaid" value={fmtMoneyShort(b.carts.paid.total)} unit={cur} delta={delta(k.orders, pk.orders)} sub={`${fmtInt(b.carts.paid.count)} commande${b.carts.paid.count > 1 ? "s" : ""}`} modal="orders" />
     <Kpi label="Paniers abandonnés" tip="cartsAbandoned" value={fmtMoneyShort(b.carts.abandoned.total)} unit={cur} delta={delta(k.abandonedTotal, pk.abandonedTotal)} deltaInvert sub={`${fmtInt(b.carts.abandoned.count)} panier${b.carts.abandoned.count > 1 ? "s" : ""}${b.carts.abandoned.atCheckout ? `, ${fmtInt(b.carts.abandoned.atCheckout)} au paiement` : ""}${b.carts.open.count ? ` · ${fmtInt(b.carts.open.count)} en cours` : ""}`} modal="carts" />
     <Kpi label="Panier total" tip="cartsAll" value={fmtMoneyShort(b.carts.all.total)} unit={cur} delta={delta(k.cartsTotal, pk.cartsTotal)} sub={`${fmtInt(b.carts.all.count)} panier${b.carts.all.count > 1 ? "s" : ""} · ${b.carts.all.total ? fmtPct(b.carts.paid.total, b.carts.all.total) : "–"} encaissé`} modal="carts-all" />
@@ -126,6 +140,7 @@ const heroSub = [`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""}`, `${fm
   {b.perProduct.map((p) => <ProductModal product={p} currency={cur} totalRevenue={k.revenue} />)}
   {b.sources.map((s) => <SourceModal source={s} currency={cur} />)}
   <DaysModal byDay={b.byDay} currency={cur} rangeLabel={range.label} />
+  <MargeModal k={k} rangeLabel={range.label} money={money} fmtInt={fmtInt} />
   <ModalTemplate id="orders" title="Les commandes" subtitle={`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""} payée${k.orders > 1 ? "s" : ""} · ${money(k.revenue)} net · ${range.label}`} wide>
     <div class="card tbl-card"><OrdersTable orders={b.recentOrders} showDiscount /></div>
   </ModalTemplate>

@@ -1,0 +1,79 @@
+---
+/**
+ * Le détail de la marge brute, ouvert au clic sur son chiffre.
+ *
+ * Partagé par la vue d'ensemble et la page Ventes : les deux affichent le même
+ * KPI, et deux copies auraient divergé au premier ajustement.
+ *
+ * Chaque fenêtre dit AUSSI ce qu'elle ne couvre pas. Une marge incomplète qu'on
+ * croit complète est pire qu'une marge absente : c'est sur elle qu'on décide
+ * d'une offre.
+ */
+import ModalTemplate from "./ModalTemplate.astro";
+import type { Kpis } from "../../lib/admin/business";
+
+interface Props {
+  k: Kpis;
+  rangeLabel: string;
+  money: (n: number) => string;
+  fmtInt: (n: number) => string;
+}
+const { k, rangeLabel, money, fmtInt } = Astro.props;
+---
+
+{
+  k.marge !== null && (
+    <ModalTemplate id="marge" title="La marge brute, ligne à ligne" subtitle={`${rangeLabel} · ${money(k.marge)} sur ${money(k.revenue)}`}>
+      <div class="card">
+        <dl class="marge-lignes">
+          <div class="marge-ligne">
+            <dt>Chiffre net encaissé</dt>
+            <dd>{money(k.revenue)}</dd>
+          </div>
+          <div class="marge-ligne is-sub">
+            <dt>dont livraison facturée au client</dt>
+            <dd>{money(k.shipping)}</dd>
+          </div>
+          <div class="marge-ligne is-sub">
+            <dt>remises et bons d'achat accordés</dt>
+            <dd>{k.discounts ? `– ${money(k.discounts)}` : "aucun"}</dd>
+          </div>
+          <div class="marge-ligne is-total">
+            <dt>Coût de revient des unités vendues</dt>
+            <dd>– {money(k.cout ?? 0)}</dd>
+          </div>
+          <div class="marge-ligne is-sub">
+            <dt>flacons</dt>
+            <dd>– {money(k.coutDetail.flacons)}</dd>
+          </div>
+          <div class="marge-ligne is-sub">
+            <dt>coffrets</dt>
+            <dd>– {money(k.coutDetail.coffrets)}</dd>
+          </div>
+          <div class="marge-ligne is-sub">
+            <dt>échantillons offerts</dt>
+            <dd>– {money(k.coutDetail.echantillons)}</dd>
+          </div>
+          <div class="marge-ligne is-result">
+            <dt>Marge brute</dt>
+            <dd>{money(k.marge)}{k.margeTaux !== null ? ` · ${Math.round(k.margeTaux * 100)} %` : ""}</dd>
+          </div>
+        </dl>
+        <p class="card-foot">
+          Ce qui n'est pas déduit ici, faute de le connaître : le transport que nous payons au transporteur (la ligne ci-dessus est ce que le client a payé, pas notre facture), les frais de paiement, la publicité et les charges fixes. La marge brute dit si le produit gagne de l'argent, pas si l'entreprise en gagne.
+          {k.coutsManquants > 0 ? ` ${fmtInt(k.coutsManquants)} produit${k.coutsManquants > 1 ? "s" : ""} vendu${k.coutsManquants > 1 ? "s" : ""} sur la période n'a pas de coût de revient dans Sanity : il n'est pas compté.` : ""}
+        </p>
+      </div>
+    </ModalTemplate>
+  )
+}
+
+<style is:global>
+  .marge-lignes { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  .marge-ligne { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; font-size: 15px; }
+  .marge-ligne dd { margin: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* Les sous-lignes détaillent la ligne au-dessus : décalées, plus petites, plus pâles. */
+  .marge-ligne.is-sub { padding-inline-start: 18px; font-size: 13.5px; color: var(--muted); }
+  .marge-ligne.is-total { padding-top: 10px; border-top: 1px solid var(--line); }
+  .marge-ligne.is-result { padding-top: 12px; border-top: 1px solid var(--ink); font-size: 17px; font-weight: 500; }
+</style>
