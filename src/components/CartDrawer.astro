@@ -1282,6 +1282,26 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-upsell-add svg { width: 14px; height: 14px; flex-shrink: 0; }
   .cart-upsell-price { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; }
 
+  /* La relance du coffret : le gabarit de la carte de suggestion ci-dessus, en
+     plus serré, sur un fond très légèrement teinté pour la distinguer sans
+     l'imposer. Elle vit dans le tiroir, donc elle prend la gouttière du tiroir. */
+  .cart-coffret {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin: 0 24px;
+    padding: 12px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--rose) 6%, transparent);
+  }
+  .cart-coffret-img { flex: 0 0 72px; line-height: 0; }
+  .cart-coffret-img img { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; }
+  .cart-coffret-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .cart-coffret-title { margin: 0; font-size: 15px; font-weight: 500; color: var(--ink); }
+  .cart-coffret-args { margin: 0; font-size: 12.5px; line-height: 1.35; color: var(--muted, rgba(21, 14, 10, 0.62)); }
+  .cart-coffret-cta { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+  .cart-coffret-cta .cart-upsell-add { padding: 7px 11px 7px 9px; font-size: 13px; }
+
   .cart-drawer-footer { flex-shrink: 0; border-top: 1px solid rgba(21, 14, 10, 0.12); padding: 24px 32px 32px; display: flex; flex-direction: column; gap: 16px; }
   .cart-drawer-subtotal-row { display: flex; align-items: baseline; justify-content: space-between; }
   .cart-drawer-subtotal-row span { font-size: 18px; font-weight: 500; color: var(--ink); }
