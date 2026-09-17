@@ -22,6 +22,7 @@ import TwistSection from "../../../components/product/TwistSection.astro";
 import PerfumerWord from "../../../components/product/PerfumerWord.astro";
 import TwistLine from "../../../components/product/TwistLine.astro";
 import LayeringRow from "../../../components/product/LayeringRow.astro";
+import PanelSets from "../../../components/product/PanelSets.astro";
 import LayeringDrawer from "../../../components/product/LayeringDrawer.astro";
 import {
   formatPrice,
@@ -395,6 +396,14 @@ const productJsonLd = {
         <LumaListen slot="after-description" lang={lang} handle={product.handle} name={product.title} />
         <LayeringRow slot="after-rows" lang={lang} handle={product.handle} products={products} />
         <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={product.title} kind="parfum" />
+        {/*
+          L'échantillon offert n'arrive qu'après l'achat : il ne rassure pas
+          celui qui hésite encore. Le coffret découverte, lui, est la vraie porte
+          d'entrée — mais sa bannière vit à près de 7 000 px, très loin du moment
+          du doute. Cette rangée le remet sous les yeux au bon endroit.
+          « Se marie avec » n'y figure pas : il est déjà une rangée du panneau.
+        */}
+        <PanelSets slot="after-perks" title={t("product.setsTitle")} items={discoveryCandidates} />
       </ProductInfoPanel>
     </aside>
   </div>

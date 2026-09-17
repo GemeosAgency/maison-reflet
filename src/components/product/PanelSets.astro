@@ -1,0 +1,111 @@
+---
+/**
+ * Les coffrets, en petit, dans la colonne d'achat sous le bloc Luma.
+ *
+ * Pourquoi ici : l'échantillon offert n'arrive qu'après l'achat, il ne rassure
+ * donc pas celui qui hésite encore. Le coffret découverte est la vraie porte
+ * d'entrée, mais sa grande bannière vit tout en bas de la fiche, loin du moment
+ * du doute. Deux cartes compactes le remettent sous les yeux au bon endroit,
+ * sans concurrencer le bouton d'achat.
+ *
+ * Même dessin que « Vous aimerez aussi » plus bas, à l'échelle de la colonne.
+ */
+import type { ResponsiveImage } from "../../lib/sanity";
+
+export interface PanelSet {
+  handle: string;
+  titre: string;
+  price: string;
+  href: string;
+  img: ResponsiveImage | null;
+}
+
+interface Props {
+  title: string;
+  items: PanelSet[];
+}
+
+const { title, items } = Astro.props;
+// Deux au plus : au-delà, les cartes deviennent illisibles dans la colonne.
+const sets = items.slice(0, 2);
+---
+
+{
+  sets.length > 0 && (
+    <section class="psets">
+      <p class="psets-title">{title}</p>
+      <div class="psets-grid">
+        {sets.map((s) => (
+          <a class="pset" href={s.href}>
+            <span class="pset-img">
+              {s.img && (
+                <img src={s.img.src} srcset={s.img.srcset} sizes="(max-width: 900px) 45vw, 220px" alt="" loading="lazy" decoding="async" />
+              )}
+            </span>
+            <span class="pset-name">{s.titre}</span>
+            <span class="pset-price">{s.price}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .psets {
+    padding-block-start: 28px;
+    border-block-start: 1px solid var(--line, rgba(21, 14, 10, 0.12));
+  }
+  .psets-title {
+    margin: 0 0 14px;
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .psets-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .pset {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .pset-img {
+    display: block;
+    aspect-ratio: 1;
+    background: var(--sand, #e7dfd0);
+    overflow: hidden;
+  }
+  .pset-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+  }
+  .pset:hover .pset-img img,
+  .pset:focus-visible .pset-img img {
+    transform: scale(1.04);
+  }
+  .pset-name {
+    font-size: 15px;
+    line-height: 1.25;
+  }
+  .pset-price {
+    font-size: 14px;
+    color: var(--muted, rgba(21, 14, 10, 0.56));
+  }
+  .pset:hover .pset-name,
+  .pset:focus-visible .pset-name {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pset-img img { transition: none; }
+    .pset:hover .pset-img img { transform: none; }
+  }
+</style>
