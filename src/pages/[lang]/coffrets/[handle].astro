@@ -20,6 +20,8 @@ import RelatedProducts from "../../../components/RelatedProducts.astro";
 import Reviews from "../../../components/Reviews.astro";
 import ProductGallery from "../../../components/product/ProductGallery.astro";
 import ProductInfoPanel from "../../../components/product/ProductInfoPanel.astro";
+import CoffretCredit from "../../../components/product/CoffretCredit.astro";
+import { COFFRET_HANDLE } from "../../../lib/coffret";
 import ScentNotes from "../../../components/product/ScentNotes.astro";
 import PerfumerWord from "../../../components/product/PerfumerWord.astro";
 import {
@@ -307,6 +309,14 @@ const productJsonLd = {
         perks={perks}
       >
         <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={title} kind="coffret" />
+        {product.handle === COFFRET_HANDLE && (
+          <CoffretCredit
+            slot="after-description"
+            eyebrow={t("coffret.creditEyebrow")}
+            title={t("coffret.creditTitle")}
+            body={t("coffret.creditBody")}
+          />
+        )}
       </ProductInfoPanel>
     </aside>
   </div>

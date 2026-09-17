@@ -3,6 +3,8 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { adminDb } from "../../../lib/admin/db";
 import { isTestHost } from "../../../lib/admin/env";
 import { getAllProducts } from "../../../lib/shopify";
+import { AVOIR_AED, COFFRET_HANDLE, MINIMUM_AED, REFLETS, VALIDITE_JOURS, codeAvoir, finValidite } from "../../../lib/coffret";
+import { creerAvoir, idsProduits } from "../../../lib/shopify-admin";
 
 // Rendu à la demande (fonction serverless Vercel), pas prégénéré.
 export const prerender = false;
@@ -52,6 +54,110 @@ const GA4_COLLECT_URL = GA4_DEBUG_MODE
   : "https://www.google-analytics.com/mp/collect";
 // Format posé par gtag.js / dérivé nous-mêmes (voir lib/ga4.ts) : {aléa}.{timestamp}.
 const GA4_CLIENT_ID_RE = /^\d+\.\d+$/;
+
+const KLAVIYO_API_KEY = import.meta.env.KLAVIYO_PRIVATE_API_KEY;
+const KLAVIYO_REVISION = "2025-04-15";
+// Sert à dériver le code d'avoir : sans lui, deux clients pourraient deviner le
+// code de l'autre à partir du numéro de commande. À défaut, on retombe sur la
+// clé du webhook, qui est déjà un secret partagé avec Shopify.
+const AVOIR_SEL = import.meta.env.COFFRET_CREDIT_SALT ?? WEBHOOK_SECRET ?? "";
+
+/**
+ * L'avoir du coffret découverte : qui achète le coffret reçoit son montant à
+ * valoir sur un flacon (voir lib/coffret.ts pour la règle et ses bornes).
+ *
+ * Le code est créé chez Shopify puis remis au client par Klaviyo. Les deux
+ * étapes sont idempotentes : le code est dérivé du numéro de commande (Shopify
+ * refuse alors le doublon, ce qu'on lit comme « déjà émis »), et l'événement
+ * Klaviyo porte un `unique_id` stable. Shopify rejoue ses webhooks jusqu'à
+ * dix-neuf fois sur quarante-huit heures : sans ça, dix-neuf avoirs.
+ *
+ * Rien ici ne doit faire tomber le webhook : il porte aussi la tour de contrôle,
+ * Meta et GA4. Tout échec se journalise et s'arrête là.
+ */
+async function emettreAvoirCoffret(order: ShopifyOrderWebhook) {
+  // Le coffret est reconnu par son handle, pas par un identifiant en dur :
+  // recréer le produit dans Shopify ne doit pas casser l'avoir en silence.
+  let coffretAchete = false;
+  try {
+    const produits = await getAllProducts();
+    const ids = new Set(
+      produits
+        .filter((p) => p.handle === COFFRET_HANDLE)
+        .map((p) => Number(p.id.split("/").pop()))
+        .filter(Number.isFinite)
+    );
+    coffretAchete = (order.line_items ?? []).some((li) => li.product_id && ids.has(li.product_id));
+  } catch (error) {
+    console.error("[avoir-coffret] catalogue injoignable :", error);
+    return;
+  }
+  if (!coffretAchete) return;
+  if (!AVOIR_SEL) {
+    console.warn("[avoir-coffret] ni COFFRET_CREDIT_SALT ni SHOPIFY_WEBHOOK_SECRET : avoir non émis.");
+    return;
+  }
+
+  const code = codeAvoir(order.id!, AVOIR_SEL);
+  const fin = finValidite();
+  const devise = order.currency ?? "AED";
+  const produits = await idsProduits(REFLETS);
+  const etat = await creerAvoir({
+    code,
+    montant: AVOIR_AED,
+    devise,
+    minimum: MINIMUM_AED,
+    produits,
+    fin,
+    titre: `Avoir coffret découverte — commande ${order.name ?? order.id}`,
+  });
+  if (etat === "impossible") return;
+
+  const email = (order.email ?? order.contact_email ?? "").trim();
+  if (!email || !KLAVIYO_API_KEY) {
+    console.warn(`[avoir-coffret] ${code} ${etat}, mais non remis (email ou clé Klaviyo manquants).`);
+    return;
+  }
+
+  try {
+    const res = await fetch("https://a.klaviyo.com/api/events/", {
+      method: "POST",
+      headers: {
+        Authorization: `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+        revision: KLAVIYO_REVISION,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        data: {
+          type: "event",
+          attributes: {
+            properties: {
+              code,
+              amount: AVOIR_AED,
+              currency: devise,
+              minimum: MINIMUM_AED,
+              expires_at: fin.toISOString(),
+              valid_days: VALIDITE_JOURS,
+              order_name: order.name ?? null,
+            },
+            value: AVOIR_AED,
+            unique_id: `coffret-credit:${order.id}`,
+            metric: { data: { type: "metric", attributes: { name: "Coffret Credit Issued" } } },
+            profile: { data: { type: "profile", attributes: { email } } },
+          },
+        },
+      }),
+    });
+    if (!res.ok) {
+      console.error("[avoir-coffret] Klaviyo :", res.status, (await res.text().catch(() => "")).slice(0, 300));
+      return;
+    }
+  } catch (error) {
+    console.error("[avoir-coffret] Klaviyo injoignable :", error);
+    return;
+  }
+  console.info(`[avoir-coffret] ${code} ${etat} pour la commande ${order.name ?? order.id}.`);
+}
 
 const MAX_EVENT_AGE_MS = 7 * 24 * 60 * 60 * 1000; // limite dure côté CAPI
 
@@ -323,6 +429,19 @@ export const POST: APIRoute = async ({ request }) => {
     await persistOrder(order);
   } catch (error) {
     console.error("[webhooks/shopify-orders] shop_orders :", error);
+  }
+
+  /*
+   * L'avoir du coffret part AVANT les garde-fous publicitaires : il est dû au
+   * client, que Meta et GA4 soient configurés ou non. Seules les commandes de
+   * test en sont exclues.
+   */
+  if (!order.test) {
+    try {
+      await emettreAvoirCoffret(order);
+    } catch (error) {
+      console.error("[webhooks/shopify-orders] avoir coffret :", error);
+    }
   }
 
   const metaConfigured = Boolean(PIXEL_ID && ACCESS_TOKEN);

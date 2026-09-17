@@ -1,0 +1,61 @@
+---
+/**
+ * L'avoir du coffret découverte, dit sur sa propre fiche.
+ *
+ * C'est l'argument qui fait basculer : le client ne choisit plus entre essayer
+ * et acheter, il avance une partie de son flacon. Il a donc droit à un bloc
+ * visible ici, là où l'encart discret de la fiche parfum se contentait d'une
+ * ligne. Le dessin reste celui de la maison — un filet, la légende posée
+ * dessus — parce que ce n'est pas une promotion : le prix du flacon ne bouge
+ * pas, c'est la découverte qui devient gratuite.
+ *
+ * La règle et ses bornes vivent dans lib/coffret.ts ; l'émission du code dans
+ * le webhook des commandes.
+ */
+interface Props {
+  eyebrow: string;
+  title: string;
+  body: string;
+}
+const { eyebrow, title, body } = Astro.props;
+---
+
+<div class="ccredit">
+  <span class="ccredit-legend">{eyebrow}</span>
+  <p class="ccredit-title">{title}</p>
+  <p class="ccredit-body">{body}</p>
+</div>
+
+<style>
+  .ccredit {
+    position: relative;
+    margin-top: 20px;
+    padding: 20px 20px 18px;
+    border: 1px solid var(--line, rgba(21, 14, 10, 0.16));
+    border-radius: 12px;
+  }
+  .ccredit-legend {
+    position: absolute;
+    top: 0;
+    inset-inline-start: 16px;
+    transform: translateY(-50%);
+    padding-inline: 8px;
+    background: var(--bg);
+    color: var(--rose);
+    font-size: 11.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .ccredit-title {
+    margin: 0 0 6px;
+    font-size: 17px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  .ccredit-body {
+    margin: 0;
+    font-size: 14.5px;
+    line-height: 1.45;
+    color: var(--muted, rgba(21, 14, 10, 0.64));
+  }
+</style>

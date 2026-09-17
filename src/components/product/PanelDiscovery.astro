@@ -22,9 +22,11 @@ interface Props {
   href: string;
   img: ResponsiveImage | null;
   ctaLabel: string;
+  /** « Les 160 AED sont déduits de votre premier flacon » : l'argument qui fait basculer. */
+  creditLabel?: string | null;
 }
 
-const { eyebrow, title, priceLabel, href, img, ctaLabel } = Astro.props;
+const { eyebrow, title, priceLabel, href, img, ctaLabel, creditLabel = null } = Astro.props;
 ---
 
 <div class="pdisc">
@@ -36,12 +38,22 @@ const { eyebrow, title, priceLabel, href, img, ctaLabel } = Astro.props;
     <span class="pdisc-text">
       <span class="pdisc-name">{title}</span>
       <span class="pdisc-price">{priceLabel}</span>
+      {creditLabel && <span class="pdisc-credit">{creditLabel}</span>}
     </span>
     <span class="pdisc-cta">{ctaLabel}</span>
   </a>
 </div>
 
 <style>
+  /* L'avoir est la raison d'être de l'encart : il se dit en couleur de maison,
+     sous le prix, sans devenir un argument promotionnel. */
+  .pdisc-credit {
+    display: block;
+    margin-top: 3px;
+    font-size: 12.5px;
+    line-height: 1.3;
+    color: var(--rose);
+  }
   .pdisc {
     position: relative;
     margin-block-start: 30px;

@@ -22,6 +22,7 @@ import TwistSection from "../../../components/product/TwistSection.astro";
 import PerfumerWord from "../../../components/product/PerfumerWord.astro";
 import TwistLine from "../../../components/product/TwistLine.astro";
 import { GUIDE_REFLETS } from "../../../lib/guide";
+import { COFFRET_HANDLE } from "../../../lib/coffret";
 import LayeringRow from "../../../components/product/LayeringRow.astro";
 import PanelDiscovery from "../../../components/product/PanelDiscovery.astro";
 import LayeringDrawer from "../../../components/product/LayeringDrawer.astro";
@@ -425,6 +426,7 @@ const productJsonLd = {
             href={discovery.href}
             img={discovery.img}
             ctaLabel={t("product.discoverSet")}
+            creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
           />
         )}
       </ProductInfoPanel>
