@@ -27,7 +27,7 @@ export function localePath(locale: Locale, path = "/"): string {
 const ui = {
   fr: {
     "banner.promo": "Livraison offerte dès {amount}",
-    "banner.coffret": "Le coffret découverte vous redonne 160 AED sur votre premier flacon",
+    "banner.coffret": "Un avoir de 160 AED avec le coffret découverte",
     "nav.discovery": "Coffrets",
     "menu.open": "Menu",
     "menu.close": "Fermer le menu",
@@ -94,7 +94,9 @@ const ui = {
     "product.setsTitle": "Pas encore décidé ?",
     "coffret.creditShort": "Les 160 AED sont déduits de votre premier flacon",
     "coffret.creditEyebrow": "Votre avoir",
-    "cart.coffretCredit": "160 AED vous seront rendus sur votre premier flacon",
+    "cart.coffretCredit": "Un avoir de 160 AED pour votre premier flacon",
+    "cart.coffretCreditNote":
+      "Il vous est envoyé par e-mail avec votre commande, valable 90 jours sur le Reflet de votre choix. Le prix du flacon ne change pas : c'est la découverte qui devient gratuite.",
     "coffret.creditTitle": "Le coffret ne vous coûte rien si vous achetez ensuite",
     "coffret.creditBody":
       "Vous recevez 160 AED à valoir sur un flacon, envoyés par e-mail avec votre commande. Le prix du flacon ne change pas : c'est la découverte qui devient gratuite. À utiliser dans les 90 jours, sur le Reflet de votre choix.",
@@ -338,7 +340,7 @@ const ui = {
   },
   ar: {
     "banner.promo": "شحن مجاني للطلبات من {amount}",
-    "banner.coffret": "علبة الاكتشاف تعيد لك ١٦٠ درهمًا على زجاجتك الأولى",
+    "banner.coffret": "رصيد ١٦٠ درهمًا مع علبة الاكتشاف",
     "nav.discovery": "العلب",
     "menu.open": "القائمة",
     "menu.close": "إغلاق القائمة",
@@ -405,7 +407,9 @@ const ui = {
     "product.setsTitle": "لم تقرّر بعد؟",
     "coffret.creditShort": "تُخصم الـ ١٦٠ درهمًا من زجاجتك الأولى",
     "coffret.creditEyebrow": "رصيدك",
-    "cart.coffretCredit": "سيُعاد إليك ١٦٠ درهمًا على زجاجتك الأولى",
+    "cart.coffretCredit": "رصيد ١٦٠ درهمًا لزجاجتك الأولى",
+    "cart.coffretCreditNote":
+      "يصلك بالبريد مع طلبك، وصالح ٩٠ يومًا على العطر الذي تختاره. سعر الزجاجة لا يتغيّر: الاكتشاف هو ما يصبح مجانيًا.",
     "coffret.creditTitle": "العلبة لا تكلّفك شيئًا إن اشتريت بعدها",
     "coffret.creditBody":
       "تحصل على ١٦٠ درهمًا لتستخدمها عند شراء زجاجة، تصلك بالبريد مع طلبك. سعر الزجاجة لا يتغيّر: الاكتشاف هو ما يصبح مجانيًا. تُستخدم خلال ٩٠ يومًا، على العطر الذي تختاره.",
@@ -645,7 +649,7 @@ const ui = {
   },
   en: {
     "banner.promo": "Free shipping on orders over {amount}",
-    "banner.coffret": "The discovery set gives you 160 AED back on your first bottle",
+    "banner.coffret": "A 160 AED credit with the discovery set",
     "nav.discovery": "Sets",
     "menu.open": "Menu",
     "menu.close": "Close menu",
@@ -712,7 +716,9 @@ const ui = {
     "product.setsTitle": "Not sure yet?",
     "coffret.creditShort": "The 160 AED come off your first bottle",
     "coffret.creditEyebrow": "Your credit",
-    "cart.coffretCredit": "160 AED will come back to you on your first bottle",
+    "cart.coffretCredit": "A 160 AED credit for your first bottle",
+    "cart.coffretCreditNote":
+      "It reaches you by email with your order, valid for 90 days on the Reflet of your choice. The price of the bottle does not change: it is the discovery that becomes free.",
     "coffret.creditTitle": "The set costs you nothing if you buy afterwards",
     "coffret.creditBody":
       "You receive 160 AED to spend on a bottle, sent by email with your order. The price of the bottle does not change: it is the discovery that becomes free. To be used within 90 days, on the Reflet of your choice.",

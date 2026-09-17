@@ -22,6 +22,7 @@ import { LAYERING, accordAudioPath } from "../lib/layering";
 import { type Locale, localePath, useTranslations } from "../i18n";
 import { DEFAULT_COUNTRY, freeShippingThreshold, getCountry, intlLocale } from "../lib/markets";
 import { COFFRET_HANDLE } from "../lib/coffret";
+import Tip from "./Tip.astro";
 
 interface Props {
   lang: Locale;
@@ -189,7 +190,11 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           achète déjà, lui rappeler un avoir futur ne ferait que l'inviter à
           repousser son achat.
         */}
-        <li data-cart-perk-coffret hidden><img src="/brand/reassurance-echantillons.svg" alt="" width="20" height="20" /> {t("cart.coffretCredit")}</li>
+        <li data-cart-perk-coffret hidden>
+          <img src="/brand/reassurance-echantillons.svg" alt="" width="20" height="20" />
+          <span>{t("cart.coffretCredit")}</span>
+          <Tip text={t("cart.coffretCreditNote")} label={t("product.tipOpen")} align="fin" />
+        </li>
         <li><img src="/brand/reassurance-cadeau.svg" alt="" width="20" height="20" /> {t("cart.perkGift")}</li>
         <li><img src="/brand/reassurance-paiement.svg" alt="" width="20" height="20" /> {t("cart.perkSecure")}</li>
       </ul>
