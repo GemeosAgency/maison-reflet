@@ -549,9 +549,23 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
      Maison : c'est de ce parfum-là qu'on parle. */
   .kpi-teinte .kpi-value { color: var(--encre, var(--rose)); }
   /* La carte du chiffre : dans le rouge de la Maison, pas en noir (Sandro, 14 sept.). */
-  .kpi-hero { grid-column: span 2; background: var(--rose); color: var(--paper); border-color: var(--rose); }
+  /*
+   * Trois colonnes fixes, et le chiffre d'affaires occupe un bloc de deux sur
+   * deux : les six chiffres remplissent alors exactement une grille de trois
+   * sur trois. En colonnes automatiques, le dernier restait orphelin sur une
+   * ligne à lui, ce qui donnait l'impression qu'il manquait quelque chose.
+   */
+  .kpis-hero { grid-template-columns: repeat(3, 1fr); }
+  .kpis-hero .kpi-hero { grid-column: span 2; grid-row: span 2; justify-content: space-between; }
+  .kpi-hero { background: var(--rose); color: var(--paper); border-color: var(--rose); }
   .kpi-hero .kpi-label, .kpi-hero .kpi-sub, .kpi-hero .kpi-foot { color: rgba(247, 245, 242, 0.7); }
   .kpi-hero .kpi-value { font-size: 52px; font-weight: 100; color: var(--paper); }
+  /* Sous 900 px, la grille retombe sur une colonne unique et le bloc héros
+     reprend sa taille normale : deux sur deux n'a plus de sens sans voisins. */
+  @media (max-width: 900px) {
+    .kpis-hero { grid-template-columns: 1fr; }
+    .kpis-hero .kpi-hero { grid-column: auto; grid-row: auto; }
+  }
   .kpi-hero .kpi-value .unit { color: rgba(247, 245, 242, 0.7); font-size: 16px; }
   .kpi-hero .tip { border-color: rgba(247, 245, 242, 0.45); color: rgba(247, 245, 242, 0.8); }
   .kpi-hero .tip:hover, .kpi-hero .tip:focus-visible { border-color: var(--paper); color: var(--paper); }
