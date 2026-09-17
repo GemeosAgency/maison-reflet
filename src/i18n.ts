@@ -222,6 +222,7 @@ const ui = {
     "cart.added": "Ajouté ✓",
     "cart.perkShipping": "Livraison offerte",
     "cart.perkGift": "Un cadeau soigné à chaque commande",
+    "cart.perkSecure": "Paiement sécurisé",
     // Sélecteur de pays / langue et promesse de livraison (voir src/lib/markets.ts).
     "region.open": "Choisir le pays de livraison et la langue",
     "region.title": "Pays et langue",
@@ -514,6 +515,7 @@ const ui = {
     "cart.added": "أُضيف ✓",
     "cart.perkShipping": "شحن مجاني",
     "cart.perkGift": "هدية مُعتنى بها مع كل طلب",
+    "cart.perkSecure": "دفع آمن",
     "region.open": "اختر بلد التوصيل واللغة",
     "region.title": "البلد واللغة",
     "region.countryLabel": "بلد التوصيل",
@@ -806,6 +808,7 @@ const ui = {
     "cart.added": "Added ✓",
     "cart.perkShipping": "Free shipping",
     "cart.perkGift": "A thoughtful gift with every order",
+    "cart.perkSecure": "Secure payment",
     "region.open": "Choose your delivery country and language",
     "region.title": "Country & language",
     "region.countryLabel": "Delivery country",

@@ -174,9 +174,15 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         <strong data-cart-drawer-subtotal></strong>
       </div>
       <a class="cart-drawer-checkout" data-cart-drawer-checkout href="#">{t("cart.checkout")}</a>
+      {/*
+        « Livraison offerte » ne s'annonce qu'une fois le seuil franchi : affichée
+        en permanence sous le bouton, elle se lisait comme un acquis alors que le
+        décompte juste au-dessus disait le contraire.
+      */}
       <ul class="cart-drawer-perks">
-        <li><img src="/brand/reassurance-livraison.svg" alt="" width="20" height="20" /> {t("cart.perkShipping")}</li>
+        <li data-cart-perk-shipping hidden><img src="/brand/reassurance-livraison.svg" alt="" width="20" height="20" /> {t("cart.perkShipping")}</li>
         <li><img src="/brand/reassurance-cadeau.svg" alt="" width="20" height="20" /> {t("cart.perkGift")}</li>
+        <li><img src="/brand/reassurance-paiement.svg" alt="" width="20" height="20" /> {t("cart.perkSecure")}</li>
       </ul>
     </div>
   </aside>
@@ -274,6 +280,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   const shippingFill = drawer?.querySelector<HTMLElement>("[data-cart-shipping-fill]");
   const shippingThumb = drawer?.querySelector<HTMLElement>("[data-cart-shipping-thumb]");
   const shippingLabel = drawer?.querySelector<HTMLElement>("[data-cart-shipping-label]");
+  const shippingPerk = drawer?.querySelector<HTMLElement>("[data-cart-perk-shipping]");
   const linesEl = drawer?.querySelector<HTMLElement>("[data-cart-drawer-lines]");
   const sampleDivider = drawer?.querySelector<HTMLElement>("[data-cart-sample-divider]");
   const sampleSection = drawer?.querySelector<HTMLElement>("[data-cart-sample-section]");
@@ -791,6 +798,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     // « Livraison offerte » ne s'affiche qu'une fois le seuil franchi : annoncée
     // en permanence, elle se lisait comme un acquis alors qu'elle ne l'était pas.
     shippingLabel?.toggleAttribute("hidden", remaining > 0);
+    shippingPerk?.toggleAttribute("hidden", remaining > 0);
 
     // Échantillon offert
     const hasSampleFeature = sampleOptions.length > 0;
