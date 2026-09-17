@@ -23,8 +23,6 @@ const maxTheme = Math.max(1, ...q.themes.map((t) => t.count));
   <form class="adm-filters" method="get" slot="filters" data-filter-bar>
     {[...new URLSearchParams(range.query).entries()].map(([k, v]) => <input type="hidden" name={k} value={v} />)}
     <span class="adm-filters-label">Afficher</span>
-    <label class="adm-filters-check"><input type="checkbox" name="test" value="1" checked={withTest} /> données de test</label>
-    <span class="adm-filters-on">{withTest ? "staging et production" : "production seulement"}</span>
   </form>
   <section class="kpis">
     <div class="card kpi"><span class="kpi-label">Messages de visiteurs</span><span class="kpi-value">{fmtInt(q.total)}</span></div>

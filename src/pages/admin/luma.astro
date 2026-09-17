@@ -44,8 +44,6 @@ const maxReco = Math.max(1, ...r.per.map((p) => p.recommended));
   <form class="adm-filters" method="get" slot="filters" data-filter-bar>
     {[...new URLSearchParams(range.query).entries()].map(([k, v]) => <input type="hidden" name={k} value={v} />)}
     <span class="adm-filters-label">Afficher</span>
-    <label class="adm-filters-check"><input type="checkbox" name="test" value="1" checked={withTest} /> données de test <Tip of="testData" /></label>
-    <span class="adm-filters-on">{withTest ? "staging et production" : "production seulement"}</span>
   </form>
   <section class="kpis">
     <Kpi label="Conversations" value={fmtInt(o.conversations)} sub={`${fmtInt(o.userTurns)} messages de visiteurs · ${o.conversations ? (o.userTurns / o.conversations).toFixed(1).replace(".", ",") : "–"} par conversation`} />

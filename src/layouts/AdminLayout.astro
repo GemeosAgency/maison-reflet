@@ -56,6 +56,34 @@ const withRange = (q: string) => {
   return `${u.pathname}?${q}${extra ? `&${extra}` : ""}`;
 };
 const keptParams = [...Astro.url.searchParams.entries()].filter(([k]) => !["days", "from", "to", "page"].includes(k));
+
+/*
+ * Les données de test se commandent depuis l'entête, pas page par page.
+ * Auparavant seules Luma et Questions portaient la case : Ventes, Trafic et la
+ * vue d'ensemble n'avaient aucun moyen de les montrer, alors qu'elles lisent les
+ * mêmes tables. Le réglage vit dans l'URL, donc il survit à la navigation entre
+ * onglets tant que les liens gardent les paramètres.
+ */
+const avecTest = Astro.url.searchParams.get("test") === "1";
+/*
+ * Les liens de la barre latérale portent le réglage : sans ça, passer de Ventes
+ * à Trafic le perdait et l'on croyait le bouton cassé. « En direct » et « RGPD »
+ * ignorent la période mais gardent les données de test, qui les concernent.
+ */
+const lienSection = (clef: string, href: string) => {
+  const p = new URLSearchParams(clef === "live" || clef === "rgpd" ? "" : range.query);
+  if (avecTest) p.set("test", "1");
+  const q = p.toString();
+  return q ? `${href}?${q}` : href;
+};
+const lienTest = (() => {
+  const u = new URL(Astro.url);
+  u.searchParams.delete("page");
+  if (avecTest) u.searchParams.delete("test");
+  else u.searchParams.set("test", "1");
+  const q = u.searchParams.toString();
+  return `${u.pathname}${q ? `?${q}` : ""}`;
+})();
 const now = new Intl.DateTimeFormat("fr-FR", { timeZone: "Asia/Dubai", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date());
 const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 ---
@@ -84,7 +112,7 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
             <div class="adm-nav-group">
               <p class="adm-nav-label">{g.label}</p>
               {g.items.map((n) => (
-                <a class:list={["adm-nav-link", { "is-active": n.key === section }]} href={n.key === "live" || n.key === "rgpd" ? n.href : `${n.href}?${range.query}`} aria-current={n.key === section ? "page" : undefined}>
+                <a class:list={["adm-nav-link", { "is-active": n.key === section }]} href={lienSection(n.key, n.href)} aria-current={n.key === section ? "page" : undefined}>
                   {n.label}
                   {"live" in n && n.live && <span class="adm-live-dot" aria-hidden="true"></span>}
                 </a>
@@ -106,6 +134,17 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
           <h1 class="adm-title">{title}</h1>
           {subtitle && <p class="adm-subtitle">{subtitle}</p>}
         </div>
+        <div class="adm-head-tools">
+          {/* Toujours visible, y compris sur les pages sans période (En direct) :
+              c'est un réglage de lecture, pas un filtre de page. */}
+          <a
+            class:list={["adm-test", { "is-on": avecTest }]}
+            href={lienTest}
+            title={avecTest ? "Masquer les données de staging, des previews et du local" : "Afficher aussi les données de staging, des previews et du local"}
+          >
+            <span class="adm-test-dot" aria-hidden="true"></span>
+            {avecTest ? "Données de test affichées" : "Données de test"}
+          </a>
         {
           showRange && (
             <div class="adm-range-wrap">
@@ -125,6 +164,7 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
             </div>
           )
         }
+        </div>
       </header>
       <slot name="filters" />
       <slot />
@@ -419,6 +459,26 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
   /* ---- en-tête et période ---- */
   .adm-main { padding: 30px 40px 72px; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
   .adm-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding-bottom: 4px; }
+  .adm-head-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+  /* Éteint, il se fait oublier ; allumé, il se voit de loin — on doit savoir en
+     un coup d'œil qu'on ne regarde pas les vrais chiffres. */
+  .adm-test {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    transition: border-color 0.18s, color 0.18s, background-color 0.18s;
+  }
+  .adm-test:hover { border-color: var(--ink); color: var(--ink); }
+  .adm-test-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.4; }
+  .adm-test.is-on { border-color: var(--rose); background: color-mix(in srgb, var(--rose) 10%, transparent); color: var(--rose); }
+  .adm-test.is-on .adm-test-dot { opacity: 1; }
   .adm-kicker { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
   .adm-kicker::first-letter { text-transform: uppercase; }
   .adm-title { margin: 0; font-size: 34px; font-weight: 400; line-height: 1.05; letter-spacing: -0.015em; }

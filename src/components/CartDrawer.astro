@@ -195,14 +195,19 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
             {coffretUpsell.img && <img src={coffretUpsell.img} alt="" width="120" height="120" />}
           </a>
           <div class="cart-coffret-body">
-            <p class="cart-coffret-kicker" data-cart-coffret-args></p>
+            <p class="cart-coffret-kicker">
+              <span data-cart-coffret-args></span>
+              <Tip text={t("coffret.creditNote")} label={t("product.tipOpen")} />
+            </p>
             <p class="cart-coffret-title">{coffretUpsell.title}</p>
             <div class="cart-coffret-cta">
               <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id={coffretUpsell.variantId}>
-                <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" /></svg>
-                <span data-reco-add-label>{t("cart.add")}</span>
+                <span class="cart-upsell-add-label">
+                  <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" /></svg>
+                  <span data-reco-add-label>{t("cart.add")}</span>
+                </span>
+                <span class="cart-upsell-price" data-money={coffretUpsell.variantId}>{formatMoney(coffretUpsell.price, getCountry(DEFAULT_COUNTRY).currency, lang)}</span>
               </button>
-              <span class="cart-upsell-price" data-money={coffretUpsell.variantId}>{formatMoney(coffretUpsell.price, getCountry(DEFAULT_COUNTRY).currency, lang)}</span>
             </div>
           </div>
         </div>
@@ -508,10 +513,9 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           </div>
           <div class="cart-upsell-cta">
             <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id="${p.variantId}">
-              <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              <span data-reco-add-label>${I18N.add}</span>
+              <span class="cart-upsell-add-label"><svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><span data-reco-add-label>${I18N.add}</span></span>
+              ${price}
             </button>
-            ${price}
           </div>
         </div>
       </div>`;
@@ -554,10 +558,9 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           ${href ? `<a class="cart-upsell-card-name" href="${href}">${partner.title}</a>` : `<p class="cart-upsell-card-name">${partner.title}</p>`}
           <div class="cart-upsell-cta">
             <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id="${partner.variantId}">
-              <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              <span data-reco-add-label>${I18N.add}</span>
+              <span class="cart-upsell-add-label"><svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><span data-reco-add-label>${I18N.add}</span></span>
+              ${price}
             </button>
-            ${price}
           </div>
         </div>
       </div>`;
@@ -1284,12 +1287,16 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
      au paiement ». En plein bordeaux ils pesaient autant que lui, et un panier
      avec deux suggestions offrait trois boutons de même force. Contour seul,
      l'encre se remplit au survol. */
+  /* Le prix vit DANS le bouton, comme sur la fiche produit : à côté, il se
+     lisait comme une étiquette séparée et l'œil devait faire le lien lui-même. */
   .cart-upsell-add {
-    display: inline-flex; align-items: center; gap: 2px; align-self: flex-start;
+    display: inline-flex; align-items: center; justify-content: space-between; gap: 16px; align-self: flex-start;
     border: 1px solid rgba(21, 14, 10, 0.32); border-radius: 999px;
-    background: transparent; color: var(--ink); padding: 8px 13px 8px 10px; font: inherit; font-size: 14px; font-weight: 500;
+    background: transparent; color: var(--ink); padding: 8px 14px 8px 10px; font: inherit; font-size: 14px; font-weight: 500;
     text-transform: uppercase; cursor: pointer; transition: background-color 0.18s, border-color 0.18s, color 0.18s;
   }
+  .cart-upsell-add-label { display: inline-flex; align-items: center; gap: 2px; }
+  .cart-upsell-add .cart-upsell-price { color: inherit; }
   .cart-upsell-add:hover { background: var(--ink); border-color: var(--ink); color: var(--bg); }
   .cart-upsell-add:disabled { opacity: 0.55; cursor: default; }
   .cart-upsell-add svg { width: 14px; height: 14px; flex-shrink: 0; }
@@ -1314,7 +1321,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-coffret-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; justify-content: center; }
   /* L'argument prend la place de l'exergue de la carte d'accord : c'est lui la
      raison d'ajouter, le nom du produit ne fait que la nommer. */
-  .cart-coffret-kicker { margin: 0; font-size: 11px; line-height: 1.3; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); }
+  .cart-coffret-kicker { margin: 0; display: inline-flex; align-items: center; gap: 7px; font-size: 11px; line-height: 1.3; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); }
   .cart-coffret-title { margin: -4px 0 0; font-size: 16px; font-weight: 500; text-transform: uppercase; color: var(--ink); }
   .cart-coffret-cta { display: flex; align-items: center; gap: 12px; }
 
