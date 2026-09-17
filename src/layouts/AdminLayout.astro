@@ -168,6 +168,13 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
         paginate(body);
         brancherCourbes(body);
         if (!dialog.open) dialog.showModal();
+        /*
+         * `showModal()` place la boîte dans la couche supérieure : tout ce qui
+         * vit en dehors est peint dessous, quel que soit le z-index. Les deux
+         * infobulles s'affichaient donc correctement mais restaient invisibles
+         * derrière la fenêtre. On les emmène dedans le temps de l'ouverture.
+         */
+        dialog.append(tipbox, chartTip);
         body.scrollTop = 0;
         if (highlight) {
           const row = body.querySelector<HTMLElement>(`[data-row="${highlight}"]`);
@@ -201,6 +208,10 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", year
       });
       dialog.addEventListener("close", () => {
         body.replaceChildren();
+        // Les infobulles retournent dans la page, où elles servent aussi.
+        document.body.append(tipbox, chartTip);
+        tipbox.hidden = true;
+        chartTip.hidden = true;
         opener?.focus();
       });
 
