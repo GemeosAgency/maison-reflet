@@ -96,7 +96,10 @@ const ui = {
     "product.perkTreat": "Une attention offerte avec chaque commande",
     "product.longevity": "Eau de parfum, 8 h de tenue et plus",
     "product.perkSampleNote":
-      "Choisissez l'échantillon du parfum que vous commandez : vous le portez d'abord, sur votre peau. Votre flacon vous attend scellé, et vous restez libre de nous le renvoyer.",
+      "Choisissez l'échantillon du parfum que vous commandez : vous le portez d'abord, sur votre peau, avant même d'ouvrir votre flacon.",
+    "product.perkReturn": "Retour gratuit sous 14 jours",
+    "product.perkReturnNote":
+      "Un flacon non ouvert nous revient à nos frais, sous 14 jours. Un parfum ouvert ne peut pas être repris, pour des raisons d'hygiène : c'est exactement pour ça que l'échantillon est offert.",
     "product.tipOpen": "En savoir plus",
     "luma.listenNote": "Vous ne pouvez pas le sentir d'ici. Luma vous le décrit en moins d'une minute.",
     "product.faqTitle": "Questions fréquentes",
@@ -397,7 +400,10 @@ const ui = {
     "product.perkTreat": "لفتة خاصة مع كل طلب",
     "product.longevity": "أو دو بارفان، ثبات ٨ ساعات وأكثر",
     "product.perkSampleNote":
-      "اختر عيّنة العطر نفسه الذي تطلبه: تجرّبها أولًا على بشرتك. زجاجتك تنتظرك مغلقة، وتبقى حرًّا في إعادتها.",
+      "اختر عيّنة العطر نفسه الذي تطلبه: تجرّبها أولًا على بشرتك، قبل أن تفتح زجاجتك.",
+    "product.perkReturn": "إرجاع مجاني خلال ١٤ يومًا",
+    "product.perkReturnNote":
+      "الزجاجة غير المفتوحة تعود إلينا على نفقتنا خلال ١٤ يومًا. العطر المفتوح لا يمكن استرجاعه لأسباب صحية، ولهذا بالضبط تأتي العيّنة مجانًا.",
     "product.tipOpen": "اعرف المزيد",
     "luma.listenNote": "لا يمكنك شمّه من هنا. لوما تصفه لك في أقل من دقيقة.",
     "product.faqTitle": "الأسئلة الشائعة",
@@ -694,7 +700,10 @@ const ui = {
     "product.perkTreat": "A special treat with every order",
     "product.longevity": "Eau de parfum, 8 hours of wear and more",
     "product.perkSampleNote":
-      "Pick the sample of the very perfume you are ordering: you wear it first, on your own skin. Your bottle waits for you sealed, and you stay free to send it back.",
+      "Pick the sample of the very perfume you are ordering: you wear it first, on your own skin, before you even open your bottle.",
+    "product.perkReturn": "Free returns within 14 days",
+    "product.perkReturnNote":
+      "An unopened bottle comes back to us at our expense, within 14 days. An opened perfume cannot be taken back, for hygiene reasons, which is exactly why the sample is free.",
     "product.tipOpen": "Learn more",
     "luma.listenNote": "You cannot smell it from here. Luma describes it to you in under a minute.",
     "product.faqTitle": "Frequently asked questions",
