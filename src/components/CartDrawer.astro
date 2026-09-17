@@ -17,7 +17,7 @@
  * une jauge quatre fois trop longue.
  */
 import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle, shopifyImage } from "../lib/shopify";
-import { getInspiredByMap } from "../lib/sanity";
+import { getCoffrets, getInspiredByMap } from "../lib/sanity";
 import { LAYERING, accordAudioPath } from "../lib/layering";
 import { type Locale, localePath, useTranslations } from "../i18n";
 import { DEFAULT_COUNTRY, formatMoney, freeShippingThreshold, getCountry, intlLocale } from "../lib/markets";
@@ -46,9 +46,13 @@ const THUMB_WIDTH = 240;
  * un parfum), mais il a sa propre carte, avec ses propres arguments.
  */
 const coffretProduit = allProducts.find((p) => p.handle === COFFRET_HANDLE) ?? null;
+// Le titre vient de Sanity, pas de Shopify : le catalogue Shopify est en anglais
+// (« Discovery Box ») et la carte s'affichait ainsi au milieu d'un panier français.
+const coffretTitre =
+  (await getCoffrets(lang).catch(() => [])).find((c) => c.shopifyHandle === COFFRET_HANDLE)?.titre ?? null;
 const coffretUpsell = coffretProduit
   ? {
-      title: coffretProduit.title,
+      title: coffretTitre ?? coffretProduit.title,
       img: coffretProduit.featuredImage ? shopifyImage(coffretProduit.featuredImage, [THUMB_WIDTH]).src : null,
       variantId: getPrimaryVariant(coffretProduit).id,
       price: Number(getPrimaryVariant(coffretProduit).price.amount),
@@ -190,8 +194,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
             {coffretUpsell.img && <img src={coffretUpsell.img} alt="" width="120" height="120" />}
           </a>
           <div class="cart-coffret-body">
-            <p class="cart-coffret-title">{t("cart.coffretPush")}</p>
-            <p class="cart-coffret-args" data-cart-coffret-args></p>
+            <p class="cart-coffret-kicker" data-cart-coffret-args></p>
+            <p class="cart-coffret-title">{coffretUpsell.title}</p>
             <div class="cart-coffret-cta">
               <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id={coffretUpsell.variantId}>
                 <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" /></svg>
@@ -1274,33 +1278,41 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-upsell-card-name { margin: 0; font-size: 16px; font-weight: 500; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
   .cart-upsell-card-inspired { margin: 0; font-size: 14px; color: var(--ink); white-space: nowrap; }
   .cart-upsell-cta { display: flex; align-items: center; gap: 12px; }
+  /* Secondaire, et c'est structurel : ces boutons vivent au-dessus de « Passer
+     au paiement ». En plein bordeaux ils pesaient autant que lui, et un panier
+     avec deux suggestions offrait trois boutons de même force. Contour seul,
+     l'encre se remplit au survol. */
   .cart-upsell-add {
-    display: inline-flex; align-items: center; gap: 2px; align-self: flex-start; border: 0; border-radius: 999px;
-    background: var(--rose); color: #fff; padding: 9px 12px 9px 10px; font: inherit; font-size: 14px; font-weight: 500;
-    text-transform: uppercase; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 2px; align-self: flex-start;
+    border: 1px solid rgba(21, 14, 10, 0.32); border-radius: 999px;
+    background: transparent; color: var(--ink); padding: 8px 13px 8px 10px; font: inherit; font-size: 14px; font-weight: 500;
+    text-transform: uppercase; cursor: pointer; transition: background-color 0.18s, border-color 0.18s, color 0.18s;
   }
+  .cart-upsell-add:hover { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .cart-upsell-add:disabled { opacity: 0.55; cursor: default; }
   .cart-upsell-add svg { width: 14px; height: 14px; flex-shrink: 0; }
   .cart-upsell-price { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; }
 
-  /* La relance du coffret : le gabarit de la carte de suggestion ci-dessus, en
-     plus serré, sur un fond très légèrement teinté pour la distinguer sans
-     l'imposer. Elle vit dans le tiroir, donc elle prend la gouttière du tiroir. */
+  /* La relance du coffret est une carte SŒUR des suggestions, pas une bannière :
+     même fond crème, même vignette à ras bord, même rythme. Le fond teinté en
+     faisait une réclame au milieu du panier ; ce qui la distingue doit être son
+     texte, pas sa couleur. */
   .cart-coffret {
     display: flex;
-    gap: 16px;
+    gap: 20px;
     align-items: center;
     margin: 0 24px;
-    padding: 12px;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--rose) 6%, transparent);
+    background: var(--cream);
+    padding-inline-end: 24px;
   }
-  .cart-coffret-img { flex: 0 0 72px; line-height: 0; }
-  .cart-coffret-img img { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; }
-  .cart-coffret-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-  .cart-coffret-title { margin: 0; font-size: 15px; font-weight: 500; color: var(--ink); }
-  .cart-coffret-args { margin: 0; font-size: 12.5px; line-height: 1.35; color: var(--muted, rgba(21, 14, 10, 0.62)); }
-  .cart-coffret-cta { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
-  .cart-coffret-cta .cart-upsell-add { padding: 7px 11px 7px 9px; font-size: 13px; }
+  .cart-coffret-img { flex: 0 0 120px; line-height: 0; }
+  .cart-coffret-img img { width: 120px; height: 120px; object-fit: cover; display: block; }
+  .cart-coffret-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; justify-content: center; }
+  /* L'argument prend la place de l'exergue de la carte d'accord : c'est lui la
+     raison d'ajouter, le nom du produit ne fait que la nommer. */
+  .cart-coffret-kicker { margin: 0; font-size: 11px; line-height: 1.35; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rose); }
+  .cart-coffret-title { margin: 0; font-size: 16px; font-weight: 500; text-transform: uppercase; color: var(--ink); }
+  .cart-coffret-cta { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
 
   .cart-drawer-footer { flex-shrink: 0; border-top: 1px solid rgba(21, 14, 10, 0.12); padding: 24px 32px 32px; display: flex; flex-direction: column; gap: 16px; }
   .cart-drawer-subtotal-row { display: flex; align-items: baseline; justify-content: space-between; }
