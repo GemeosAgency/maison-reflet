@@ -9,16 +9,13 @@ import type { Filters, Product } from "../../lib/admin/business";
 import { countryName } from "../../lib/admin/geo";
 import { LOCALE_LABEL, type Range } from "../../lib/admin/data";
 import { flagOf } from "../../lib/admin/business";
-import Tip from "./Tip.astro";
 
 interface Props {
   filters: Filters;
   facets: { countries: string[]; sources: string[]; products: Product[] };
   range: Range;
-  /** Afficher l'interrupteur des données de test (staging, previews, local). */
-  testToggle?: boolean;
 }
-const { filters, facets, range, testToggle = true } = Astro.props;
+const { filters, facets, range } = Astro.props;
 const active = [filters.reflet, filters.country, filters.source, filters.locale].filter(Boolean).length;
 const clearHref = `${Astro.url.pathname}?${range.query}${filters.test ? "&test=1" : ""}`;
 const rangeParams = new URLSearchParams(range.query);
@@ -44,15 +41,9 @@ const rangeParams = new URLSearchParams(range.query);
     <option value="">Toutes les langues</option>
     {Object.entries(LOCALE_LABEL).map(([k, v]) => <option value={k} selected={filters.locale === k}>{v}</option>)}
   </select>
-  {
-    testToggle && (
-      <label class="adm-filters-check">
-        <input type="checkbox" name="test" value="1" checked={filters.test} />
-        données de test
-        <Tip of="testData" />
-      </label>
-    )
-  }
+  {/* Le réglage des données de test vit dans la barre latérale. On le reporte
+      ici en champ caché : sans lui, appliquer un filtre le remettrait à zéro. */}
+  {filters.test && <input type="hidden" name="test" value="1" />}
   {active > 0 && <span class="adm-filters-on">{active} filtre{active > 1 ? "s" : ""} actif{active > 1 ? "s" : ""}</span>}
   {active > 0 && <a class="adm-filters-clear" href={clearHref}>Tout effacer</a>}
   <noscript><button type="submit" class="btn btn-sm">Appliquer</button></noscript>

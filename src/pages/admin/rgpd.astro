@@ -52,7 +52,7 @@ const ACTION_LABEL: Record<string, string> = {
       <dt>Commandes annulées <Tip of="cancelled" /></dt><dd>{fmtInt(tracking.cancelled)}</dd>
       <dt>Luma reliée au parcours <Tip of="lumaConversion" /></dt><dd>{fmtInt(tracking.lumaLinked)} conversation{tracking.lumaLinked > 1 ? "s" : ""} depuis le 14 septembre</dd>
     </dl>
-    <p class="card-foot">Tout ce qui se passe sur staging, sur une preview ou en local est marqué « test » et n'entre dans aucun chiffre : cochez « données de test » dans les filtres pour le voir. Les {fmtInt(tracking.testEvents)} visites et {fmtInt(tracking.testLuma)} conversations d'avant le 14 septembre ont été basculées en test — elles venaient toutes de staging.</p>
+    <p class="card-foot">Tout ce qui se passe sur staging, sur une preview ou en local est marqué « test » et n'entre dans aucun chiffre : l'interrupteur « Données de test », en bas de la barre latérale, les fait apparaître partout. Les {fmtInt(tracking.testEvents)} visites et {fmtInt(tracking.testLuma)} conversations d'avant le 14 septembre ont été basculées en test : elles venaient toutes de staging.</p>
   </section>
 
   <section class="grid grid-2">
