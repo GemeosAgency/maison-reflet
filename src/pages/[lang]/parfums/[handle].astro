@@ -408,7 +408,14 @@ const productJsonLd = {
         <TwistLine slot="after-description" lang={lang} handle={product.handle} />
         <LumaListen slot="after-description" lang={lang} handle={product.handle} name={product.title} note={t("luma.listenNote")} />
         <LayeringRow slot="after-rows" lang={lang} handle={product.handle} products={products} />
-        <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={product.title} kind="parfum" />
+        {/*
+          Fragment obligatoire : deux enfants pour un même slot nommé, dont un
+          dans une expression conditionnelle, et Astro n'en garde qu'un. L'encart
+          coffret avait ainsi fait disparaître le bloc de questions Luma sans
+          qu'aucune erreur ne le signale.
+        */}
+        <Fragment slot="after-perks">
+        <LumaAsk lang={lang} handle={product.handle} name={product.title} kind="parfum" />
         {/*
           L'échantillon offert n'arrive qu'après l'achat : il ne rassure pas
           celui qui hésite encore. Le coffret découverte, lui, est la vraie porte
@@ -418,7 +425,6 @@ const productJsonLd = {
         */}
         {discovery && (
           <PanelDiscovery
-            slot="after-perks"
             eyebrow={t("product.setsTitle")}
             title={discovery.titre}
             priceLabel={discovery.price}
@@ -430,6 +436,7 @@ const productJsonLd = {
             tipLabel={t("product.tipOpen")}
           />
         )}
+        </Fragment>
       </ProductInfoPanel>
     </aside>
   </div>

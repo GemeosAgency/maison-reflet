@@ -96,6 +96,9 @@ const ui = {
     "coffret.creditShort": "Déduit de votre premier flacon",
     "coffret.creditEyebrow": "Votre avoir",
     "cart.coffretCredit": "Un avoir de 160 AED pour votre prochain flacon",
+    "cart.coffretPush": "Ajoutez le coffret découverte",
+    "cart.coffretPushCredit": "160 AED d'avoir sur votre prochain flacon",
+    "cart.coffretPushShipping": "et la livraison offerte",
     "coffret.creditNote":
       "En achetant le coffret, vous recevez par e-mail un avoir de 160 AED, valable 90 jours sur le Reflet de votre choix.",
     "coffret.creditAmount": "160 AED",
@@ -409,6 +412,9 @@ const ui = {
     "coffret.creditShort": "يُخصم من زجاجتك الأولى",
     "coffret.creditEyebrow": "رصيدك",
     "cart.coffretCredit": "رصيد ١٦٠ درهمًا لزجاجتك القادمة",
+    "cart.coffretPush": "أضف علبة الاكتشاف",
+    "cart.coffretPushCredit": "١٦٠ درهمًا رصيدًا لزجاجتك القادمة",
+    "cart.coffretPushShipping": "والتوصيل مجانًا",
     "coffret.creditNote":
       "بشراء العلبة تصلك بالبريد قيمة ١٦٠ درهمًا، صالحة ٩٠ يومًا على العطر الذي تختاره.",
     "coffret.creditAmount": "١٦٠ درهمًا",
@@ -718,6 +724,9 @@ const ui = {
     "coffret.creditShort": "Taken off your first bottle",
     "coffret.creditEyebrow": "Your credit",
     "cart.coffretCredit": "A 160 AED credit for your next bottle",
+    "cart.coffretPush": "Add the discovery set",
+    "cart.coffretPushCredit": "160 AED of credit towards your next bottle",
+    "cart.coffretPushShipping": "and free delivery",
     "coffret.creditNote":
       "Buying the set earns you a 160 AED credit by email, valid for 90 days on the Reflet of your choice.",
     "coffret.creditAmount": "160 AED",

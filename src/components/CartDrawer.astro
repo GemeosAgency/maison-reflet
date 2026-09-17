@@ -20,7 +20,7 @@ import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle, sho
 import { getInspiredByMap } from "../lib/sanity";
 import { LAYERING, accordAudioPath } from "../lib/layering";
 import { type Locale, localePath, useTranslations } from "../i18n";
-import { DEFAULT_COUNTRY, freeShippingThreshold, getCountry, intlLocale } from "../lib/markets";
+import { DEFAULT_COUNTRY, formatMoney, freeShippingThreshold, getCountry, intlLocale } from "../lib/markets";
 import { COFFRET_HANDLE } from "../lib/coffret";
 import Tip from "./Tip.astro";
 
@@ -40,6 +40,22 @@ const THUMB_WIDTH = 240;
 // Catalogue des suggestions du panier : parfums réels (hors coffrets).
 // getPrimaryVariant exclut la variante échantillon (0 AED) — sinon la carte
 // ajouterait un échantillon au lieu du parfum plein tarif.
+/*
+ * Le coffret pour la relance du panier. Il est exclu du catalogue d'upsell
+ * générique ci-dessous (on ne propose pas un échantillonneur comme on propose
+ * un parfum), mais il a sa propre carte, avec ses propres arguments.
+ */
+const coffretProduit = allProducts.find((p) => p.handle === COFFRET_HANDLE) ?? null;
+const coffretUpsell = coffretProduit
+  ? {
+      title: coffretProduit.title,
+      img: coffretProduit.featuredImage ? shopifyImage(coffretProduit.featuredImage, [THUMB_WIDTH]).src : null,
+      variantId: getPrimaryVariant(coffretProduit).id,
+      price: Number(getPrimaryVariant(coffretProduit).price.amount),
+      href: localePath(lang, `/coffrets/${COFFRET_HANDLE}`),
+    }
+  : null;
+
 const upsellCatalog = allProducts
   .filter((p) => !isCoffret(p))
   .map((p) => {
@@ -163,6 +179,29 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         Shopify est désactivée. Il reste une simple sélection de parfums
         absents du panier, sous le même titre que sur la fiche produit.
       */}
+      {/*
+        La relance du coffret : elle n'apparaît que si le panier contient des
+        parfums SANS le coffret. Ses deux arguments sont chiffrés, parce que
+        c'est l'arithmétique qui décide ici, pas l'envie.
+      */}
+      {coffretUpsell && (
+        <div class="cart-coffret" data-cart-coffret hidden>
+          <a class="cart-coffret-img" href={coffretUpsell.href} tabindex="-1" aria-hidden="true">
+            {coffretUpsell.img && <img src={coffretUpsell.img} alt="" width="120" height="120" />}
+          </a>
+          <div class="cart-coffret-body">
+            <p class="cart-coffret-title">{t("cart.coffretPush")}</p>
+            <p class="cart-coffret-args" data-cart-coffret-args></p>
+            <div class="cart-coffret-cta">
+              <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id={coffretUpsell.variantId}>
+                <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" /></svg>
+                <span data-reco-add-label>{t("cart.add")}</span>
+              </button>
+              <span class="cart-upsell-price" data-money={coffretUpsell.variantId}>{formatMoney(coffretUpsell.price, getCountry(DEFAULT_COUNTRY).currency, lang)}</span>
+            </div>
+          </div>
+        </div>
+      )}
       <div class="cart-drawer-divider" data-cart-upsell-divider hidden></div>
       <div class="cart-upsell" data-cart-upsell-section hidden>
         <p class="cart-upsell-title">{t("product.related")}</p>
@@ -211,6 +250,9 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   set:html={JSON.stringify({
     freeShippingRemaining: t("cart.freeShippingRemaining"),
     coffretHandle: COFFRET_HANDLE,
+    coffretPushCredit: t("cart.coffretPushCredit"),
+    coffretPushShipping: t("cart.coffretPushShipping"),
+    coffretPrice: coffretUpsell?.price ?? 0,
     freeShippingUnlocked: t("cart.freeShippingUnlocked"),
     free: t("cart.free"),
     add: t("cart.add"),
@@ -295,6 +337,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   const shippingLabel = drawer?.querySelector<HTMLElement>("[data-cart-shipping-label]");
   const shippingPerk = drawer?.querySelector<HTMLElement>("[data-cart-perk-shipping]");
   const coffretPerk = drawer?.querySelector<HTMLElement>("[data-cart-perk-coffret]");
+  const coffretPush = drawer?.querySelector<HTMLElement>("[data-cart-coffret]");
+  const coffretArgs = drawer?.querySelector<HTMLElement>("[data-cart-coffret-args]");
   const linesEl = drawer?.querySelector<HTMLElement>("[data-cart-drawer-lines]");
   const sampleDivider = drawer?.querySelector<HTMLElement>("[data-cart-sample-divider]");
   const sampleSection = drawer?.querySelector<HTMLElement>("[data-cart-sample-section]");
@@ -818,6 +862,22 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     const lignes = cart?.lines.nodes ?? [];
     const avecCoffret = lignes.some((l) => (l.merchandise.product?.handle ?? "") === I18N.coffretHandle);
     coffretPerk?.toggleAttribute("hidden", !avecCoffret);
+
+    /*
+     * La relance : panier non vide, sans coffret. Le second argument ne
+     * s'affiche que s'il est VRAI, c'est-à-dire si ajouter le coffret franchit
+     * réellement le seuil de livraison offerte. Promettre la livraison sur un
+     * panier qui ne l'atteindrait pas se retournerait contre nous au moment du
+     * paiement.
+     */
+    const relance = lignes.length > 0 && !avecCoffret;
+    coffretPush?.toggleAttribute("hidden", !relance);
+    if (relance && coffretArgs) {
+      const franchit = remaining > 0 && subtotal + Number(I18N.coffretPrice ?? 0) >= threshold;
+      coffretArgs.textContent = franchit
+        ? `${I18N.coffretPushCredit} ${I18N.coffretPushShipping}`
+        : I18N.coffretPushCredit;
+    }
 
     // Échantillon offert
     const hasSampleFeature = sampleOptions.length > 0;

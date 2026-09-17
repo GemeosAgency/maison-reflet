@@ -3,14 +3,16 @@
  * L'avoir du coffret découverte, sur la fiche du coffret.
  *
  * C'est l'argument qui fait basculer : le client ne choisit plus entre essayer
- * et acheter, il avance une partie de son flacon. Il est donc construit autour
- * du CHIFFRE, en grand, parce que c'est lui qu'on doit retenir — la première
- * version le noyait dans une phrase conditionnelle (« le coffret ne vous coûte
- * rien si vous achetez ensuite »), qui installait un doute là où il fallait une
- * promesse, et qui n'était pas assez mise en avant (Sandro).
+ * et acheter, il avance une partie de son flacon.
  *
- * Fond teinté plutôt que simple filet : le bloc doit se détacher de la colonne
- * sans crier. La règle et ses bornes vivent dans lib/coffret.ts.
+ * Le dessin a été rabattu deux fois. Une phrase conditionnelle (« le coffret ne
+ * vous coûte rien si vous achetez ensuite ») installait un doute là où il
+ * fallait une promesse ; puis un chiffre de 34 px sur fond teinté criait trop
+ * pour une maison (Sandro : « beaucoup trop gros, c'est pas premium »). Le bloc
+ * dit donc la même chose sur une seule ligne, à l'échelle du reste de la
+ * colonne, et c'est la teinte qui le détache, pas la taille.
+ *
+ * La règle et ses bornes vivent dans lib/coffret.ts.
  */
 interface Props {
   eyebrow: string;
@@ -24,53 +26,37 @@ const { eyebrow, amount, headline, body } = Astro.props;
 <div class="ccredit">
   <span class="ccredit-legend">{eyebrow}</span>
   <p class="ccredit-head">
-    <span class="ccredit-amount">{amount}</span>
-    <span class="ccredit-for">{headline}</span>
+    <span class="ccredit-amount">{amount}</span> {headline}
   </p>
   <p class="ccredit-body">{body}</p>
 </div>
 
 <style>
   .ccredit {
-    margin-top: 20px;
-    padding: 18px 20px 20px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--rose) 7%, transparent);
+    margin-top: 18px;
+    padding: 13px 15px 14px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--rose) 6%, transparent);
   }
   .ccredit-legend {
     display: block;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     color: var(--rose);
-    font-size: 11.5px;
+    font-size: 11px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
   }
   .ccredit-head {
-    margin: 0 0 8px;
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .ccredit-amount {
-    color: var(--rose);
-    font-size: 34px;
+    margin: 0 0 4px;
+    font-size: 15px;
     font-weight: 500;
-    line-height: 1;
-    letter-spacing: -0.01em;
+    line-height: 1.35;
   }
-  .ccredit-for {
-    font-size: 17px;
-    font-weight: 500;
-    line-height: 1.25;
-  }
+  .ccredit-amount { font-weight: 500; }
   .ccredit-body {
     margin: 0;
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.45;
-    color: var(--muted, rgba(21, 14, 10, 0.64));
-  }
-  @media (max-width: 560px) {
-    .ccredit-amount { font-size: 30px; }
+    color: var(--muted, rgba(21, 14, 10, 0.6));
   }
 </style>
