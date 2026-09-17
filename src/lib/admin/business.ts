@@ -15,6 +15,7 @@ import { COUNTRY_CENTROIDS, countryName } from "./geo";
 import { LAYERING } from "../layering";
 import { isCoffret, isSampleVariantTitle } from "../shopify";
 import { getCostMap, getSignatureColorMap } from "../sanity";
+import { COFFRET_HANDLE, REFLETS } from "../coffret";
 import { couleurDe, teintesDe, type Teintes } from "./couleurs";
 import { allProducts, dailySeries, dayKey, daysOf, fetchAll, fetchIn, loadSite, previousRange, rangeBetween, refletNames, TZ, type Range, type SiteEventRow } from "./data";
 
@@ -545,13 +546,24 @@ function core({ events, orders: allOrders, catalog, range, filters: f, luma }: C
    */
   const cogs = (() => {
     const coutDe = new Map(products.map((p) => [p.handle, p.cout]));
+    /*
+     * Un échantillon 2 ml porte le handle de SON parfum : sans distinction, il
+     * serait compté au prix de revient du flacon de 75 ml, soit quinze fois
+     * trop. Son coût se déduit du coffret découverte, qui en contient un de
+     * chaque : le prix de revient du coffret divisé par le nombre de Reflets.
+     * Si le coffret n'a pas de coût saisi, l'échantillon reste inconnu plutôt
+     * que d'être estimé au hasard.
+     */
+    const coutCoffret = coutDe.get(COFFRET_HANDLE) ?? null;
+    const nbReflets = products.filter((p) => p.kind === "reflet").length || REFLETS.length;
+    const coutEchantillon = coutCoffret == null ? null : coutCoffret / nbReflets;
     let cout = 0;
     let connu = false;
     const manquants = new Set<string>();
     for (const o of orders) {
       for (const l of o.lines) {
         const h = handleOf(l);
-        const c = h ? coutDe.get(h) : undefined;
+        const c = formatOf(l) === "sample" ? coutEchantillon : h ? coutDe.get(h) : undefined;
         if (c == null) {
           if (h) manquants.add(h);
           continue;
@@ -729,6 +741,11 @@ function summarize(ctx: Ctx) {
   }
 
   // Par produit (les Reflets et les coffrets), avec le détail pour la fenêtre.
+  /* Le coût d'un 2 ml, déduit du coffret : voir le calcul de la marge de la période. */
+  const coutCoffretGlobal = products.find((p) => p.handle === COFFRET_HANDLE)?.cout ?? null;
+  const nbRefletsGlobal = products.filter((p) => p.kind === "reflet").length || REFLETS.length;
+  const coutEchantillonGlobal = coutCoffretGlobal == null ? null : coutCoffretGlobal / nbRefletsGlobal;
+
   const perProduct = products.map((p) => {
     const lines = orders.flatMap((o) => o.lines.filter((l) => handleOf(l) === p.handle && l.total > 0).map((l) => ({ ...l, order: o, format: formatOf(l) })));
     const orderIds = new Set(lines.map((l) => l.order.id));
@@ -754,8 +771,10 @@ function summarize(ctx: Ctx) {
      * comme nul afficherait 100 % de marge sur un produit dont on ne sait rien,
      * ce qui est la pire erreur possible sur un tableau de bord.
      */
-    const unitesVendues = lines.reduce((n, l) => n + l.quantity, 0);
-    const coutTotal = p.cout == null ? null : p.cout * unitesVendues;
+    const flacons = lines.filter((l) => l.format !== "sample").reduce((n, l) => n + l.quantity, 0);
+    const echantillons = lines.filter((l) => l.format === "sample").reduce((n, l) => n + l.quantity, 0);
+    const coutTotal =
+      p.cout == null ? null : p.cout * flacons + (coutEchantillonGlobal ?? 0) * echantillons;
     const marge = coutTotal == null ? null : productRevenue - coutTotal;
     return {
       ...p,

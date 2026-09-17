@@ -167,15 +167,29 @@ export function hbars(rows: { label: string; value: number; text?: string; color
     .join("")}</ul>`;
 }
 
-/** Le parcours en marches : chaque étape avec sa part du départ et la conversion depuis l'étape précédente. */
-export function funnelSteps(steps: { label: string; value: number }[], fmt: (n: number) => string): string {
+/**
+ * Le parcours en marches : chaque étape avec sa part du départ et la conversion
+ * depuis l'étape précédente.
+ *
+ * `sub` ajoute un second chiffre sous le libellé, typiquement un montant : sur
+ * les paniers, le nombre seul ne dit pas ce qui est en jeu. `modal` rend la
+ * marche cliquable, comme les segments d'une barre empilée.
+ */
+export function funnelSteps(
+  steps: { label: string; value: number; sub?: string; modal?: string }[],
+  fmt: (n: number) => string
+): string {
   const first = Math.max(1, steps[0]?.value ?? 1);
   return `<ol class="fsteps">${steps
     .map((s, i) => {
       const prev = steps[i - 1]?.value ?? null;
       const rate = prev ? `${Math.round((s.value / prev) * 100)} %` : "";
       const w = Math.max(3, (s.value / first) * 100);
-      return `<li class="fstep"><span class="fstep-label">${esc(s.label)}</span><span class="fstep-bar"><span class="fstep-fill" style="width:${w.toFixed(1)}%"></span></span><span class="fstep-value">${esc(fmt(s.value))}</span><span class="fstep-rate">${rate}</span></li>`;
+      const label = `<span class="fstep-label">${esc(s.label)}${s.sub ? `<span class="fstep-sub">${esc(s.sub)}</span>` : ""}</span>`;
+      const corps = `${label}<span class="fstep-bar"><span class="fstep-fill" style="width:${w.toFixed(1)}%"></span></span><span class="fstep-value">${esc(fmt(s.value))}</span><span class="fstep-rate">${rate}</span>`;
+      return s.modal
+        ? `<li class="fstep is-clickable"><button type="button" class="fstep-btn" data-open-modal="${esc(s.modal)}">${corps}</button></li>`
+        : `<li class="fstep">${corps}</li>`;
     })
     .join("")}</ol>`;
 }

@@ -17,6 +17,7 @@
  *   node scripts/seed-demo.mjs --purge    # retire tout ce que ce script a posé
  */
 import { createClient as pg } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
 
 const arg = (n, d) => {
   const i = process.argv.indexOf(`--${n}`);
@@ -93,6 +94,9 @@ async function purge() {
   if (e1) throw e1;
   const { error: e2 } = await db.from("shop_orders").delete().gte("id", ID_BASE);
   if (e2) throw e2;
+  // Les messages et les profils partent en cascade avec leur session.
+  const { error: e3 } = await db.from("luma_sessions").delete().like("anon_id", "demo-%");
+  if (e3) throw e3;
   console.log("Données de démonstration retirées.");
 }
 
@@ -134,7 +138,32 @@ async function main() {
         if (!vus.includes(r.handle)) vus.push(r.handle);
         events.push({ ...base, name: "page_view", path: `/${pays.locale}/parfums/${r.handle}`, created_at: at(1 + p * 2), props: props() });
         events.push({ ...base, name: "product_view", path: `/${pays.locale}/parfums/${r.handle}`, created_at: at(1 + p * 2), props: props({ handle: r.handle }) });
-        if (rnd() < 0.34) events.push({ ...base, name: "audio_play", created_at: at(2 + p * 2), props: props({ kind: "portrait", id: r.handle, source: "page" }) });
+        if (rnd() < 0.34) {
+          events.push({ ...base, name: "audio_play", created_at: at(2 + p * 2), props: props({ kind: "portrait", id: r.handle, source: "page" }) });
+          if (rnd() < 0.45) events.push({ ...base, name: "audio_complete", created_at: at(3 + p * 2), props: props({ kind: "portrait", id: r.handle }) });
+        }
+        if (rnd() < 0.18) events.push({ ...base, name: "menu_reflet", created_at: at(1 + p * 2), props: props({ handle: r.handle }) });
+      }
+
+      // Le guide : filtres, carte olfactive, accords. Sans ces gestes, les pages
+      // Trafic et Luma restent vides alors que le reste est plein.
+      if (rnd() < 0.22) {
+        events.push({ ...base, name: "page_view", path: `/${pays.locale}/parfums/guide`, created_at: at(2), props: props() });
+        const filtres = [
+          ["when", pick(["day", "evening", "both"])],
+          ["universe", pick(["boise", "gourmand", "floral", "cuir"])],
+          ["materials", pick(["safran", "vanille", "rose", "cuir", "framboise"])],
+        ];
+        for (const [group, value] of filtres.slice(0, entier(1, 3))) {
+          events.push({ ...base, name: "guide_filter", created_at: at(3), props: props({ group, value, on: true }) });
+        }
+        const r = pese(REFLETS);
+        events.push({ ...base, name: "map_select", created_at: at(4), props: props({ handle: r.handle }) });
+        if (rnd() < 0.3) events.push({ ...base, name: "map_pair", created_at: at(5), props: props({ handle: r.handle, other: pese(REFLETS).handle }) });
+      }
+      if (rnd() < 0.12) {
+        const r = pese(REFLETS);
+        events.push({ ...base, name: "accord_add", created_at: at(7), props: props({ handle: r.handle, source: "cart" }) });
       }
 
       // Entonnoir : ~24 % ajoutent au panier, ~55 % d'entre eux vont au paiement,
@@ -186,6 +215,31 @@ async function main() {
     }
   }
 
+  /*
+   * La vue « En direct » ne regarde que les dix dernières minutes : sans cette
+   * vague, elle reste à zéro pendant que tout le reste déborde de chiffres.
+   */
+  const maintenant = Date.now();
+  for (let v = 0; v < 7; v++) {
+    const pays = pese(PAYS);
+    const anon = `demo-live-${v}-${entier(1000, 9999)}`;
+    const base = { anon_id: anon, locale: pays.locale, country: pays.code, city: pays.ville, test: true };
+    const props = (extra = {}) => ({ seed: MARQUE, device: pick(APPAREILS), ...extra });
+    const il_y_a = (min) => new Date(maintenant - min * 60000).toISOString();
+    const r = pese(REFLETS);
+    events.push({ ...base, name: "page_view", path: "/", created_at: il_y_a(entier(6, 9)), props: props({ ref: pese(SOURCES).ref }) });
+    events.push({ ...base, name: "page_view", path: `/${pays.locale}/parfums/${r.handle}`, created_at: il_y_a(entier(3, 5)), props: props() });
+    events.push({ ...base, name: "product_view", path: `/${pays.locale}/parfums/${r.handle}`, created_at: il_y_a(entier(2, 4)), props: props({ handle: r.handle }) });
+    if (v < 3) {
+      events.push({
+        ...base,
+        name: "add_to_cart",
+        created_at: il_y_a(1),
+        props: props({ total: r.prix, currency: "AED", handles: [r.handle], lines: [{ handle: r.handle, quantity: 1, amount: r.prix }] }),
+      });
+    }
+  }
+
   console.log(`${events.length} événements et ${orders.length} commandes à poser (${JOURS} jours).`);
   for (let i = 0; i < events.length; i += 500) {
     const { error } = await db.from("site_events").insert(events.slice(i, i + 500));
@@ -195,6 +249,8 @@ async function main() {
     const { error } = await db.from("shop_orders").upsert(orders.slice(i, i + 200));
     if (error) throw error;
   }
+  await poserLuma(events);
+
   const ca = orders.reduce((n, o) => n + o.total, 0);
   console.log(`Posé. ${orders.length} commandes, ${Math.round(ca).toLocaleString("fr-FR")} AED, panier moyen ${Math.round(ca / orders.length)} AED.`);
   console.log("Tout est marqué test : cocher « données de test » dans la tour de contrôle pour les voir.");
@@ -204,3 +260,83 @@ main().catch((e) => {
   console.error(e.message ?? e);
   process.exit(1);
 });
+
+/**
+ * Des conversations Luma rattachées aux visiteurs déjà posés : la page Luma, les
+ * Conversations et les Questions lisent ces tables et resteraient vides sinon.
+ * Les questions sont celles que les gens posent vraiment sur une fiche, reprises
+ * des pastilles du site.
+ */
+const DEMANDES = [
+  ["Quelle différence avec Tuscan Leather ?", "Ultra Cuir en garde le cuir et la framboise, mais l'éclaire : un trio de safrans et une facette d'iris le rendent plus lumineux et moins fumé."],
+  ["Pour quel moment le porter ?", "Le soir. Il prend de l'ampleur sur la peau chaude, et sa traîne tient jusqu'au lendemain sur les vêtements."],
+  ["Lequel des six me correspond ?", "Dites-moi ce que vous portez aujourd'hui et je vous oriente. Si vous aimez les ambrés sucrés, Melting Mango ; si vous cherchez du caractère, Ultra Cuir."],
+  ["C'est pour offrir, lequel choisir ?", "Le coffret découverte, sans hésiter : six Reflets à porter, et 160 AED d'avoir sur le flacon que la personne choisira."],
+  ["Est-ce que ça tient longtemps ?", "Ce sont des eaux de parfum : huit heures et plus. Vaporisez sur les points chauds et sur le tissu pour la traîne."],
+  ["Vos parfums sont-ils mixtes ?", "Les six. Nous composons pour un caractère, pas pour un genre."],
+  ["Quelle différence avec Baccarat Rouge 540 ?", "Melting Mango en reprend le sillage sucré et ambré, avec une mangue plus franche et une mousse de chêne qui le sèche en fin de journée."],
+  ["Je cherche quelque chose de frais pour la journée", "Fifth Season : mandarine et fruits exotiques au départ, vanille et musc en fond. Il accompagne une journée entière sans peser."],
+];
+
+async function poserLuma(events) {
+  const anons = [...new Set(events.filter((e) => e.name === "product_view").map((e) => e.anon_id))];
+  const sessions = [];
+  const messages = [];
+  const signaux = [];
+  for (const anon of anons) {
+    if (rnd() > 0.16) continue;
+    const src = events.find((e) => e.anon_id === anon);
+    const id = randomUUID();
+    const debut = new Date(new Date(src.created_at).getTime() + entier(2, 9) * 60000);
+    sessions.push({
+      id,
+      anon_id: anon,
+      locale: src.locale,
+      country: src.country,
+      currency: "AED",
+      created_at: debut.toISOString(),
+      last_seen_at: new Date(debut.getTime() + entier(2, 14) * 60000).toISOString(),
+      test: true,
+    });
+    const tours = entier(1, 3);
+    for (let t = 0; t < tours; t++) {
+      const [q, a] = DEMANDES[Math.floor(rnd() * DEMANDES.length)];
+      const at = new Date(debut.getTime() + t * 90000);
+      messages.push({ session_id: id, role: "user", content: q, created_at: at.toISOString() });
+      messages.push({
+        session_id: id,
+        role: "assistant",
+        content: a,
+        model: "claude-opus-5",
+        tokens_in: entier(600, 1400),
+        tokens_out: entier(80, 260),
+        created_at: new Date(at.getTime() + 4000).toISOString(),
+      });
+    }
+    if (rnd() < 0.6) {
+      const r = pese(REFLETS);
+      signaux.push({
+        session_id: id,
+        recommended_handle: r.handle,
+        alternative_handle: pese(REFLETS).handle,
+        for_whom: pick(["pour moi", "pour offrir"]),
+        occasion: pick(["tous les jours", "le soir", "un mariage", "un cadeau"]),
+        wears_today: pick(["Tuscan Leather", "Baccarat Rouge 540", "Oud Maracuja", "rien de précis"]),
+      });
+    }
+  }
+  if (!sessions.length) return;
+  for (let i = 0; i < sessions.length; i += 200) {
+    const { error } = await db.from("luma_sessions").insert(sessions.slice(i, i + 200));
+    if (error) throw error;
+  }
+  for (let i = 0; i < messages.length; i += 400) {
+    const { error } = await db.from("luma_messages").insert(messages.slice(i, i + 400));
+    if (error) throw error;
+  }
+  for (let i = 0; i < signaux.length; i += 200) {
+    const { error } = await db.from("luma_profile_signals").insert(signaux.slice(i, i + 200));
+    if (error) throw error;
+  }
+  console.log(`${sessions.length} conversations Luma, ${messages.length} messages, ${signaux.length} profils.`);
+}

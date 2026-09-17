@@ -21,7 +21,7 @@ import { readSession } from "../../lib/admin/auth";
 import { panne } from "../../lib/admin/panne";
 import { parseRange, fmtInt, fmtPct, fmtUsd, loadLuma, buildConversations, estimateCost } from "../../lib/admin/data";
 import { business, parseFilters, hasFilters, fmtMoney, fmtMoneyShort, delta, filtersQuery } from "../../lib/admin/business";
-import { timeChart, hbars, stackBar } from "../../lib/admin/charts";
+import { timeChart, hbars, stackBar, funnelSteps } from "../../lib/admin/charts";
 export const prerender = false;
 
 const admin = await readSession(Astro.cookies);
@@ -46,10 +46,17 @@ const courbe = filters.reflet ? b.perProduct.find((p) => p.handle === filters.re
 const k = b.kpis;
 const pk = b.previous.kpis;
 const subtitle = hasFilters(filters) ? `Vue filtrée · ${range.label}, heure de Dubaï.` : `Le business depuis le site, en un regard · ${range.label}, heure de Dubaï.`;
-const cartParts = [
-  { label: "Validés", value: b.carts.paid.total, color: "#812538", text: `${fmtInt(b.carts.paid.count)} · ${money(b.carts.paid.total)}`, modal: "orders" },
-  { label: `Abandonnés${b.carts.abandoned.atCheckout ? ` (dont ${fmtInt(b.carts.abandoned.atCheckout)} au paiement)` : ""}`, value: b.carts.abandoned.total, color: "#a8641e", text: `${fmtInt(b.carts.abandoned.count)} · ${money(b.carts.abandoned.total)}`, modal: "carts" },
-  { label: "En cours (moins d'une heure)", value: b.carts.open.total, color: "#cfc6b8", text: `${fmtInt(b.carts.open.count)} · ${money(b.carts.open.total)}`, modal: "carts" },
+/*
+ * Les paniers en entonnoir plutôt qu'en barre empilée. La barre mettait côte à
+ * côte trois états qui ne sont pas de même nature — un panier payé, un panier
+ * perdu, un panier encore ouvert — et il fallait lire trois lignes de chiffres
+ * pour comprendre qu'on en perd les trois quarts. L'entonnoir dit le parcours
+ * dans son ordre, et la déperdition se voit sans être calculée.
+ */
+const cartSteps = [
+  { label: "Paniers créés", value: b.carts.all.count, sub: money(b.carts.all.total), modal: "carts" },
+  { label: "Départs en paiement", value: k.checkouts, sub: b.carts.abandoned.atCheckout ? `${fmtInt(b.carts.abandoned.atCheckout)} abandonnés là` : undefined },
+  { label: "Commandes payées", value: b.carts.paid.count, sub: money(b.carts.paid.total), modal: "orders" },
 ];
 const channelParts = b.channels.map((c) => ({ label: c.channel, value: c.visitors, color: c.color, text: `${fmtInt(c.visitors)}${c.orders ? ` · ${fmtInt(c.orders)} cmd` : ""}` }));
 const sourceRows = b.sources.slice(0, 6).map((s) => ({ label: s.label, value: s.visitors, text: `${fmtInt(s.visitors)} vis.${s.revenue ? ` · ${fmtMoneyShort(s.revenue)} ${cur}` : ""}`, color: s.color, modal: `source:${s.label}` }));
@@ -81,7 +88,7 @@ const heroSub = [`${fmtInt(k.orders)} commande${k.orders > 1 ? "s" : ""}`, `${fm
     </div>
     <div class="card">
       <div class="card-head"><h2 class="card-title">Les paniers <Tip of="cartsAbandoned" /></h2><a class="card-note" href={`/admin/ventes?${q}`}>Ventes →</a></div>
-      <Fragment set:html={stackBar(cartParts)} />
+      <Fragment set:html={funnelSteps(cartSteps, fmtInt)} />
       <p class="card-foot">{pct(b.carts.recoveryRate)} des paniers finissent payés{b.carts.checkoutRecoveryRate !== null ? `, ${pct(b.carts.checkoutRecoveryRate)} des départs en paiement` : ""}.{b.carts.estimated ? ` ${fmtInt(b.carts.estimated)} montant${b.carts.estimated > 1 ? "s" : ""} estimé${b.carts.estimated > 1 ? "s" : ""} (≈).` : ""}</p>
     </div>
   </section>
