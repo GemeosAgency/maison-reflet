@@ -73,6 +73,32 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
       en: "saffron, jasmine and a sweet moss for depth",
       ar: "الزعفران والياسمين وطحلب حلو من أجل العمق",
     },
+    phases: [
+      {
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        effect: {
+          fr: "Poivre noir et bergamote, vif et coupant. On le remarque de loin.",
+          en: "Black pepper and bergamot, bright and cutting. People notice it from across a room.",
+          ar: "فلفل أسود وبرغموت، حادّ ولامع. يُلاحَظ من بعيد.",
+        },
+      },
+      {
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        effect: {
+          fr: "Le jasmin et un caramel discret adoucissent le poivre. Le parfum devient rond sans perdre son mordant.",
+          en: "Jasmine and a discreet caramel soften the pepper. The perfume turns round without losing its bite.",
+          ar: "الياسمين وكراميل خفيف يليّنان الفلفل. يستدير العطر دون أن يفقد حدّته.",
+        },
+      },
+      {
+        window: { fr: "du matin au soir", en: "from morning to night", ar: "من الصباح إلى المساء" },
+        effect: {
+          fr: "Vétiver, patchouli et cèdre. Une base sèche et nette, qui tient du matin au soir.",
+          en: "Vetiver, patchouli and cedar. A dry, clean base that holds from morning to night.",
+          ar: "نجيل الهند والباتشولي والأرز. قاعدة جافة ونظيفة تصمد من الصباح إلى المساء.",
+        },
+      },
+    ],
   },
   "new-oud": {
     materials: [
@@ -93,6 +119,32 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
       en: "Taif rose, creamy sandalwood and white florals",
       ar: "ورد الطائف وصندل كريمي وأزهار بيضاء",
     },
+    phases: [
+      {
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        effect: {
+          fr: "Le fruit de la passion éclate, acide et juteux. Un départ solaire, très loin de l'oud qu'on attend.",
+          en: "Passion fruit bursts open, sharp and juicy. A sunlit start, far from the oud you expect.",
+          ar: "تنفجر فاكهة الباشن، حامضة وغنيّة. بداية مشمسة، بعيدة عن العود الذي تتوقعه.",
+        },
+      },
+      {
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        effect: {
+          fr: "La rose de Taïf prend la place. Le parfum devient floral et ample, l'ambre le réchauffe par-dessous.",
+          en: "Taif rose takes over. The perfume turns floral and wide, with amber warming it from underneath.",
+          ar: "يتقدّم ورد الطائف. يصبح العطر زهريًا واسعًا، ويدفّئه العنبر من تحته.",
+        },
+      },
+      {
+        window: { fr: "le reste de la soirée", en: "the rest of the evening", ar: "بقية المساء" },
+        effect: {
+          fr: "Bois de santal et oud, doux et fumés. C'est là qu'il devient un oud, et il le reste longtemps.",
+          en: "Sandalwood and oud, soft and smoky. This is where it becomes an oud, and it stays one for a long time.",
+          ar: "خشب الصندل والعود، ناعمان ومدخّنان. هنا يصير عودًا، ويبقى كذلك طويلًا.",
+        },
+      },
+    ],
   },
   "melting-mango": {
     materials: [
@@ -113,6 +165,32 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
       en: "an overdose of mango, the juicy opening the original never had",
       ar: "جرعة مفرطة من المانجو، الافتتاحية العصيرة التي لم تكن للأصل",
     },
+    phases: [
+      {
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        effect: {
+          fr: "Mangue et orange, franches et sucrées. L'effet est immédiat, c'est ce qui fait tourner les têtes.",
+          en: "Mango and orange, plain and sweet. The effect is immediate, and it is what turns heads.",
+          ar: "مانجو وبرتقال، صريحان وحلوان. الأثر فوري، وهو ما يلفت الأنظار.",
+        },
+      },
+      {
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        effect: {
+          fr: "La praline et le noyau d'abricot installent un gourmand plus dense, presque d'amande.",
+          en: "Praline and apricot kernel settle into a denser gourmand, almost almond-like.",
+          ar: "البرالين ونواة المشمش يرسّخان حلاوة أكثف، تكاد تكون لوزية.",
+        },
+      },
+      {
+        window: { fr: "le reste de la journée", en: "the rest of the day", ar: "بقية اليوم" },
+        effect: {
+          fr: "Mousse de chêne et patchouli. Le sucre retombe, il reste une traîne boisée.",
+          en: "Oakmoss and patchouli. The sugar settles, and a woody trail is what remains.",
+          ar: "طحلب البلوط والباتشولي. تهدأ الحلاوة، ويبقى أثر خشبي.",
+        },
+      },
+    ],
   },
   "ultra-cuir": {
     materials: [
@@ -179,6 +257,32 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
       en: "a leather accord beneath the vanilla, lit with orange blossom and lavender",
       ar: "أكورد جلدي تحت الفانيليا، مضاءٌ بزهر البرتقال والخزامى",
     },
+    phases: [
+      {
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        effect: {
+          fr: "Cardamome et cannelle, une entrée sèche et épicée. Rien de sucré encore : ça pique un peu, et c'est voulu.",
+          en: "Cardamom and cinnamon, a dry and spicy opening. Nothing sweet yet: it bites a little, and that is deliberate.",
+          ar: "هيل وقرفة، بداية جافة وحارّة. لا حلاوة بعد: فيها لسعة خفيفة، وهذا مقصود.",
+        },
+      },
+      {
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        effect: {
+          fr: "La fleur d'oranger et l'amande arrondissent tout. Le parfum s'adoucit sans devenir sage.",
+          en: "Orange blossom and almond round everything off. The perfume softens without turning tame.",
+          ar: "زهر البرتقال واللوز يديران الحواف. يلين العطر دون أن يصبح وديعًا.",
+        },
+      },
+      {
+        window: { fr: "le reste de la soirée", en: "the rest of the evening", ar: "بقية المساء" },
+        effect: {
+          fr: "Vanille Bourbon et fève tonka sur un cuir discret. C'est cette partie qu'on vous complimentera.",
+          en: "Bourbon vanilla and tonka bean over a quiet leather. This is the part people will compliment.",
+          ar: "فانيليا بوربون وحبوب التونكا فوق جلد هادئ. هذا الجزء هو ما سيُثني عليه الناس.",
+        },
+      },
+    ],
   },
   "fifth-season": {
     materials: [
@@ -199,6 +303,32 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
       en: "a fougère freshness and a milky softness beneath the fruit",
       ar: "انتعاش فوجير ونعومة حليبية تحت الفاكهة",
     },
+    phases: [
+      {
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        effect: {
+          fr: "Mandarine et fruits exotiques, pleins et lumineux. Une entrée franchement solaire.",
+          en: "Mandarin and tropical fruit, full and luminous. An openly sunlit start.",
+          ar: "يوسفي وفواكه استوائية، ممتلئة ومشرقة. بداية مشمسة بلا تردّد.",
+        },
+      },
+      {
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        effect: {
+          fr: "Le jasmin et un caramel léger épaississent le fruit. Le parfum se fait crémeux.",
+          en: "Jasmine and a light caramel thicken the fruit. The perfume turns creamy.",
+          ar: "الياسمين وكراميل خفيف يزيدان الفاكهة كثافة. يصبح العطر كريميًا.",
+        },
+      },
+      {
+        window: { fr: "le reste de la journée", en: "the rest of the day", ar: "بقية اليوم" },
+        effect: {
+          fr: "Vanille Bourbon et musc blanc. Une peau propre et douce, c'est ce qui reste sur vos vêtements.",
+          en: "Bourbon vanilla and white musk. Clean, soft skin, and that is what stays on your clothes.",
+          ar: "فانيليا بوربون ومسك أبيض. بشرة نظيفة وناعمة، وهذا ما يبقى على ثيابك.",
+        },
+      },
+    ],
   },
 };
 
