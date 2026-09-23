@@ -271,8 +271,7 @@ const ui = {
     "shipping.restOfUae": "Reste des Émirats : {min} à {max} jours ouvrés",
     "shipping.countdownHM": "{h} h {m} min",
     "shipping.countdownMS": "{m} min {s} s",
-    "shipping.countdownCompactHM": "{h} h {m}",
-    "shipping.countdownCompactMS": "{m}:{s}",
+    "shipping.countdownCompactHMS": "{h}:{m}:{s}",
     // Luma, la conseillère (libellés d'interface ; ses phrases à elle viennent du serveur — sauf l'ouverture et l'indisponibilité, à faire valider)
     "luma.name": "Luma",
     "luma.tagline": "Trouver votre Reflet",
@@ -587,8 +586,7 @@ const ui = {
     "shipping.restOfUae": "بقية الإمارات: من {min} إلى {max} أيام عمل",
     "shipping.countdownHM": "{h} س {m} د",
     "shipping.countdownMS": "{m} د {s} ث",
-    "shipping.countdownCompactHM": "{h} س {m}",
-    "shipping.countdownCompactMS": "{m}:{s}",
+    "shipping.countdownCompactHMS": "{h}:{m}:{s}",
     // Luma, la conseillère (libellés d'interface ; ses phrases à elle viennent du serveur — sauf l'ouverture et l'indisponibilité, à faire valider)
     "luma.name": "Luma",
     "luma.tagline": "اكتشف انعكاسك",
@@ -904,8 +902,7 @@ const ui = {
     "shipping.restOfUae": "Rest of the UAE: {min} to {max} business days",
     "shipping.countdownHM": "{h}h {m}m",
     "shipping.countdownMS": "{m}m {s}s",
-    "shipping.countdownCompactHM": "{h}h {m}m",
-    "shipping.countdownCompactMS": "{m}:{s}",
+    "shipping.countdownCompactHMS": "{h}:{m}:{s}",
     // Luma, la conseillère (libellés d'interface ; ses phrases à elle viennent du serveur — sauf l'ouverture et l'indisponibilité, à faire valider)
     "luma.name": "Luma",
     "luma.tagline": "Find your Reflet",

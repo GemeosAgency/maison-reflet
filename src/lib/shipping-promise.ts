@@ -52,12 +52,11 @@ export function formatCompactCountdown(msLeft: number): string {
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
-  return h > 0
-    ? t("shipping.countdownCompactHM", { h, m: String(m).padStart(2, "0") })
-    : t("shipping.countdownCompactMS", {
-        m: String(m).padStart(2, "0"),
-        s: String(s).padStart(2, "0"),
-      });
+  return t("shipping.countdownCompactHMS", {
+    h: String(h).padStart(2, "0"),
+    m: String(m).padStart(2, "0"),
+    s: String(s).padStart(2, "0"),
+  });
 }
 
 type Promise2Lines = { main: string; mobileMain?: string; sub: string; urgent: boolean };

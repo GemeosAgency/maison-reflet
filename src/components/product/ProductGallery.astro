@@ -101,38 +101,6 @@ function isFull(i: number, count: number): boolean {
   const gallery = document.querySelector<HTMLElement>("[data-pgallery]");
   const box = document.querySelector<HTMLElement>("[data-lightbox]");
   if (gallery && box) {
-    /* Sur mobile, le header reste dans le flux sur toute la hauteur du hero :
-       en remontant la page il ne peut donc plus masquer le haut du flacon.
-       La règle dépend uniquement de scrollY (pas d'IntersectionObserver, dont
-       l'état pouvait rester périmé après la contraction de la barre d'URL sur
-       iOS). Dès la galerie quittée, le header redevient sticky. */
-    const mobileGallery = matchMedia("(max-width: 900px)");
-    const siteHeader = document.querySelector<HTMLElement>(".site-header-sticky");
-    if (siteHeader) {
-      const setHeaderOverGallery = (visible: boolean) => {
-        siteHeader.classList.toggle("is-product-gallery-visible", visible);
-        siteHeader.style.position = visible ? "relative" : "";
-      };
-      let headerFrame = 0;
-      const syncHeaderPosition = () => {
-        headerFrame = 0;
-        if (!mobileGallery.matches) {
-          setHeaderOverGallery(false);
-          return;
-        }
-        const galleryBottom = gallery.getBoundingClientRect().bottom + window.scrollY;
-        setHeaderOverGallery(window.scrollY < galleryBottom);
-      };
-      const queueHeaderSync = () => {
-        if (headerFrame) return;
-        headerFrame = requestAnimationFrame(syncHeaderPosition);
-      };
-      syncHeaderPosition();
-      window.addEventListener("scroll", queueHeaderSync, { passive: true });
-      window.addEventListener("resize", queueHeaderSync, { passive: true });
-      mobileGallery.addEventListener("change", syncHeaderPosition);
-    }
-
     // Le rétrécissement de type ne suit pas dans les fonctions : on fige la référence.
     const lb: HTMLElement = box;
     const originalButtons = Array.from(gallery.querySelectorAll<HTMLButtonElement>(".pgallery-shot"));
@@ -482,6 +450,11 @@ function isFull(i: number, count: number): boolean {
   .plightbox-nav:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
 
   @media (max-width: 900px) {
+    /* Sur les pages qui montent cette galerie, le header mobile reste dans le
+       flux. Aucun changement de position pendant le scroll : il disparaît et
+       revient naturellement, sans masquer le haut de la photo. La répétition
+       de classe donne assez de spécificité face au style global du Layout. */
+    :global(body .site-header-sticky.site-header-sticky) { position: relative; }
     .pgallery {
       display: flex;
       flex-direction: row;

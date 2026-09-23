@@ -1248,13 +1248,35 @@ const t = useTranslations(lang);
     .luma-voice { top: 20px; inset-inline-end: 56px; }
     .luma-card-img { width: 72px; height: 72px; }
     .luma-pill { bottom: 16px; max-width: calc(100vw - 32px); }
-    /* Dès que l'achat collant prend le relais, Luma s'efface : un seul appel
-       à l'action occupe le bas de l'écran. */
-    body.pbuy-on .luma-pill {
+    /* Sur une fiche produit, le CTA principal reste seul tant qu'il est dans
+       le parcours. Luma ne revient qu'après, en bouton compact au-dessus de
+       la barre d'achat : aucune concurrence ni aucun recouvrement. */
+    body.has-sticky-buy:not(.pbuy-on) .luma-pill {
       opacity: 0;
       transform: translate(-50%, 12px);
       pointer-events: none;
     }
+    body.has-sticky-buy.pbuy-on .luma-pill {
+      left: auto;
+      inset-inline-end: 16px;
+      bottom: calc(84px + env(safe-area-inset-bottom));
+      width: 48px;
+      height: 48px;
+      max-width: none;
+      overflow: hidden;
+      transform: translateY(12px);
+    }
+    body.has-sticky-buy.pbuy-on .luma-pill.is-visible { transform: none; }
+    body.has-sticky-buy.pbuy-on .luma-pill-open {
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      padding: 0;
+    }
+    body.has-sticky-buy.pbuy-on .luma-pill-line,
+    body.has-sticky-buy.pbuy-on .luma-pill-close { display: none; }
+    body.has-sticky-buy.pbuy-on .luma-pill-name { font-size: 11px; letter-spacing: 0.04em; }
     .luma-pill-line { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   }
 

@@ -277,6 +277,9 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     const barre = document.querySelector<HTMLElement>("[data-sticky-buy]");
     const principal = document.querySelector<HTMLElement>(".ppanel-buy-row");
     if (!barre || !principal) return;
+    // Permet à Luma de céder toute la place au CTA principal sur mobile, puis
+    // de revenir en version compacte seulement avec la barre d'achat sticky.
+    document.body.classList.add("has-sticky-buy");
 
     let affichee = false;
     const relire = () => {
