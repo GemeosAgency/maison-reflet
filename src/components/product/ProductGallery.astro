@@ -67,24 +67,6 @@ function isFull(i: number, count: number): boolean {
       ))
     }
   </div>
-  {
-    images.length > 1 && (
-      <div class="pgallery-progress" aria-label={t("gallery.viewer")}>
-        <span class="pgallery-position" data-gallery-position aria-live="polite">1 / {images.length}</span>
-        <span class="pgallery-dots">
-          {images.map((_, i) => (
-            <button
-              type="button"
-              class:list={["pgallery-dot", { "is-active": i === 0 }]}
-              data-gallery-dot={i}
-              aria-label={`${i + 1} / ${images.length}`}
-              aria-current={i === 0 ? "true" : undefined}
-            />
-          ))}
-        </span>
-      </div>
-    )
-  }
 </div>
 
 {/* La visionneuse : une seule par page, cachée tant qu'aucune photo n'est ouverte. */}
@@ -125,8 +107,6 @@ function isFull(i: number, count: number): boolean {
     const img = lb.querySelector<HTMLImageElement>("[data-lightbox-img]")!;
     const count = lb.querySelector<HTMLElement>("[data-lightbox-count]")!;
     const closeBtn = lb.querySelector<HTMLButtonElement>(".plightbox-close")!;
-    const position = document.querySelector<HTMLElement>("[data-gallery-position]");
-    const galleryDots = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-gallery-dot]"));
     let index = 0;
     let lastFocused: HTMLElement | null = null;
 
@@ -156,17 +136,10 @@ function isFull(i: number, count: number): boolean {
       deferred.forEach(hydrate);
     }
 
-    const renderGalleryPosition = (next: number) => {
-      if (position) position.textContent = `${next + 1} / ${shots.length}`;
+    const prepareNextImage = (next: number) => {
       // Prépare toujours la prochaine image après la courante, sans lancer le
       // reste de la galerie. Le premier swipe reste ainsi instantané.
       if (shots[next + 1]) hydrate(shots[next + 1]);
-      galleryDots.forEach((dot, dotIndex) => {
-        const active = dotIndex === next;
-        dot.classList.toggle("is-active", active);
-        if (active) dot.setAttribute("aria-current", "true");
-        else dot.removeAttribute("aria-current");
-      });
     };
     let scrollFrame = 0;
     gallery.addEventListener("scroll", () => {
@@ -183,17 +156,9 @@ function isFull(i: number, count: number): boolean {
           },
           { index: 0, distance: Number.POSITIVE_INFINITY }
         ).index;
-        renderGalleryPosition(current);
+        prepareNextImage(current);
       });
     }, { passive: true });
-    galleryDots.forEach((dot) => {
-      dot.addEventListener("click", () => {
-        const target = Number(dot.dataset.galleryDot ?? 0);
-        hydrate(shots[target]);
-        gallery.querySelector<HTMLElement>(`[data-gallery-open="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
-        renderGalleryPosition(target);
-      });
-    });
     // Une fois la première vue stabilisée, la seconde est prête au premier
     // geste. Les suivantes restent différées jusqu'au scroll.
     const hydrateSecond = () => shots[1] && hydrate(shots[1]);
@@ -299,7 +264,6 @@ function isFull(i: number, count: number): boolean {
     height: 100%;
     object-fit: cover;
   }
-  .pgallery-progress { display: none; }
 
   /* ===== Visionneuse ===== */
   .plightbox {
@@ -419,43 +383,22 @@ function isFull(i: number, count: number): boolean {
     .pgallery {
       display: flex;
       flex-direction: row;
+      gap: 2px;
       overflow-x: auto;
       scroll-snap-type: x mandatory;
       -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
+    .pgallery::-webkit-scrollbar { display: none; }
     .pgallery-shot {
-      flex: 0 0 100%;
+      /* L'image suivante dépasse légèrement : l'invitation au swipe est dans
+         la composition elle-même, sans pastille ni pagination superposée. */
+      flex: 0 0 calc(100% - 32px);
       scroll-snap-align: start;
       aspect-ratio: 4 / 5;
     }
-    .pgallery-progress {
-      position: absolute;
-      z-index: 2;
-      inset-inline-start: 50%;
-      bottom: 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 11px;
-      border-radius: 999px;
-      background: rgba(247, 245, 242, 0.9);
-      color: var(--ink);
-      box-shadow: 0 4px 18px rgba(21, 14, 10, 0.08);
-      transform: translateX(-50%);
-      backdrop-filter: blur(8px);
-    }
-    .pgallery-position { font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums; }
-    .pgallery-dots { display: flex; align-items: center; gap: 5px; }
-    .pgallery-dot {
-      width: 12px;
-      height: 12px;
-      padding: 0;
-      border: 0;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(21, 14, 10, 0.3) 0 2px, transparent 2.5px);
-      cursor: pointer;
-    }
-    .pgallery-dot.is-active { background: radial-gradient(circle, var(--ink) 0 3px, transparent 3.5px); }
+    /* Permet à la dernière photo de s'aligner elle aussi sur le bord de départ. */
+    .pgallery::after { content: ""; flex: 0 0 30px; }
     .plightbox { grid-template-columns: 44px 1fr 44px; }
     .plightbox-figure { padding: 64px 0 8px; }
     .plightbox-thumbs { justify-content: flex-start; padding: 12px 16px 0; }

@@ -25,6 +25,25 @@ const { text, label, align = "centre" } = Astro.props;
 </span>
 
 <script>
+  const repositionner = (tip: HTMLElement) => {
+    const box = tip.querySelector<HTMLElement>(".tip-box");
+    if (!box) return;
+    // On repart du centrage naturel avant chaque mesure (rotation, resize ou
+    // ouverture depuis un autre emplacement).
+    box.style.setProperty("--tip-shift", "0px");
+    const rect = box.getBoundingClientRect();
+    const marge = 16;
+    // `innerWidth` peut lui-même s'élargir quand une bulle déborde sur mobile,
+    // ce qui fausse précisément le calcul censé la corriger. visualViewport
+    // reste la largeur réellement visible à l'écran.
+    const bordGauche = visualViewport?.offsetLeft ?? 0;
+    const bordDroit = bordGauche + (visualViewport?.width ?? document.documentElement.clientWidth);
+    let decalage = 0;
+    if (rect.left < bordGauche + marge) decalage = bordGauche + marge - rect.left;
+    else if (rect.right > bordDroit - marge) decalage = bordDroit - marge - rect.right;
+    box.style.setProperty("--tip-shift", `${decalage}px`);
+  };
+
   const fermer = (sauf?: Element | null) => {
     for (const tip of document.querySelectorAll<HTMLElement>("[data-tip].is-open")) {
       if (tip === sauf) continue;
@@ -39,7 +58,21 @@ const { text, label, align = "centre" } = Astro.props;
     fermer(tip);
     const ouvert = tip.classList.toggle("is-open");
     btn?.setAttribute("aria-expanded", String(ouvert));
+    if (ouvert) repositionner(tip);
   });
+  // Le survol desktop et le focus clavier affichent aussi la bulle sans passer
+  // par le clic : ils ont droit à la même protection des bords.
+  document.addEventListener("pointerover", (e) => {
+    const tip = (e.target as Element | null)?.closest<HTMLElement>("[data-tip]");
+    if (tip) repositionner(tip);
+  });
+  document.addEventListener("focusin", (e) => {
+    const tip = (e.target as Element | null)?.closest<HTMLElement>("[data-tip]");
+    if (tip) repositionner(tip);
+  });
+  addEventListener("resize", () => {
+    for (const tip of document.querySelectorAll<HTMLElement>("[data-tip].is-open")) repositionner(tip);
+  }, { passive: true });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") fermer();
   });
@@ -70,6 +103,7 @@ const { text, label, align = "centre" } = Astro.props;
   .tip-box {
     position: absolute;
     bottom: calc(100% + 10px);
+    right: 0;
     z-index: 5;
     width: max-content;
     max-width: min(300px, calc(100vw - 32px));
@@ -89,6 +123,7 @@ const { text, label, align = "centre" } = Astro.props;
     text-transform: none;
     text-align: start;
     white-space: normal;
+    transform: translateX(var(--tip-shift, 0px));
     /*
      * Fermée, la bulle est RETIRÉE du flux et non seulement masquée : un élément
      * en position absolue compte dans le débordement même invisible, et celle-ci
@@ -100,8 +135,6 @@ const { text, label, align = "centre" } = Astro.props;
      */
     display: none;
   }
-  .is-centre .tip-box,
-  .is-fin .tip-box { inset-inline-end: 0; }
   /* `:focus-within` épinglait la bulle : après un clic, le bouton gardait le
      focus et le second clic ne la refermait plus. On ne montre donc au focus
      que pour le clavier, où c'est le seul moyen de la lire. */
