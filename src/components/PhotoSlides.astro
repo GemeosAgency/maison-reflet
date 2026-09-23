@@ -6,9 +6,9 @@
  * clique. Le survol de l'image fige tout. Même rythme que le menu (2,3 s).
  *
  * Seule la première photo est chargée avec la page ; les autres à la mise en
- * route. La mise en route et l'arrêt se commandent par événements sur la
- * figure : `slides:start` / `slides:stop` (le bandeau « Se marie avec » les
- * envoie à l'ouverture et à la fermeture).
+ * route. Sur ordinateur, le composant reste un diaporama automatique. Sur
+ * mobile, il devient une bande tactile à snap, sans avance automatique : le
+ * visiteur garde la main et voit le bord de la photo suivante.
  */
 import type { ResponsiveImage } from "../lib/sanity";
 
@@ -39,7 +39,7 @@ const Media = href ? "a" : "div";
         rel={href && newTab ? "noopener" : undefined}
         tabindex={href ? "-1" : undefined}
         aria-label={href ? name : undefined}
-        style={`aspect-ratio: ${ratio}`}
+        style={`--slides-ratio: ${ratio}; aspect-ratio: ${ratio}`}
       >
         {slides.map((slide, i) =>
           i === 0 ? (
@@ -74,6 +74,19 @@ const Media = href ? "a" : "div";
     let remaining = SLIDE_MS;
     let running = false;
     let paused = false;
+    let scrollFrame = 0;
+    let pointerX: number | null = null;
+    let draggedAt = 0;
+
+    const isTouchStrip = () => window.matchMedia("(max-width: 560px)").matches;
+    const alignImage = (image: HTMLElement | undefined, behavior: ScrollBehavior) => {
+      if (!media || !image) return;
+      const mediaRect = media.getBoundingClientRect();
+      const imageRect = image.getBoundingClientRect();
+      const rtl = getComputedStyle(media).direction === "rtl";
+      const left = media.scrollLeft + (rtl ? imageRect.right - mediaRect.right : imageRect.left - mediaRect.left);
+      media.scrollTo({ left, behavior });
+    };
 
     const hydrate = () => {
       for (const img of imgs) {
@@ -87,8 +100,9 @@ const Media = href ? "a" : "div";
     const show = (i: number, animate: boolean) => {
       imgs.forEach((im, k) => im.classList.toggle("is-shown", k === i));
       dots.forEach((dot, k) => {
-        dot.classList.remove("is-current", "is-done");
+        dot.classList.remove("is-current", "is-done", "is-active");
         if (k < i) dot.classList.add("is-done");
+        if (k === i) dot.classList.add("is-active");
         if (k === i && animate) {
           void dot.offsetWidth; // relance le remplissage depuis zéro
           dot.style.animationDuration = `${SLIDE_MS}ms`;
@@ -117,6 +131,11 @@ const Media = href ? "a" : "div";
     const start = () => {
       stop();
       hydrate();
+      if (isTouchStrip()) {
+        show(0, false);
+        alignImage(imgs[0], "auto");
+        return;
+      }
       if (count < 2 || reducedMotion.matches) return;
       running = true;
       show(0, true);
@@ -133,7 +152,11 @@ const Media = href ? "a" : "div";
         paused = false;
         fig.classList.remove("is-paused");
         index = Number((dot as HTMLElement).dataset.slidesDot ?? 0);
-        show(index, !reducedMotion.matches);
+        show(index, !reducedMotion.matches && !isTouchStrip());
+        if (isTouchStrip()) {
+          alignImage(imgs[index], reducedMotion.matches ? "auto" : "smooth");
+          return;
+        }
         if (!reducedMotion.matches) {
           running = true;
           schedule(SLIDE_MS);
@@ -152,6 +175,35 @@ const Media = href ? "a" : "div";
       paused = false;
       fig.classList.remove("is-paused");
       schedule(remaining);
+    });
+    media?.addEventListener("scroll", () => {
+      if (!isTouchStrip() || scrollFrame) return;
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = 0;
+        const mediaCenter = media.getBoundingClientRect().left + media.clientWidth / 2;
+        index = imgs.reduce(
+          (closest, image, imageIndex) => {
+            const rect = image.getBoundingClientRect();
+            const distance = Math.abs(rect.left + rect.width / 2 - mediaCenter);
+            return distance < closest.distance ? { index: imageIndex, distance } : closest;
+          },
+          { index: 0, distance: Number.POSITIVE_INFINITY }
+        ).index;
+        show(index, false);
+      });
+    }, { passive: true });
+    // Un swipe dans l'ancre ne doit pas ouvrir la fiche partenaire au relâché ;
+    // un tap immobile continue, lui, de suivre le lien.
+    media?.addEventListener("pointerdown", (event) => {
+      if (isTouchStrip()) pointerX = event.clientX;
+    }, { passive: true });
+    media?.addEventListener("pointerup", (event) => {
+      if (pointerX !== null && Math.abs(event.clientX - pointerX) > 8) draggedAt = performance.now();
+      pointerX = null;
+    }, { passive: true });
+    media?.addEventListener("pointercancel", () => { pointerX = null; }, { passive: true });
+    media?.addEventListener("click", (event) => {
+      if (performance.now() - draggedAt < 350) event.preventDefault();
     });
   }
 </script>
@@ -204,6 +256,35 @@ const Media = href ? "a" : "div";
   }
   .slides.is-paused .slides-img,
   .slides.is-paused .slides-dot::after { animation-play-state: paused; }
+  @media (max-width: 560px) {
+    .slides-media {
+      display: flex;
+      gap: 2px;
+      aspect-ratio: auto !important;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .slides-media::-webkit-scrollbar { display: none; }
+    .slides-img,
+    .slides-img.is-shown {
+      position: relative;
+      inset: auto;
+      flex: 0 0 calc(100% - 32px);
+      width: auto;
+      min-width: 0;
+      height: auto;
+      aspect-ratio: var(--slides-ratio, 4 / 5);
+      opacity: 1;
+      transform: none;
+      transition: none;
+      animation: none;
+      scroll-snap-align: start;
+    }
+    .slides-dot.is-done::after { transform: scaleX(0); }
+    .slides-dot.is-active::after { transform: scaleX(1); }
+  }
   @media (prefers-reduced-motion: reduce) {
     .slides-img { transition: none; }
     .slides-img.is-shown, .slides-dot.is-current::after { animation: none; }

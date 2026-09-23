@@ -199,6 +199,9 @@ function isFull(i: number, count: number): boolean {
       alignSlide(firstOriginal);
 
       const hydrateBefore = () => {
+        // Le clone ET sa cible doivent être prêts : sinon le raccord vers le
+        // dernier original peut révéler une image vide pendant une frame.
+        hydrate(shots[shots.length - 1]);
         const source = before.querySelector<HTMLImageElement>("img");
         if (source) hydrate(source);
       };
