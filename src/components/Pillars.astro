@@ -115,17 +115,17 @@ const responsiveSources = (image: string) => {
        conserve leur format et laisse voir la carte suivante. */
     .pillars-grid {
       box-sizing: border-box;
-      padding-inline: var(--gutter-x);
+      padding-inline: 0;
       gap: 2px;
       overflow-x: auto;
       scroll-snap-type: x mandatory;
-      scroll-padding-inline: var(--gutter-x);
+      scroll-padding-inline: 0;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
     }
     .pillars-grid::-webkit-scrollbar { display: none; }
     .pillar {
-      flex: 0 0 calc(100vw - var(--gutter-x) - 32px);
+      flex: 0 0 calc(100vw - 32px);
       aspect-ratio: 4 / 5;
       padding: 24px;
       scroll-snap-align: start;
