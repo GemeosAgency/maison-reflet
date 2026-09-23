@@ -24,6 +24,10 @@ const PRODUCT_IMAGE_OVERRIDES: ProductImageOverride[] = [
     aliases: ["fifth-season", "fith-seadon"],
     sources: Array.from({ length: 6 }, (_, i) => `/products/fifth-season/0${i + 1}.jpg`),
   },
+  {
+    aliases: ["ultra-cuir"],
+    sources: Array.from({ length: 6 }, (_, i) => `/products/ultra-cuir/0${i + 1}.jpg`),
+  },
 ];
 
 function normalize(value: string): string {
