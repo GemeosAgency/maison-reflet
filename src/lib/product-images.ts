@@ -6,7 +6,8 @@ export type ProductGalleryImage = {
 
 type ProductImageOverride = {
   aliases: string[];
-  sources: string[];
+  directory: string;
+  count: number;
 };
 
 // Galeries validées dans Figma. Shopify reste la source par défaut ; seuls les
@@ -14,21 +15,30 @@ type ProductImageOverride = {
 const PRODUCT_IMAGE_OVERRIDES: ProductImageOverride[] = [
   {
     aliases: ["bois-alert"],
-    sources: Array.from({ length: 6 }, (_, i) => `/products/bois-alert/0${i + 1}.jpg`),
+    directory: "bois-alert",
+    count: 6,
   },
   {
     aliases: ["melting-mango"],
-    sources: Array.from({ length: 6 }, (_, i) => `/products/melting-mango/0${i + 1}.jpg`),
+    directory: "melting-mango",
+    count: 6,
   },
   {
     aliases: ["fifth-season", "fith-seadon"],
-    sources: Array.from({ length: 6 }, (_, i) => `/products/fifth-season/0${i + 1}.jpg`),
+    directory: "fifth-season",
+    count: 6,
   },
   {
     aliases: ["ultra-cuir"],
-    sources: Array.from({ length: 6 }, (_, i) => `/products/ultra-cuir/0${i + 1}.jpg`),
+    directory: "ultra-cuir",
+    count: 6,
   },
 ];
+
+// 160 px sert aux vignettes du menu, 480/960 au carrousel mobile et 1400 à
+// la mosaïque/visionneuse. Les JPEG x2 restent le repli haute définition ; les
+// navigateurs courants choisissent les WebP beaucoup plus légers via srcset.
+const RESPONSIVE_WIDTHS = [160, 480, 960, 1400];
 
 function normalize(value: string): string {
   return value
@@ -49,10 +59,16 @@ export function getProductImageOverride(
   );
 
   return (
-    override?.sources.map((src, index) => ({
-      src,
-      srcset: "",
-      alt: index === 0 ? title : `${title} — visuel ${index + 1}`,
-    })) ?? null
+    override
+      ? Array.from({ length: override.count }, (_, index) => {
+          const stem = `/products/${override.directory}/0${index + 1}`;
+          return {
+            // Repli universel et source HD pour le partage/les vieux navigateurs.
+            src: `${stem}.jpg`,
+            srcset: RESPONSIVE_WIDTHS.map((width) => `${stem}-${width}.webp ${width}w`).join(", "),
+            alt: index === 0 ? title : `${title} — visuel ${index + 1}`,
+          };
+        })
+      : null
   );
 }

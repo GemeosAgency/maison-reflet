@@ -48,6 +48,7 @@ const { text, label, align = "centre" } = Astro.props;
 <style>
   .tip { position: relative; display: inline-flex; flex-shrink: 0; }
   .tip-btn {
+    position: relative;
     width: 17px;
     height: 17px;
     padding: 0;
@@ -62,6 +63,8 @@ const { text, label, align = "centre" } = Astro.props;
     cursor: pointer;
     transition: border-color 0.2s, color 0.2s;
   }
+  /* La cible tactile atteint 45 px sans agrandir le petit cercle visible. */
+  .tip-btn::after { content: ""; position: absolute; inset: -14px; }
   .tip-btn:hover { border-color: var(--ink); color: var(--ink); }
   .tip-btn:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
   .tip-box {

@@ -127,9 +127,9 @@ const productPaths = Object.fromEntries(
 const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY).currency);
 ---
 
-<div class="cart-drawer" data-cart-drawer aria-hidden="true">
+<div class="cart-drawer" data-cart-drawer aria-hidden="true" inert>
   <div class="cart-drawer-backdrop" data-cart-drawer-backdrop></div>
-  <aside class="cart-drawer-panel" role="dialog" aria-label={t("cart.bagTitle")}>
+  <aside class="cart-drawer-panel" role="dialog" aria-modal="true" aria-label={t("cart.bagTitle")}>
     <button type="button" class="cart-drawer-close" data-cart-drawer-close aria-label={t("cart.close")}>
       <img src="/brand/close.svg" alt="" width="16" height="16" />
     </button>
@@ -380,6 +380,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
 
   let currentCart: ShopifyCart | null = null;
   let reconciling = false;
+  let lastFocusedBeforeCart: HTMLElement | null = null;
 
   // InitiateCheckout Meta + rafraîchissement des ids publicitaires du panier,
   // sans bloquer la navigation vers le checkout (voir lib/cart.ts).
@@ -388,23 +389,51 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   });
 
   function openDrawer() {
-    drawer?.classList.add("is-open");
-    drawer?.setAttribute("aria-hidden", "false");
+    if (!drawer) return;
+    if (!drawer.classList.contains("is-open")) {
+      lastFocusedBeforeCart = document.activeElement as HTMLElement | null;
+    }
+    drawer.inert = false;
+    drawer.classList.add("is-open");
+    drawer.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
+    closeBtn?.focus();
   }
   function closeDrawer() {
+    if (!drawer?.classList.contains("is-open")) return;
     stopAccordAudio();
-    drawer?.classList.remove("is-open");
-    drawer?.setAttribute("aria-hidden", "true");
+    drawer.classList.remove("is-open");
+    drawer.setAttribute("aria-hidden", "true");
+    drawer.inert = true;
     document.body.style.overflow = "";
     ouvrirEchantillons(false);
+    lastFocusedBeforeCart?.focus();
   }
 
   document.addEventListener("cart:open", openDrawer);
   closeBtn?.addEventListener("click", closeDrawer);
   backdrop?.addEventListener("click", closeDrawer);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeDrawer();
+    if (!drawer?.classList.contains("is-open")) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeDrawer();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const focusables = Array.from(
+      drawer.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+    ).filter((el) => !el.hidden && el.getClientRects().length > 0);
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   });
 
   /**
@@ -477,7 +506,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     // Vignette et nom cliquables vers la fiche. Pas la ligne entière : elle
     // contient les boutons de quantité et « Retirer ».
     const href = productHref(line.handle);
-    const nom = `<span class="cart-line-title">${line.productTitle}</span>${line.variantTitle !== "Default Title" ? ` · ${line.variantTitle}` : ""}`;
+    const nom = `<span class="cart-line-title">${line.productTitle}</span>${line.variantTitle !== "Default Title" ? `<span class="cart-line-variant">${line.variantTitle}</span>` : ""}`;
     const vignette = line.img
       ? `<img class="cart-line-img" src="${sizedUrl(line.img.url, THUMB_WIDTH)}" alt="${line.productTitle}" width="120" height="120" />`
       : "";
@@ -892,7 +921,6 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
      * paiement.
      */
     const relance = lignes.length > 0 && !avecCoffret;
-    coffretPush?.toggleAttribute("hidden", !relance);
     if (relance && coffretArgs) {
       const franchit = remaining > 0 && subtotal + Number(I18N.coffretPrice ?? 0) >= threshold;
       coffretArgs.textContent = franchit
@@ -956,6 +984,9 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     }
     accordDivider?.toggleAttribute("hidden", !accordPick);
     accordSection?.toggleAttribute("hidden", !accordPick);
+    // Une seule proposition commerciale à la fois : l'accord personnalisé
+    // prime sur le coffret. Sans accord disponible, le coffret prend le relais.
+    coffretPush?.toggleAttribute("hidden", !(relance && !accordPick));
     if (accordBody) {
       const currentSrc = accordBody.querySelector<HTMLElement>("[data-accord-listen]")?.dataset.src ?? null;
       if (!accordPick || accordPick.a.audio !== currentSrc) stopAccordAudio();
@@ -982,7 +1013,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     // accord déjà dans le sac.
     const inCart = new Set((cart?.lines.nodes ?? []).map((l) => l.merchandise.product.handle));
     const suggestions = upsellCatalog.filter((p) => !inCart.has(p.handle));
-    const showUpsell = grouped.length > 0 && suggestions.length > 0 && !accordPick;
+    const showUpsell = grouped.length > 0 && suggestions.length > 0 && !accordPick && !relance;
     upsellDivider?.toggleAttribute("hidden", !showUpsell);
     upsellSection?.toggleAttribute("hidden", !showUpsell);
     if (showUpsell && upsellList) {
@@ -1155,8 +1186,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   }
   .cart-drawer.is-open .cart-drawer-panel { transform: translateX(0); }
   .cart-drawer-close {
-    position: absolute; top: 16px; right: 16px; z-index: 1; border: 0; background: transparent;
-    padding: 4px; cursor: pointer; line-height: 0;
+    position: absolute; top: 8px; right: 8px; z-index: 1; border: 0; background: transparent;
+    width: 44px; height: 44px; padding: 14px; cursor: pointer; line-height: 0;
   }
   .cart-drawer-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 32px; display: flex; flex-direction: column; gap: 24px; }
   .cart-drawer-divider { height: 1px; background: rgba(21, 14, 10, 0.12); flex-shrink: 0; }
@@ -1186,11 +1217,12 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-line-text { display: flex; flex-direction: column; gap: 2px; }
   .cart-line-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   /* Liens vers la fiche : aucune décoration, ni au repos ni au survol. */
-  .cart-line-name { font-size: 14px; font-weight: 400; color: var(--ink); }
+  .cart-line-name { min-width: 0; font-size: 14px; font-weight: 400; color: var(--ink); }
   .cart-line-img-link,
   .cart-upsell-card-img-link { display: block; flex-shrink: 0; line-height: 0; }
   .cart-upsell-card-img-link img { display: block; }
   .cart-line-title { font-size: 16px; font-weight: 500; text-transform: uppercase; }
+  .cart-line-variant { display: block; margin-top: 2px; font-size: 13px; color: rgba(21, 14, 10, 0.62); }
   .cart-line-price { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; }
   /* Quantité déjà changée à l'écran, montant pas encore confirmé par Shopify
      (voir queueQuantity) : le prix pâlit le temps de l'aller-retour. */
@@ -1200,15 +1232,15 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-line-bottom { display: flex; align-items: center; justify-content: space-between; }
   .cart-line-qty { display: flex; }
   .cart-qty-btn {
-    display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
     border: 1px solid #dbd5ce; background: transparent; cursor: pointer; color: var(--ink); margin-inline-end: -1px;
   }
   .cart-qty-btn svg { width: 14px; height: 14px; }
   .cart-qty-value {
-    display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
     border: 1px solid #dbd5ce; margin-inline-end: -1px; font-size: 16px; font-weight: 500; color: var(--ink);
   }
-  .cart-line-remove { border: 0; background: transparent; padding: 0; font-size: 12px; font-weight: 500; text-decoration: underline; color: var(--ink); cursor: pointer; }
+  .cart-line-remove { min-height: 44px; border: 0; background: transparent; padding: 10px 0 10px 12px; font-size: 12px; font-weight: 500; text-decoration: underline; color: var(--ink); cursor: pointer; }
 
   .cart-sample { display: flex; flex-direction: column; gap: 12px; }
   .cart-sample-head { display: flex; align-items: center; justify-content: space-between; }
@@ -1391,5 +1423,12 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       transform: translateX(100%);
     }
     .cart-drawer.is-open .cart-drawer-panel { transform: translateX(0); }
+    .cart-drawer-scroll { padding: 28px 20px 24px; gap: 20px; }
+    .cart-drawer-footer { padding: 20px 20px calc(20px + env(safe-area-inset-bottom)); }
+    .cart-line { gap: 16px; }
+    .cart-line-img { width: 104px; height: 104px; }
+    .cart-line-top { align-items: flex-start; }
+    .cart-line-title { line-height: 1.2; }
+    .cart-line-bottom { gap: 8px; }
   }
 </style>

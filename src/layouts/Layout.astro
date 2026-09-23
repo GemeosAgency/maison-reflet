@@ -128,8 +128,8 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
     <meta name="description" content={description} />
     {!indexable && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonical} />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
     <!-- Open Graph : sans ces balises, un lien partagé (WhatsApp, Instagram,
          LinkedIn) s'affiche sans image ni titre soigné. -->
@@ -441,7 +441,7 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         <span></span>
       </button>
       <a href={localePath(lang, "/")} class="site-logo" aria-label="Maison Reflet">
-        <img src="/brand/logo.svg" alt="Maison Reflet" height="28" />
+        <img src="/brand/logo.svg" alt="Maison Reflet" width="238" height="28" />
       </a>
       <div class="site-actions">
         {/*
@@ -755,9 +755,13 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
       .lang-switch a[aria-current="true"] { opacity: 1; text-decoration: underline; }
 
       @media (max-width: 720px) {
+        :root {
+          --header-h: 64px;
+          --banner-h: 28px;
+        }
         /* Nav masquée => .site-actions devient l'unique enfant en flux :
            on le cale à droite pour laisser le logo centré respirer. */
-        .site-header { padding: 0 20px; justify-content: flex-end; }
+        .site-header { height: var(--header-h); padding: 0 20px; justify-content: flex-end; }
         .site-nav { display: none; }
         /* Les icônes placeholder (recherche, compte) chevauchent le logo
            centré sur petit écran — masquées. Le sélecteur de pays quitte la
@@ -786,8 +790,17 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         .currency-label,
         .currency .chev { display: none; }
         .icon-desktop { display: none; }
-        .site-logo img { height: 22px; }
-        .promo-banner p { padding: 10.5px 20px; font-size: 12px; }
+        .site-logo img { width: 187px; height: 22px; }
+        .promo-banner p {
+          min-width: 0;
+          padding: 7px 12px;
+          font-size: 11px;
+          line-height: 14px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .promo-cta { display: none; }
       }
       @media (max-width: 900px) {
         .footer-top { flex-direction: column; padding: 32px var(--gutter-x); }

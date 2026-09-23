@@ -42,26 +42,48 @@ function isFull(i: number, count: number): boolean {
 }
 ---
 
-<div class="pgallery" style={`--pgallery-ratio: ${ratio}`} data-pgallery>
+<div class="pgallery-shell">
+  <div class="pgallery" style={`--pgallery-ratio: ${ratio}`} data-pgallery>
+    {
+      images.map((im, i) => (
+        <button
+          type="button"
+          class:list={["pgallery-shot", { "is-full": isFull(i, images.length) }]}
+          data-gallery-open={i}
+          aria-label={`${t("gallery.enlarge")} — ${im.alt} (${i + 1}/${images.length})`}
+        >
+          <img
+            src={i === 0 ? im.src : undefined}
+            srcset={i === 0 ? im.srcset : undefined}
+            data-src={i > 0 ? im.src : undefined}
+            data-srcset={i > 0 ? im.srcset : undefined}
+            sizes={isFull(i, images.length) ? "(max-width: 900px) 100vw, 50vw" : "(max-width: 900px) 100vw, 25vw"}
+            alt={im.alt}
+            loading={i === 0 ? "eager" : "lazy"}
+            fetchpriority={i === 0 ? "high" : undefined}
+            decoding="async"
+          />
+        </button>
+      ))
+    }
+  </div>
   {
-    images.map((im, i) => (
-      <button
-        type="button"
-        class:list={["pgallery-shot", { "is-full": isFull(i, images.length) }]}
-        data-gallery-open={i}
-        aria-label={`${t("gallery.enlarge")} — ${im.alt} (${i + 1}/${images.length})`}
-      >
-        <img
-          src={im.src}
-          srcset={im.srcset}
-          sizes={isFull(i, images.length) ? "(max-width: 900px) 100vw, 50vw" : "(max-width: 900px) 100vw, 25vw"}
-          alt={im.alt}
-          loading={i === 0 ? "eager" : "lazy"}
-          fetchpriority={i === 0 ? "high" : undefined}
-          decoding="async"
-        />
-      </button>
-    ))
+    images.length > 1 && (
+      <div class="pgallery-progress" aria-label={t("gallery.viewer")}>
+        <span class="pgallery-position" data-gallery-position aria-live="polite">1 / {images.length}</span>
+        <span class="pgallery-dots">
+          {images.map((_, i) => (
+            <button
+              type="button"
+              class:list={["pgallery-dot", { "is-active": i === 0 }]}
+              data-gallery-dot={i}
+              aria-label={`${i + 1} / ${images.length}`}
+              aria-current={i === 0 ? "true" : undefined}
+            />
+          ))}
+        </span>
+      </div>
+    )
   }
 </div>
 
@@ -103,12 +125,85 @@ function isFull(i: number, count: number): boolean {
     const img = lb.querySelector<HTMLImageElement>("[data-lightbox-img]")!;
     const count = lb.querySelector<HTMLElement>("[data-lightbox-count]")!;
     const closeBtn = lb.querySelector<HTMLButtonElement>(".plightbox-close")!;
+    const position = document.querySelector<HTMLElement>("[data-gallery-position]");
+    const galleryDots = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-gallery-dot]"));
     let index = 0;
     let lastFocused: HTMLElement | null = null;
+
+    // `loading=lazy` charge encore plusieurs diapositives horizontales jugées
+    // proches du viewport. Les sources suivantes ne sont donc renseignées que
+    // lorsqu'elles approchent réellement de l'écran.
+    const hydrate = (source: HTMLImageElement) => {
+      if (source.dataset.src) source.src = source.dataset.src;
+      if (source.dataset.srcset) source.srcset = source.dataset.srcset;
+      source.removeAttribute("data-src");
+      source.removeAttribute("data-srcset");
+    };
+    const deferred = shots.slice(1);
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            hydrate(entry.target as HTMLImageElement);
+            observer.unobserve(entry.target);
+          }
+        },
+        { rootMargin: "600px" }
+      );
+      deferred.forEach((source) => observer.observe(source));
+    } else {
+      deferred.forEach(hydrate);
+    }
+
+    const renderGalleryPosition = (next: number) => {
+      if (position) position.textContent = `${next + 1} / ${shots.length}`;
+      // Prépare toujours la prochaine image après la courante, sans lancer le
+      // reste de la galerie. Le premier swipe reste ainsi instantané.
+      if (shots[next + 1]) hydrate(shots[next + 1]);
+      galleryDots.forEach((dot, dotIndex) => {
+        const active = dotIndex === next;
+        dot.classList.toggle("is-active", active);
+        if (active) dot.setAttribute("aria-current", "true");
+        else dot.removeAttribute("aria-current");
+      });
+    };
+    let scrollFrame = 0;
+    gallery.addEventListener("scroll", () => {
+      if (scrollFrame) return;
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = 0;
+        // Fonctionne aussi en RTL, où scrollLeft est négatif selon le moteur.
+        const galleryCenter = gallery.getBoundingClientRect().left + gallery.clientWidth / 2;
+        const current = shots.reduce(
+          (closest, source, sourceIndex) => {
+            const rect = source.getBoundingClientRect();
+            const distance = Math.abs(rect.left + rect.width / 2 - galleryCenter);
+            return distance < closest.distance ? { index: sourceIndex, distance } : closest;
+          },
+          { index: 0, distance: Number.POSITIVE_INFINITY }
+        ).index;
+        renderGalleryPosition(current);
+      });
+    }, { passive: true });
+    galleryDots.forEach((dot) => {
+      dot.addEventListener("click", () => {
+        const target = Number(dot.dataset.galleryDot ?? 0);
+        hydrate(shots[target]);
+        gallery.querySelector<HTMLElement>(`[data-gallery-open="${target}"]`)?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+        renderGalleryPosition(target);
+      });
+    });
+    // Une fois la première vue stabilisée, la seconde est prête au premier
+    // geste. Les suivantes restent différées jusqu'au scroll.
+    const hydrateSecond = () => shots[1] && hydrate(shots[1]);
+    if (document.readyState === "complete") window.setTimeout(hydrateSecond, 0);
+    else window.addEventListener("load", hydrateSecond, { once: true });
 
     function show(i: number) {
       index = (i + shots.length) % shots.length;
       const src = shots[index];
+      hydrate(src);
       // Le même srcset que la vignette, avec sizes=100vw : le navigateur prend
       // la plus grande source disponible.
       img.classList.remove("is-in");
@@ -181,6 +276,7 @@ function isFull(i: number, count: number): boolean {
 </script>
 
 <style>
+  .pgallery-shell { position: relative; }
   .pgallery {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -203,6 +299,7 @@ function isFull(i: number, count: number): boolean {
     height: 100%;
     object-fit: cover;
   }
+  .pgallery-progress { display: none; }
 
   /* ===== Visionneuse ===== */
   .plightbox {
@@ -331,6 +428,34 @@ function isFull(i: number, count: number): boolean {
       scroll-snap-align: start;
       aspect-ratio: 4 / 5;
     }
+    .pgallery-progress {
+      position: absolute;
+      z-index: 2;
+      inset-inline-start: 50%;
+      bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 11px;
+      border-radius: 999px;
+      background: rgba(247, 245, 242, 0.9);
+      color: var(--ink);
+      box-shadow: 0 4px 18px rgba(21, 14, 10, 0.08);
+      transform: translateX(-50%);
+      backdrop-filter: blur(8px);
+    }
+    .pgallery-position { font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums; }
+    .pgallery-dots { display: flex; align-items: center; gap: 5px; }
+    .pgallery-dot {
+      width: 12px;
+      height: 12px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(21, 14, 10, 0.3) 0 2px, transparent 2.5px);
+      cursor: pointer;
+    }
+    .pgallery-dot.is-active { background: radial-gradient(circle, var(--ink) 0 3px, transparent 3.5px); }
     .plightbox { grid-template-columns: 44px 1fr 44px; }
     .plightbox-figure { padding: 64px 0 8px; }
     .plightbox-thumbs { justify-content: flex-start; padding: 12px 16px 0; }

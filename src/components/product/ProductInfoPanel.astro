@@ -96,10 +96,13 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
 
 <div class="ppanel">
   <div class="ppanel-head">
-    <h1 class="ppanel-title">
-      {title}
-      {sizeLabel && <span class="ppanel-size">{sizeLabel}</span>}
-    </h1>
+    <div class="ppanel-title-line">
+      <h1 class="ppanel-title">
+        {title}
+        {sizeLabel && <span class="ppanel-size">{sizeLabel}</span>}
+      </h1>
+      <span class="ppanel-price" data-money={variantId}>{priceLabel}</span>
+    </div>
     <div class="ppanel-rating">
       <span class="ppanel-stars">
         {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="14" height="14" />)}
@@ -108,6 +111,9 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
       <span class="ppanel-rating-count">· {reviewCount} {reviewsWord}</span>
     </div>
     {descriptionHtml && <div class="ppanel-desc" set:html={descriptionHtml} />}
+  </div>
+
+  <div class="ppanel-editorial">
     <slot name="after-description" />
   </div>
 
@@ -217,6 +223,9 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
       }
     </ul>
     </div>
+  </div>
+
+  <div class="ppanel-after-perks">
     <slot name="after-perks" />
   </div>
 </div>
@@ -405,6 +414,7 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   }
 
   .ppanel-head { display: flex; flex-direction: column; gap: 8px; }
+  .ppanel-title-line { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
   .ppanel-title {
     margin: 0;
     display: flex;
@@ -417,6 +427,7 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     line-height: 1.2;
   }
   .ppanel-size { font-size: 16px; font-weight: 500; letter-spacing: 0.96px; }
+  .ppanel-price { display: none; flex-shrink: 0; font-size: 18px; font-weight: 500; white-space: nowrap; }
   .ppanel-rating { display: flex; align-items: center; gap: 8px; font-size: 16px; }
   .ppanel-stars { display: inline-flex; gap: 2px; }
   .ppanel-rating strong { font-weight: 500; }
@@ -525,10 +536,21 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   .ppanel-perks img { flex-shrink: 0; }
 
 
-  /* Sur petit écran, le libellé + prix du bouton ne tiennent pas à côté du
-     sélecteur de quantité : le CTA passe en pleine largeur en dessous. */
-  @media (max-width: 560px) {
-    .ppanel-buy-row { flex-wrap: wrap; }
+  @media (max-width: 899px) {
+    /* Sur mobile, l'achat vient dès la promesse produit. Les explications
+       olfactives restent juste après, mais ne repoussent plus le CTA de deux
+       écrans. L'ordre desktop ne change pas. */
+    .ppanel { gap: 24px; }
+    .ppanel-head { order: 1; }
+    .ppanel-buy { order: 2; gap: 18px; }
+    .ppanel-editorial { order: 3; }
+    .ppanel-meta { order: 4; }
+    .ppanel-after-perks { order: 5; }
+    .ppanel-title { font-size: 28px; }
+    .ppanel-price { display: inline; }
+    /* La quantité se règle dans le panier : une seule décision sur la fiche,
+       et un bouton d'achat pleine largeur, plus rapide à comprendre/toucher. */
+    .ppanel-qty { display: none; }
     .ppanel-add { flex: 1 1 100%; }
   }
 </style>
