@@ -46,6 +46,20 @@ export function formatCountdown(msLeft: number): string {
   return h > 0 ? t("shipping.countdownHM", { h, m }) : t("shipping.countdownMS", { m, s });
 }
 
+/** Rebours court pour la ligne mobile : largeur stable, sans mot superflu. */
+export function formatCompactCountdown(msLeft: number): string {
+  const total = Math.max(0, Math.floor(msLeft / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return h > 0
+    ? t("shipping.countdownCompactHM", { h, m: String(m).padStart(2, "0") })
+    : t("shipping.countdownCompactMS", {
+        m: String(m).padStart(2, "0"),
+        s: String(s).padStart(2, "0"),
+      });
+}
+
 type Promise2Lines = { main: string; mobileMain?: string; sub: string; urgent: boolean };
 
 /** Les deux lignes de la promesse, pour un pays donné. */
@@ -69,7 +83,7 @@ export function promiseFor(country: Country): Promise2Lines {
         ? t("shipping.sameDayOpen", { time: formatCountdown(sameDay.msLeft) })
         : t("shipping.sameDayClosed"),
       mobileMain: sameDay.open
-        ? t("shipping.sameDayMobileOpen")
+        ? t("shipping.sameDayMobileOpen", { time: formatCompactCountdown(sameDay.msLeft) })
         : t("shipping.sameDayMobileClosed"),
       sub: `${t("shipping.restOfUae", {
         min: UAE_DELIVERY_DAYS.min,
