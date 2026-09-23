@@ -534,16 +534,16 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
       display: flex;
       gap: 2px;
       box-sizing: border-box;
-      padding-inline: var(--gutter-x);
+      padding-inline: 0;
       overflow-x: auto;
       scroll-snap-type: x mandatory;
-      scroll-padding-inline: var(--gutter-x);
+      scroll-padding-inline: 0;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
     }
     .snotes-grid::-webkit-scrollbar { display: none; }
     .snotes-col {
-      flex: 0 0 calc(100vw - var(--gutter-x) - 32px);
+      flex: 0 0 calc(100vw - 32px);
       aspect-ratio: 3 / 4;
       padding: 24px;
       scroll-snap-align: start;
