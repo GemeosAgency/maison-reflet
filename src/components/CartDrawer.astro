@@ -1424,7 +1424,23 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     }
     .cart-drawer.is-open .cart-drawer-panel { transform: translateX(0); }
     .cart-drawer-scroll { padding: 28px 20px 24px; gap: 20px; }
-    .cart-drawer-footer { padding: 20px 20px calc(20px + env(safe-area-inset-bottom)); }
+    .cart-drawer-footer {
+      gap: 12px;
+      padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+    }
+    .cart-drawer-perks {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 8px 16px;
+      padding: 0;
+    }
+    .cart-drawer-perks li {
+      gap: 6px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .cart-drawer-perks img { width: 18px; height: 18px; }
     .cart-line { gap: 16px; }
     .cart-line-img { width: 104px; height: 104px; }
     .cart-line-top { align-items: flex-start; }

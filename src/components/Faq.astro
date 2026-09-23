@@ -164,10 +164,15 @@ const visible = (items ?? []).filter((f) => f.question);
       padding: 56px 0 64px;
     }
     .faq h2 { padding-inline: var(--gutter-x); font-size: 28px; }
-    .faq-question { gap: 16px; padding: 12px var(--gutter-x); }
+    .faq-question {
+      gap: 8px;
+      padding-block: 12px;
+      padding-inline: 8px 12px;
+    }
+    .faq-icon { width: 32px; padding: 0; }
     .faq-question-text { font-size: 18px; }
     .faq-answer-content {
-      padding-inline-start: calc(var(--gutter-x) + 64px);
+      padding-inline-start: 48px;
       padding-inline-end: var(--gutter-x);
     }
   }
