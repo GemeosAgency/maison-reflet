@@ -101,23 +101,36 @@ function isFull(i: number, count: number): boolean {
   const gallery = document.querySelector<HTMLElement>("[data-pgallery]");
   const box = document.querySelector<HTMLElement>("[data-lightbox]");
   if (gallery && box) {
-    /* Sur mobile, le header reste dans le flux tant que le hero est visible :
+    /* Sur mobile, le header reste dans le flux sur toute la hauteur du hero :
        en remontant la page il ne peut donc plus masquer le haut du flacon.
-       Dès la galerie quittée, il retrouve son comportement sticky habituel. */
+       La règle dépend uniquement de scrollY (pas d'IntersectionObserver, dont
+       l'état pouvait rester périmé après la contraction de la barre d'URL sur
+       iOS). Dès la galerie quittée, le header redevient sticky. */
     const mobileGallery = matchMedia("(max-width: 900px)");
     const siteHeader = document.querySelector<HTMLElement>(".site-header-sticky");
-    if (mobileGallery.matches && siteHeader && "IntersectionObserver" in window) {
+    if (siteHeader) {
       const setHeaderOverGallery = (visible: boolean) => {
         siteHeader.classList.toggle("is-product-gallery-visible", visible);
-        // Inline pour gagner aussi contre la feuille globale du Layout, dont
-        // l'ordre d'injection diffère entre le serveur dev et le build Vercel.
         siteHeader.style.position = visible ? "relative" : "";
       };
-      setHeaderOverGallery(true);
-      const headerObserver = new IntersectionObserver(([entry]) => {
-        setHeaderOverGallery(entry.isIntersecting);
-      });
-      headerObserver.observe(gallery);
+      let headerFrame = 0;
+      const syncHeaderPosition = () => {
+        headerFrame = 0;
+        if (!mobileGallery.matches) {
+          setHeaderOverGallery(false);
+          return;
+        }
+        const galleryBottom = gallery.getBoundingClientRect().bottom + window.scrollY;
+        setHeaderOverGallery(window.scrollY < galleryBottom);
+      };
+      const queueHeaderSync = () => {
+        if (headerFrame) return;
+        headerFrame = requestAnimationFrame(syncHeaderPosition);
+      };
+      syncHeaderPosition();
+      window.addEventListener("scroll", queueHeaderSync, { passive: true });
+      window.addEventListener("resize", queueHeaderSync, { passive: true });
+      mobileGallery.addEventListener("change", syncHeaderPosition);
     }
 
     // Le rétrécissement de type ne suit pas dans les fonctions : on fige la référence.
