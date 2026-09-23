@@ -46,7 +46,7 @@ export function formatCountdown(msLeft: number): string {
   return h > 0 ? t("shipping.countdownHM", { h, m }) : t("shipping.countdownMS", { m, s });
 }
 
-type Promise2Lines = { main: string; sub: string; urgent: boolean };
+type Promise2Lines = { main: string; mobileMain?: string; sub: string; urgent: boolean };
 
 /** Les deux lignes de la promesse, pour un pays donné. */
 export function promiseFor(country: Country): Promise2Lines {
@@ -68,6 +68,9 @@ export function promiseFor(country: Country): Promise2Lines {
       main: sameDay.open
         ? t("shipping.sameDayOpen", { time: formatCountdown(sameDay.msLeft) })
         : t("shipping.sameDayClosed"),
+      mobileMain: sameDay.open
+        ? t("shipping.sameDayMobileOpen")
+        : t("shipping.sameDayMobileClosed"),
       sub: `${t("shipping.restOfUae", {
         min: UAE_DELIVERY_DAYS.min,
         max: UAE_DELIVERY_DAYS.max,
@@ -86,12 +89,15 @@ export function promiseFor(country: Country): Promise2Lines {
 /** Remplit tous les emplacements présents dans `root`. */
 export function renderShippingPromises(root: ParentNode = document): void {
   const country = selectedCountry();
-  const { main, sub, urgent } = promiseFor(country);
+  const { main, mobileMain, sub, urgent } = promiseFor(country);
+  const mobile = window.matchMedia("(max-width: 899px)").matches;
 
   for (const el of root.querySelectorAll<HTMLElement>("[data-shipping-promise]")) {
     const mainEl = el.querySelector<HTMLElement>("[data-ship-main]");
     const subEl = el.querySelector<HTMLElement>("[data-ship-sub]");
-    if (mainEl) mainEl.textContent = main;
+    const concise = mobile && el.hasAttribute("data-shipping-mobile-concise");
+    if (mainEl) mainEl.textContent = concise && mobileMain ? mobileMain : main;
+    el.classList.toggle("is-mobile-concise", concise && Boolean(mobileMain));
     // Certains emplacements (fiche produit) ne montrent que la ligne principale.
     if (subEl) subEl.textContent = sub;
     el.classList.toggle("is-urgent", urgent);

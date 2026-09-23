@@ -19,6 +19,7 @@ import type { ResponsiveImage } from "../lib/sanity";
 
 interface Props {
   name: string;
+  size?: string | null;
   subtitle?: string | null;
   price: string;
   img: ResponsiveImage | null;
@@ -35,6 +36,7 @@ interface Props {
 
 const {
   name,
+  size = null,
   subtitle,
   price,
   img,
@@ -99,7 +101,7 @@ const SIZES = "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw";
     }
   </div>
   <div class="ptile-meta">
-    <h3>{name}</h3>
+    <h3>{name}{size && <span class="ptile-size">{size}</span>}</h3>
     {subtitle && <p class="ptile-subtitle">{subtitle}</p>}
     <p class="ptile-price" data-money={variantId}>{price}</p>
   </div>
@@ -203,6 +205,12 @@ const SIZES = "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw";
     text-transform: uppercase;
     line-height: 1.2;
   }
+  .ptile-size {
+    margin-inline-start: 8px;
+    font-size: 0.82em;
+    font-weight: 400;
+    white-space: nowrap;
+  }
   .ptile-subtitle,
   .ptile-price {
     margin: 0;
@@ -214,7 +222,13 @@ const SIZES = "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw";
   /* Pas de survol au doigt : le bouton resterait inatteignable. */
   @media (hover: none) {
     .ptile-add-wrap { max-height: 48px; opacity: 1; overflow: visible; }
-    .ptile-overlay { opacity: 1; }
+    /* iOS conserve parfois un :hover après un tap ou un swipe. Le visuel
+       mobile doit rester fidèle à la photo, sans voile ni photo de survol. */
+    .ptile-overlay,
+    .ptile:hover .ptile-overlay { opacity: 0; }
+    .ptile:hover .ptile-img { transform: none; }
+    .ptile:hover .ptile-img-base { opacity: 1; }
+    .ptile:hover .ptile-img-hover { opacity: 0; }
   }
 
   @media (prefers-reduced-motion: reduce) {

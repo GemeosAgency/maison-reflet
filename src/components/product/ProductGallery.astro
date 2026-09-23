@@ -101,6 +101,19 @@ function isFull(i: number, count: number): boolean {
   const gallery = document.querySelector<HTMLElement>("[data-pgallery]");
   const box = document.querySelector<HTMLElement>("[data-lightbox]");
   if (gallery && box) {
+    /* Sur mobile, le header reste dans le flux tant que le hero est visible :
+       en remontant la page il ne peut donc plus masquer le haut du flacon.
+       Dès la galerie quittée, il retrouve son comportement sticky habituel. */
+    const mobileGallery = matchMedia("(max-width: 900px)");
+    const siteHeader = document.querySelector<HTMLElement>(".site-header-sticky");
+    if (mobileGallery.matches && siteHeader && "IntersectionObserver" in window) {
+      siteHeader.classList.add("is-product-gallery-visible");
+      const headerObserver = new IntersectionObserver(([entry]) => {
+        siteHeader.classList.toggle("is-product-gallery-visible", entry.isIntersecting);
+      });
+      headerObserver.observe(gallery);
+    }
+
     // Le rétrécissement de type ne suit pas dans les fonctions : on fige la référence.
     const lb: HTMLElement = box;
     const originalButtons = Array.from(gallery.querySelectorAll<HTMLButtonElement>(".pgallery-shot"));
@@ -450,6 +463,7 @@ function isFull(i: number, count: number): boolean {
   .plightbox-nav:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
 
   @media (max-width: 900px) {
+    :global(.site-header-sticky.is-product-gallery-visible) { position: relative; }
     .pgallery {
       display: flex;
       flex-direction: row;

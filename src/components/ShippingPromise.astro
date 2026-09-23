@@ -26,9 +26,11 @@ interface Props {
   sub?: boolean;
   /** Variante compacte : texte plus petit, pas d'icône. */
   compact?: boolean;
+  /** Sur mobile, affiche la promesse domestique courte avec un chrono. */
+  mobileConcise?: boolean;
 }
 
-const { lang, sub = true, compact = false } = Astro.props;
+const { lang, sub = true, compact = false, mobileConcise = false } = Astro.props;
 const t = useTranslations(lang);
 
 const country = getCountry(DEFAULT_COUNTRY);
@@ -46,8 +48,15 @@ const subLabel = `${t("shipping.restOfUae")
   .replace("{max}", String(days.max))} · ${rate}, ${t("shipping.freeFrom").replace("{amount}", free)}`;
 ---
 
-<div class:list={["ship", { "ship-compact": compact }]} data-shipping-promise>
+<div
+  class:list={["ship", { "ship-compact": compact, "ship-mobile-concise": mobileConcise, "is-mobile-concise": mobileConcise }]}
+  data-shipping-promise
+  data-shipping-mobile-concise={mobileConcise ? "" : undefined}
+>
   {!compact && <img class="ship-icon" src="/brand/shipment.svg" alt="" width="20" height="20" />}
+  {mobileConcise && (
+    <img class="ship-icon ship-icon-clock" src="/brand/reassurance-tenue.svg" alt="" width="20" height="20" />
+  )}
   <div class="ship-text">
     <p class="ship-main" data-ship-main>{mainLabel}</p>
     {sub && <p class="ship-sub" data-ship-sub>{subLabel}</p>}
@@ -63,6 +72,7 @@ const subLabel = `${t("shipping.restOfUae")
     line-height: 1.36;
   }
   .ship-icon { flex: none; margin-top: 1px; }
+  .ship-icon-clock { display: none; }
   .ship-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .ship-main { margin: 0; font-weight: 500; }
   .ship-sub { margin: 0; opacity: 0.7; }
@@ -74,4 +84,9 @@ const subLabel = `${t("shipping.restOfUae")
    * se dit une fois, avec la couleur.
    */
   .ship.is-urgent .ship-main { color: var(--rose, #812538); }
+
+  @media (max-width: 899px) {
+    .ship-mobile-concise.is-mobile-concise > .ship-icon:not(.ship-icon-clock) { display: none; }
+    .ship-mobile-concise.is-mobile-concise > .ship-icon-clock { display: block; }
+  }
 </style>

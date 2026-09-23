@@ -9,6 +9,7 @@ import type { ResponsiveImage } from "../lib/sanity";
 
 export interface RelatedItem {
   name: string;
+  size?: string | null;
   subtitle: string | null;
   price: string;
   img: ResponsiveImage | null;
@@ -40,6 +41,7 @@ const { title, items, addLabel, addedLabel, errorLabel } = Astro.props;
         {items.map((p) => (
           <ProductTile
             name={p.name}
+            size={p.size}
             subtitle={p.subtitle}
             price={p.price}
             img={p.img}

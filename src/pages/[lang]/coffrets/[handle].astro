@@ -173,8 +173,10 @@ const related = products
   .map((p) => {
     const recoImg = recoImages[p.handle];
     const price = getDisplayPrice(p);
+    const primaryVariant = getPrimaryVariant(p);
     return {
       name: p.title,
+      size: primaryVariant.title !== "Default Title" ? primaryVariant.title : null,
       subtitle: inspiredMap[p.handle] ? `${t("product.twistOf")} ${inspiredMap[p.handle]}` : null,
       price: formatPrice(price.amount, price.currencyCode),
       // Sans imageRecommandation dans Sanity on retombe sur la photo produit
@@ -195,7 +197,7 @@ const related = products
           })(),
       href: localePath(lang, `/parfums/${p.handle}`),
       badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
-      variantId: getPrimaryVariant(p).id,
+      variantId: primaryVariant.id,
     };
   });
 
