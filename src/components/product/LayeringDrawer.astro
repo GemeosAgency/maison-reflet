@@ -6,7 +6,7 @@
  * ouvert par `layering:open` depuis la rangée du panneau (LayeringRow).
  *
  * Dedans, tout calé en bas (Sandro) : le diaporama du partenaire — le même
- * que le menu (PhotoSlides), photo Sanity puis photos Shopify — juste
+ * que le menu (PhotoSlides), galerie locale puis repli Sanity/Shopify — juste
  * au-dessus du texte : l'accord du parfumeur (nom, histoire, geste), « La
  * recommandation du parfumeur » à écouter, et « Ajouter les deux » avec le
  * prix des deux flacons. Monté par la PAGE, hors du panneau d'achat sticky
@@ -19,6 +19,7 @@ import { accordAudioPath, duosFor } from "../../lib/layering";
 import { universeLabel } from "../../lib/universes";
 import { getRecoImages, responsiveImage, type ResponsiveImage } from "../../lib/sanity";
 import { formatPrice, getDisplayPrice, getPrimaryVariant, isSampleVariantTitle, shopifyImage, type ShopifyProduct } from "../../lib/shopify";
+import { getProductImageOverride } from "../../lib/product-images";
 
 interface Props {
   lang: Locale;
@@ -42,7 +43,9 @@ const accord =
         const price = getDisplayPrice(partnerProduct);
         const mine = getDisplayPrice(me);
         const myVariantId = getPrimaryVariant(me).id;
-        // Les diapositives, comme dans le menu : la photo curée Sanity puis les photos Shopify (sans échantillon, sans doublon), six au plus.
+        const imageOverride = getProductImageOverride(partnerProduct.handle, partnerProduct.title);
+        // Les diapositives, comme dans le menu : galerie locale si disponible,
+        // sinon photo curée Sanity puis photos Shopify, six au plus.
         const source = recoImages[partnerProduct.handle]?.main ?? null;
         const sampleUrls = new Set(
           partnerProduct.variants.nodes.filter((v) => isSampleVariantTitle(v.title)).map((v) => v.image?.url).filter(Boolean)
@@ -51,10 +54,12 @@ const accord =
           .filter((im) => im && !sampleUrls.has(im.url))
           .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i)
           .map((im) => shopifyImage(im!, SLIDE_WIDTHS));
-        const slides: ResponsiveImage[] = [
-          ...(source ? [responsiveImage(source as any, { widths: SLIDE_WIDTHS, aspect: 3 / 4 })] : []),
-          ...shots,
-        ].slice(0, 6);
+        const slides: ResponsiveImage[] =
+          imageOverride ??
+          [
+            ...(source ? [responsiveImage(source as any, { widths: SLIDE_WIDTHS, aspect: 3 / 4 })] : []),
+            ...shots,
+          ].slice(0, 6);
         return {
           duo: first.duo,
           variants: first.first ? `${myVariantId},${variant.id}` : `${variant.id},${myVariantId}`,

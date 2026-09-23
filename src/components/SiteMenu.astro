@@ -31,6 +31,7 @@ import { getCoffrets, getMenuParfums, getRecoImages, responsiveImage, type Respo
 import { type Locale, locales, localeNames, localePath, useTranslations } from "../i18n";
 import { portraitAudioPath } from "../lib/luma/portraits";
 import { universeLabel } from "../lib/universes";
+import { getProductImageOverride } from "../lib/product-images";
 
 interface Props {
   lang: Locale;
@@ -61,11 +62,12 @@ const reflets = products
   .map((p) => {
     const doc = docByHandle[p.handle];
     const source = recoImages[p.handle]?.main ?? null;
-    // Les diapositives du visuel : la photo curée Sanity si elle existe, puis
-    // les photos produit Shopify (sans les vignettes d'échantillon, sans
-    // doublon), six au plus — toute la galerie, puisque les segments se
-    // cliquent. Elles défilent d'elles-mêmes quand le Reflet est mis en avant
-    // (Sandro) ; seule la première est chargée avec la page.
+    const imageOverride = getProductImageOverride(p.handle, p.title);
+    // Les diapositives du visuel : la galerie locale validée dans Figma quand
+    // elle existe, sinon la photo curée Sanity puis les photos Shopify (sans
+    // vignettes d'échantillon ni doublons), six au plus. Elles défilent
+    // d'elles-mêmes quand le Reflet est mis en avant (Sandro) ; seule la
+    // première est chargée avec la page.
     const sampleUrls = new Set(
       p.variants.nodes.filter((v) => isSampleVariantTitle(v.title)).map((v) => v.image?.url).filter(Boolean)
     );
@@ -73,20 +75,23 @@ const reflets = products
       .filter((im) => im && !sampleUrls.has(im.url))
       .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i)
       .map((im) => shopifyImage(im!, VISUAL_WIDTHS));
-    const slides: ResponsiveImage[] = [
-      ...(source ? [responsiveImage(source as any, { widths: VISUAL_WIDTHS, aspect: 3 / 4 })] : []),
-      ...shopifyShots,
-    ].slice(0, 6);
+    const slides: ResponsiveImage[] =
+      imageOverride ??
+      [
+        ...(source ? [responsiveImage(source as any, { widths: VISUAL_WIDTHS, aspect: 3 / 4 })] : []),
+        ...shopifyShots,
+      ].slice(0, 6);
     const variant = getPrimaryVariant(p);
     const price = getDisplayPrice(p);
-    // Même visuel que la tuile du catalogue : la photo curée dans Sanity
-    // (imageRecommandation) sinon la photo principale Shopify.
+    // La vignette mobile reprend aussi la galerie locale quand elle existe,
+    // puis la photo curée Sanity ou la photo principale Shopify.
     const picture = (widths: number[], aspect: number): Picture =>
-      source
+      imageOverride?.[0] ??
+      (source
         ? responsiveImage(source as any, { widths, aspect })
         : p.featuredImage
           ? shopifyImage(p.featuredImage, widths)
-          : null;
+          : null);
     return {
       handle: p.handle,
       name: p.title,
