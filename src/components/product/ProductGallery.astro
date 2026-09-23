@@ -53,14 +53,14 @@ function isFull(i: number, count: number): boolean {
           aria-label={`${t("gallery.enlarge")} — ${im.alt} (${i + 1}/${images.length})`}
         >
           <img
-            src={i === 0 ? im.src : undefined}
-            srcset={i === 0 ? im.srcset : undefined}
-            data-src={i > 0 ? im.src : undefined}
-            data-srcset={i > 0 ? im.srcset : undefined}
+            src={i < 2 ? im.src : undefined}
+            srcset={i < 2 ? im.srcset : undefined}
+            data-src={i > 1 ? im.src : undefined}
+            data-srcset={i > 1 ? im.srcset : undefined}
             sizes={isFull(i, images.length) ? "(max-width: 900px) 100vw, 50vw" : "(max-width: 900px) 100vw, 25vw"}
             alt={im.alt}
-            loading={i === 0 ? "eager" : "lazy"}
-            fetchpriority={i === 0 ? "high" : undefined}
+            loading={i < 2 ? "eager" : "lazy"}
+            fetchpriority={i === 0 ? "high" : i === 1 ? "low" : undefined}
             decoding="async"
           />
         </button>
@@ -103,7 +103,8 @@ function isFull(i: number, count: number): boolean {
   if (gallery && box) {
     // Le rétrécissement de type ne suit pas dans les fonctions : on fige la référence.
     const lb: HTMLElement = box;
-    const shots = Array.from(gallery.querySelectorAll<HTMLImageElement>(".pgallery-shot img"));
+    const originalButtons = Array.from(gallery.querySelectorAll<HTMLButtonElement>(".pgallery-shot"));
+    const shots = originalButtons.map((button) => button.querySelector<HTMLImageElement>("img")!);
     const img = lb.querySelector<HTMLImageElement>("[data-lightbox-img]")!;
     const count = lb.querySelector<HTMLElement>("[data-lightbox-count]")!;
     const closeBtn = lb.querySelector<HTMLButtonElement>(".plightbox-close")!;
@@ -119,7 +120,7 @@ function isFull(i: number, count: number): boolean {
       source.removeAttribute("data-src");
       source.removeAttribute("data-srcset");
     };
-    const deferred = shots.slice(1);
+    const deferred = shots.slice(2);
     if ("IntersectionObserver" in window) {
       const observer = new IntersectionObserver(
         (entries) => {
@@ -159,11 +160,76 @@ function isFull(i: number, count: number): boolean {
         prepareNextImage(current);
       });
     }, { passive: true });
-    // Une fois la première vue stabilisée, la seconde est prête au premier
-    // geste. Les suivantes restent différées jusqu'au scroll.
-    const hydrateSecond = () => shots[1] && hydrate(shots[1]);
-    if (document.readyState === "complete") window.setTimeout(hydrateSecond, 0);
-    else window.addEventListener("load", hydrateSecond, { once: true });
+    /*
+     * Boucle mobile : un clone du dernier avant le premier, et un clone du
+     * premier après le dernier. Quand le snap tombe sur un clone, on revient
+     * sans animation sur son original — visuellement la bande est continue.
+     * Le clone précédent est hydraté après `load`, donc il ne concurrence pas
+     * le LCP. Sur desktop les clones sont masqués et la mosaïque ne change pas.
+     */
+    let loopTimer: number | undefined;
+    if (matchMedia("(max-width: 900px)").matches && originalButtons.length > 1) {
+      const firstOriginal = originalButtons[0];
+      const lastOriginal = originalButtons[originalButtons.length - 1];
+      const before = lastOriginal.cloneNode(true) as HTMLButtonElement;
+      const after = firstOriginal.cloneNode(true) as HTMLButtonElement;
+      before.classList.add("is-loop-clone");
+      after.classList.add("is-loop-clone");
+      before.removeAttribute("data-gallery-open");
+      after.removeAttribute("data-gallery-open");
+      before.setAttribute("aria-hidden", "true");
+      after.setAttribute("aria-hidden", "true");
+      before.tabIndex = -1;
+      after.tabIndex = -1;
+      before.querySelector("img")?.setAttribute("alt", "");
+      after.querySelector("img")?.setAttribute("alt", "");
+      gallery.prepend(before);
+      gallery.append(after);
+
+      // Déplacement strictement horizontal : scrollIntoView pourrait aussi
+      // faire descendre la page au chargement pour montrer le bas de l'image.
+      const alignSlide = (button: HTMLElement) => {
+        const galleryRect = gallery.getBoundingClientRect();
+        const buttonRect = button.getBoundingClientRect();
+        const rtl = getComputedStyle(gallery).direction === "rtl";
+        const left = gallery.scrollLeft + (rtl ? buttonRect.right - galleryRect.right : buttonRect.left - galleryRect.left);
+        gallery.scrollTo({ left, behavior: "auto" });
+      };
+      // Le premier original reste la vue initiale malgré le clone ajouté avant.
+      alignSlide(firstOriginal);
+
+      const hydrateBefore = () => {
+        const source = before.querySelector<HTMLImageElement>("img");
+        if (source) hydrate(source);
+      };
+      const preparePrevious = () => {
+        // Après `load` uniquement : ce clone ne concurrence ni le LCP ni la
+        // seconde image, déjà prête pour le premier geste vers l'avant.
+        window.setTimeout(hydrateBefore, 250);
+      };
+      if (document.readyState === "complete") preparePrevious();
+      else window.addEventListener("load", preparePrevious, { once: true });
+
+      const normalizeLoop = () => {
+        const center = gallery.getBoundingClientRect().left + gallery.clientWidth / 2;
+        const visible = Array.from(gallery.querySelectorAll<HTMLButtonElement>(".pgallery-shot")).reduce(
+          (closest, button) => {
+            const rect = button.getBoundingClientRect();
+            const distance = Math.abs(rect.left + rect.width / 2 - center);
+            return distance < closest.distance ? { button, distance } : closest;
+          },
+          { button: firstOriginal, distance: Number.POSITIVE_INFINITY }
+        ).button;
+        if (visible === before) alignSlide(lastOriginal);
+        else if (visible === after) alignSlide(firstOriginal);
+      };
+      gallery.addEventListener("scroll", () => {
+        clearTimeout(loopTimer);
+        loopTimer = window.setTimeout(normalizeLoop, 90);
+      }, { passive: true });
+      before.addEventListener("click", () => open(shots.length - 1));
+      after.addEventListener("click", () => open(0));
+    }
 
     function show(i: number) {
       index = (i + shots.length) % shots.length;
@@ -256,6 +322,7 @@ function isFull(i: number, count: number): boolean {
     overflow: hidden;
     cursor: zoom-in;
   }
+  .pgallery-shot.is-loop-clone { display: none; }
   .pgallery-shot:focus-visible { outline: 1px solid var(--ink); outline-offset: -3px; }
   .pgallery-shot.is-full { grid-column: 1 / -1; }
   .pgallery-shot img {
@@ -397,6 +464,7 @@ function isFull(i: number, count: number): boolean {
       scroll-snap-align: start;
       aspect-ratio: 4 / 5;
     }
+    .pgallery-shot.is-loop-clone { display: block; }
     /* Permet à la dernière photo de s'aligner elle aussi sur le bord de départ. */
     .pgallery::after { content: ""; flex: 0 0 30px; }
     .plightbox { grid-template-columns: 44px 1fr 44px; }

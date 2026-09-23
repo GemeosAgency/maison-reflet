@@ -238,10 +238,12 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   à un seul endroit.
 */}
 <div class="pbuy" data-sticky-buy hidden>
-  <span class="pbuy-name">{title}{sizeLabel && <span class="pbuy-size">{sizeLabel}</span>}</span>
+  <span class="pbuy-summary">
+    <span class="pbuy-name">{title}{sizeLabel && <span class="pbuy-size">{sizeLabel}</span>}</span>
+    <span class="pbuy-price" data-money={variantId}>{priceLabel}</span>
+  </span>
   <button type="button" class="pbuy-add" data-sticky-add>
     <span>{addLabel}</span>
-    <span data-money={variantId}>{priceLabel}</span>
   </button>
 </div>
 
@@ -358,17 +360,25 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     z-index: 60;
     display: none;
     align-items: center;
-    gap: 12px;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    gap: 14px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
     background: var(--paper, #f7f5f2);
     border-top: 1px solid rgba(21, 14, 10, 0.1);
     box-shadow: 0 -8px 24px -16px rgba(21, 14, 10, 0.4);
   }
   .pbuy[hidden] { display: none; }
-  .pbuy-name {
+  .pbuy-summary {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .pbuy-name {
+    min-width: 0;
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
     line-height: 1.25;
     white-space: nowrap;
     overflow: hidden;
@@ -376,6 +386,7 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     text-transform: uppercase;
   }
   .pbuy-size { margin-inline-start: 6px; color: var(--muted, rgba(21, 14, 10, 0.56)); }
+  .pbuy-price { font-size: 16px; font-weight: 500; line-height: 1.2; white-space: nowrap; }
   /* Sous 400 px, le nom et la contenance ne tiennent pas : « FIFTH SEASON 7… »
      ne rend service à personne, on garde le nom seul. */
   @media (max-width: 399px) {
@@ -385,14 +396,16 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    gap: 12px;
-    padding: 13px 18px;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0 20px;
     border: 0;
     border-radius: 2px;
     background: var(--rose, #812538);
     color: var(--paper, #f7f5f2);
     font: inherit;
     font-size: 13px;
+    font-weight: 500;
     text-transform: uppercase;
     cursor: pointer;
   }
@@ -552,5 +565,32 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
        et un bouton d'achat pleine largeur, plus rapide à comprendre/toucher. */
     .ppanel-qty { display: none; }
     .ppanel-add { flex: 1 1 100%; }
+    /* Une seule carte de service compacte : la date de livraison reste la
+       promesse principale, les garanties deviennent trois lignes faciles à
+       scanner. Le détail tarifaire, déjà présent dans le bandeau de livraison
+       du site, ne rallonge plus ce moment de décision. */
+    .ppanel-reassure {
+      gap: 0;
+      padding: 4px 14px;
+      border: 1px solid rgba(21, 14, 10, 0.12);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.22);
+    }
+    .ppanel-ship {
+      padding: 11px 0 12px;
+      border-bottom: 1px solid rgba(21, 14, 10, 0.1);
+    }
+    .ppanel-ship :global(.ship) { align-items: center; font-size: 14px; }
+    .ppanel-ship :global(.ship-sub) { display: none; }
+    .ppanel-perks { gap: 0; }
+    .ppanel-perks li {
+      min-height: 44px;
+      gap: 10px;
+      padding: 9px 0;
+      font-size: 14px;
+      line-height: 1.3;
+    }
+    .ppanel-perks li + li { border-top: 1px solid rgba(21, 14, 10, 0.1); }
+    .ppanel-perks li :global(.tip) { margin-inline-start: auto; }
   }
 </style>

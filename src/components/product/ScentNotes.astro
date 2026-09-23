@@ -528,10 +528,26 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
     .snotes-head { padding: 56px var(--gutter-x) 24px; gap: 24px; }
     .snotes h2 { font-size: 26px; }
     .snotes-tab { padding: 14px 16px; }
-    .snotes-grid { grid-template-columns: minmax(0, 1fr); }
-    /* 3/4 plutôt que le ratio de maquette : en pleine largeur mobile, 0,855
-       donnerait une colonne de 117vh de haut. */
-    .snotes-col { aspect-ratio: 3 / 4; padding: 24px; }
+    /* Un triptyque ne doit pas devenir trois écrans empilés. Sur mobile les
+       notes forment une bande à snap, avec le bord de la suivante visible. */
+    .snotes-grid {
+      display: flex;
+      gap: 2px;
+      box-sizing: border-box;
+      padding-inline: var(--gutter-x);
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-padding-inline: var(--gutter-x);
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .snotes-grid::-webkit-scrollbar { display: none; }
+    .snotes-col {
+      flex: 0 0 calc(100vw - var(--gutter-x) - 32px);
+      aspect-ratio: 3 / 4;
+      padding: 24px;
+      scroll-snap-align: start;
+    }
     .snotes-list { inset-inline-start: 24px; bottom: 24px; }
   }
 </style>

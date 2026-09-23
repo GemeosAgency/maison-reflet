@@ -75,6 +75,23 @@ const { title, items, addLabel, addedLabel, errorLabel } = Astro.props;
 
   @media (max-width: 900px) {
     .related h2 { font-size: 26px; padding: 40px var(--gutter-x) 24px; }
-    .related-grid { grid-template-columns: repeat(2, 1fr); }
+    /* Une rangée à swiper remplace les trois rangées de recommandations. La
+       carte suivante dépasse suffisamment pour rendre le geste évident. */
+    .related-grid {
+      display: flex;
+      gap: 12px;
+      box-sizing: border-box;
+      padding-inline: var(--gutter-x);
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-padding-inline: var(--gutter-x);
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .related-grid::-webkit-scrollbar { display: none; }
+    .related-grid > :global(.ptile) {
+      flex: 0 0 calc(100vw - 72px);
+      scroll-snap-align: start;
+    }
   }
 </style>

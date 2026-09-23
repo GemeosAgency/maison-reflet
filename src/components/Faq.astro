@@ -157,10 +157,18 @@ const visible = (items ?? []).filter((f) => f.question);
   .faq-answer-content :global(img) { max-width: 100%; height: auto; margin-top: 12px; border-radius: 4px; }
 
   @media (max-width: 600px) {
-    .faq { padding: 56px 20px 64px; }
-    .faq h2 { font-size: 28px; }
-    .faq-question { gap: 16px; padding: 12px 12px 12px 4px; }
+    .faq {
+      width: 100%;
+      max-width: none;
+      box-sizing: border-box;
+      padding: 56px 0 64px;
+    }
+    .faq h2 { padding-inline: var(--gutter-x); font-size: 28px; }
+    .faq-question { gap: 16px; padding: 12px var(--gutter-x); }
     .faq-question-text { font-size: 18px; }
-    .faq-answer-content { padding-left: 44px; }
+    .faq-answer-content {
+      padding-inline-start: calc(var(--gutter-x) + 64px);
+      padding-inline-end: var(--gutter-x);
+    }
   }
 </style>

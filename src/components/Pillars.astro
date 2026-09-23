@@ -108,13 +108,27 @@ const responsiveSources = (image: string) => {
 
   @media (max-width: 900px) {
     .pillars-head { padding: 56px var(--gutter-x) 24px; }
-    .pillars-head h2 { font-size: 26px; }
-    .pillars-grid { flex-direction: column; }
-    /* `flex: none` est indispensable : en flex-direction column, le
-       `flex: 1 0 0` du desktop s'applique à la HAUTEUR et écrase
-       l'aspect-ratio — les piliers s'effondraient à 48px de haut.
-       Et empilés en pleine largeur, le ratio de maquette donnerait des blocs
-       de 117vw de haut, d'où le 4/3 paysage. */
-    .pillar { flex: none; aspect-ratio: 4 / 3; padding: 24px; }
+    .pillars-head h2 { font-size: 22px; }
+    .pillars-head p { max-width: 340px; font-size: 16px; line-height: 1.35; }
+    /* Les sources sont des portraits (~4/5) : le précédent recadrage paysage
+       coupait les sujets et empilait trois grands blocs. Une bande à snap
+       conserve leur format et laisse voir la carte suivante. */
+    .pillars-grid {
+      box-sizing: border-box;
+      padding-inline: var(--gutter-x);
+      gap: 2px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-padding-inline: var(--gutter-x);
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .pillars-grid::-webkit-scrollbar { display: none; }
+    .pillar {
+      flex: 0 0 calc(100vw - var(--gutter-x) - 32px);
+      aspect-ratio: 4 / 5;
+      padding: 24px;
+      scroll-snap-align: start;
+    }
   }
 </style>
