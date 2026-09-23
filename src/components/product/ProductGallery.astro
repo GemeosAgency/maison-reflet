@@ -107,9 +107,15 @@ function isFull(i: number, count: number): boolean {
     const mobileGallery = matchMedia("(max-width: 900px)");
     const siteHeader = document.querySelector<HTMLElement>(".site-header-sticky");
     if (mobileGallery.matches && siteHeader && "IntersectionObserver" in window) {
-      siteHeader.classList.add("is-product-gallery-visible");
+      const setHeaderOverGallery = (visible: boolean) => {
+        siteHeader.classList.toggle("is-product-gallery-visible", visible);
+        // Inline pour gagner aussi contre la feuille globale du Layout, dont
+        // l'ordre d'injection diffère entre le serveur dev et le build Vercel.
+        siteHeader.style.position = visible ? "relative" : "";
+      };
+      setHeaderOverGallery(true);
       const headerObserver = new IntersectionObserver(([entry]) => {
-        siteHeader.classList.toggle("is-product-gallery-visible", entry.isIntersecting);
+        setHeaderOverGallery(entry.isIntersecting);
       });
       headerObserver.observe(gallery);
     }
@@ -463,7 +469,6 @@ function isFull(i: number, count: number): boolean {
   .plightbox-nav:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
 
   @media (max-width: 900px) {
-    :global(.site-header-sticky.is-product-gallery-visible) { position: relative; }
     .pgallery {
       display: flex;
       flex-direction: row;
