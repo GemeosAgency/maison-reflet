@@ -1,4 +1,5 @@
 ---
+import { getProductHoverImage } from "../../../lib/product-images";
 /**
  * Page coffret v2 (maquette Figma « Discovery », septembre 2026) — assemblage
  * de sections : galerie + panneau sticky, Scent Notes à onglets (un par parfum
@@ -189,12 +190,12 @@ const related = products
       // Photo du survol : la version curée dans Sanity si elle existe, sinon
       // la deuxième photo produit de Shopify (voir secondaryImage). Même
       // chaîne de repli que les tuiles du catalogue et de l'accueil.
-      hoverImg: recoImg?.hover
+      hoverImg: getProductHoverImage(p.handle, p.title) ?? (recoImg?.hover
         ? responsiveImage(recoImg.hover as any, { widths: TILE_WIDTHS, aspect: 287 / 352 })
         : (() => {
             const im = secondaryImage(p);
             return im ? shopifyImage(im, TILE_WIDTHS) : null;
-          })(),
+          })()),
       href: localePath(lang, `/parfums/${p.handle}`),
       badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
       variantId: primaryVariant.id,

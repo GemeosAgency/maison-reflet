@@ -72,3 +72,21 @@ export function getProductImageOverride(
       : null
   );
 }
+
+/*
+ * Photo du survol des tuiles (catalogue, accueil, « Vous aimerez aussi ») : la
+ * quatrième de la galerie, celle qui s'affiche en large au milieu de la
+ * mosaïque de la fiche (Sandro, 24 sept.). Elle passe avant le survol Sanity ;
+ * un produit sans galerie validée garde l'ancienne chaîne de repli.
+ */
+const HOVER_INDEX = 3;
+
+export function getProductHoverImage(handle: string, title: string): ProductGalleryImage | null {
+  return getProductImageOverride(handle, title)?.[HOVER_INDEX] ?? null;
+}
+
+/** Même photo en une seule URL, pour les cartes qui ne prennent pas de srcset. */
+export function getProductHoverSrc(handle: string, title: string): string | null {
+  const image = getProductHoverImage(handle, title);
+  return image ? image.src.replace(/\.jpg$/, "-960.webp") : null;
+}

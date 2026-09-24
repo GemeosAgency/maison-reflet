@@ -1,4 +1,5 @@
 ---
+import { getProductHoverSrc } from "../../../lib/product-images";
 import Layout from "../../../layouts/Layout.astro";
 import ProductCard from "../../../components/ProductCard.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
@@ -61,12 +62,12 @@ const perfumes = allProducts
       // sinon la deuxième photo produit de Shopify. Les visuels de variante
       // échantillon sont écartés — ce sont des vignettes de 192px destinées au
       // panier, pas des angles de flacon.
-      hoverImg: recoImg?.hover
+      hoverImg: getProductHoverSrc(p.handle, p.title) ?? (recoImg?.hover
         ? urlForImage(recoImg.hover as any).width(1200).height(1605).url()
         : (() => {
             const im = secondaryImage(p);
             return im ? shopifyImage(im, [480, 720, 1200]).src : null;
-          })(),
+          })()),
       variantId: variant.id,
       href: localePath(lang, `/parfums/${p.handle}`),
       badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
