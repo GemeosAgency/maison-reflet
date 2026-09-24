@@ -7,7 +7,8 @@
  *
  * Survol — le même que la tuile du catalogue (voir ProductCard) : la photo
  * bascule sur une SECONDE image, la tuile s'assombrit et un bouton
- * « Ajouter au panier » apparaît en bas du visuel. Sans seconde photo
+ * « Ajouter au panier » apparaît en bas du visuel. Sans bouton, pas de
+ * voile : la photo du survol reste nette. Sans seconde photo
  * (`hoverImg` absent), le reste du survol fonctionne quand même sur la
  * première.
  *
@@ -50,6 +51,9 @@ const {
 } = Astro.props;
 
 const SIZES = "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw";
+// Le voile ne sert qu'à faire ressortir le bouton d'ajout : sans bouton (les
+// tuiles de la fiche parfum), il ne ferait qu'assombrir la photo du survol.
+const hasAdd = Boolean(variantId && addLabel);
 ---
 
 <div class="ptile">
@@ -81,10 +85,10 @@ const SIZES = "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw";
         />
       )
     }
-    <div class="ptile-overlay" aria-hidden="true"></div>
+    {hasAdd && <div class="ptile-overlay" aria-hidden="true"></div>}
     {badge && <span class="ptile-badge">{badge}</span>}
     {
-      variantId && addLabel && (
+      hasAdd && (
         <div class="ptile-add-wrap">
           <button
             type="button"
