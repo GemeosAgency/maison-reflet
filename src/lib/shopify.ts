@@ -323,6 +323,22 @@ export async function getAllProducts(first = 20, context?: ShopifyContext) {
 // tester hors Astro. Ré-exportés ici pour les appelants historiques.
 export { isCoffret, isSampleVariantTitle };
 
+type GalleryProduct = Pick<ShopifyProduct, "featuredImage" | "images" | "variants">;
+
+/** Les photos d'un produit dans l'ordre de la galerie, filtrées comme expliqué ci-dessous. */
+function galleryPhotos(product: GalleryProduct): ShopifyImage[] {
+  const sampleUrls = new Set(
+    product.variants.nodes
+      .filter((v) => isSampleVariantTitle(v.title))
+      .map((v) => v.image?.url)
+      .filter((u): u is string => Boolean(u))
+  );
+  const photos = [product.featuredImage, ...product.images.nodes]
+    .filter((im): im is ShopifyImage => im !== null && !sampleUrls.has(im.url))
+    .filter((im, i, arr) => arr.findIndex((x) => x.url === im.url) === i);
+  return photos;
+}
+
 /**
  * Deuxième visuel d'un produit — la photo montrée au survol des tuiles,
  * quand Sanity n'en a pas de dédiée (imageRecommandationHover).
@@ -333,19 +349,18 @@ export { isCoffret, isSampleVariantTitle };
  *  - les doublons d'URL aussi, `featuredImage` figurant presque toujours déjà
  *    dans `images.nodes` — sans ça la "deuxième" photo était la première.
  */
-export function secondaryImage(
-  product: Pick<ShopifyProduct, "featuredImage" | "images" | "variants">
-): ShopifyImage | null {
-  const sampleUrls = new Set(
-    product.variants.nodes
-      .filter((v) => isSampleVariantTitle(v.title))
-      .map((v) => v.image?.url)
-      .filter((u): u is string => Boolean(u))
-  );
-  const photos = [product.featuredImage, ...product.images.nodes]
-    .filter((im): im is ShopifyImage => im !== null && !sampleUrls.has(im.url))
-    .filter((im, i, arr) => arr.findIndex((x) => x.url === im.url) === i);
-  return photos[1] ?? null;
+export function secondaryImage(product: GalleryProduct): ShopifyImage | null {
+  return galleryPhotos(product)[1] ?? null;
+}
+
+/**
+ * Photo du survol des tuiles quand la galerie vient de Shopify : la quatrième
+ * de la fiche, celle qui s'affiche en large au milieu de la mosaïque (même
+ * tri que la galerie : sans visuels échantillon ni doublons). Null tant que le
+ * produit n'a pas au moins quatre photos.
+ */
+export function hoverGalleryImage(product: GalleryProduct): ShopifyImage | null {
+  return galleryPhotos(product)[3] ?? null;
 }
 
 type ProductVariant = ShopifyProduct["variants"]["nodes"][number];

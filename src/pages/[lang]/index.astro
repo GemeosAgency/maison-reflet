@@ -15,6 +15,7 @@ import {
   getPrimaryVariant,
   isCoffret,
   secondaryImage,
+  hoverGalleryImage,
   shopifyImage,
 } from "../../lib/shopify";
 import {
@@ -85,7 +86,12 @@ const bestsellers = [...perfumes]
       // version curée dans Sanity, sinon la deuxième photo produit de Shopify
       // (hors visuels de variante échantillon, qui sont des vignettes de 192 px
       // destinées au panier).
-      hoverImg: getProductHoverSrc(p.handle, p.title) ?? (recoImg?.hover
+      hoverImg: getProductHoverSrc(p.handle, p.title) ??
+        (() => {
+          const im = hoverGalleryImage(p);
+          return im ? shopifyImage(im, [480, 720, TILE_WIDTH]).src : null;
+        })() ??
+        (recoImg?.hover
         ? tileImage(recoImg.hover)
         : (() => {
             const im = secondaryImage(p);
