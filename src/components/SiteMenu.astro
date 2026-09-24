@@ -27,7 +27,7 @@ import {
   isSampleVariantTitle,
   shopifyImage,
 } from "../lib/shopify";
-import { getCoffrets, getMenuParfums, getRecoImages, responsiveImage, type ResponsiveImage } from "../lib/sanity";
+import { getCoffrets, getMenuParfums, responsiveImage, type ResponsiveImage } from "../lib/sanity";
 import { type Locale, locales, localeNames, localePath, useTranslations } from "../i18n";
 import { portraitAudioPath } from "../lib/luma/portraits";
 import { universeLabel } from "../lib/universes";
@@ -42,10 +42,9 @@ interface Props {
 const { lang, rest } = Astro.props;
 const t = useTranslations(lang);
 
-const [products, menuParfums, recoImages, coffretContent] = await Promise.all([
+const [products, menuParfums, coffretContent] = await Promise.all([
   getAllProducts(),
   getMenuParfums(),
-  getRecoImages(),
   getCoffrets(lang),
 ]);
 const docByHandle = Object.fromEntries(menuParfums.map((p) => [p.shopifyHandle, p]));
@@ -61,13 +60,17 @@ const reflets = products
   .filter((p) => !isCoffret(p))
   .map((p) => {
     const doc = docByHandle[p.handle];
-    const source = recoImages[p.handle]?.main ?? null;
     const imageOverride = getProductImageOverride(p.handle, p.title);
     // Les diapositives du visuel : la galerie locale validée dans Figma quand
-    // elle existe, sinon la photo curée Sanity puis les photos Shopify (sans
-    // vignettes d'échantillon ni doublons), six au plus. Elles défilent
-    // d'elles-mêmes quand le Reflet est mis en avant (Sandro) ; seule la
-    // première est chargée avec la page.
+    // elle existe, sinon les photos Shopify (sans vignettes d'échantillon ni
+    // doublons), six au plus. Elles défilent d'elles-mêmes quand le Reflet est
+    // mis en avant (Sandro) ; seule la première est chargée avec la page.
+    //
+    // Surtout pas `imageRecommandation` : depuis le 24 septembre, ce champ
+    // porte la photo « texte devant », le flacon remonté avec du vide sous lui.
+    // Recadrée en 3/4 pour le menu, elle donnait un flacon décentré sur du
+    // sable — c'est ce qu'on voyait sur New Oud et Minuit Bourbon, les deux
+    // Reflets sans galerie locale.
     const sampleUrls = new Set(
       p.variants.nodes.filter((v) => isSampleVariantTitle(v.title)).map((v) => v.image?.url).filter(Boolean)
     );
@@ -75,23 +78,13 @@ const reflets = products
       .filter((im) => im && !sampleUrls.has(im.url))
       .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i)
       .map((im) => shopifyImage(im!, VISUAL_WIDTHS));
-    const slides: ResponsiveImage[] =
-      imageOverride ??
-      [
-        ...(source ? [responsiveImage(source as any, { widths: VISUAL_WIDTHS, aspect: 3 / 4 })] : []),
-        ...shopifyShots,
-      ].slice(0, 6);
+    const slides: ResponsiveImage[] = imageOverride ?? shopifyShots.slice(0, 6);
     const variant = getPrimaryVariant(p);
     const price = getDisplayPrice(p);
     // La vignette mobile reprend aussi la galerie locale quand elle existe,
-    // puis la photo curée Sanity ou la photo principale Shopify.
-    const picture = (widths: number[], aspect: number): Picture =>
-      imageOverride?.[0] ??
-      (source
-        ? responsiveImage(source as any, { widths, aspect })
-        : p.featuredImage
-          ? shopifyImage(p.featuredImage, widths)
-          : null);
+    // puis la photo principale Shopify — le packshot, dans les deux cas.
+    const picture = (_widths: number[], _aspect: number): Picture =>
+      imageOverride?.[0] ?? (p.featuredImage ? shopifyImage(p.featuredImage, _widths) : null);
     return {
       handle: p.handle,
       name: p.title,

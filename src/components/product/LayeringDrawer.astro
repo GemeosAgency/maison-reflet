@@ -17,7 +17,7 @@ import LumaListen from "../LumaListen.astro";
 import PhotoSlides from "../PhotoSlides.astro";
 import { accordAudioPath, duosFor } from "../../lib/layering";
 import { universeLabel } from "../../lib/universes";
-import { getRecoImages, responsiveImage, type ResponsiveImage } from "../../lib/sanity";
+import { type ResponsiveImage } from "../../lib/sanity";
 import { formatPrice, getDisplayPrice, getPrimaryVariant, isSampleVariantTitle, shopifyImage, type ShopifyProduct } from "../../lib/shopify";
 import { getProductImageOverride } from "../../lib/product-images";
 
@@ -34,7 +34,6 @@ const t = useTranslations(lang);
 const me = products.find((p) => p.handle === handle);
 const first = duosFor(handle)[0];
 const partnerProduct = first ? products.find((p) => p.handle === first.partner) : undefined;
-const recoImages = partnerProduct ? await getRecoImages() : {};
 const SLIDE_WIDTHS = [520, 780];
 const accord =
   first && me && partnerProduct
@@ -45,8 +44,8 @@ const accord =
         const myVariantId = getPrimaryVariant(me).id;
         const imageOverride = getProductImageOverride(partnerProduct.handle, partnerProduct.title);
         // Les diapositives, comme dans le menu : galerie locale si disponible,
-        // sinon photo curée Sanity puis photos Shopify, six au plus.
-        const source = recoImages[partnerProduct.handle]?.main ?? null;
+        // sinon les photos Shopify, six au plus. Pas `imageRecommandation` :
+        // c'est la photo « texte devant », faite pour les cartes du catalogue.
         const sampleUrls = new Set(
           partnerProduct.variants.nodes.filter((v) => isSampleVariantTitle(v.title)).map((v) => v.image?.url).filter(Boolean)
         );
@@ -54,12 +53,7 @@ const accord =
           .filter((im) => im && !sampleUrls.has(im.url))
           .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i)
           .map((im) => shopifyImage(im!, SLIDE_WIDTHS));
-        const slides: ResponsiveImage[] =
-          imageOverride ??
-          [
-            ...(source ? [responsiveImage(source as any, { widths: SLIDE_WIDTHS, aspect: 3 / 4 })] : []),
-            ...shots,
-          ].slice(0, 6);
+        const slides: ResponsiveImage[] = imageOverride ?? shots.slice(0, 6);
         return {
           duo: first.duo,
           variants: first.first ? `${myVariantId},${variant.id}` : `${variant.id},${myVariantId}`,
