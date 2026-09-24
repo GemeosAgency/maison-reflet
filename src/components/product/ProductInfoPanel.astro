@@ -312,16 +312,31 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     // lui laisser la vedette. Ordinateur : dès qu'il n'est pas à l'écran, y
     // compris sous la ligne de flottaison d'un écran de portable peu haut.
     const ordinateur = matchMedia("(min-width: 900px)");
+    /*
+     * En bas de page, la barre passe SOUS le footer au lieu de le recouvrir
+     * (Sandro, 24 sept.) : on rogne sa partie basse d'autant que le footer
+     * est monté dans l'écran. Un z-index ne suffirait pas, le footer passerait
+     * alors aussi devant le tiroir panier. Rognée, la partie cachée ne capte
+     * plus les clics non plus.
+     */
+    const footer = document.querySelector<HTMLElement>(".site-footer");
+    const rogner = () => {
+      if (!footer || barre.hidden) return;
+      const recouvrement = barre.getBoundingClientRect().bottom - footer.getBoundingClientRect().top;
+      barre.style.clipPath = recouvrement > 0 ? `inset(0 0 ${Math.ceil(recouvrement)}px 0)` : "";
+    };
+
     let affichee = false;
     const relire = () => {
       const rect = principal.getBoundingClientRect();
       const sortie = ordinateur.matches ? rect.bottom < 0 || rect.top > innerHeight : rect.bottom < 0;
-      if (sortie === affichee) return;
-      affichee = sortie;
-      barre.hidden = !sortie;
-      // La pastille Luma se pose au même endroit : on la relève le temps que la
-      // barre est là, sinon les deux se superposent.
-      document.body.classList.toggle("pbuy-on", sortie);
+      if (sortie !== affichee) {
+        affichee = sortie;
+        barre.hidden = !sortie;
+        // Luma adapte sa place le temps que la barre est là (voir LumaAdvisor).
+        document.body.classList.toggle("pbuy-on", sortie);
+      }
+      rogner();
     };
 
     let enAttente = false;
