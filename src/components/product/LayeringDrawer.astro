@@ -268,9 +268,12 @@ const accord =
     .lay.is-open .lay-panel { transform: translateX(0); }
     .lay-panel { padding-top: 52px; }
     .lay-body { gap: 14px; }
-    /* Photo bornée à 42 % de l'écran : le titre, l'histoire et le geste
-       tiennent au-dessus du bouton sur un téléphone courant. */
-    .lay-slides :global(.slides-media) { min-height: 0; max-height: 42svh; }
+    /* Photo jamais recadrée (Sandro, 24 sept.) : elle garde son 4/5 entier et
+       c'est sa largeur qui cède, pour ne pas dépasser la moitié de l'écran en
+       hauteur. Le titre, l'histoire et le geste tiennent ainsi au-dessus du
+       bouton sur un téléphone courant ; plus long, le texte défile sous lui. */
+    .lay-slides :global(.slides-media) { min-height: 0; max-height: none; }
+    .lay-slides :global(.slides-img) { flex-basis: min(calc(100% - 32px), 40svh); }
     .lay-actions {
       bottom: calc(-32px - env(safe-area-inset-bottom));
       margin: 0 -20px calc(-32px - env(safe-area-inset-bottom));
