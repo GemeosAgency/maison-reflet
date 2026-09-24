@@ -20,10 +20,36 @@ const site = process.env.PUBLIC_SITE_URL || 'http://localhost:4321';
 // Les pages en noindex (staging) ne doivent pas alimenter un sitemap.
 const indexable = process.env.PUBLIC_ALLOW_INDEXING === 'true';
 
+/*
+ * Les modules partagés du navigateur prennent le nom de leur fichier source :
+ * `ga4.xxxx.js`, `klaviyo.xxxx.js`, `meta.xxxx.js`… Les bloqueurs de pistage
+ * (uBlock, AdGuard, Brave, Safari) coupent ces URL sur leur seul nom. Or le
+ * panier les importe : un seul fichier bloqué, et tout le module de la fiche
+ * tombait avec lui, sélecteur de quantité, ajout au panier et barre d'achat
+ * collante compris (Sandro, 24 sept.). Ces modules-là sortent donc sous un nom
+ * neutre ; le pistage peut échouer, jamais l'achat. Côté navigateur seulement :
+ * le serveur garde les noms d'Astro.
+ */
+const TRACKING_NAME = /ga4|gtag|analytic|klaviyo|meta|pixel|track|event|ads?\b/i;
+
 // https://astro.build/config
 export default defineConfig({
   site,
   adapter: vercel(),
+  vite: {
+    environments: {
+      client: {
+        build: {
+          rolldownOptions: {
+            output: {
+              chunkFileNames: (chunk) =>
+                TRACKING_NAME.test(chunk.name) ? '_astro/m.[hash].js' : '_astro/[name].[hash].js',
+            },
+          },
+        },
+      },
+    },
+  },
   integrations: [
     ...(indexable
       ? [
