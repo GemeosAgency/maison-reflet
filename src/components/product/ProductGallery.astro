@@ -450,11 +450,10 @@ function isFull(i: number, count: number): boolean {
   .plightbox-nav:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
 
   @media (max-width: 900px) {
-    /* Sur les pages qui montent cette galerie, le header mobile reste dans le
-       flux. Aucun changement de position pendant le scroll : il disparaît et
-       revient naturellement, sans masquer le haut de la photo. La répétition
-       de classe donne assez de spécificité face au style global du Layout. */
-    :global(body .site-header-sticky.site-header-sticky) { position: relative; }
+    /* Le header garde son sticky natif, comme sur Hears : il reste dans le
+       flux au chargement puis se fixe sans changement de mode pendant le
+       scroll. Le vrai ratio 4/5 ci-dessous évite le crop qui faisait croire
+       que le header mordait sur le haut du flacon. */
     .pgallery {
       display: flex;
       flex-direction: row;
