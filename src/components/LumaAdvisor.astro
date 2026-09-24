@@ -938,6 +938,12 @@ const t = useTranslations(lang);
   /* Sur une fiche produit, la barre d'achat collante occupe le bas de l'écran :
      la pastille se relève au-dessus plutôt que de passer dessous. */
   body.pbuy-on .luma-pill { bottom: 84px; }
+  /* Sur ordinateur, la barre d'achat devient une carte en bas à gauche, sur la
+     colonne galerie : la pastille reste en bas mais se centre sur l'autre moitié. */
+  @media (min-width: 900px) {
+    body.pbuy-on .luma-pill { bottom: 20px; left: 75%; }
+    [dir="rtl"] body.pbuy-on .luma-pill { left: 25%; }
+  }
   .luma-pill-open {
     display: flex;
     align-items: baseline;

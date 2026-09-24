@@ -54,6 +54,8 @@ interface Props {
   tipLabel?: string;
   /** Langue de la page — pour la promesse de livraison. */
   lang: Locale;
+  /** Vignette de la barre d'achat collante (la première photo de la galerie). */
+  thumb?: { src: string; srcset?: string } | null;
 }
 
 const {
@@ -85,6 +87,7 @@ const {
   longevityLabel,
   tipLabel,
   lang,
+  thumb = null,
 } = Astro.props;
 
 // Une seule jauge : le sillage. L'intensité affichait la même valeur sur les six
@@ -231,19 +234,34 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
 </div>
 
 {/*
-  La barre d'achat collante, mobile seulement. La fiche fait près de quatorze
-  écrans de haut : passé le bouton principal, situé au deuxième écran, plus rien
-  ne permettait d'acheter sans remonter. Elle ne refait pas la logique d'ajout,
-  elle relaie le clic au bouton du panneau — quantité, libellés et états restent
-  à un seul endroit.
+  La barre d'achat collante. La fiche fait près de quatorze écrans de haut :
+  passé le bouton principal, plus rien ne permettait d'acheter sans remonter.
+  En mobile, une barre pleine largeur ; sur ordinateur, une carte flottante en
+  bas à gauche, sur la colonne galerie (inspirée de Hears), parce que le panneau
+  collant de droite disparaît dès qu'on quitte la galerie. Elle ne refait pas la
+  logique d'ajout, elle relaie le clic au bouton du panneau : quantité, libellés
+  et états restent à un seul endroit.
 */}
 <div class="pbuy" data-sticky-buy hidden>
+  {thumb && (
+    <img
+      class="pbuy-thumb"
+      src={thumb.src}
+      srcset={thumb.srcset || undefined}
+      sizes="72px"
+      alt=""
+      width="72"
+      height="72"
+      loading="lazy"
+    />
+  )}
   <span class="pbuy-summary">
     <span class="pbuy-name">{title}{sizeLabel && <span class="pbuy-size">{sizeLabel}</span>}</span>
     <span class="pbuy-price" data-money={variantId}>{priceLabel}</span>
   </span>
   <button type="button" class="pbuy-add" data-sticky-add>
     <span>{addLabel}</span>
+    <span class="pbuy-add-price" data-money={variantId}>{priceLabel}</span>
   </button>
 </div>
 
@@ -281,9 +299,14 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     // de revenir en version compacte seulement avec la barre d'achat sticky.
     document.body.classList.add("has-sticky-buy");
 
+    // Mobile : la barre n'arrive qu'une fois le bouton principal dépassé, pour
+    // lui laisser la vedette. Ordinateur : dès qu'il n'est pas à l'écran, y
+    // compris sous la ligne de flottaison d'un écran de portable peu haut.
+    const ordinateur = matchMedia("(min-width: 900px)");
     let affichee = false;
     const relire = () => {
-      const sortie = principal.getBoundingClientRect().bottom < 0;
+      const rect = principal.getBoundingClientRect();
+      const sortie = ordinateur.matches ? rect.bottom < 0 || rect.top > innerHeight : rect.bottom < 0;
       if (sortie === affichee) return;
       affichee = sortie;
       barre.hidden = !sortie;
@@ -413,14 +436,53 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     cursor: pointer;
   }
   .pbuy-add:active { opacity: 0.9; }
-  /* La fiche est très longue : sur mobile la barre est la seule façon d'acheter
-     une fois le bouton principal dépassé. Sur ordinateur, la colonne de droite
-     est collante et le bouton reste à portée — la barre n'a pas lieu d'être. */
-  @media (max-width: 899px) {
-    .pbuy:not([hidden]) { display: flex; }
+  .pbuy-thumb,
+  .pbuy-add-price { display: none; }
+  .pbuy:not([hidden]) { display: flex; animation: pbuy-in 0.3s ease both; }
+  @keyframes pbuy-in {
+    from { opacity: 0; transform: translateY(12px); }
+  }
+  /* Ordinateur : la colonne de droite n'est collante que le long de la galerie.
+     Au-delà (notes, avis, FAQ…), plus de bouton : la carte prend le relais, en
+     bas à gauche, sans sortir de la colonne galerie pour laisser Luma à droite. */
+  @media (min-width: 900px) {
+    .pbuy {
+      inset-inline: 20px auto;
+      bottom: 20px;
+      gap: 20px;
+      max-width: calc(50vw - 40px);
+      padding: 12px;
+      border: 1px solid rgba(21, 14, 10, 0.1);
+      border-radius: 4px;
+      box-shadow: 0 12px 32px -12px rgba(21, 14, 10, 0.28);
+    }
+    .pbuy-thumb {
+      display: block;
+      flex: 0 0 auto;
+      width: 72px;
+      height: 72px;
+      object-fit: cover;
+      background: rgba(21, 14, 10, 0.04);
+    }
+    .pbuy-name { font-size: 14px; }
+    .pbuy-price { font-size: 16px; }
+    .pbuy-add {
+      gap: 20px;
+      min-height: 52px;
+      padding: 0 24px;
+      font-size: 14px;
+      transition: opacity 0.15s;
+    }
+    .pbuy-add:hover { opacity: 0.92; }
+    .pbuy-add-price { display: inline; }
+  }
+  /* Assez de place pour le prix dans le résumé et dans le bouton ? Non sous
+     1100 px : on le garde dans le résumé seulement. */
+  @media (min-width: 900px) and (max-width: 1099px) {
+    .pbuy-add-price { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .pbuy { transition: none; }
+    .pbuy:not([hidden]) { animation: none; }
   }
 
   .ppanel {
