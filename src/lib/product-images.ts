@@ -11,7 +11,10 @@ type ProductImageOverride = {
 };
 
 // Galeries validées dans Figma. Shopify reste la source par défaut ; seuls les
-// produits listés ici utilisent ces visuels locaux en priorité.
+// produits listés ici utilisent ces visuels locaux en priorité. Les six y sont
+// depuis le 24 septembre : tant que la liste était partielle, deux Reflets
+// suivaient une autre chaîne d'images que les quatre autres, et chaque réglage
+// de galerie devait être pensé deux fois.
 const PRODUCT_IMAGE_OVERRIDES: ProductImageOverride[] = [
   {
     aliases: ["bois-alert"],
@@ -31,6 +34,16 @@ const PRODUCT_IMAGE_OVERRIDES: ProductImageOverride[] = [
   {
     aliases: ["ultra-cuir"],
     directory: "ultra-cuir",
+    count: 6,
+  },
+  {
+    aliases: ["new-oud"],
+    directory: "new-oud",
+    count: 6,
+  },
+  {
+    aliases: ["minuit-bourbon"],
+    directory: "minuit-bourbon",
     count: 6,
   },
 ];
