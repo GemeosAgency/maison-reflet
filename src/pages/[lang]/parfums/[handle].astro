@@ -270,11 +270,10 @@ const related = products
       // Shopify — c'est le bon rendu du flacon, avec la bonne étiquette. Il
       // faut la passer par shopifyImage() : servie brute, elle pèse jusqu'à
       // 7,4 Mo pour une tuile de 287 px.
-      img: recoImg?.main
-        ? responsiveImage(recoImg.main as any, { widths: TILE_WIDTHS, aspect: 287 / 352 })
-        : p.featuredImage
-          ? shopifyImage(p.featuredImage, TILE_WIDTHS)
-          : null,
+      // Ici le nom est SOUS l'image : c'est le packshot Shopify qu'il faut, pas
+      // `imageRecommandation`, réservée aux cartes qui portent leur texte par
+      // -dessus la photo (catalogue, accueil).
+      img: p.featuredImage ? shopifyImage(p.featuredImage, TILE_WIDTHS) : null,
       // Photo du survol : la version curée dans Sanity si elle existe, sinon
       // la deuxième photo produit de Shopify (voir secondaryImage). Même
       // chaîne de repli que les tuiles du catalogue et de l'accueil.

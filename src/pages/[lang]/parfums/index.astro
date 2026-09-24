@@ -54,8 +54,13 @@ const perfumes = allProducts
       name: p.title,
       inspired: inspiredMap[p.handle] ?? null,
       price: formatPrice(price.amount, price.currencyCode),
+      // `imageRecommandation` est la photo « texte devant » de la maquette
+      // (Figma 11928:1191) : le flacon remonté, du vide sous lui pour le nom et
+      // le prix. On ne la recadre pas côté Sanity — la carte le fait elle-même,
+      // en `cover` ancré en bas, et un recadrage serveur rognerait justement ce
+      // vide.
       img: recoImg?.main
-        ? urlForImage(recoImg.main as any).width(1200).height(1605).url()
+        ? urlForImage(recoImg.main as any).width(1200).url()
         : p.featuredImage
           ? shopifyImage(p.featuredImage, [480, 720, 1200]).src
           : null,
