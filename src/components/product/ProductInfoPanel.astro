@@ -295,6 +295,15 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     const barre = document.querySelector<HTMLElement>("[data-sticky-buy]");
     const principal = document.querySelector<HTMLElement>(".ppanel-buy-row");
     if (!barre || !principal) return;
+    /*
+     * La carte est rendue dans le panneau de droite, qui est `position: sticky`
+     * — et un élément collant ouvre un contexte d'empilement à lui seul. Son
+     * `z-index: 60` ne valait donc qu'à l'intérieur du panneau : dehors, la
+     * carte se retrouvait au niveau du panneau, et les sections suivantes lui
+     * passaient devant. On la remonte dans le <body>, où son plan vaut pour
+     * toute la page.
+     */
+    if (barre.parentElement !== document.body) document.body.append(barre);
     // Permet à Luma de céder toute la place au CTA principal sur mobile, puis
     // de revenir en version compacte seulement avec la barre d'achat sticky.
     document.body.classList.add("has-sticky-buy");
@@ -472,6 +481,11 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     .pbuy-price { font-size: 16px; }
     .pbuy-add {
       gap: 20px;
+      /* Le bouton est plus court que la vignette : centré, il garde
+         (72 − 52) / 2 = 10 px d'air au-dessus et en dessous, en plus des 12 px
+         de la carte. Les mêmes 10 px à droite, et l'air est égal des trois
+         côtés (Sandro, 24 sept.). */
+      margin-inline-end: 10px;
       min-height: 52px;
       padding: 0 24px;
       font-size: 14px;
