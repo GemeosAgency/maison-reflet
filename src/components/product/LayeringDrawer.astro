@@ -206,7 +206,7 @@ const accord =
   .lay-slides { width: 100%; }
   /* Pleine largeur, mais jamais au prix du bouton : l'image cède de la hauteur sur les écrans bas
      (recadrée par le bas — le bouchon reste, l'ombre du socle s'en va) et retrouve son 4/5 sur les grands. */
-  .lay-slides :global(.slides-media) { max-height: calc(100vh - 470px); min-height: 300px; }
+  .lay-slides :global(.slides-media) { max-height: calc(100vh - 540px); min-height: 300px; }
   .lay-slides :global(.slides-img) { object-position: center 30%; }
   .lay-body { display: flex; flex-direction: column; gap: 16px; }
   .lay-head { display: flex; flex-direction: column; gap: 8px; }
@@ -220,7 +220,20 @@ const accord =
   .lay-gesture { margin: 0; font-size: 14px; line-height: 1.4; opacity: 0.8; }
   .lay-gesture strong { font-weight: 500; opacity: 1; }
   .lay-body :global(.listen-wrap) { margin-top: 0; }
-  .lay-actions { display: flex; align-items: center; gap: 16px; }
+  /* Le bouton reste en bas du panneau, visible sans défiler : le texte et la
+     recommandation audio font plus d'un écran en mobile, et le bouton passait
+     sous la ligne de flottaison. Le fond recouvre ce qui défile dessous. */
+  .lay-actions {
+    position: sticky;
+    bottom: -32px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 0 -32px -32px;
+    padding: 16px 32px 32px;
+    background: var(--bg);
+  }
   /* Le bouton principal de la fiche, en rouge (Sandro) : libellé à gauche, prix des deux à droite, sans prendre toute la largeur. */
   .lay-add {
     display: inline-flex;
@@ -255,7 +268,16 @@ const accord =
     .lay.is-open .lay-panel { transform: translateX(0); }
     .lay-panel { padding-top: 52px; }
     .lay-body { gap: 14px; }
-    .lay-slides :global(.slides-media) { min-height: 0; max-height: none; }
+    /* Photo bornée à 42 % de l'écran : le titre, l'histoire et le geste
+       tiennent au-dessus du bouton sur un téléphone courant. */
+    .lay-slides :global(.slides-media) { min-height: 0; max-height: 42svh; }
+    .lay-actions {
+      bottom: calc(-32px - env(safe-area-inset-bottom));
+      margin: 0 -20px calc(-32px - env(safe-area-inset-bottom));
+      padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
+      box-shadow: 0 -8px 24px -16px rgba(21, 14, 10, 0.4);
+    }
+    .lay-add { flex: 1; justify-content: space-between; }
   }
   @media (prefers-reduced-motion: reduce) {
     .lay-backdrop, .lay-panel { transition: none; }

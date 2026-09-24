@@ -407,7 +407,10 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     position: fixed;
     inset-inline: 0;
     bottom: 0;
-    z-index: 60;
+    /* Au-dessus du contenu et de la pastille Luma (55), mais SOUS les tiroirs
+       et la feuille du menu (59-60) : sortie dans le <body>, au même plan
+       qu'eux, elle passait devant parce qu'elle arrive après dans la page. */
+    z-index: 56;
     display: none;
     align-items: center;
     gap: 14px;
