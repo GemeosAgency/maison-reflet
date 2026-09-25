@@ -20,11 +20,17 @@
     "@sanity/image-url": "^2.1.1",
     "@supabase/supabase-js": "^2.116.0",
     "astro": "^7.0.7",
-    "cobe": "^2.0.1"
+    "border-beam": "^1.4.1",
+    "cobe": "^2.0.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "thinking-orbs": "^0.3.2"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
     "@types/node": "^26.1.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "typescript": "^6.0.3"
   }
 }

@@ -120,16 +120,19 @@ const t = useTranslations(lang);
     <p class="luma-status" data-luma-status role="status" aria-live="polite"></p>
 
     <form class="luma-form" data-luma-form>
-      <input
-        type="text"
-        class="luma-input"
-        data-luma-input
-        placeholder={t("luma.placeholder")}
-        aria-label={t("luma.placeholder")}
-        autocomplete="off"
-        maxlength="1000"
-        enterkeyhint="send"
-      />
+      <span class="luma-field">
+        <input
+          type="text"
+          class="luma-input"
+          data-luma-input
+          placeholder={t("luma.placeholder")}
+          aria-label={t("luma.placeholder")}
+          autocomplete="off"
+          maxlength="1000"
+          enterkeyhint="send"
+        />
+        <span class="luma-beam" data-luma-beam aria-hidden="true"></span>
+      </span>
       <button type="submit" class="luma-send">{t("luma.send")}</button>
     </form>
 
@@ -258,6 +261,7 @@ const t = useTranslations(lang);
       document.body.style.overflow = "hidden";
       input!.focus();
       void hydrate();
+      void loadEffects();
       scrollToEnd(true);
       pill.hide();
       if (!cartRequested) {
@@ -474,8 +478,21 @@ const t = useTranslations(lang);
       scrollToEnd(true);
     }
 
-    /** « Luma est en train d'écrire » et trois points, dans le fil, comme une messagerie. */
-    function showTyping(): HTMLElement {
+    /*
+     * Les effets d'attente (orbe + faisceau, libraries.dev) arrivent avec React :
+     * chargés à l'ouverture du panneau, jamais avant. Tant qu'ils ne sont pas là
+     * (ou s'ils échouent), les trois points CSS tiennent la place.
+     */
+    type Effects = typeof import("../lib/luma/effects");
+    let effectsLoad: Promise<Effects | null> | null = null;
+    let setBeam: ((active: boolean) => void) | null = null;
+    function loadEffects(): Promise<Effects | null> {
+      effectsLoad ??= import("../lib/luma/effects").catch(() => null);
+      return effectsLoad;
+    }
+
+    /** « Luma réfléchit » et l'orbe, dans le fil, le faisceau sur le champ ; renvoie de quoi tout retirer. */
+    function showTyping(): () => void {
       const node = el("div", "luma-msg luma-msg-luma luma-typing");
       node.setAttribute("aria-hidden", "true");
       const dots = el("span", "luma-dots");
@@ -483,7 +500,28 @@ const t = useTranslations(lang);
       node.append(el("span", undefined, i18n.thinking), dots);
       log!.append(node);
       scrollToEnd();
-      return node;
+
+      let shown = true;
+      let unmountOrb: (() => void) | null = null;
+      void loadEffects().then((fx) => {
+        if (!fx || !shown) return;
+        const orb = el("span", "luma-orb");
+        dots.replaceWith(orb);
+        unmountOrb = fx.mountOrb(orb);
+        // Le faisceau tourne : on le coupe sous prefers-reduced-motion (la librairie ne le fait pas).
+        if (reduceMotion) return;
+        const host = root!.querySelector<HTMLElement>("[data-luma-beam]");
+        if (host) setBeam ??= fx.mountBeam(host);
+        setBeam?.(true);
+      });
+
+      return () => {
+        if (!shown) return;
+        shown = false;
+        unmountOrb?.();
+        setBeam?.(false);
+        node.remove();
+      };
     }
 
     /**
@@ -814,7 +852,7 @@ const t = useTranslations(lang);
       saveTranscript();
       markResumable();
       status!.textContent = i18n.thinking;
-      const typing = showTyping();
+      const hideTyping = showTyping();
 
       let lumaMsg: HTMLElement | null = null;
       let lumaText = "";
@@ -847,7 +885,7 @@ const t = useTranslations(lang);
             const event = JSON.parse(frame.slice(5)) as Frame;
             if (event.type === "text") {
               status!.textContent = "";
-              typing.remove();
+              hideTyping();
               lumaText = event.text;
               lumaMsg = await addLuma(event.text);
             } else if (event.type === "action") {
@@ -880,14 +918,14 @@ const t = useTranslations(lang);
         for (const action of pending) render(action, lumaMsg, entry);
       } catch {
         status!.textContent = "";
-        typing.remove();
+        hideTyping();
         playStatic("unavailable");
         await addLuma(i18n.unavailable);
         transcript.push({ role: "luma", text: i18n.unavailable, actions: [] });
         saveTranscript();
       } finally {
         status!.textContent = "";
-        typing.remove();
+        hideTyping();
         busy = false;
         input!.disabled = false;
         input!.focus();
@@ -1184,6 +1222,11 @@ const t = useTranslations(lang);
 
   .luma-form, .luma-email-row { display: flex; gap: 8px; }
   .luma-email { display: flex; flex-direction: column; gap: 10px; font-style: normal; }
+  /* Le champ du fil porte le calque du faisceau (libraries.dev), posé dessus, sans clic. */
+  .luma-field { position: relative; flex: 1; min-width: 0; display: flex; }
+  .luma-beam { position: absolute; inset: 0; pointer-events: none; }
+  .luma-beam > * { pointer-events: none; }
+  .luma-orb { display: inline-flex; width: 20px; height: 20px; }
   .luma-input {
     flex: 1;
     min-width: 0;
