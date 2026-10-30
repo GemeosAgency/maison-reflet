@@ -572,12 +572,16 @@ const maisonHref = localePath(lang, "/maison");
 
   // Assignée plus bas par la fenêtre Coffrets : les deux ne s'ouvrent jamais ensemble.
   let fermerCoffrets: () => void = () => {};
+  // Instant d'ouverture : au toucher, le focus ouvre le panneau juste avant le
+  // clic du même geste, qui suivait alors le lien au lieu de garder le panneau.
+  let openedAt = 0;
   function openPanel() {
     fermerCoffrets();
     window.clearTimeout(closeTimer);
     seenThisOpen = new Set();
     if (!panel || isOpen) return;
     isOpen = true;
+    openedAt = performance.now();
     primeDurations();
     document.body.classList.add("menu-open");
     panel.classList.add("is-open");
@@ -623,7 +627,7 @@ const maisonHref = localePath(lang, "/maison");
       t.addEventListener("mouseleave", () => hoverable.matches && scheduleClose());
       // Sans survol (tactile) : le premier toucher ouvre, le second suit le lien.
       t.addEventListener("click", (e) => {
-        if (!isOpen) {
+        if (!isOpen || performance.now() - openedAt < 500) {
           e.preventDefault();
           lastTrigger = t;
           openPanel();
@@ -669,6 +673,7 @@ const maisonHref = localePath(lang, "/maison");
   const setsPanel = document.querySelector<HTMLElement>("[data-sets-panel]");
   if (setsTrigger && setsPanel) {
     let setsOpen = false;
+    let setsOpenedAt = 0;
     let setsOpenTimer: number | undefined;
     let setsCloseTimer: number | undefined;
     // Ancrée sous le lien, quelle que soit la langue (« Coffrets », « Sets », arabe à droite).
@@ -678,13 +683,16 @@ const maisonHref = localePath(lang, "/maison");
       const cadre = hote.getBoundingClientRect();
       const rtl = document.documentElement.dir === "rtl";
       const x = rtl ? cadre.right - lien.right - 24 : lien.left - cadre.left - 24;
-      setsPanel.style.setProperty("--sets-x", `${Math.max(16, Math.round(x))}px`);
+      // Jamais hors de l'écran : sur une tablette étroite, la fenêtre se décale vers l'intérieur.
+      const place = cadre.width - setsPanel.offsetWidth - 16;
+      setsPanel.style.setProperty("--sets-x", `${Math.max(16, Math.round(Math.min(x, place)))}px`);
     };
     const ouvrirCoffrets = () => {
       window.clearTimeout(setsCloseTimer);
       if (setsOpen) return;
       closePanel();
       setsOpen = true;
+      setsOpenedAt = performance.now();
       placer();
       setsPanel.classList.add("is-open");
       veil?.classList.add("is-open");
@@ -718,7 +726,7 @@ const maisonHref = localePath(lang, "/maison");
     setsPanel.addEventListener("mouseleave", () => hoverable.matches && planifierFermeture());
     // Sans survol (tactile) : le premier toucher ouvre, le second suit le lien.
     setsTrigger.addEventListener("click", (e) => {
-      if (!setsOpen) {
+      if (!setsOpen || performance.now() - setsOpenedAt < 500) {
         e.preventDefault();
         ouvrirCoffrets();
       }
@@ -1038,8 +1046,15 @@ const maisonHref = localePath(lang, "/maison");
     transform: none;
     transition: opacity 0.36s ease, transform 0.36s cubic-bezier(0.2, 0.7, 0.2, 1);
   }
+  .msets { width: min(840px, calc(100vw - 32px)); box-sizing: border-box; }
   .msets-inner { display: flex; gap: 32px; padding: 24px; }
-  .msets .mega-box { width: 380px; grid-template-columns: 168px minmax(0, 1fr); }
+  .msets .mega-box { flex: 1 1 0; min-width: 0; grid-template-columns: minmax(120px, 168px) minmax(0, 1fr); }
+  /* Tablette : deux cartes serrées, la photo raccourcit avant le texte. */
+  @media (max-width: 960px) {
+    .msets-inner { gap: 20px; padding: 20px; }
+    .msets .mega-box { gap: 14px; }
+    .msets .mega-box-title { font-size: 17px; }
+  }
 
   .mega {
     position: absolute;
@@ -1472,6 +1487,13 @@ const maisonHref = localePath(lang, "/maison");
   .msheet-langs { list-style: none; margin: 0; padding: 0; display: flex; gap: 14px; }
   .msheet-langs a { opacity: 0.6; }
   .msheet-langs a[aria-current="true"] { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+
+  /* Sous 1100 px, la colonne Coffrets ne tenait plus (coupée à droite) : elle
+     s'efface, « Coffrets » a sa propre fenêtre. */
+  @media (min-width: 721px) and (max-width: 1100px) {
+    .mega-col-coffrets { display: none; }
+    .mega-inner { grid-template-columns: minmax(260px, 1fr) clamp(240px, 34vw, 340px); gap: 40px; }
+  }
 
   @media (max-width: 720px) {
     .mega,
