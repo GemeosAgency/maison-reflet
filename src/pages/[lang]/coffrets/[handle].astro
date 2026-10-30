@@ -17,7 +17,6 @@ import Pillars from "../../../components/Pillars.astro";
 import Reassurance from "../../../components/Reassurance.astro";
 import LumaAsk from "../../../components/LumaAsk.astro";
 import PerfumeGrid from "../../../components/PerfumeGrid.astro";
-import Reviews from "../../../components/Reviews.astro";
 import ProductGallery from "../../../components/product/ProductGallery.astro";
 import ProductInfoPanel from "../../../components/product/ProductInfoPanel.astro";
 import { COFFRET_HANDLE } from "../../../lib/coffret";
@@ -104,16 +103,6 @@ const perks: { icon: string; label: string; note?: string }[] = [
   { icon: "/brand/reassurance-retour.svg", label: t("product.perkReturn"), note: t("product.perkReturnNote") },
 ];
 
-// Note / avis : placeholders (pas encore de système d'avis branché).
-const rating = "4,9";
-const panelReviewCount = 147;
-const reviewCount = 267;
-const reviewPlaceholder = {
-  fr: "Avis client à venir — contenu de démonstration en attendant un vrai système d'avis.",
-  ar: "رأي العميل قادم — محتوى تجريبي بانتظار نظام تقييمات حقيقي.",
-  en: "Customer review coming soon — placeholder content pending a real reviews system.",
-}[lang];
-const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quote: reviewPlaceholder }));
 
 // ---------- Scent Notes à onglets ----------
 /*
@@ -254,9 +243,6 @@ const productJsonLd = {
         thumb={gallery[0] ?? null}
         title={title}
         sizeLabel={null}
-        rating={rating}
-        reviewCount={panelReviewCount}
-        reviewsWord={t("product.reviews")}
         descriptionHtml={descriptionHtml}
         famillesLabel={t("product.olfactiveFamily")}
         familles={null}
@@ -291,15 +277,6 @@ const productJsonLd = {
 
   <Reassurance items={reassurances} />
 
-  <Reviews
-    title={t("home.reviews.title")}
-    ratingLabel={t("home.reviews.rated")}
-    customersLabel={t("home.reviews.customers")}
-    reviews={reviews}
-    totalCount={reviewCount}
-    previousLabel={t("reviews.previous")}
-    nextLabel={t("reviews.next")}
-  />
 
   {/* « You may also like » : la grille des six du catalogue, avec titre et sous-titre (Figma 12013:546). */}
   <PerfumeGrid

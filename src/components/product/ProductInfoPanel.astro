@@ -19,9 +19,11 @@ interface NoteLevel {
 interface Props {
   title: string;
   sizeLabel: string | null;
-  rating: string;
-  reviewCount: number;
-  reviewsWord: string;
+  /** Note et nombre d'avis : rien ne s'affiche tant qu'il n'y a pas de vrais
+      avis (Sandro, 30 oct. : on n'affiche pas de note inventée). */
+  rating?: string | null;
+  reviewCount?: number | null;
+  reviewsWord?: string;
   descriptionHtml: string;
   famillesLabel: string;
   familles: string | null;
@@ -115,13 +117,17 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
         <span class="ppanel-price" data-money={variantId}>{priceLabel}</span>
       </span>
     </div>
-    <div class="ppanel-rating">
-      <span class="ppanel-stars">
-        {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="14" height="14" />)}
-      </span>
-      <strong>{rating}</strong>
-      <span class="ppanel-rating-count">· {reviewCount} {reviewsWord}</span>
-    </div>
+    {
+      rating && reviewCount ? (
+        <div class="ppanel-rating">
+          <span class="ppanel-stars">
+            {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="14" height="14" />)}
+          </span>
+          <strong>{rating}</strong>
+          <span class="ppanel-rating-count">· {reviewCount} {reviewsWord}</span>
+        </div>
+      ) : null
+    }
     {descriptionHtml && <div class="ppanel-desc" set:html={descriptionHtml} />}
   </div>
 

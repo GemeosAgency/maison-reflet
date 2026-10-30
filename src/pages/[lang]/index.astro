@@ -7,7 +7,6 @@ import Faq from "../../components/Faq.astro";
 import Pillars from "../../components/Pillars.astro";
 import ProductCard from "../../components/ProductCard.astro";
 import Reassurance from "../../components/Reassurance.astro";
-import Reviews from "../../components/Reviews.astro";
 import {
   formatPrice,
   getAllProducts,
@@ -150,16 +149,6 @@ const reassurances = (await getReassurances(lang)).map((r) => ({
 // comme pour "La Maison" — vide tant que rien n'y est attaché.
 const homePage = await getPageBySlug("home", lang);
 
-// Avis clients : AUCUN système d'avis n'existe encore (Judge.me, Loox…) — ce
-// bloc est un aperçu visuel avec du contenu de démonstration, à remplacer par
-// de vrais avis avant le lancement.
-const reviewCount = 267;
-const reviewPlaceholder = {
-  fr: "Avis client à venir — contenu de démonstration en attendant un vrai système d'avis.",
-  ar: "رأي العميل قادم — محتوى تجريبي بانتظار نظام تقييمات حقيقي.",
-  en: "Customer review coming soon — placeholder content pending a real reviews system.",
-}[lang];
-const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quote: reviewPlaceholder }));
 
 /*
  * Héros scindé en deux volets (node 11101:6088). Les photos sont statiques
@@ -310,16 +299,6 @@ const heroPanels = [
     )
   }
 
-  {/* Avis : bloc de démonstration, voir le commentaire en frontmatter. */}
-  <Reviews
-    title={t("home.reviews.title")}
-    ratingLabel={t("home.reviews.rated")}
-    customersLabel={t("home.reviews.customers")}
-    reviews={reviews}
-    totalCount={reviewCount}
-    previousLabel={t("reviews.previous")}
-    nextLabel={t("reviews.next")}
-  />
 
   <Pillars
     title1={t("home.pillars.title1")}

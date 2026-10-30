@@ -7,7 +7,6 @@ import Faq from "../../../components/Faq.astro";
 import Pillars from "../../../components/Pillars.astro";
 import LumaDoors from "../../../components/LumaDoors.astro";
 import Reassurance from "../../../components/Reassurance.astro";
-import Reviews from "../../../components/Reviews.astro";
 import {
   formatPrice,
   getAllProducts,
@@ -82,15 +81,6 @@ const reassurances = (await getReassurances(lang)).map((r) => ({
   lignes: (r.texte ?? "").split("\n").filter(Boolean),
 }));
 
-// Avis clients : aucun système d'avis en place (Judge.me, Loox…) — bloc de
-// démonstration à remplacer avant le lancement (voir même logique sur la home).
-const reviewCount = 267;
-const reviewPlaceholder = {
-  fr: "Avis client à venir — contenu de démonstration en attendant un vrai système d'avis.",
-  ar: "رأي العميل قادم — محتوى تجريبي بانتظار نظام تقييمات حقيقي.",
-  en: "Customer review coming soon — placeholder content pending a real reviews system.",
-}[lang];
-const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quote: reviewPlaceholder }));
 ---
 
 <Layout
@@ -146,15 +136,6 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     )
   }
 
-  <Reviews
-    title={t("home.reviews.title")}
-    ratingLabel={t("home.reviews.rated")}
-    customersLabel={t("home.reviews.customers")}
-    reviews={reviews}
-    totalCount={reviewCount}
-    previousLabel={t("reviews.previous")}
-    nextLabel={t("reviews.next")}
-  />
 
   <Pillars
     title1={t("home.pillars.title1")}
