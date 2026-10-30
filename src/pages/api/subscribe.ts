@@ -24,13 +24,17 @@ const KLAVIYO_REVISION = "2025-04-15";
  *
  *  - la page d'attente alimente "Waitlist Lancement" : ce sont des gens qui
  *    s'inscrivent pour être prévenus du lancement, pas pour une newsletter ;
- *  - le formulaire du pied de page continue d'alimenter "Newsletter".
+ *  - le formulaire du pied de page continue d'alimenter "Newsletter" ;
+ *  - « Être prévenu au lancement » de la fiche (NotifyLaunch) alimente
+ *    "Prévente · Notify me" : les prospects de la prévente, nourris jusqu'au
+ *    lancement (Sandro, 30 oct.).
  *
  * Toute autre provenance retombe sur "Newsletter".
  */
 const KLAVIYO_LISTS: Record<string, string> = {
   teaser: "RvF9tD", // Waitlist Lancement
   footer: "R6AmNZ", // Newsletter
+  notify: "YipVGU", // Prévente · Notify me
 };
 const KLAVIYO_LIST_PAR_DEFAUT = KLAVIYO_LISTS.footer;
 
@@ -175,10 +179,68 @@ async function recordSignupLocale(email: string, locale: Locale, source: string)
   }
 }
 
-export const POST: APIRoute = async ({ request }) => {
+/** Handle Shopify du parfum demandé (« ultra-cuir »), ou null. */
+function parseHandle(value: unknown): string | null {
+  const v = String(value ?? "").trim().toLowerCase();
+  return /^[a-z0-9-]{1,64}$/.test(v) ? v : null;
+}
+
+/** Chemin de la fiche (« /en/parfums/ultra-cuir »), jamais une adresse externe. */
+function parsePath(value: unknown): string | null {
+  const v = String(value ?? "").trim();
+  return /^\/[a-z0-9/_-]{0,120}$/i.test(v) ? v : null;
+}
+
+/**
+ * Garde le parfum demandé : un événement « Notify Me Requested » par demande.
+ * C'est lui qui permet, le jour du lancement, d'écrire à chacun pour le bon
+ * parfum (un segment Klaviyo par `handle`). Un événement plutôt qu'une
+ * propriété de profil : une même personne peut demander plusieurs parfums,
+ * une propriété garderait seulement le dernier.
+ */
+async function recordNotifyRequest(email: string, handle: string, path: string | null, locale: Locale | null, origin: string) {
+  if (!KLAVIYO_EVENTS_API_KEY) {
+    console.error("[subscribe] KLAVIYO_PRIVATE_API_KEY absente — demande de lancement non enregistrée.");
+    return;
+  }
+  const payload = {
+    data: {
+      type: "event",
+      attributes: {
+        properties: { handle, product_url: path ? `${origin}${path}` : null, site_locale: locale },
+        unique_id: `notify-${handle}-${email}`,
+        metric: { data: { type: "metric", attributes: { name: "Notify Me Requested" } } },
+        profile: {
+          data: { type: "profile", attributes: { email, ...(locale ? { properties: { site_locale: locale } } : {}) } },
+        },
+      },
+    },
+  };
+  try {
+    const res = await fetch("https://a.klaviyo.com/api/events/", {
+      method: "POST",
+      headers: {
+        Authorization: `Klaviyo-API-Key ${KLAVIYO_EVENTS_API_KEY}`,
+        revision: KLAVIYO_REVISION,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.error("[subscribe] Klaviyo a refusé la demande de lancement :", res.status, detail.slice(0, 500));
+    }
+  } catch (error) {
+    console.error("[subscribe] Klaviyo injoignable (demande de lancement) :", error);
+  }
+}
+
+export const POST: APIRoute = async ({ request, url }) => {
   let email = "";
   let locale: Locale | null = null;
   let source = "teaser";
+  let handle: string | null = null;
+  let path: string | null = null;
   try {
     const ct = request.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
@@ -186,6 +248,8 @@ export const POST: APIRoute = async ({ request }) => {
       email = String(body?.email ?? "");
       locale = parseLocale(body?.locale);
       source = parseSource(body?.source);
+      handle = parseHandle(body?.handle);
+      path = parsePath(body?.url);
     } else {
       const form = await request.formData();
       email = String(form.get("email") ?? "");
@@ -211,6 +275,10 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: false, error: "Erreur serveur, réessayez." }, 500);
   }
 
-  if (locale) await recordSignupLocale(email, locale, source);
+  if (source === "notify" && handle) {
+    await recordNotifyRequest(email, handle, path, locale, url.origin);
+  } else if (locale) {
+    await recordSignupLocale(email, locale, source);
+  }
   return json({ ok: true }, 200);
 };

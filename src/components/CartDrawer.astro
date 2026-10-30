@@ -16,7 +16,8 @@
  * cela, un panier en euros affichait une barre calée sur 400 — c'est-à-dire
  * une jauge quatre fois trop longue.
  */
-import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle, shopifyImage } from "../lib/shopify";
+import { avecAvoir } from "../lib/coffret-avoir";
+import { getAllProducts, getCompareAtPrice, getPrimaryVariant, isCoffret, isSampleVariantTitle, shopifyImage } from "../lib/shopify";
 import { getCoffrets, getInspiredByMap, getPrevente } from "../lib/sanity";
 import { preventeShipLine } from "../lib/prevente";
 import { LAYERING, accordAudioPath } from "../lib/layering";
@@ -31,6 +32,8 @@ interface Props {
 
 const { lang } = Astro.props;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
 const prevente = await getPrevente();
 const preventeLine = prevente.active
   ? preventeShipLine(prevente, lang, { shipOn: t("prevente.shipOn"), shipSoon: t("prevente.shipSoon") })
@@ -61,6 +64,7 @@ const coffretUpsell = coffretProduit
       img: coffretProduit.featuredImage ? shopifyImage(coffretProduit.featuredImage, [THUMB_WIDTH]).src : null,
       variantId: getPrimaryVariant(coffretProduit).id,
       price: Number(getPrimaryVariant(coffretProduit).price.amount),
+      compare: getCompareAtPrice(coffretProduit) ? Number(getCompareAtPrice(coffretProduit)!.amount) : null,
       href: localePath(lang, `/coffrets/${COFFRET_HANDLE}`),
     }
   : null;
@@ -79,6 +83,8 @@ const upsellCatalog = allProducts
       img: p.featuredImage ? shopifyImage(p.featuredImage, [THUMB_WIDTH]).src : null,
       variantId: variant.id,
       price: Number(variant.price.amount),
+      // Prix normal barré de la prévente, ou null.
+      compare: getCompareAtPrice(p) ? Number(getCompareAtPrice(p)!.amount) : null,
       currency: variant.price.currencyCode,
     };
   });
@@ -204,7 +210,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           <div class="cart-coffret-body">
             <p class="cart-coffret-kicker">
               <span data-cart-coffret-args></span>
-              <Tip text={t("coffret.creditNote")} label={t("product.tipOpen")} align="fin" />
+              <Tip text={tc("coffret.creditNote")} label={t("product.tipOpen")} align="fin" />
             </p>
             <p class="cart-coffret-title">{coffretUpsell.title}</p>
             <div class="cart-coffret-cta">
@@ -213,7 +219,10 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
                   <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" /></svg>
                   <span data-reco-add-label>{t("cart.add")}</span>
                 </span>
-                <span class="cart-upsell-price" data-money={coffretUpsell.variantId}>{formatMoney(coffretUpsell.price, getCountry(DEFAULT_COUNTRY).currency, lang)}</span>
+                <span class="cart-upsell-price">
+                  {coffretUpsell.compare && <s data-money-compare={coffretUpsell.variantId}>{formatMoney(coffretUpsell.compare, getCountry(DEFAULT_COUNTRY).currency, lang)}</s>}
+                  <span data-money={coffretUpsell.variantId}>{formatMoney(coffretUpsell.price, getCountry(DEFAULT_COUNTRY).currency, lang)}</span>
+                </span>
               </button>
             </div>
           </div>
@@ -228,21 +237,33 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     </div>
 
     <div class="cart-drawer-footer">
+      {/* Prévente : ce que le prix de lancement fait gagner, ligne par ligne additionné. */}
+      <div class="cart-drawer-saving" data-cart-drawer-saving hidden>
+        <span>{t("prevente.saving")}</span>
+        <strong data-cart-drawer-saving-amount></strong>
+      </div>
       <div class="cart-drawer-subtotal-row">
         <span>{t("cart.subtotal")}</span>
-        <strong data-cart-drawer-subtotal></strong>
+        <span class="cart-drawer-subtotal-amounts">
+          <s data-cart-drawer-subtotal-was hidden></s>
+          <strong data-cart-drawer-subtotal></strong>
+        </span>
       </div>
       {/*
         Prévente : dite juste avant de payer, pour qu'aucune commande ne parte
-        en croyant à la livraison du jour même.
+        en croyant à la livraison du jour même. Dans une infobulle logée dans
+        le bouton (Sandro, 30 oct.) : un encadré de plus alourdissait le pied
+        du panier. L'infobulle est posée PAR-DESSUS le lien, pas dedans : un
+        bouton dans un <a> est invalide, et son clic partirait au paiement.
       */}
-      {preventeLine && (
-        <p class="cart-drawer-prevente">
-          <strong>{preventeLine}</strong>
-          <span>{t("prevente.cartNote")}</span>
-        </p>
-      )}
-      <a class="cart-drawer-checkout" data-cart-drawer-checkout href="#">{t("cart.checkout")}</a>
+      <div class:list={["cart-drawer-checkout-wrap", { "has-tip": preventeLine }]}>
+        <a class="cart-drawer-checkout" data-cart-drawer-checkout href="#">{prevente.active ? t("prevente.checkout") : t("cart.checkout")}</a>
+        {preventeLine && (
+          <span class="cart-drawer-checkout-tip">
+            <Tip text={`${preventeLine}. ${t("prevente.cartNote")}`} label={t("product.tipOpen")} align="fin" />
+          </span>
+        )}
+      </div>
       {/*
         « Livraison offerte » ne s'annonce qu'une fois le seuil franchi : affichée
         en permanence sous le bouton, elle se lisait comme un acquis alors que le
@@ -258,8 +279,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         */}
         <li data-cart-perk-coffret hidden>
           <img src="/brand/reassurance-echantillons.svg" alt="" width="20" height="20" />
-          <span>{t("cart.coffretCredit")}</span>
-          <Tip text={t("coffret.creditNote")} label={t("product.tipOpen")} align="fin" />
+          <span>{tc("cart.coffretCredit")}</span>
+          <Tip text={tc("coffret.creditNote")} label={t("product.tipOpen")} align="fin" />
         </li>
         <li><img src="/brand/reassurance-paiement.svg" alt="" width="20" height="20" /> {t("cart.perkSecure")}</li>
       </ul>
@@ -278,11 +299,23 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   set:html={JSON.stringify({
     freeShippingRemaining: t("cart.freeShippingRemaining"),
     coffretHandle: COFFRET_HANDLE,
-    coffretPushCredit: t("cart.coffretPushCredit"),
+    coffretPushCredit: tc("cart.coffretPushCredit"),
     coffretPushShipping: t("cart.coffretPushShipping"),
     coffretPrice: coffretUpsell?.price ?? 0,
     freeShippingUnlocked: t("cart.freeShippingUnlocked"),
     free: t("cart.free"),
+    prevente: prevente.active,
+    // Rapport prix normal / prix pratiqué par variante, pour les pays où Shopify
+    // ne renvoie pas le prix barré (Espace économique européen, voir country.ts).
+    compareRatios: Object.fromEntries(
+      allProducts
+        .map((p) => [getPrimaryVariant(p), getCompareAtPrice(p)] as const)
+        .filter(([, c]) => c)
+        .map(([v, c]) => [v.id, Number(c!.amount) / Number(v.price.amount)])
+    ),
+    preorderTag: t("prevente.cardBadge"),
+    preorderCheckout: t("prevente.checkout"),
+    wasA11y: t("prevente.was"),
     add: t("cart.add"),
     added: t("cart.added"),
     remove: t("cart.remove"),
@@ -290,7 +323,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     increase: t("cart.increase"),
     empty: t("cart.empty"),
     error: t("cart.error"),
-    inspiredBy: t("product.inspiredBy"),
+    // « Twist spécifique de », jamais « Inspiré de » (Sandro, 30 oct.).
+    inspiredBy: t("product.twistOf"),
     accordWith: t("cart.accordWith"),
     accordListen: t("layering.recommendation"),
     seek: t("luma.seek"),
@@ -323,6 +357,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     img: string | null;
     variantId: string;
     price: number;
+    compare: number | null;
     currency: string;
   };
   type Accord = { id: string; pair: [string, string]; name: string; audio: string | null };
@@ -347,6 +382,13 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   );
   const accords: Accord[] = JSON.parse(document.getElementById("cart-accords")?.textContent ?? "[]");
   const I18N = JSON.parse(document.getElementById("cart-drawer-i18n")?.textContent ?? "{}");
+  // « Twist spécifique de » + nom, avec l'élision française devant une voyelle (même
+  // règle que withName() de i18n.ts, recopiée pour ne pas embarquer tout le
+  // dictionnaire dans le script du panier).
+  const inspired = (name: string): string =>
+    /\s(de|DE)$/.test(I18N.inspiredBy) && /^[aeiouyhâàäéèêëîïôöûüœ]/i.test(name)
+      ? `${I18N.inspiredBy.slice(0, -3)} ${I18N.inspiredBy.endsWith("DE") ? "D" : "d"}'${name}`
+      : `${I18N.inspiredBy} ${name}`;
   /**
    * Seuil applicable à la devise du panier. Le panier peut basculer de devise
    * en cours de session (changement de pays), d'où une lecture à chaque rendu
@@ -392,6 +434,9 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   const upsellSection = drawer?.querySelector<HTMLElement>("[data-cart-upsell-section]");
   const upsellList = drawer?.querySelector<HTMLElement>("[data-cart-upsell-list]");
   const subtotalEl = drawer?.querySelector<HTMLElement>("[data-cart-drawer-subtotal]");
+  const subtotalWas = drawer?.querySelector<HTMLElement>("[data-cart-drawer-subtotal-was]");
+  const savingRow = drawer?.querySelector<HTMLElement>("[data-cart-drawer-saving]");
+  const savingAmount = drawer?.querySelector<HTMLElement>("[data-cart-drawer-saving-amount]");
   const checkoutLink = drawer?.querySelector<HTMLAnchorElement>("[data-cart-drawer-checkout]");
 
   let currentCart: ShopifyCart | null = null;
@@ -478,6 +523,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     img: { url: string } | null;
     quantity: number;
     amount: number;
+    /** Prix normal (prix barré de la prévente) de la ligne ; égal à `amount` sans remise. */
+    compare: number;
     currency: string;
   };
 
@@ -491,10 +538,20 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     const groups = new Map<string, GroupedLine>();
     for (const line of cart?.lines.nodes ?? []) {
       if (sampleOptions.some((s) => s.variantId === line.merchandise.id)) continue;
+      const amount = Number(line.cost.totalAmount.amount);
+      // Une ligne offerte (0) n'a pas de prix barré : c'est un cadeau, pas une remise.
+      const ratio = Number(I18N.compareRatios?.[line.merchandise.id] ?? 0);
+      const unitWas = line.cost.compareAtAmountPerQuantity
+        ? Number(line.cost.compareAtAmountPerQuantity.amount)
+        : ratio > 1
+          ? Math.round((amount / line.quantity) * ratio)
+          : 0;
+      const compare = amount > 0 && unitWas * line.quantity > amount ? unitWas * line.quantity : amount;
       const existing = groups.get(line.merchandise.id);
       if (existing) {
         existing.quantity += line.quantity;
-        existing.amount += Number(line.cost.totalAmount.amount);
+        existing.amount += amount;
+        existing.compare += compare;
       } else {
         groups.set(line.merchandise.id, {
           variantId: line.merchandise.id,
@@ -503,7 +560,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           handle: line.merchandise.product.handle,
           img: line.merchandise.product.featuredImage,
           quantity: line.quantity,
-          amount: Number(line.cost.totalAmount.amount),
+          amount,
+          compare,
           currency: line.cost.totalAmount.currencyCode,
         });
       }
@@ -515,10 +573,15 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     const catalogEntry = upsellCatalog.find((p) => p.handle === line.handle);
     // Ligne remisée à 0 par une remise automatique Shopify (voir groupLines) :
     // on annonce le cadeau via le badge plutôt que d'afficher un prix à 0.
+    const fmt = (n: number) => formatPrice(String(n), line.currency, intlLocale(pageLocale()));
+    const wasHtml =
+      line.compare > line.amount ? `<s class="cart-line-was" aria-label="${I18N.wasA11y} ${fmt(line.compare)}">${fmt(line.compare)}</s>` : "";
     const priceHtml =
       line.amount === 0
         ? `<span class="cart-badge">${I18N.free}</span>`
-        : `<span class="cart-line-price">${formatPrice(String(line.amount), line.currency, intlLocale(pageLocale()))}</span>`;
+        : `<span class="cart-line-prices">${wasHtml}<span class="cart-line-price">${fmt(line.amount)}</span></span>`;
+    // Prévente : chaque flacon payant porte sa pastille, comme sur la fiche.
+    const tagHtml = I18N.prevente && line.amount > 0 ? `<span class="cart-line-tag">${I18N.preorderTag}</span>` : "";
     // Vignette et nom cliquables vers la fiche. Pas la ligne entière : elle
     // contient les boutons de quantité et « Retirer ».
     const href = productHref(line.handle);
@@ -535,7 +598,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
               ${href ? `<a class="cart-line-name" href="${href}">${nom}</a>` : `<span class="cart-line-name">${nom}</span>`}
               ${priceHtml}
             </div>
-            ${catalogEntry?.inspiredBy ? `<p class="cart-line-inspired">${I18N.inspiredBy} ${catalogEntry.inspiredBy}</p>` : ""}
+            ${tagHtml}
+            ${catalogEntry?.inspiredBy ? `<p class="cart-line-inspired">${inspired(catalogEntry.inspiredBy)}</p>` : ""}
           </div>
           <div class="cart-line-bottom">
             <div class="cart-line-qty">
@@ -553,11 +617,18 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       </div>`;
   }
 
+  /** Prix d'une suggestion, précédé de son prix normal barré pendant la prévente. */
+  function upsellPriceHtml(p: UpsellItem): string {
+    const fmt = (n: number) => formatPrice(String(n), p.currency, intlLocale(pageLocale()));
+    const was = p.compare && p.compare > p.price ? fmt(p.compare) : "";
+    return `<span class="cart-upsell-price"><s data-money-compare="${p.variantId}"${was ? "" : " hidden"}>${was}</s><span data-money="${p.variantId}">${fmt(p.price)}</span></span>`;
+  }
+
   function upsellCardHtml(p: UpsellItem): string {
     // Les prix des suggestions viennent du catalogue cuit au build (AED) :
     // `data-money` les fait relire dans la devise du pays choisi, comme
     // partout ailleurs dans la page.
-    const price = `<span class="cart-upsell-price" data-money="${p.variantId}">${formatPrice(String(p.price), p.currency, intlLocale(pageLocale()))}</span>`;
+    const price = upsellPriceHtml(p);
     const href = productHref(p.handle);
     const vignette = p.img ? `<img src="${p.img}" alt="${p.title}" width="120" height="120" />` : "";
     return `
@@ -566,7 +637,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         <div class="cart-upsell-card-body">
           <div class="cart-upsell-card-text">
             ${href ? `<a class="cart-upsell-card-name" href="${href}">${p.title}</a>` : `<p class="cart-upsell-card-name">${p.title}</p>`}
-            ${p.inspiredBy ? `<p class="cart-upsell-card-inspired">${I18N.inspiredBy} ${p.inspiredBy}</p>` : ""}
+            ${p.inspiredBy ? `<p class="cart-upsell-card-inspired">${inspired(p.inspiredBy)}</p>` : ""}
           </div>
           <div class="cart-upsell-cta">
             <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id="${p.variantId}">
@@ -588,7 +659,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
    */
   function accordHtml(a: Accord, mine: UpsellItem, partner: UpsellItem): string {
     const href = productHref(partner.handle);
-    const price = `<span class="cart-upsell-price" data-money="${partner.variantId}">${formatPrice(String(partner.price), partner.currency, intlLocale(pageLocale()))}</span>`;
+    const price = upsellPriceHtml(partner);
     const vignette = partner.img ? `<img src="${partner.img}" alt="${partner.title}" width="120" height="120" />` : "";
     const listen = a.audio
       ? `
@@ -960,7 +1031,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           sampleImg.alt = opt.productTitle;
         }
         if (sampleLabel) {
-          sampleLabel.textContent = [opt.productTitle, opt.inspiredBy ? `${I18N.inspiredBy} ${opt.inspiredBy}` : null]
+          sampleLabel.textContent = [opt.productTitle, opt.inspiredBy ? inspired(opt.inspiredBy) : null]
             .filter(Boolean)
             .join(" · ");
         }
@@ -972,7 +1043,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           <li>
             <button type="button" class="cart-sample-option" data-sample-variant="${s.variantId}">
               ${s.img ? `<img src="${s.img}" alt="" width="32" height="32" />` : ""}
-              <span>${[s.productTitle, s.inspiredBy ? `${I18N.inspiredBy} ${s.inspiredBy}` : null].filter(Boolean).join(" · ")}</span>
+              <span>${[s.productTitle, s.inspiredBy ? inspired(s.inspiredBy) : null].filter(Boolean).join(" · ")}</span>
             </button>
           </li>`
           )
@@ -1040,6 +1111,18 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     // Sous-total + checkout
     if (subtotalEl) {
       subtotalEl.textContent = money(cart?.cost.subtotalAmount.amount ?? 0);
+    }
+    // Prix de lancement : l'économie se dit en chiffres, et le sous-total
+    // normal se barre à côté du sous-total payé.
+    const saving = grouped.reduce((sum, l) => sum + (l.compare - l.amount), 0);
+    savingRow?.toggleAttribute("hidden", !(saving > 0));
+    if (savingAmount) savingAmount.textContent = saving > 0 ? `−${money(saving)}` : "";
+    if (subtotalWas) {
+      subtotalWas.hidden = !(saving > 0);
+      subtotalWas.textContent = saving > 0 ? money(subtotal + saving) : "";
+    }
+    if (checkoutLink && I18N.prevente) {
+      checkoutLink.textContent = subtotal > 0 ? `${I18N.preorderCheckout} · ${money(subtotal)}` : I18N.preorderCheckout;
     }
     // L'adresse du checkout porte aussi les paramètres de la pub d'origine (attribution.ts).
     if (checkoutLink) checkoutLink.href = cart?.checkoutUrl ? withAttribution(cart.checkoutUrl) : "#";
@@ -1145,7 +1228,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       if (sampleLabel) {
         sampleLabel.textContent = [
           opt.productTitle,
-          opt.inspiredBy ? `${I18N.inspiredBy} ${opt.inspiredBy}` : null,
+          opt.inspiredBy ? inspired(opt.inspiredBy) : null,
         ]
           .filter(Boolean)
           .join(" · ");
@@ -1203,7 +1286,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   }
   .cart-drawer.is-open .cart-drawer-panel { transform: translateX(0); }
   .cart-drawer-close {
-    position: absolute; top: 8px; right: 8px; z-index: 1; border: 0; background: transparent;
+    position: absolute; top: 8px; right: 8px; z-index: 3; border: 0; background: transparent;
     width: 44px; height: 44px; padding: 14px; cursor: pointer; line-height: 0;
   }
   .cart-drawer-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 32px; display: flex; flex-direction: column; gap: 24px; }
@@ -1213,7 +1296,20 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-drawer-divider[data-cart-accord-divider]:not([hidden]),
   .cart-drawer-divider[data-cart-upsell-divider]:not([hidden]) { margin-top: auto; }
 
-  .cart-drawer-header { display: flex; flex-direction: column; gap: 16px; }
+  /*
+   * Le haut du sac (titre, compteur, barre de livraison offerte) reste collé
+   * pendant qu'on fait défiler les lignes (Sandro, 30 oct.). Il déborde sur le
+   * rembourrage de la zone défilante pour couvrir toute la largeur, et porte
+   * lui-même le filet qui le sépare des lignes. `top` négatif : le collage se
+   * mesure depuis le bord intérieur du rembourrage, pas depuis le haut du panneau.
+   */
+  .cart-drawer-header {
+    position: sticky; top: -32px; z-index: 2;
+    margin: -32px -32px 0; padding: 32px 32px 24px;
+    background: var(--paper); border-bottom: 1px solid rgba(21, 14, 10, 0.12);
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .cart-drawer-header + .cart-drawer-divider { display: none; }
   .cart-drawer-title { margin: 0; display: flex; gap: 6px; align-items: baseline; font-size: 24px; font-weight: 500; text-transform: uppercase; color: var(--ink); }
   .cart-drawer-title span { font-size: 16px; font-weight: 400; }
   .cart-shipping { display: flex; flex-direction: column; gap: 8px; }
@@ -1241,6 +1337,20 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-line-title { font-size: 16px; font-weight: 500; text-transform: uppercase; }
   .cart-line-variant { display: inline; margin-inline-start: 8px; font-size: 13px; color: rgba(21, 14, 10, 0.62); white-space: nowrap; }
   .cart-line-price { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+  .cart-line-prices { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .cart-line-was { font-size: 13px; opacity: 0.55; text-decoration-thickness: 1px; white-space: nowrap; }
+  .cart-line-tag {
+    align-self: flex-start;
+    margin: 4px 0 2px;
+    padding: 4px 7px;
+    background: var(--prevente);
+    color: var(--ink);
+    font-size: 11px;
+    line-height: 13px;
+    font-weight: 500;
+    letter-spacing: 0.88px;
+    text-transform: uppercase;
+  }
   /* Quantité déjà changée à l'écran, montant pas encore confirmé par Shopify
      (voir queueQuantity) : le prix pâlit le temps de l'aller-retour. */
   .cart-line.is-pending .cart-line-price,
@@ -1262,10 +1372,10 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-sample { display: flex; flex-direction: column; gap: 12px; }
   .cart-sample-head { display: flex; align-items: center; justify-content: space-between; }
   .cart-sample-head p { margin: 0; font-size: 14px; font-weight: 500; text-transform: uppercase; color: var(--ink); }
-  .cart-badge { display: inline-flex; align-items: center; padding: 4.5px 6px; border-radius: 8px; background: #efc5a9; color: var(--rose); font-size: 12px; font-weight: 500; text-transform: uppercase; }
+  .cart-badge { display: inline-flex; align-items: center; padding: 4.5px 6px; border-radius: 0; background: #efc5a9; color: var(--rose); font-size: 12px; font-weight: 500; text-transform: uppercase; }
   .cart-sample-row {
     display: flex; align-items: center; gap: 16px; width: 100%; border: 0; background: var(--cream);
-    border-radius: 4px; padding: 0 16px 0 0; overflow: hidden; cursor: pointer; font: inherit; text-align: start;
+    border-radius: 0; padding: 0 16px 0 0; overflow: hidden; cursor: pointer; font: inherit; text-align: start;
   }
   .cart-sample-row img:first-child { width: 48px; height: 48px; object-fit: cover; }
   .cart-sample-row span { flex: 1 0 0; min-width: 0; font-size: 14px; font-weight: 500; color: var(--ink); }
@@ -1386,7 +1496,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
      lisait comme une étiquette séparée et l'œil devait faire le lien lui-même. */
   .cart-upsell-add {
     display: inline-flex; align-items: center; justify-content: space-between; gap: 16px; align-self: flex-start;
-    border: 1px solid rgba(21, 14, 10, 0.32); border-radius: 999px;
+    border: 1px solid rgba(21, 14, 10, 0.32); border-radius: 0;
     background: transparent; color: var(--ink); padding: 8px 14px 8px 10px; font: inherit; font-size: 14px; font-weight: 500;
     text-transform: uppercase; cursor: pointer; transition: background-color 0.18s, border-color 0.18s, color 0.18s;
   }
@@ -1424,18 +1534,27 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-drawer-subtotal-row { display: flex; align-items: baseline; justify-content: space-between; }
   .cart-drawer-subtotal-row span { font-size: 18px; font-weight: 500; color: var(--ink); }
   .cart-drawer-subtotal-row strong { font-size: 16px; font-weight: 500; color: var(--ink); }
-  .cart-drawer-prevente {
+  .cart-drawer-subtotal-amounts { display: inline-flex; align-items: baseline; gap: 10px; }
+  .cart-drawer-subtotal-amounts s { font-size: 14px; opacity: 0.55; text-decoration-thickness: 1px; }
+  .cart-drawer-subtotal-amounts s[hidden] { display: none; }
+  .cart-drawer-saving { display: flex; justify-content: space-between; margin-bottom: -6px; font-size: 14px; color: var(--rose); }
+  .cart-drawer-saving[hidden] { display: none; }
+  .cart-drawer-saving strong { font-weight: 500; }
+  .cart-drawer-checkout-wrap { position: relative; }
+  /* Marges égales des deux côtés : le libellé reste centré malgré le « ? ». */
+  .cart-drawer-checkout-wrap.has-tip .cart-drawer-checkout { padding-inline: 48px; }
+  .cart-drawer-checkout-tip {
+    position: absolute;
+    top: 50%;
+    inset-inline-end: 16px;
+    transform: translateY(-50%);
     display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin: 0 0 12px;
-    font-size: 13px;
-    line-height: 1.4;
   }
-  .cart-drawer-prevente strong { font-weight: 500; color: var(--rose); }
-  .cart-drawer-prevente span { opacity: 0.7; }
+  /* Feuille globale : pas de :global() ici. Spécificité au-dessus de celle de Tip (classe + attribut). */
+  .cart-drawer-checkout-tip .tip .tip-btn { border-color: rgba(255, 255, 255, 0.7); color: #fff; }
+  .cart-drawer-checkout-tip .tip .tip-btn:hover { border-color: #fff; color: #fff; }
   .cart-drawer-checkout {
-    display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 0;
     background: var(--rose); color: #fff; font-size: 16px; font-weight: 500; text-transform: uppercase;
     transition: opacity 0.15s;
   }
@@ -1451,6 +1570,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     }
     .cart-drawer.is-open .cart-drawer-panel { transform: translateX(0); }
     .cart-drawer-scroll { padding: 28px 20px 24px; gap: 20px; }
+    .cart-drawer-header { top: -28px; margin: -28px -20px 0; padding: 28px 20px 20px; }
     .cart-drawer-footer {
       gap: 12px;
       padding: 16px 20px calc(16px + env(safe-area-inset-bottom));

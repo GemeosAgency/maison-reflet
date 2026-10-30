@@ -44,12 +44,12 @@ export const LAYERING: LayeringDuo[] = [
     story: {
       fr: "Le cuir et le safran d'Ultra Cuir sur la tonka et la vanille de Minuit Bourbon : un cuir gourmand pour le soir.",
       en: "Ultra Cuir's leather and saffron over Minuit Bourbon's tonka and vanilla: a gourmand leather for the evening.",
-      ar: "جلد أولترا كوير وزعفرانه فوق تونكا مينوي بوربون وفانيليّته: جلدٌ شهي للمساء.",
+      ar: "جلد Ultra Cuir وزعفرانه فوق تونكا Minuit Bourbon وفانيليّته: جلد شهيّ للمساء.",
     },
     gesture: {
       fr: "Minuit Bourbon d'abord, sur la peau ; Ultra Cuir ensuite, une pression sur les vêtements.",
       en: "Minuit Bourbon first, on the skin; then Ultra Cuir, one spray on clothing.",
-      ar: "مينوي بوربون أولًا على البشرة؛ ثم أولترا كوير، رشّة واحدة على الملابس.",
+      ar: "Minuit Bourbon أولًا على البشرة، ثم Ultra Cuir، رشّة واحدة على الملابس.",
     },
     recommendation: {
       fr: "[warmly] La recommandation de notre parfumeur pour le soir : Minuit Bourbon d'abord, sur la peau — la fève tonka, la vanille Bourbon, cette chaleur qui reste. [inhales] Puis Ultra Cuir, une seule pression, sur les vêtements. [exhales] Le cuir et le safran viennent se poser dessus, et vous avez un cuir gourmand, profond, qui vous suit toute la soirée.",
@@ -63,14 +63,14 @@ export const LAYERING: LayeringDuo[] = [
     status: "validated",
     name: { fr: "Boisé solaire", en: "Sunlit woods", ar: "أخشاب مشمسة" },
     story: {
-      fr: "Le safran et le jasmin sambac qu'ils partagent font le pont : le boisé net qui tient, le fruité solaire qui éclaire. Du matin au soir.",
-      en: "The saffron and sambac jasmine they share build the bridge: the clean woods that hold, the sunny fruit that lights it up. From morning to night.",
-      ar: "الزعفران وياسمين سامباك المشتركان بينهما يصنعان الجسر: أخشاب نقية تثبت، وفاكهة مشمسة تضيء. من الصباح إلى المساء.",
+      fr: "Le jasmin sambac qu'ils partagent fait le pont : le boisé net de l'un, le fruité solaire de l'autre qui l'éclaire. Du matin au soir.",
+      en: "The sambac jasmine they share builds the bridge: the clean woods of one, lit up by the sunny fruit of the other. From morning to night.",
+      ar: "ياسمين السامباك المشترك بينهما يصنع الجسر: أخشاب نقية من الأول، تضيئها فاكهة الثاني المشمسة. من الصباح إلى المساء.",
     },
     gesture: {
       fr: "Bois Alert d'abord, cou et poignets ; Fifth Season par-dessus, léger, le matin.",
       en: "Bois Alert first, neck and wrists; Fifth Season over it, lightly, in the morning.",
-      ar: "بوا ألِرت أولًا على العنق والمعصمين؛ فيفث سيزن فوقه بخفّة، صباحًا.",
+      ar: "Bois Alert أولًا على العنق والمعصمين، ثم Fifth Season فوقه برشّة خفيفة، صباحًا.",
     },
     recommendation: {
       fr: "[upbeat] La recommandation de notre parfumeur pour la journée : Bois Alert d'abord, cou et poignets — le boisé net, le safran, le jasmin sambac. [inhales] Puis Fifth Season par-dessus, léger, le matin. [exhales] Les deux partagent le safran et le jasmin, alors ils se répondent : le bois tient, le fruit solaire éclaire. Du matin au soir, sans rien forcer.",
@@ -84,14 +84,14 @@ export const LAYERING: LayeringDuo[] = [
     status: "validated",
     name: { fr: "Oud fruité", en: "Fruity oud", ar: "عودٌ فاكهي" },
     story: {
-      fr: "Safran, fruits vibrants et rose : la mangue de Melting Mango ouvre l'oud de New Oud sans l'alourdir. Très Golfe, sans lourdeur.",
-      en: "Saffron, vibrant fruit and rose: Melting Mango's mango opens New Oud's oud without weighing it down. Very Gulf, never heavy.",
-      ar: "زعفران وفواكه نابضة وورد: مانجو ميلتينغ مانغو تفتح عود نيو عود دون أن تُثقله. خليجيٌّ جدًا، من دون ثِقَل.",
+      fr: "Safran, fruits vibrants et rose : la mangue de Melting Mango ouvre l'oud de New Oud sans l'alourdir. Une signature du Golfe, tout en légèreté.",
+      en: "Saffron, vibrant fruit and rose: Melting Mango's mango opens up New Oud's oud without weighing it down. A Gulf signature, light on the skin.",
+      ar: "زعفران وفواكه نابضة وورد: مانجو Melting Mango تفتح عود New Oud وتمنحه خفّة. روح خليجية خالصة، من دون ثِقَل.",
     },
     gesture: {
       fr: "New Oud d'abord, sur la peau ; Melting Mango ensuite, une pression sur le col.",
       en: "New Oud first, on the skin; then Melting Mango, one spray on the collar.",
-      ar: "نيو عود أولًا على البشرة؛ ثم ميلتينغ مانغو، رشّة واحدة على الياقة.",
+      ar: "New Oud أولًا على البشرة، ثم Melting Mango، رشّة واحدة على الياقة.",
     },
     recommendation: {
       fr: "[warmly] La recommandation de notre parfumeur, très Golfe : New Oud d'abord, sur la peau — l'oud, la rose de Taïf, le safran. [inhales] Puis Melting Mango, une pression sur le col. [exhales] La mangue ouvre l'oud, le rend lumineux, jamais lourd. Un oud fruité qu'on porte le soir — et qu'on vous demandera.",

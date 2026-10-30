@@ -1,4 +1,5 @@
 ---
+import { avecAvoir } from "../lib/coffret-avoir";
 import {
   type Locale,
   locales,
@@ -40,7 +41,7 @@ interface Props {
 
 const {
   title,
-  description = "Maison Reflet — Parfums franco-arabes",
+  description: descriptionProp,
   lang,
   breadcrumbs = [{ label: useTranslations(lang)("nav.home") }],
   ogImage = null,
@@ -48,6 +49,9 @@ const {
   jsonLd = [],
 } = Astro.props;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
+const description = descriptionProp ?? `Maison Reflet, ${t("meta.homeTitle")}`;
 
 const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
 const prevente = await getPrevente();
@@ -239,6 +243,13 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
     <title>{title} | Maison Reflet</title>
     <style is:global>
       /*
+       * Prix normal barré (prévente), partout où un prix s'affiche : même dessin
+       * par défaut, les composants l'affinent. `hidden` est redit, un `display`
+       * local l'écraserait.
+       */
+      s[data-money-compare] { margin-inline-end: 0.4em; opacity: 0.6; font-weight: 400; text-decoration-thickness: 1px; white-space: nowrap; }
+      s[data-money-compare][hidden] { display: none; }
+      /*
        * L'attribut `hidden` doit toujours l'emporter.
        *
        * Le navigateur le rend avec `[hidden] { display: none }` dans SA feuille
@@ -312,6 +323,8 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         --paper: #f7f5f2;
         --sand: #e7dfd0;
         --peach: #efc5a9;
+        /* Pastilles de prévente : le bordeaux se voyait trop (Sandro, 30 oct.). */
+        --prevente: #f2dc8f;
         --cream: var(--bg);
         --cream-2: var(--paper);
 
@@ -457,7 +470,7 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         */}
         <p>
           <a class="promo-lien" href={localePath(lang, `/coffrets/${COFFRET_HANDLE}`)}>
-            {t("banner.coffret")}
+            {tc("banner.coffret")}
             <span class="promo-cta">{t("banner.coffretCta")}</span>
           </a>
         </p>
@@ -491,7 +504,18 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
               Le même trait que « Lire le portrait » sur la fiche (LumaListen). */}
           <svg class="site-nav-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </a>
-        <a href={localePath(lang, "/coffrets/sample-box")}>{t("nav.discovery")}</a>
+        {/* « Coffrets » ouvre le même panneau, dont la colonne de droite présente les deux coffrets. */}
+        <a
+          href={localePath(lang, "/coffrets/sample-box")}
+          class="site-nav-trigger"
+          data-menu-trigger
+          aria-haspopup="true"
+          aria-expanded="false"
+          aria-controls="site-mega"
+        >
+          {t("nav.discovery")}
+          <svg class="site-nav-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </a>
         <a href={localePath(lang, "/maison")}>{t("nav.maison")}</a>
       </nav>
       <button
@@ -534,8 +558,8 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         <div class="icons">
           {/* Pas de loupe : elle n'ouvrait aucune recherche, donc elle promettait
               une fonction qui n'existe pas (Sandro). À remettre le jour où la
-              recherche sera branchée. */}
-          <img class="icon-desktop" src="/brand/account.svg" alt="Account" width="20" height="20" />
+              recherche sera branchée. Pas d'icône compte non plus, pour la même
+              raison : il n'existe pas d'espace client (Sandro, 30 oct.). */}
           <a href={localePath(lang, "/panier")} class="bag" aria-label={t("nav.panier")} data-cart-open-trigger>
             <img src="/brand/bag.svg" alt="" width="20" height="20" />
             <span data-cart-count class="cart-count"></span>
@@ -553,7 +577,7 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
     <footer class="site-footer">
       <div class="footer-top">
         <div class="footer-main">
-          <nav class="footer-crumbs" aria-label="Breadcrumb">
+          <nav class="footer-crumbs" aria-label={t("nav.breadcrumb")}>
             {
               breadcrumbs.map((c, i) => (
                 <>
@@ -786,13 +810,13 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
       .footer-signup-text { margin: 0; font-size: 16px; line-height: 1.24; color: rgba(241, 238, 233, 0.8); }
       .footer-signup-form { display: flex; flex-direction: column; gap: 12px; }
       .footer-signup-form input {
-        height: 48px; padding: 8px 24px; border-radius: 8px;
+        height: 48px; padding: 8px 24px; border-radius: 0;
         border: 1px solid rgba(231, 223, 208, 0.12); background: rgba(231, 223, 208, 0.08);
         color: var(--cream); font: inherit; font-size: 16px;
       }
       .footer-signup-form input::placeholder { color: rgba(231, 223, 208, 0.8); }
       .footer-signup-form button {
-        height: 48px; border: 0; border-radius: 999px; background: var(--rose); color: var(--cream);
+        height: 48px; border: 0; border-radius: 0; background: var(--rose); color: var(--cream);
         font: inherit; font-size: 16px; font-weight: 500; cursor: pointer; transition: opacity 0.15s;
       }
       .footer-signup-form button:hover { opacity: 0.9; }
@@ -857,7 +881,6 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         .menu-burger span { display: block; height: 1px; width: 20px; background: var(--ink); }
         .currency-label,
         .currency .chev { display: none; }
-        .icon-desktop { display: none; }
         .site-logo img { width: 187px; height: 22px; }
         .promo-banner p {
           min-width: 0;

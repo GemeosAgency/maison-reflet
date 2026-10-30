@@ -11,15 +11,18 @@
  * La maquette décrit le Discovery Set, qui est le coffret le mieux garni ;
  * cette route sert tous les coffrets et se dégrade proprement pour les autres.
  */
+import { avecAvoir } from "../../../lib/coffret-avoir";
+import { preventePanel } from "../../../lib/prevente-cards";
+import { intlLocale } from "../../../lib/markets";
 import Layout from "../../../layouts/Layout.astro";
 import Faq from "../../../components/Faq.astro";
 import Pillars from "../../../components/Pillars.astro";
 import Reassurance from "../../../components/Reassurance.astro";
 import LumaAsk from "../../../components/LumaAsk.astro";
 import PerfumeGrid from "../../../components/PerfumeGrid.astro";
-import Reviews from "../../../components/Reviews.astro";
 import ProductGallery from "../../../components/product/ProductGallery.astro";
 import ProductInfoPanel from "../../../components/product/ProductInfoPanel.astro";
+import NotifyLaunch from "../../../components/product/NotifyLaunch.astro";
 import { COFFRET_HANDLE } from "../../../lib/coffret";
 import ScentNotes from "../../../components/product/ScentNotes.astro";
 import PerfumerWord from "../../../components/product/PerfumerWord.astro";
@@ -57,6 +60,8 @@ interface Props {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
 // Prévente ouverte (réglage Sanity) : « Précommander » partout où l'on achète.
 const prevente = await getPrevente();
 const addLabel = prevente.active ? t("prevente.add") : t("product.addToCart");
@@ -65,11 +70,13 @@ const { product, products } = Astro.props;
 
 const content = await getCoffretByHandle(product.handle, lang);
 const variant = getPrimaryVariant(product);
-const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
+const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang));
 // Prix normal barré pendant la prévente : le compareAtPrice Shopify, s'il dépasse le prix pratiqué.
-const compareLabel = getCompareAtLabel(product);
+const compareLabel = getCompareAtLabel(product, intlLocale(lang));
 
 const title = content?.titre ?? product.title;
+// Prévente : le coffret porte la même pastille, le même prix de lancement et le même encadré que les parfums.
+const preventeBloc = await preventePanel(lang, product, title);
 const description = content?.description ?? product.description;
 
 // ---------- Galerie ----------
@@ -82,7 +89,7 @@ const description = content?.description ?? product.description;
 const shopifyGallery = [product.featuredImage, ...product.images.nodes]
   .filter((im) => im)
   .filter((im, i, arr) => arr.findIndex((x) => x!.url === im!.url) === i)
-  .map((im) => ({ ...shopifyImage(im!, [480, 720, 960, 1440]), alt: im!.altText ?? title }));
+  .map((im) => ({ ...shopifyImage(im!, [480, 720, 960, 1440]), alt: (lang === "fr" && im!.altText) || title }));
 const gallery = shopifyGallery.length
   ? shopifyGallery
   : content?.image
@@ -100,20 +107,10 @@ const descriptionHtml = description ? `<p>${description.replace(/\n/g, "</p><p>"
 // Remplace l'ancien encadré CoffretCredit.
 const isDiscovery = product.handle === COFFRET_HANDLE;
 const perks: { icon: string; label: string; note?: string }[] = [
-  ...(isDiscovery ? [{ icon: "/brand/gift.svg", label: t("coffret.creditShort"), note: t("coffret.creditNote") }] : []),
+  ...(isDiscovery ? [{ icon: "/brand/gift.svg", label: t("coffret.creditShort"), note: tc("coffret.creditNote") }] : []),
   { icon: "/brand/reassurance-retour.svg", label: t("product.perkReturn"), note: t("product.perkReturnNote") },
 ];
 
-// Note / avis : placeholders (pas encore de système d'avis branché).
-const rating = "4,9";
-const panelReviewCount = 147;
-const reviewCount = 267;
-const reviewPlaceholder = {
-  fr: "Avis client à venir — contenu de démonstration en attendant un vrai système d'avis.",
-  ar: "رأي العميل قادم — محتوى تجريبي بانتظار نظام تقييمات حقيقي.",
-  en: "Customer review coming soon — placeholder content pending a real reviews system.",
-}[lang];
-const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quote: reviewPlaceholder }));
 
 // ---------- Scent Notes à onglets ----------
 /*
@@ -254,9 +251,6 @@ const productJsonLd = {
         thumb={gallery[0] ?? null}
         title={title}
         sizeLabel={null}
-        rating={rating}
-        reviewCount={panelReviewCount}
-        reviewsWord={t("product.reviews")}
         descriptionHtml={descriptionHtml}
         famillesLabel={t("product.olfactiveFamily")}
         familles={null}
@@ -266,7 +260,7 @@ const productJsonLd = {
         sillageLabel={t("product.sillage")}
         sillage={null}
         sillageValueLabel={null}
-        plainRows={[content?.contenance, isDiscovery ? t("coffret.creditRow") : null].filter((r): r is string => Boolean(r))}
+        plainRows={[content?.contenance, isDiscovery ? tc("coffret.creditRow") : null].filter((r): r is string => Boolean(r))}
         variantId={variant.id}
         priceLabel={priceLabel}
         compareLabel={compareLabel}
@@ -279,27 +273,20 @@ const productJsonLd = {
         increaseLabel={t("cart.increase")}
         perks={perks}
         tipLabel={t("product.tipOpen")}
+        prevente={preventeBloc}
       >
+        {prevente.active && <NotifyLaunch slot="notify" lang={lang} handle={product.handle} name={title} priceLabel={priceLabel} kind="coffret" />}
         <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={title} kind="coffret" />
       </ProductInfoPanel>
     </aside>
   </div>
 
-  <ScentNotes title={t("product.notes")} tabs={scentTabs} />
+  <ScentNotes lang={lang} title={t("product.notes")} tabs={scentTabs} />
 
-  {perfumerWord && <PerfumerWord title={t("product.perfumerWord")} quote={perfumerWord} img={perfumerPhoto} />}
+  {perfumerWord && <PerfumerWord lang={lang} title={t("product.perfumerWord")} quote={perfumerWord} img={perfumerPhoto} />}
 
   <Reassurance items={reassurances} />
 
-  <Reviews
-    title={t("home.reviews.title")}
-    ratingLabel={t("home.reviews.rated")}
-    customersLabel={t("home.reviews.customers")}
-    reviews={reviews}
-    totalCount={reviewCount}
-    previousLabel={t("reviews.previous")}
-    nextLabel={t("reviews.next")}
-  />
 
   {/* « You may also like » : la grille des six du catalogue, avec titre et sous-titre (Figma 12013:546). */}
   <PerfumeGrid

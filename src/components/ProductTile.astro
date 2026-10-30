@@ -17,6 +17,7 @@
  * lien — même montage que ProductCard.
  */
 import type { ResponsiveImage } from "../lib/sanity";
+import { preventeCard } from "../lib/prevente-cards";
 
 interface Props {
   name: string;
@@ -46,12 +47,16 @@ const {
   img,
   hoverImg = null,
   href,
-  badge,
+  badge: badgeProp,
   variantId = null,
   addLabel = "",
   addedLabel = "",
   errorLabel = "",
 } = Astro.props;
+
+// Prévente ouverte : « PRÉCOMMANDE » en jaune remplace la pastille (voir prevente-cards).
+const prevente = await preventeCard(Astro.params.lang, Boolean(compare));
+const badge = prevente?.badge ?? badgeProp;
 
 const SIZES = "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw";
 // Le voile ne sert qu'à faire ressortir le bouton d'ajout : sans bouton (les
@@ -89,7 +94,7 @@ const hasAdd = Boolean(variantId && addLabel);
       )
     }
     {hasAdd && <div class="ptile-overlay" aria-hidden="true"></div>}
-    {badge && <span class="ptile-badge">{badge}</span>}
+    {badge && <span class:list={["ptile-badge", { "is-prevente": prevente }]}>{badge}</span>}
     {
       hasAdd && (
         <div class="ptile-add-wrap">
@@ -111,6 +116,7 @@ const hasAdd = Boolean(variantId && addLabel);
     <h3>{name}{size && <span class="ptile-size">{size}</span>}</h3>
     {subtitle && <p class="ptile-subtitle">{subtitle}</p>}
     <p class="ptile-price">
+      {prevente?.launchLabel && <span class="ptile-launch">{prevente.launchLabel}</span>}
       <s class="price-was" data-money-compare={variantId} hidden={!compare}>{compare}</s>
       <span data-money={variantId}>{price}</span>
     </p>
@@ -220,6 +226,15 @@ const hasAdd = Boolean(variantId && addLabel);
     font-size: 0.82em;
     font-weight: 400;
     white-space: nowrap;
+  }
+  .ptile-badge.is-prevente { background: var(--prevente); color: var(--ink); }
+  .ptile-launch {
+    display: block;
+    font-size: 11px;
+    line-height: 16px;
+    letter-spacing: 0.88px;
+    text-transform: uppercase;
+    color: var(--rose);
   }
   .price-was { margin-inline-end: 6px; font-weight: 400; opacity: 0.6; text-decoration-thickness: 1px; }
   .price-was[hidden] { display: none; }

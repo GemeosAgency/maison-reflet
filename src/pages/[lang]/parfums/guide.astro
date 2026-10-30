@@ -11,13 +11,15 @@
  * lib/universes.ts, lib/guide.ts (matières, moments, twists, manifeste),
  * lib/layering.ts (duos). Les portraits audio par LumaListen.
  */
+import { avecAvoir } from "../../../lib/coffret-avoir";
+import { intlLocale } from "../../../lib/markets";
 import Layout from "../../../layouts/Layout.astro";
 import LumaListen from "../../../components/LumaListen.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import { COFFRET_HANDLE } from "../../../lib/coffret";
-import { formatPrice, getAllProducts, getDisplayPrice, getPrimaryVariant, isCoffret, shopifyImage } from "../../../lib/shopify";
+import { formatPrice, getAllProducts, getCompareAtLabel, getCompareAtPrice, getDisplayPrice, getPrimaryVariant, isCoffret, shopifyImage } from "../../../lib/shopify";
 import { getCoffrets, getInspiredByMap, getParfumContent, responsiveImage } from "../../../lib/sanity";
-import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
+import { type Locale, locales, localePath, useTranslations, withName } from "../../../i18n";
 import { REFLET_UNIVERSE, UNIVERSE_LABELS, universeLabel, type UniverseKey } from "../../../lib/universes";
 import { GUIDE_MANIFESTO, GUIDE_REFLETS } from "../../../lib/guide";
 import { LAYERING, accordAudioPath, duosFor } from "../../../lib/layering";
@@ -28,6 +30,8 @@ export function getStaticPaths() {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
 
 const [allProducts, inspiredMap, coffretContent] = await Promise.all([getAllProducts(), getInspiredByMap(), getCoffrets(lang)]);
 
@@ -73,8 +77,11 @@ const reflets = perfumeProducts.map((p, i) => {
     when: guide?.when ?? [],
     twistLine: guide?.twistLine[lang] ?? null,
     twistShort: guide?.twistShort[lang] ?? null,
-    price: formatPrice(price.amount, price.currencyCode),
+    price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
+    compare: getCompareAtLabel(p, intlLocale(lang)),
     priceAmount: Number(price.amount),
+    // Prix normal (prix barré de la prévente), ou le prix pratiqué s'il n'y en a pas.
+    compareAmount: Number((getCompareAtPrice(p) ?? price).amount),
     currency: price.currencyCode,
     variantId: variant.id,
     img: p.featuredImage ? shopifyImage(p.featuredImage, [320, 480, 640]) : null,
@@ -118,7 +125,8 @@ const discovery = (() => {
           : sp.featuredImage
             ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
             : null,
-        price: formatPrice(variant.price.amount, variant.price.currencyCode),
+        price: formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang)),
+        compare: getCompareAtLabel(sp, intlLocale(lang)),
         href: localePath(lang, `/coffrets/${sp.handle}`),
       };
     })
@@ -133,7 +141,15 @@ const duos = LAYERING.map((d) => ({
   second: byHandle[d.pair[1]],
 }))
   .filter((d) => d.first && d.second)
-  .map((d) => ({ ...d, total: formatPrice(String(d.first.priceAmount + d.second.priceAmount), d.first.currency) }));
+  .map((d) => {
+    const now = d.first.priceAmount + d.second.priceAmount;
+    const was = d.first.compareAmount + d.second.compareAmount;
+    return {
+      ...d,
+      total: formatPrice(String(now), d.first.currency, intlLocale(lang)),
+      totalWas: was > now ? formatPrice(String(was), d.first.currency, intlLocale(lang)) : null,
+    };
+  });
 ---
 
 <Layout
@@ -219,7 +235,7 @@ const duos = LAYERING.map((d) => ({
                 <h3 class="guide-map-card-name"><a href={r.href}>{r.name}</a></h3>
                 {r.inspiredBy && (
                   <p class="guide-col-inspired">
-                    {t("product.inspiredBy")} {r.inspiredBy}
+                    {withName(t("product.twistOf"), r.inspiredBy)}
                   </p>
                 )}
                 {r.twistShort && (
@@ -239,7 +255,7 @@ const duos = LAYERING.map((d) => ({
                 )}
                 <LumaListen lang={lang} handle={r.handle} name={r.name} />
                 <div class="guide-col-foot">
-                  <span class="guide-col-price" data-money={r.variantId}>{r.price}</span>
+                  <span class="guide-col-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
                   <a class="guide-link" href={r.href}>{t("guide.discover")}</a>
                 </div>
               </div>
@@ -307,7 +323,7 @@ const duos = LAYERING.map((d) => ({
               <h2 class="guide-col-name"><a href={r.href}>{r.name}</a></h2>
               {r.inspiredBy && (
                 <p class="guide-col-inspired">
-                  {t("product.inspiredBy")} {r.inspiredBy}
+                  {withName(t("product.twistOf"), r.inspiredBy)}
                 </p>
               )}
             </div>
@@ -346,7 +362,7 @@ const duos = LAYERING.map((d) => ({
               <LumaListen lang={lang} handle={r.handle} name={r.name} label={t("menu.listenPortrait")} />
             </div>
             <div class="guide-col-foot">
-              <span class="guide-col-price" data-money={r.variantId}>{r.price}</span>
+              <span class="guide-col-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
               <a class="guide-link" href={r.href}>{t("guide.discover")}</a>
             </div>
           </article>
@@ -543,7 +559,7 @@ const duos = LAYERING.map((d) => ({
           <p>{t("guide.layeringLead")}</p>
         </div>
         <ul class="guide-duos">
-          {duos.map(({ duo, first, second, total }) => (
+          {duos.map(({ duo, first, second, total, totalWas }) => (
             <li class="guide-duo" id={`accord-${duo.id}`}>
               <div class="guide-duo-pair">
                 <a class="guide-duo-media" href={first.href} target="_blank" rel="noopener" aria-label={first.name}>
@@ -582,7 +598,10 @@ const duos = LAYERING.map((d) => ({
                     data-error-label={t("product.error")}
                   >
                     <span data-layering-label>{t("layering.addBoth")}</span>
-                    <span data-money={`${first.variantId},${second.variantId}`}>{total}</span>
+                    <span>
+                      <s data-money-compare={`${first.variantId},${second.variantId}`} hidden={!totalWas}>{totalWas}</s>
+                      <span data-money={`${first.variantId},${second.variantId}`}>{total}</span>
+                    </span>
                   </button>
                 </div>
                 </div>
@@ -601,11 +620,12 @@ const duos = LAYERING.map((d) => ({
         title={discovery.titre}
         description={discovery.description}
         priceLabel={discovery.price}
+        compareLabel={discovery.compare}
         href={discovery.href}
         img={discovery.img}
         ctaLabel={t("home.hero.cta")}
         creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
-        creditNote={discovery.handle === COFFRET_HANDLE ? t("coffret.creditNote") : null}
+        creditNote={discovery.handle === COFFRET_HANDLE ? tc("coffret.creditNote") : null}
         tipLabel={t("product.tipOpen")}
       />
     )
@@ -699,7 +719,7 @@ const duos = LAYERING.map((d) => ({
     z-index: 2;
     padding: 9px 14px;
     border: 1px solid rgba(21, 14, 10, 0.28);
-    border-radius: 100px;
+    border-radius: 0;
     background: var(--bg);
     font: inherit;
     font-size: 12px;
@@ -781,7 +801,7 @@ const duos = LAYERING.map((d) => ({
   .guide-chip {
     padding: 8px 14px;
     border: 1px solid rgba(21, 14, 10, 0.28);
-    border-radius: 100px;
+    border-radius: 0;
     background: none;
     font: inherit;
     font-size: 13px;
@@ -914,7 +934,7 @@ const duos = LAYERING.map((d) => ({
     gap: 28px;
     padding: 14px 20px;
     border: 0;
-    border-radius: 2px;
+    border-radius: 0;
     background: var(--rose);
     color: var(--paper);
     font: inherit;
@@ -939,7 +959,7 @@ const duos = LAYERING.map((d) => ({
     gap: 10px;
     padding: 14px 28px;
     border: 1px solid var(--ink);
-    border-radius: 100px;
+    border-radius: 0;
     background: none;
     font: inherit;
     font-size: 14px;

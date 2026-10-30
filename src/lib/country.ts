@@ -156,8 +156,10 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
   const nodes = Array.from(root.querySelectorAll<HTMLElement>("[data-money]"));
   // Prix normal barré (prévente) : `compareAtPrice` de la même variante.
   const compares = Array.from(root.querySelectorAll<HTMLElement>("[data-money-compare]"));
+  // Économie de la prévente : prix normal moins prix pratiqué, de la même variante.
+  const savings = Array.from(root.querySelectorAll<HTMLElement>("[data-money-saving]"));
   const idsOf = (node: HTMLElement) => (node.dataset.money ?? "").split(",").map((id) => id.trim()).filter(Boolean);
-  const ids = Array.from(new Set([...nodes.flatMap(idsOf), ...compares.map((n) => n.dataset.moneyCompare ?? "")].filter(Boolean)));
+  const ids = Array.from(new Set([...nodes.flatMap(idsOf), ...compares.flatMap((n) => (n.dataset.moneyCompare ?? "").split(",").map((id) => id.trim())), ...savings.map((n) => n.dataset.moneySaving ?? "")].filter(Boolean)));
   if (!ids.length) return;
 
   const query = /* GraphQL */ `
@@ -189,6 +191,33 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
     return;
   }
 
+  /*
+   * Shopify ne renvoie aucun prix barré aux visiteurs de l'Espace économique
+   * européen (réglage de la boutique, directive Omnibus, introuvable dans
+   * l'admin). Sandro veut les prix barrés partout (30 oct.) : pour une variante
+   * sans prix barré dans ce pays, on relit la boutique de base (Émirats) et on
+   * applique son rapport prix normal / prix pratiqué au prix local. Une
+   * variante sans prix barré à la base reste sans prix barré.
+   */
+  const manquants = Array.from(prices.keys()).filter((id) => !compareAt.get(id));
+  if (manquants.length) {
+    try {
+      const base = await shopifyFetch<{ nodes: (VariantPrice | null)[] }>(query, { ids: manquants }, { context: { country: DEFAULT_COUNTRY } });
+      for (const n of base.nodes) {
+        if (!n?.id || !n.compareAtPrice) continue;
+        const ratio = Number(n.compareAtPrice.amount) / Number(n.price.amount);
+        const local = prices.get(n.id);
+        if (!local || !(ratio > 1)) continue;
+        const brut = Number(local.amount) * ratio;
+        // Prix rond, prix barré rond (320 → 380, pas 379,99).
+        const was = Number.isInteger(Number(local.amount)) ? Math.round(brut) : Math.round(brut * 100) / 100;
+        compareAt.set(n.id, { amount: String(was), currencyCode: local.currencyCode });
+      }
+    } catch {
+      // sans la base, les prix barrés manquants restent masqués
+    }
+  }
+
   const locale = intlLocale(pageLocale());
   for (const node of nodes) {
     const found = idsOf(node).map((id) => prices.get(id));
@@ -200,15 +229,30 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
 
   // Un prix normal n'a de sens qu'au-dessus du prix pratiqué : sinon (pas de
   // compareAt, ou compareAt périmé), le prix barré disparaît plutôt que de
-  // mentir.
+  // mentir. Plusieurs gids (« ajouter les deux ») : somme des prix normaux,
+  // le prix pratiqué valant pour une variante sans prix barré.
   for (const node of compares) {
-    const id = node.dataset.moneyCompare ?? "";
-    if (!prices.has(id)) continue;
-    const was = compareAt.get(id);
-    const now = prices.get(id)!;
-    const show = Boolean(was && Number(was.amount) > Number(now.amount));
-    if (show) node.textContent = formatPrice(was!.amount, was!.currencyCode, locale);
+    const list = (node.dataset.moneyCompare ?? "").split(",").map((id) => id.trim()).filter(Boolean);
+    if (!list.length || list.some((id) => !prices.has(id))) continue;
+    const now = list.reduce((sum, id) => sum + Number(prices.get(id)!.amount), 0);
+    const was = list.reduce((sum, id) => {
+      const c = compareAt.get(id);
+      const p = prices.get(id)!;
+      return sum + Number(c && Number(c.amount) > Number(p.amount) ? c.amount : p.amount);
+    }, 0);
+    const show = was > now;
+    if (show) node.textContent = formatPrice(String(was), prices.get(list[0])!.currencyCode, locale);
     node.hidden = !show;
+  }
+
+  // Sans prix barré, l'économie garde son libellé du build : la phrase qui la
+  // porte est rendue côté serveur, on ne la casse pas ici.
+  for (const node of savings) {
+    const id = node.dataset.moneySaving ?? "";
+    const was = compareAt.get(id);
+    const now = prices.get(id);
+    if (!was || !now || Number(was.amount) <= Number(now.amount)) continue;
+    node.textContent = formatPrice(String(Number(was.amount) - Number(now.amount)), now.currencyCode, locale);
   }
 }
 

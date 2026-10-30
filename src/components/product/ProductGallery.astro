@@ -50,7 +50,7 @@ function isFull(i: number, count: number): boolean {
           type="button"
           class:list={["pgallery-shot", { "is-full": isFull(i, images.length) }]}
           data-gallery-open={i}
-          aria-label={`${t("gallery.enlarge")} — ${im.alt} (${i + 1}/${images.length})`}
+          aria-label={`${t("gallery.enlarge")}${lang === "fr" ? " : " : ": "}${im.alt} (${i + 1}/${images.length})`}
         >
           <img
             src={i < 2 ? im.src : undefined}

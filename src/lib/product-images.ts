@@ -79,7 +79,7 @@ export function getProductImageOverride(
             // Repli universel et source HD pour le partage/les vieux navigateurs.
             src: `${stem}.jpg`,
             srcset: RESPONSIVE_WIDTHS.map((width) => `${stem}-${width}.webp ${width}w`).join(", "),
-            alt: index === 0 ? title : `${title} — visuel ${index + 1}`,
+            alt: title,
           };
         })
       : null

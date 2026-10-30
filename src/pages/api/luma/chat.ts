@@ -74,6 +74,8 @@ function card(p: KnowledgeProduct, lang: Locale) {
     url: localePath(lang, `${p.kind === "coffret" ? "/coffrets/" : "/parfums/"}${p.handle}`),
     image: p.image,
     price: main ? `${main.price} ${main.currency}` : null,
+    // Prix normal barré pendant la prévente (compareAtPrice Shopify), sinon null.
+    compare: main && main.compareAt !== null ? `${main.compareAt} ${main.currency}` : null,
     available: p.available,
     variantId: main?.id ?? null,
     // Le portrait audio pré-généré (zéro crédit) : « Écouter » sur la carte.

@@ -1,4 +1,6 @@
 ---
+import { avecAvoir } from "../../lib/coffret-avoir";
+import { intlLocale } from "../../lib/markets";
 import { getProductHoverSrc } from "../../lib/product-images";
 import Layout from "../../layouts/Layout.astro";
 import DiscoverySetBanner from "../../components/DiscoverySetBanner.astro";
@@ -7,7 +9,6 @@ import Faq from "../../components/Faq.astro";
 import Pillars from "../../components/Pillars.astro";
 import ProductCard from "../../components/ProductCard.astro";
 import Reassurance from "../../components/Reassurance.astro";
-import Reviews from "../../components/Reviews.astro";
 import {
   formatPrice,
   getAllProducts,
@@ -39,6 +40,8 @@ export function getStaticPaths() {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
 // Prévente ouverte (réglage Sanity) : « Précommander » partout où l'on achète.
 const prevente = await getPrevente();
 const addLabel = prevente.active ? t("prevente.add") : t("product.addToCart");
@@ -81,8 +84,8 @@ const bestsellers = [...perfumes]
     return {
       name: p.title,
       inspired: inspiredMap[p.handle] ?? null,
-      price: formatPrice(price.amount, price.currencyCode),
-      compare: getCompareAtLabel(p),
+      price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(p, intlLocale(lang)),
       img: recoImg?.main
         ? tileImage(recoImg.main)
         : p.featuredImage
@@ -131,7 +134,8 @@ const discoveryCandidates = coffretContent
         : sp.featuredImage
           ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
           : null,
-      price: formatPrice(variant.price.amount, variant.price.currencyCode),
+      price: formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(sp, intlLocale(lang)),
       href: localePath(lang, `/coffrets/${sp.handle}`),
     };
   })
@@ -150,16 +154,6 @@ const reassurances = (await getReassurances(lang)).map((r) => ({
 // comme pour "La Maison" — vide tant que rien n'y est attaché.
 const homePage = await getPageBySlug("home", lang);
 
-// Avis clients : AUCUN système d'avis n'existe encore (Judge.me, Loox…) — ce
-// bloc est un aperçu visuel avec du contenu de démonstration, à remplacer par
-// de vrais avis avant le lancement.
-const reviewCount = 267;
-const reviewPlaceholder = {
-  fr: "Avis client à venir — contenu de démonstration en attendant un vrai système d'avis.",
-  ar: "رأي العميل قادم — محتوى تجريبي بانتظار نظام تقييمات حقيقي.",
-  en: "Customer review coming soon — placeholder content pending a real reviews system.",
-}[lang];
-const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quote: reviewPlaceholder }));
 
 /*
  * Héros scindé en deux volets (node 11101:6088). Les photos sont statiques
@@ -190,7 +184,7 @@ const heroPanels = [
 ---
 
 <Layout
-  title={settings?.brandName ?? "Maison Reflet"}
+  title={t("meta.homeTitle")}
   description={baseline}
   lang={lang}
   ogImage="/home/hero.jpg"
@@ -244,7 +238,8 @@ const heroPanels = [
     bestsellers.length > 0 && (
       <section class="bestsellers">
         <div class="section-head">
-          <h2>{t("home.bestsellers")}</h2>
+          {/* Pas de « meilleures ventes » avant la première vente. */}
+          <h2>{t(prevente.active ? "home.collection" : "home.bestsellers")}</h2>
           <a class="btn-square" href={localePath(lang, "/parfums")}>
             {t("home.seeAll")}
             <img src="/brand/arrow-right.svg" alt="" width="12" height="12" />
@@ -300,26 +295,17 @@ const heroPanels = [
         title={discovery.titre}
         description={discovery.description}
         priceLabel={discovery.price}
+        compareLabel={discovery.compare}
         href={discovery.href}
         img={discovery.img}
         ctaLabel={t("home.hero.cta")}
         creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
-        creditNote={discovery.handle === COFFRET_HANDLE ? t("coffret.creditNote") : null}
+        creditNote={discovery.handle === COFFRET_HANDLE ? tc("coffret.creditNote") : null}
         tipLabel={t("product.tipOpen")}
       />
     )
   }
 
-  {/* Avis : bloc de démonstration, voir le commentaire en frontmatter. */}
-  <Reviews
-    title={t("home.reviews.title")}
-    ratingLabel={t("home.reviews.rated")}
-    customersLabel={t("home.reviews.customers")}
-    reviews={reviews}
-    totalCount={reviewCount}
-    previousLabel={t("reviews.previous")}
-    nextLabel={t("reviews.next")}
-  />
 
   <Pillars
     title1={t("home.pillars.title1")}

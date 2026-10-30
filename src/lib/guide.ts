@@ -66,16 +66,16 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     twistLine: {
       fr: "Bois Impérial a fait du boisé une signature nette. Bois Alert y ajoute le safran, le jasmin et une mousse sucrée : la profondeur et le sillage.",
       en: "Bois Impérial made woods a clean signature. Bois Alert adds saffron, jasmine and a sweet moss: depth and trail.",
-      ar: "بوا أمبريال جعل الأخشاب توقيعًا نقيًا. بوا ألِرت يضيف الزعفران والياسمين وطحلبًا حلوًا: العمق والأثر.",
+      ar: "جعل Bois Impérial من الأخشاب توقيعًا نقيًا. ويضيف إليه Bois Alert الزعفران والياسمين وطحلبًا حلوًا: العمق والأثر.",
     },
     twistShort: {
       fr: "le safran, le jasmin et une mousse sucrée pour la profondeur",
       en: "saffron, jasmine and a sweet moss for depth",
-      ar: "الزعفران والياسمين وطحلب حلو من أجل العمق",
+      ar: "الزعفران والياسمين وطحلب حلو لعمق أكبر",
     },
     phases: [
       {
-        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول 20 دقيقة" },
         effect: {
           fr: "Poivre noir et bergamote, vif et coupant. On le remarque de loin.",
           en: "Black pepper and bergamot, bright and cutting. People notice it from across a room.",
@@ -83,7 +83,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
         },
       },
       {
-        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من 20 دقيقة إلى 3 ساعات" },
         effect: {
           fr: "Le jasmin et un caramel discret adoucissent le poivre. Le parfum devient rond sans perdre son mordant.",
           en: "Jasmine and a discreet caramel soften the pepper. The perfume turns round without losing its bite.",
@@ -112,7 +112,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     twistLine: {
       fr: "Oud Maracuja a ouvert l'oud au fruit. New Oud y met la rose de Taïf, un santal crémeux et des fleurs blanches : un oud qui respire.",
       en: "Oud Maracuja opened oud to fruit. New Oud brings Taif rose, creamy sandalwood and white florals: an oud that breathes.",
-      ar: "عود ماراكوجا فتح العود على الفاكهة. نيو عود يضيف ورد الطائف وصندلًا كريميًا وأزهارًا بيضاء: عودٌ يتنفّس.",
+      ar: "فتح Oud Maracuja العود على الفاكهة. ويضيف إليه New Oud ورد الطائف وصندلًا كريميًا وأزهارًا بيضاء: عودٌ يتنفّس.",
     },
     twistShort: {
       fr: "la rose de Taïf, un santal crémeux et des fleurs blanches",
@@ -121,7 +121,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     },
     phases: [
       {
-        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول 20 دقيقة" },
         effect: {
           fr: "Le fruit de la passion éclate, acide et juteux. Un départ solaire, très loin de l'oud qu'on attend.",
           en: "Passion fruit bursts open, sharp and juicy. A sunlit start, far from the oud you expect.",
@@ -129,7 +129,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
         },
       },
       {
-        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من 20 دقيقة إلى 3 ساعات" },
         effect: {
           fr: "La rose de Taïf prend la place. Le parfum devient floral et ample, l'ambre le réchauffe par-dessous.",
           en: "Taif rose takes over. The perfume turns floral and wide, with amber warming it from underneath.",
@@ -156,18 +156,18 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     when: ["day"],
     map: { x: 36, y: 28 },
     twistLine: {
-      fr: "Baccarat Rouge 540 a la signature ambrée la plus reconnaissable qui soit. Melting Mango y verse une surdose de mangue : l'ouverture juteuse que l'original n'a pas.",
-      en: "Baccarat Rouge 540 owns the most recognisable ambery signature there is. Melting Mango pours in an overdose of mango: the juicy opening the original never had.",
-      ar: "باكارا روج 540 يملك أشهر توقيع عنبري على الإطلاق. ميلتينغ مانغو يصبّ فيه جرعة مفرطة من المانجو: الافتتاحية العصيرة التي لم تكن للأصل.",
+      fr: "Baccarat Rouge 540 a la signature ambrée la plus reconnaissable qui soit. Melting Mango y verse une surdose de mangue : une ouverture juteuse, inattendue.",
+      en: "Baccarat Rouge 540 owns the most recognisable ambery signature there is. Melting Mango pours in an overdose of mango: a juicy, unexpected opening.",
+      ar: "يملك Baccarat Rouge 540 أشهر توقيع عنبري على الإطلاق. ويصبّ فيه Melting Mango جرعة سخيّة من المانجو: افتتاحية ريّانة غير متوقّعة.",
     },
     twistShort: {
-      fr: "une surdose de mangue, l'ouverture juteuse que l'original n'a pas",
-      en: "an overdose of mango, the juicy opening the original never had",
-      ar: "جرعة مفرطة من المانجو، الافتتاحية العصيرة التي لم تكن للأصل",
+      fr: "une surdose de mangue, pour une ouverture juteuse",
+      en: "an overdose of mango, for a juicy opening",
+      ar: "جرعة سخيّة من المانجو لافتتاحية ريّانة",
     },
     phases: [
       {
-        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول 20 دقيقة" },
         effect: {
           fr: "Mangue et orange, franches et sucrées. L'effet est immédiat, c'est ce qui fait tourner les têtes.",
           en: "Mango and orange, plain and sweet. The effect is immediate, and it is what turns heads.",
@@ -175,7 +175,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
         },
       },
       {
-        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من 20 دقيقة إلى 3 ساعات" },
         effect: {
           fr: "La praline et le noyau d'abricot installent un gourmand plus dense, presque d'amande.",
           en: "Praline and apricot kernel settle into a denser gourmand, almost almond-like.",
@@ -204,7 +204,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     twistLine: {
       fr: "Tuscan Leather a imposé le cuir fruité. Ultra Cuir le rend plus lumineux : une framboise plus vive, un trio de safrans, une facette d'iris.",
       en: "Tuscan Leather set the fruity leather standard. Ultra Cuir makes it brighter: a livelier raspberry, a trio of saffrons, a facet of orris.",
-      ar: "توسكان ليذر رسّخ الجلد الفاكهي. أولترا كوير يجعله أكثر إشراقًا: توت عليق أكثر حيوية، ثلاثية من الزعفران، ولمسة سوسن.",
+      ar: "رسّخ Tuscan Leather حضور الجلد الفاكهي. ويجعله Ultra Cuir أكثر إشراقًا: توت عليق أكثر حيوية، وثلاثية من الزعفران، ولمسة من السوسن.",
     },
     twistShort: {
       fr: "une framboise plus vive, un trio de safrans, une facette d'iris",
@@ -213,7 +213,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     },
     phases: [
       {
-        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول 20 دقيقة" },
         effect: {
           fr: "Framboise écrasée, vive et acidulée. C'est ce que les gens sentent quand vous entrez.",
           en: "Crushed raspberry, sharp and tart. This is what people smell when you walk in.",
@@ -221,7 +221,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
         },
       },
       {
-        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من 20 دقيقة إلى 3 ساعات" },
         effect: {
           fr: "Le safran s'installe, chaud et un peu cuiré. Le parfum cesse d'être fruité, il devient dense.",
           en: "Saffron settles in, warm and faintly leathery. The perfume stops being fruity and turns dense.",
@@ -250,7 +250,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     twistLine: {
       fr: "Althaïr a fait de la vanille une gourmandise chic. Minuit Bourbon la tient par un accord cuir et l'éclaire de fleur d'oranger et de lavande.",
       en: "Althaïr turned vanilla into a chic indulgence. Minuit Bourbon holds it with a leather accord and lights it with orange blossom and lavender.",
-      ar: "ألتير جعل الفانيليا شهوةً أنيقة. مينوي بوربون يشدّها بأكورد جلدي ويضيئها بزهر البرتقال والخزامى.",
+      ar: "جعل Althaïr من الفانيليا متعة شهيّة أنيقة. ويشدّها Minuit Bourbon بتناغم جلدي، ويضيئها بزهر البرتقال والخزامى.",
     },
     twistShort: {
       fr: "un accord cuir sous la vanille, éclairé de fleur d'oranger et de lavande",
@@ -259,7 +259,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     },
     phases: [
       {
-        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول 20 دقيقة" },
         effect: {
           fr: "Cardamome et cannelle, une entrée sèche et épicée. Rien de sucré encore : ça pique un peu, et c'est voulu.",
           en: "Cardamom and cinnamon, a dry and spicy opening. Nothing sweet yet: it bites a little, and that is deliberate.",
@@ -267,7 +267,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
         },
       },
       {
-        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من 20 دقيقة إلى 3 ساعات" },
         effect: {
           fr: "La fleur d'oranger et l'amande arrondissent tout. Le parfum s'adoucit sans devenir sage.",
           en: "Orange blossom and almond round everything off. The perfume softens without turning tame.",
@@ -286,7 +286,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
   },
   "fifth-season": {
     materials: [
-      { fr: "Mandarine", en: "Mandarin", ar: "ماندرين" },
+      { fr: "Mandarine", en: "Mandarin", ar: "يوسفي" },
       { fr: "Jasmin sambac", en: "Sambac jasmine", ar: "ياسمين سامباك" },
       { fr: "Vanille Bourbon", en: "Bourbon vanilla", ar: "فانيليا بوربون" },
     ],
@@ -296,7 +296,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     twistLine: {
       fr: "Erba Pura a le fruité le plus solaire. Fifth Season le fond dans une fraîcheur fougère et une douceur lactée : plus portable, plus fondu.",
       en: "Erba Pura has the sunniest fruit there is. Fifth Season melts it into a fougère freshness and a milky softness: easier to wear, more seamless.",
-      ar: "إربا بورا يملك أشمس فاكهية. فيفث سيزن يُذيبها في انتعاش فوجير ونعومة حليبية: أسهل ارتداءً وأكثر انسجامًا.",
+      ar: "يملك Erba Pura أكثر النفحات الفاكهية إشراقًا. ويذيبها Fifth Season في انتعاش فوجير ونعومة حليبية: أسهل استخدامًا وأكثر انسجامًا.",
     },
     twistShort: {
       fr: "une fraîcheur fougère et une douceur lactée sous le fruit",
@@ -305,7 +305,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
     },
     phases: [
       {
-        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول ٢٠ دقيقة" },
+        window: { fr: "les 20 premières minutes", en: "the first 20 minutes", ar: "أول 20 دقيقة" },
         effect: {
           fr: "Mandarine et fruits exotiques, pleins et lumineux. Une entrée franchement solaire.",
           en: "Mandarin and tropical fruit, full and luminous. An openly sunlit start.",
@@ -313,7 +313,7 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
         },
       },
       {
-        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من ٢٠ دقيقة إلى ٣ ساعات" },
+        window: { fr: "de 20 minutes à 3 heures", en: "from 20 minutes to 3 hours", ar: "من 20 دقيقة إلى 3 ساعات" },
         effect: {
           fr: "Le jasmin et un caramel léger épaississent le fruit. Le parfum se fait crémeux.",
           en: "Jasmine and a light caramel thicken the fruit. The perfume turns creamy.",
@@ -338,18 +338,18 @@ export const GUIDE_REFLETS: Record<string, GuideReflet> = {
 /** « Le twist, notre manière » : le manifeste, trois paragraphes. */
 export const GUIDE_MANIFESTO: L10n[] = [
   {
-    fr: "Nous ne copions pas. Nous partons d'une signature que le monde aime déjà, nous la comprenons matière par matière, puis nous la réinterprétons : nos proportions, nos ingrédients, un twist qui n'appartient qu'à la Maison.",
-    en: "We do not copy. We start from a signature the world already loves, understand it material by material, then reinterpret it: our proportions, our ingredients, a twist that belongs to the House alone.",
-    ar: "نحن لا ننسخ. ننطلق من توقيع يحبّه العالم أصلًا، نفهمه مادّةً بمادّة، ثم نعيد تأويله: نِسَبنا، مكوّناتنا، ولمسة لا تخصّ إلا الدار.",
+    fr: "Nous partons d'une signature que le monde aime déjà, nous la comprenons matière par matière, puis nous la réinterprétons : nos proportions, nos ingrédients, un twist qui n'appartient qu'à la Maison.",
+    en: "We start from a signature the world already loves, understand it note by note, then reinterpret it: our proportions, our ingredients, a twist that belongs to the House alone.",
+    ar: "ننطلق من توقيع يحبّه الناس أصلًا، نفهمه مادّةً مادّة، ثم نعيد تأويله بنِسَبنا ومكوّناتنا ولمسة لا تخصّ أحدًا سوى الدار.",
   },
   {
-    fr: "Le twist, c'est ce geste : garder ce qui fait battre le cœur d'un parfum, et lui donner ce qui lui manquait. Une ouverture plus juteuse, un cuir plus lumineux, un oud qui respire.",
-    en: "The twist is that gesture: keep what makes a fragrance's heart beat, and give it what it was missing. A juicier opening, a brighter leather, an oud that breathes.",
-    ar: "التويست هو هذه الحركة: أن نحفظ ما يجعل قلب العطر ينبض، وأن نمنحه ما كان يفتقده. افتتاحية أكثر عصارة، جلد أكثر إشراقًا، عودٌ يتنفّس.",
+    fr: "Le twist, c'est ce geste : garder ce qui fait battre le cœur d'un parfum, et lui offrir un autre éclairage. Une ouverture plus juteuse, un cuir plus lumineux, un oud qui respire.",
+    en: "The twist is that gesture: keep what makes a fragrance's heart beat, and cast it in a new light. A juicier opening, a brighter leather, an oud that breathes.",
+    ar: "التويست هو هذه الحركة: أن نحفظ ما يجعل قلب العطر ينبض، وأن نمنحه ضوءًا جديدًا. افتتاحية أكثر ريًّا، وجلد أكثر إشراقًا، وعودٌ يتنفّس.",
   },
   {
     fr: "Six Reflets, six références, six twists. Vous reconnaîtrez l'univers ; le parfum que vous porterez est le nôtre.",
-    en: "Six Reflets, six references, six twists. You will recognise the world; the perfume you wear is ours.",
-    ar: "ستة انعكاسات، ستة مراجع، ستة تويستات. ستتعرّفون على العالم؛ أما العطر الذي سترتدونه فهو عطرنا.",
+    en: "Six Reflets, six references, six twists. You will recognise the universe; the perfume you wear is ours.",
+    ar: "ستة انعكاسات، ستة مصادر إلهام، ست لمسات. ستتعرّفون على الأجواء التي تحبّونها؛ أما العطر الذي تضعونه فهو عطرنا.",
   },
 ];

@@ -6,14 +6,18 @@
  * maquette (Authentic Signature) n'est pas sur le site, d'où le tracé SVG.
  */
 import type { ResponsiveImage } from "../../lib/sanity";
+import type { Locale } from "../../i18n";
 
 interface Props {
   title: string;
   quote: string;
   img: ResponsiveImage | null;
+  /** Langue de la page : « » en français et en arabe, “ ” en anglais. */
+  lang?: Locale;
 }
 
-const { title, quote, img } = Astro.props;
+const { title, quote, img, lang = "fr" } = Astro.props;
+const [open, close] = lang === "en" ? ["“", "”"] : lang === "ar" ? ["«", "»"] : ["« ", " »"];
 ---
 
 <section class="pword">
@@ -33,7 +37,7 @@ const { title, quote, img } = Astro.props;
   </div>
   <div class="pword-text">
     <h2>{title}</h2>
-    <p>“{quote}”</p>
+    <p>{open}{quote}{close}</p>
     <img class="pword-sign" src="/brand/signature-parfumeur.svg" alt="Sebastien Martin" width="201" height="33" loading="lazy" decoding="async" />
   </div>
 </section>

@@ -79,6 +79,9 @@ async function emettreAvoirCoffret(order: ShopifyOrderWebhook) {
   // Le coffret est reconnu par son handle, pas par un identifiant en dur :
   // recréer le produit dans Shopify ne doit pas casser l'avoir en silence.
   let coffretAchete = false;
+  // L'avoir vaut le prix PAYÉ pour le coffret (120 en prévente, 160 sinon,
+  // Sandro, 30 oct.), plafonné à AVOIR_AED : jamais plus que le prix normal.
+  let montant = AVOIR_AED;
   try {
     const produits = await getAllProducts();
     const ids = new Set(
@@ -87,7 +90,10 @@ async function emettreAvoirCoffret(order: ShopifyOrderWebhook) {
         .map((p) => Number(p.id.split("/").pop()))
         .filter(Number.isFinite)
     );
-    coffretAchete = (order.line_items ?? []).some((li) => li.product_id && ids.has(li.product_id));
+    const ligne = (order.line_items ?? []).find((li) => li.product_id && ids.has(li.product_id));
+    coffretAchete = Boolean(ligne);
+    const paye = Number(ligne?.price);
+    if (Number.isFinite(paye) && paye > 0) montant = Math.min(paye, AVOIR_AED);
   } catch (error) {
     console.error("[avoir-coffret] catalogue injoignable :", error);
     return;
@@ -101,7 +107,7 @@ async function emettreAvoirCoffret(order: ShopifyOrderWebhook) {
   /*
    * L'avoir est réservé à un compte : sans identifiant client, on ne pourrait
    * ni le restreindre chez Shopify ni garantir « une fois par compte ». Mieux
-   * vaut ne rien émettre que d'émettre un code de 160 AED utilisable par
+   * vaut ne rien émettre que d'émettre un code d'avoir utilisable par
    * n'importe qui.
    */
   const clientId = order.customer?.id;
@@ -116,7 +122,7 @@ async function emettreAvoirCoffret(order: ShopifyOrderWebhook) {
   const produits = await idsProduits(REFLETS);
   const etat = await creerAvoir({
     code,
-    montant: AVOIR_AED,
+    montant,
     minimum: MINIMUM_AED,
     produits,
     clientGid: `gid://shopify/Customer/${clientId}`,
@@ -154,14 +160,14 @@ async function emettreAvoirCoffret(order: ShopifyOrderWebhook) {
           attributes: {
             properties: {
               code,
-              amount: AVOIR_AED,
+              amount: montant,
               currency: devise,
               minimum: MINIMUM_AED,
               expires_at: fin.toISOString(),
               valid_days: VALIDITE_JOURS,
               order_name: order.name ?? null,
             },
-            value: AVOIR_AED,
+            value: montant,
             unique_id: `coffret-credit:${order.id}`,
             metric: { data: { type: "metric", attributes: { name: "Coffret Credit Issued" } } },
             profile: { data: { type: "profile", attributes: { email } } },

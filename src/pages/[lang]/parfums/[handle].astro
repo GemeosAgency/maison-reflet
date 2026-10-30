@@ -6,6 +6,8 @@
  * FAQ. Commerce (prix/variantes/panier) = Shopify ; éditorial = Sanity,
  * chaque section se masque si son contenu n'est pas rempli dans le Studio.
  */
+import { avecAvoir } from "../../../lib/coffret-avoir";
+import { intlLocale } from "../../../lib/markets";
 import Layout from "../../../layouts/Layout.astro";
 import Faq from "../../../components/Faq.astro";
 import Pillars from "../../../components/Pillars.astro";
@@ -13,7 +15,6 @@ import Reassurance from "../../../components/Reassurance.astro";
 import LumaAsk from "../../../components/LumaAsk.astro";
 import LumaListen from "../../../components/LumaListen.astro";
 import RelatedProducts from "../../../components/RelatedProducts.astro";
-import Reviews from "../../../components/Reviews.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import ProductGallery from "../../../components/product/ProductGallery.astro";
 import ProductInfoPanel from "../../../components/product/ProductInfoPanel.astro";
@@ -27,6 +28,8 @@ import { COFFRET_HANDLE } from "../../../lib/coffret";
 import { getProductImageOverride, getProductHoverImage } from "../../../lib/product-images";
 import LayeringRow from "../../../components/product/LayeringRow.astro";
 import PanelDiscovery from "../../../components/product/PanelDiscovery.astro";
+import NotifyLaunch from "../../../components/product/NotifyLaunch.astro";
+import { preventePanel } from "../../../lib/prevente-cards";
 import LayeringDrawer from "../../../components/product/LayeringDrawer.astro";
 import {
   formatPrice,
@@ -52,7 +55,7 @@ import {
   urlForImage,
   getPrevente,
 } from "../../../lib/sanity";
-import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
+import { type Locale, locales, localePath, useTranslations, withName } from "../../../i18n";
 
 export async function getStaticPaths() {
   // Un coffret n'est pas un parfum classique : il a sa propre page.
@@ -69,6 +72,8 @@ interface Props {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
 // Prévente ouverte (réglage Sanity) : « Précommander » partout où l'on achète.
 const prevente = await getPrevente();
 const addLabel = prevente.active ? t("prevente.add") : t("product.addToCart");
@@ -76,9 +81,11 @@ const { product, products } = Astro.props;
 
 const parfum = await getParfumContent(product.handle, lang);
 const variant = getPrimaryVariant(product);
-const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
+const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang));
 // Prix normal barré pendant la prévente : le compareAtPrice Shopify, s'il dépasse le prix pratiqué.
-const compareLabel = getCompareAtLabel(product);
+const compareLabel = getCompareAtLabel(product, intlLocale(lang));
+// Prévente : pastille, prix de lancement, encadré du délai (voir prevente-cards).
+const preventeBloc = await preventePanel(lang, product, product.title);
 
 const inspiredMap = await getInspiredByMap();
 const recoImages = await getRecoImages();
@@ -187,16 +194,6 @@ const perks = [
   { icon: "/brand/reassurance-retour.svg", label: t("product.perkReturn"), note: t("product.perkReturnNote") },
 ];
 
-// Note / avis : placeholders (pas encore de système d'avis branché).
-const rating = "4,9";
-const panelReviewCount = 147;
-const reviewCount = 267;
-const reviewPlaceholder = {
-  fr: "Avis client à venir — contenu de démonstration en attendant un vrai système d'avis.",
-  ar: "رأي العميل قادم — محتوى تجريبي بانتظار نظام تقييمات حقيقي.",
-  en: "Customer review coming soon — placeholder content pending a real reviews system.",
-}[lang];
-const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quote: reviewPlaceholder }));
 
 // ---------- Sections éditoriales ----------
 const specificTwist = parfum?.specificTwist ?? null;
@@ -278,9 +275,9 @@ const related = products
     return {
       name: p.title,
       size: primaryVariant.title !== "Default Title" ? primaryVariant.title : null,
-      subtitle: inspiredMap[p.handle] ? `${t("product.twistOf")} ${inspiredMap[p.handle]}` : null,
-      price: formatPrice(price.amount, price.currencyCode),
-      compare: getCompareAtLabel(p),
+      subtitle: inspiredMap[p.handle] ? withName(t("product.twistOf"), inspiredMap[p.handle]) : null,
+      price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(p, intlLocale(lang)),
       // Sans imageRecommandation dans Sanity on retombe sur la photo produit
       // Shopify — c'est le bon rendu du flacon, avec la bonne étiquette. Il
       // faut la passer par shopifyImage() : servie brute, elle pèse jusqu'à
@@ -327,7 +324,8 @@ const discoveryCandidates = coffretContent
         : sp.featuredImage
           ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
           : null,
-      price: formatPrice(v.price.amount, v.price.currencyCode),
+      price: formatPrice(v.price.amount, v.price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(sp, intlLocale(lang)),
       href: localePath(lang, `/coffrets/${sp.handle}`),
     };
   })
@@ -343,7 +341,15 @@ const discovery =
 // contenu de la fiche.
 const seo = parfum?.seo ?? null;
 const seoTitle = seo?.metaTitle ?? product.title;
-const seoDescription = seo?.metaDescription ?? parfum?.accroche ?? product.description;
+// La description de la fiche, dans la langue de la page, plutôt que l'ancienne
+// `accroche` : écrite pour l'ancienne collection et en français seulement,
+// elle sortait « Le soleil à son sommet » pour Minuit Bourbon en anglais.
+const descriptionText = descriptionHtml
+  .replace(/<[^>]+>/g, " ")
+  .replace(/&(amp|quot|#39|lt|gt);/g, (_, e) => ({ amp: "&", quot: '"', "#39": "'", lt: "<", gt: ">" })[e as string] ?? "")
+  .replace(/\s+/g, " ")
+  .trim();
+const seoDescription = seo?.metaDescription ?? (descriptionText || null) ?? product.description;
 /*
  * Image de partage : réglage SEO > photo Shopify.
  * Recadrée en 1200x630 (~1,91:1) car c'est le format attendu par les réseaux
@@ -407,9 +413,6 @@ const productJsonLd = {
         thumb={gallery[0] ?? null}
         title={product.title}
         sizeLabel={sizeLabel}
-        rating={rating}
-        reviewCount={panelReviewCount}
-        reviewsWord={t("product.reviews")}
         descriptionHtml={descriptionHtml}
         famillesLabel={t("product.olfactiveFamily")}
         familles={familles}
@@ -434,7 +437,9 @@ const productJsonLd = {
         tipLabel={t("product.tipOpen")}
         inspiredByLabel={t("product.twistOf")}
         inspiredBy={twistOfLine}
+        prevente={preventeBloc}
       >
+        {prevente.active && <NotifyLaunch slot="notify" lang={lang} handle={product.handle} name={product.title} priceLabel={priceLabel} />}
         <TwistLine slot="after-description" lang={lang} handle={product.handle} />
         <LumaListen slot="after-description" lang={lang} handle={product.handle} name={product.title} note={t("luma.listenNote")} />
         <LayeringRow slot="after-rows" lang={lang} handle={product.handle} products={products} />
@@ -458,11 +463,12 @@ const productJsonLd = {
             eyebrow={t("product.setsTitle")}
             title={discovery.titre}
             priceLabel={discovery.price}
+            compareLabel={discovery.compare}
             href={discovery.href}
             img={discovery.img}
             ctaLabel={t("product.discoverSet")}
             creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
-            creditNote={discovery.handle === COFFRET_HANDLE ? t("coffret.creditNote") : null}
+            creditNote={discovery.handle === COFFRET_HANDLE ? tc("coffret.creditNote") : null}
             tipLabel={t("product.tipOpen")}
           />
         )}
@@ -471,28 +477,14 @@ const productJsonLd = {
     </aside>
   </div>
 
-  <ScentNotes title={t("product.notes")} levels={scentLevels} openLabel={t("product.pyramid")} />
+  <ScentNotes lang={lang} title={t("product.notes")} levels={scentLevels} openLabel={t("product.pyramid")} />
 
   {specificTwist && <TwistSection title={t("product.specificTwist")} text={specificTwist} img={twistImg} />}
 
-  {perfumerWord && <PerfumerWord title={t("product.perfumerWord")} quote={perfumerWord} img={perfumerPhoto} />}
+  {perfumerWord && <PerfumerWord lang={lang} title={t("product.perfumerWord")} quote={perfumerWord} img={perfumerPhoto} />}
 
   <Reassurance items={reassurances} />
 
-  {/*
-    Avis clients : même composant que la page coffret (nom, date, photo,
-    pagination, Figma 11939:2606). Aucun système d'avis n'est branché : ce
-    sont encore les avis de démonstration, à remplacer avant le lancement.
-  */}
-  <Reviews
-    title={t("home.reviews.title")}
-    ratingLabel={t("home.reviews.rated")}
-    customersLabel={t("home.reviews.customers")}
-    reviews={reviews}
-    totalCount={reviewCount}
-    previousLabel={t("reviews.previous")}
-    nextLabel={t("reviews.next")}
-  />
 
   {/*
     Sans bouton d'ajout : sur un parfum qu'on ne peut pas sentir, cinq
@@ -519,11 +511,12 @@ const productJsonLd = {
         title={discovery.titre}
         description={discovery.description}
         priceLabel={discovery.price}
+        compareLabel={discovery.compare}
         href={discovery.href}
         img={discovery.img}
         ctaLabel={t("home.hero.cta")}
         creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
-        creditNote={discovery.handle === COFFRET_HANDLE ? t("coffret.creditNote") : null}
+        creditNote={discovery.handle === COFFRET_HANDLE ? tc("coffret.creditNote") : null}
         tipLabel={t("product.tipOpen")}
       />
     )
@@ -536,6 +529,7 @@ const productJsonLd = {
     niveau (lib/guide.ts) n'y figurent plus ; ils restent dans le guide.
   */}
   <PyramidDrawer
+    lang={lang}
     title={t("product.pyramid")}
     img={pyramidImg}
     levels={scentLevels.map((l) => ({ label: l.label, notes: l.notes }))}

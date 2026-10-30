@@ -18,20 +18,23 @@
  * apparition lente, aucune boîte ni ombre. Les prix portent `data-money`
  * pour être recalculés dans la devise du visiteur (voir lib/country.ts).
  */
+import { intlLocale } from "../lib/markets";
 import {
   formatPrice,
   getAllProducts,
   getDisplayPrice,
+  getCompareAtLabel,
   getPrimaryVariant,
   isCoffret,
   isSampleVariantTitle,
   shopifyImage,
 } from "../lib/shopify";
-import { getCoffrets, getMenuParfums, responsiveImage, type ResponsiveImage } from "../lib/sanity";
+import { getCoffrets, getMenuParfums, getPrevente, responsiveImage, type ResponsiveImage } from "../lib/sanity";
 import { type Locale, locales, localeNames, localePath, useTranslations } from "../i18n";
 import { portraitAudioPath } from "../lib/luma/portraits";
 import { universeLabel } from "../lib/universes";
 import { getProductImageOverride } from "../lib/product-images";
+import { COFFRET_HANDLE } from "../lib/coffret";
 
 interface Props {
   lang: Locale;
@@ -41,6 +44,8 @@ interface Props {
 
 const { lang, rest } = Astro.props;
 const t = useTranslations(lang);
+// Pas de « Best seller » tant que la prévente court : rien n'est encore vendu.
+const prevente = await getPrevente();
 
 const [products, menuParfums, coffretContent] = await Promise.all([
   getAllProducts(),
@@ -95,7 +100,8 @@ const reflets = products
       // Le portrait audio déjà enregistré (portraits.ts) : zéro crédit à l'écoute.
       audio: portraitAudioPath(lang, p.handle),
       listenLabel: t("luma.discover").replace("{name}", p.title),
-      price: formatPrice(price.amount, price.currencyCode),
+      price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(p, intlLocale(lang)),
       variantId: variant.id,
       slides,
       thumb: picture(THUMB_WIDTHS, 4 / 5),
@@ -118,13 +124,21 @@ const coffrets = products
       : content?.image
         ? responsiveImage(content.image as any, { widths: BOX_WIDTHS, aspect: 4 / 3 })
         : null;
+    const isDiscovery = sp.handle === COFFRET_HANDLE;
+    // « 6 × 2 ml », tiré de la contenance Sanity (« 6 × 2 ml : un échantillon… »).
+    const size = content?.contenance?.match(/^\d+\s*×\s*\d+\s*(ml|مل)/)?.[0] ?? null;
     return {
       handle: sp.handle,
       title: content?.titre ?? sp.title,
       href: localePath(lang, `/coffrets/${sp.handle}`),
-      price: formatPrice(price.amount, price.currencyCode),
+      price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(sp, intlLocale(lang)),
       variantId: variant.id,
       img,
+      kicker: t(isDiscovery ? "menu.setDiscovery" : "menu.setAll"),
+      meta: [size, isDiscovery ? t("coffret.creditShort") : null].filter(Boolean).join(" · "),
+      // Photo du coffret 6 parfums en portrait : on garde les flacons, pas le sol.
+      focus: isDiscovery ? "center" : "center 40%",
     };
   });
 
@@ -146,7 +160,7 @@ const maisonHref = localePath(lang, "/maison");
             <li class:list={["mega-entry", { "is-active": r.handle === initialHandle }]} data-menu-entry={r.handle}>
               <a class="mega-item" href={r.href} data-menu-item={r.handle}>
                 <span class="mega-item-name">{r.name}</span>
-                {r.bestSeller && <span class="mega-pill mega-pill-best">{t("product.bestSeller")}</span>}
+                {r.bestSeller && !prevente.active && <span class="mega-pill mega-pill-best">{t("product.bestSeller")}</span>}
                 {r.nouveau && <span class="mega-pill mega-pill-new">{t("menu.new")}</span>}
               </a>
             </li>
@@ -188,7 +202,7 @@ const maisonHref = localePath(lang, "/maison");
               {r.universe && <span class="mega-fig-universe">{r.universe}</span>}
               <a class="mega-fig-title" href={r.href} tabindex="-1">
                 <span class="mega-fig-name">{r.name}</span>
-                <span class="mega-fig-price" data-money={r.variantId}>{r.price}</span>
+                <span class="mega-fig-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
                 <span class="mega-fig-cta">{t("menu.discover")}</span>
               </a>
               {r.audio && (
@@ -228,19 +242,29 @@ const maisonHref = localePath(lang, "/maison");
         {
           coffrets.map((c) => (
             <a class="mega-box" href={c.href}>
-              {c.img && (
-                <img
-                  class="mega-box-img"
-                  src={c.img.src}
-                  srcset={c.img.srcset}
-                  sizes="240px"
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                />
-              )}
-              <span class="mega-box-title">{c.title}</span>
-              <span class="mega-box-price" data-money={c.variantId}>{c.price}</span>
+              <span class="mega-box-media">
+                {c.img && (
+                  <img
+                    class="mega-box-img"
+                    src={c.img.src}
+                    srcset={c.img.srcset}
+                    sizes="(min-width: 1600px) 480px, 360px"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    style={`object-position: ${c.focus}`}
+                  />
+                )}
+              </span>
+              {/* Photo carrée à gauche, texte à droite (Sandro) : la boîte est carrée et
+                  les six flacons en portrait, un bandeau large les écrasait. */}
+              <span class="mega-box-caption">
+                <span class="mega-fig-universe">{c.kicker}</span>
+                <span class="mega-box-title">{c.title}</span>
+                <span class="mega-box-price"><s data-money-compare={c.variantId} hidden={!c.compare}>{c.compare}</s><span data-money={c.variantId}>{c.price}</span></span>
+                {c.meta && <span class="mega-box-meta">{c.meta}</span>}
+                <span class="mega-fig-cta">{t("menu.discover")}</span>
+              </span>
             </a>
           ))
         }
@@ -288,12 +312,12 @@ const maisonHref = localePath(lang, "/maison");
               <span class="msheet-row-text">
                 <span class="msheet-row-name">
                   {r.name}
-                  {r.bestSeller && <span class="mega-pill mega-pill-best">{t("product.bestSeller")}</span>}
+                  {r.bestSeller && !prevente.active && <span class="mega-pill mega-pill-best">{t("product.bestSeller")}</span>}
                   {r.nouveau && <span class="mega-pill mega-pill-new">{t("menu.new")}</span>}
                 </span>
                 {r.universe && <span class="msheet-row-meta">{r.universe}</span>}
               </span>
-              <span class="msheet-row-price" data-money={r.variantId}>{r.price}</span>
+              <span class="msheet-row-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
             </a>
           </li>
         ))
@@ -321,7 +345,7 @@ const maisonHref = localePath(lang, "/maison");
               <span class="msheet-row-text">
                 <span class="msheet-row-name">{c.title}</span>
               </span>
-              <span class="msheet-row-price" data-money={c.variantId}>{c.price}</span>
+              <span class="msheet-row-price"><s data-money-compare={c.variantId} hidden={!c.compare}>{c.compare}</s><span data-money={c.variantId}>{c.price}</span></span>
             </a>
           </li>
         ))
@@ -356,7 +380,19 @@ const maisonHref = localePath(lang, "/maison");
 <script>
   import { trackSite } from "../lib/site-events";
   /* ---------------- Ordinateur ---------------- */
-  const trigger = document.querySelector<HTMLAnchorElement>("[data-menu-trigger]");
+  /*
+   * Deux liens ouvrent le même panneau : « Parfums » et « Coffrets » (Sandro,
+   * 30 oct. : au survol de Coffrets on doit pouvoir choisir entre les deux, et
+   * le panneau les montre déjà dans sa colonne de droite).
+   */
+  const triggers = Array.from(document.querySelectorAll<HTMLAnchorElement>("[data-menu-trigger]"));
+  const trigger = triggers[0] ?? null;
+  // Le lien qui a ouvert le panneau : c'est lui qui reprend le focus après Échap.
+  let lastTrigger = trigger;
+  // Seul le lien survolé se dit ouvert (souligné, chevron retourné) : les deux à la fois prêtaient à confusion.
+  const marquerLien = () => {
+    for (const t of triggers) t.setAttribute("aria-expanded", String(isOpen && t === lastTrigger));
+  };
   const panel = document.querySelector<HTMLElement>("[data-menu-panel]");
   const veil = document.querySelector<HTMLElement>("[data-menu-veil]");
   const hoverable = window.matchMedia("(hover: hover)");
@@ -504,7 +540,7 @@ const maisonHref = localePath(lang, "/maison");
     panel.classList.add("is-open");
     startSlides(activeHandle());
     veil?.classList.add("is-open");
-    trigger?.setAttribute("aria-expanded", "true");
+    marquerLien();
   }
   function closePanel() {
     window.clearTimeout(openTimer);
@@ -515,7 +551,7 @@ const maisonHref = localePath(lang, "/maison");
     document.body.classList.remove("menu-open");
     panel.classList.remove("is-open");
     veil?.classList.remove("is-open");
-    trigger?.setAttribute("aria-expanded", "false");
+    for (const t of triggers) t.setAttribute("aria-expanded", "false");
   }
   // Délais d'intention : ouvrir au passage de la souris serait agressif,
   // fermer à la sortie immédiate ferait perdre le panneau en diagonale.
@@ -532,38 +568,48 @@ const maisonHref = localePath(lang, "/maison");
   };
 
   if (trigger && panel) {
-    trigger.addEventListener("mouseenter", () => hoverable.matches && scheduleOpen());
-    trigger.addEventListener("mouseleave", () => hoverable.matches && scheduleClose());
-    panel.addEventListener("mouseenter", () => window.clearTimeout(closeTimer));
-    panel.addEventListener("mouseleave", () => hoverable.matches && scheduleClose());
-    // Sans survol (tactile) : le premier toucher ouvre, le second suit le lien.
-    trigger.addEventListener("click", (e) => {
-      if (!isOpen) {
-        e.preventDefault();
-        openPanel();
-      }
-    });
     // Le focus clavier ouvre — sauf quand c'est nous qui le rendons au
     // trigger après Échap, sinon le panneau se rouvrait aussitôt.
     let returningFocus = false;
-    trigger.addEventListener("focus", () => !returningFocus && openPanel());
+    for (const t of triggers) {
+      t.addEventListener("mouseenter", () => {
+        lastTrigger = t;
+        marquerLien();
+        if (hoverable.matches) scheduleOpen();
+      });
+      t.addEventListener("mouseleave", () => hoverable.matches && scheduleClose());
+      // Sans survol (tactile) : le premier toucher ouvre, le second suit le lien.
+      t.addEventListener("click", (e) => {
+        if (!isOpen) {
+          e.preventDefault();
+          lastTrigger = t;
+          openPanel();
+        }
+      });
+      t.addEventListener("focus", () => {
+        lastTrigger = t;
+        if (!returningFocus) openPanel();
+      });
+    }
+    panel.addEventListener("mouseenter", () => window.clearTimeout(closeTimer));
+    panel.addEventListener("mouseleave", () => hoverable.matches && scheduleClose());
     veil?.addEventListener("click", closePanel);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && isOpen) {
         closePanel();
         returningFocus = true;
-        trigger.focus();
+        (lastTrigger ?? trigger).focus();
         returningFocus = false;
       }
     });
     // Le focus clavier quitte le trigger et le panneau : on referme.
     document.addEventListener("focusin", (e) => {
       const target = e.target as Node | null;
-      if (isOpen && target && !panel.contains(target) && target !== trigger) closePanel();
+      if (isOpen && target && !panel.contains(target) && !triggers.includes(target as HTMLAnchorElement)) closePanel();
     });
     document.addEventListener("click", (e) => {
       const target = e.target as Node | null;
-      if (isOpen && target && !panel.contains(target) && !trigger.contains(target)) closePanel();
+      if (isOpen && target && !panel.contains(target) && !triggers.some((t) => t.contains(target))) closePanel();
     });
 
     // Survoler un nom change le visuel : chaque Reflet a sa figure empilée,
@@ -914,7 +960,7 @@ const maisonHref = localePath(lang, "/maison");
     position: relative;
     display: block;
     margin: 0 -16px;
-    border-radius: 2px;
+    border-radius: 0;
     transition: background-color 0.25s ease;
   }
   .mega-entry:hover,
@@ -1038,18 +1084,34 @@ const maisonHref = localePath(lang, "/maison");
   .mega-foot-link:hover { text-decoration-color: currentColor; }
 
   /* Coffrets : deux cartes qui partagent la hauteur de la colonne, l'image remplit, le texte reste au bas. */
-  .mega-boxes { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 24px; }
-  .mega-box { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
-  .mega-box-img {
-    flex: 1 1 auto;
-    min-height: 0;
-    width: 100%;
-    object-fit: cover;
-    transition: opacity 0.3s ease;
+  /* Premier coffret en haut, second calé en bas : les trois colonnes finissent à la même ligne. */
+  .mega-boxes { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 32px; }
+  .mega-box {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: center;
+    color: inherit;
+    text-decoration: none;
   }
-  .mega-box:hover .mega-box-img { opacity: 0.86; }
-  .mega-box-title { font-size: 16px; }
-  .mega-box-price { font-size: 13px; opacity: 0.6; }
+  .mega-box-media { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--sand); }
+  .mega-box-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .mega-box:hover .mega-box-img { transform: scale(1.04); }
+  .mega-box-caption { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .mega-box-title { font-size: 20px; font-weight: 500; line-height: 1.15; }
+  .mega-box-price { font-size: 14px; white-space: nowrap; }
+  .mega-box-price s { margin-inline-end: 6px; opacity: 0.5; }
+  .mega-box-meta { font-size: 13px; line-height: 1.35; opacity: 0.6; }
+  .mega-box .mega-fig-cta { margin: 8px 0 0; font-size: 14px; }
+  .mega-box:hover .mega-fig-cta { text-decoration-color: currentColor; }
 
   /* Visuel : les six figures empilées dans la même cellule ; la photo prend la hauteur restante. */
   .mega-visual-stack { flex: 1 1 auto; min-height: 0; display: grid; }
