@@ -6,6 +6,7 @@
  * FAQ. Commerce (prix/variantes/panier) = Shopify ; éditorial = Sanity,
  * chaque section se masque si son contenu n'est pas rempli dans le Studio.
  */
+import { intlLocale } from "../../../lib/markets";
 import Layout from "../../../layouts/Layout.astro";
 import Faq from "../../../components/Faq.astro";
 import Pillars from "../../../components/Pillars.astro";
@@ -26,6 +27,7 @@ import { COFFRET_HANDLE } from "../../../lib/coffret";
 import { getProductImageOverride, getProductHoverImage } from "../../../lib/product-images";
 import LayeringRow from "../../../components/product/LayeringRow.astro";
 import PanelDiscovery from "../../../components/product/PanelDiscovery.astro";
+import NotifyLaunch from "../../../components/product/NotifyLaunch.astro";
 import LayeringDrawer from "../../../components/product/LayeringDrawer.astro";
 import {
   formatPrice,
@@ -33,6 +35,7 @@ import {
   getPrimaryVariant,
   getDisplayPrice,
   getCompareAtLabel,
+  getCompareAtPrice,
   isCoffret,
   isSampleVariantTitle,
   secondaryImage,
@@ -75,9 +78,31 @@ const { product, products } = Astro.props;
 
 const parfum = await getParfumContent(product.handle, lang);
 const variant = getPrimaryVariant(product);
-const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
+const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang));
 // Prix normal barré pendant la prévente : le compareAtPrice Shopify, s'il dépasse le prix pratiqué.
-const compareLabel = getCompareAtLabel(product);
+const compareLabel = getCompareAtLabel(product, intlLocale(lang));
+/*
+ * Prévente : « en production, expédition sous 2 mois environ » (Sandro,
+ * 30 oct.), et l'économie du prix de lancement quand Shopify porte un prix
+ * barré. Pas de date : le délai reste volontairement approximatif.
+ */
+const compareAt = getCompareAtPrice(product);
+const savingLabel = compareAt
+  ? formatPrice(String(Number(compareAt.amount) - Number(variant.price.amount)), variant.price.currencyCode, intlLocale(lang))
+  : null;
+const preventePanel = prevente.active
+  ? {
+      badge: t("prevente.badge"),
+      launchLabel: t("prevente.launchPrice"),
+      infoTitle: t("prevente.infoTitle"),
+      // HTML : l'économie est relue dans la devise du pays (data-money-saving).
+      infoBody: (savingLabel
+        ? t("prevente.infoBody").replace("{saving}", `<span data-money-saving="${variant.id}">${savingLabel}</span>`)
+        : t("prevente.infoBodyPlain")
+      ).replace("{name}", product.title),
+      shipShort: t("prevente.shipShort"),
+    }
+  : null;
 
 const inspiredMap = await getInspiredByMap();
 const recoImages = await getRecoImages();
@@ -268,8 +293,8 @@ const related = products
       name: p.title,
       size: primaryVariant.title !== "Default Title" ? primaryVariant.title : null,
       subtitle: inspiredMap[p.handle] ? `${t("product.twistOf")} ${inspiredMap[p.handle]}` : null,
-      price: formatPrice(price.amount, price.currencyCode),
-      compare: getCompareAtLabel(p),
+      price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(p, intlLocale(lang)),
       // Sans imageRecommandation dans Sanity on retombe sur la photo produit
       // Shopify — c'est le bon rendu du flacon, avec la bonne étiquette. Il
       // faut la passer par shopifyImage() : servie brute, elle pèse jusqu'à
@@ -316,7 +341,7 @@ const discoveryCandidates = coffretContent
         : sp.featuredImage
           ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
           : null,
-      price: formatPrice(v.price.amount, v.price.currencyCode),
+      price: formatPrice(v.price.amount, v.price.currencyCode, intlLocale(lang)),
       href: localePath(lang, `/coffrets/${sp.handle}`),
     };
   })
@@ -420,7 +445,9 @@ const productJsonLd = {
         tipLabel={t("product.tipOpen")}
         inspiredByLabel={t("product.twistOf")}
         inspiredBy={twistOfLine}
+        prevente={preventePanel}
       >
+        {prevente.active && <NotifyLaunch slot="notify" lang={lang} handle={product.handle} name={product.title} priceLabel={priceLabel} />}
         <TwistLine slot="after-description" lang={lang} handle={product.handle} />
         <LumaListen slot="after-description" lang={lang} handle={product.handle} name={product.title} note={t("luma.listenNote")} />
         <LayeringRow slot="after-rows" lang={lang} handle={product.handle} products={products} />

@@ -11,6 +11,7 @@
  * lib/universes.ts, lib/guide.ts (matières, moments, twists, manifeste),
  * lib/layering.ts (duos). Les portraits audio par LumaListen.
  */
+import { intlLocale } from "../../../lib/markets";
 import Layout from "../../../layouts/Layout.astro";
 import LumaListen from "../../../components/LumaListen.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
@@ -73,7 +74,7 @@ const reflets = perfumeProducts.map((p, i) => {
     when: guide?.when ?? [],
     twistLine: guide?.twistLine[lang] ?? null,
     twistShort: guide?.twistShort[lang] ?? null,
-    price: formatPrice(price.amount, price.currencyCode),
+    price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
     priceAmount: Number(price.amount),
     currency: price.currencyCode,
     variantId: variant.id,
@@ -118,7 +119,7 @@ const discovery = (() => {
           : sp.featuredImage
             ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
             : null,
-        price: formatPrice(variant.price.amount, variant.price.currencyCode),
+        price: formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang)),
         href: localePath(lang, `/coffrets/${sp.handle}`),
       };
     })
@@ -133,7 +134,7 @@ const duos = LAYERING.map((d) => ({
   second: byHandle[d.pair[1]],
 }))
   .filter((d) => d.first && d.second)
-  .map((d) => ({ ...d, total: formatPrice(String(d.first.priceAmount + d.second.priceAmount), d.first.currency) }));
+  .map((d) => ({ ...d, total: formatPrice(String(d.first.priceAmount + d.second.priceAmount), d.first.currency, intlLocale(lang)) }));
 ---
 
 <Layout
@@ -699,7 +700,7 @@ const duos = LAYERING.map((d) => ({
     z-index: 2;
     padding: 9px 14px;
     border: 1px solid rgba(21, 14, 10, 0.28);
-    border-radius: 100px;
+    border-radius: 0;
     background: var(--bg);
     font: inherit;
     font-size: 12px;
@@ -781,7 +782,7 @@ const duos = LAYERING.map((d) => ({
   .guide-chip {
     padding: 8px 14px;
     border: 1px solid rgba(21, 14, 10, 0.28);
-    border-radius: 100px;
+    border-radius: 0;
     background: none;
     font: inherit;
     font-size: 13px;
@@ -914,7 +915,7 @@ const duos = LAYERING.map((d) => ({
     gap: 28px;
     padding: 14px 20px;
     border: 0;
-    border-radius: 2px;
+    border-radius: 0;
     background: var(--rose);
     color: var(--paper);
     font: inherit;
@@ -939,7 +940,7 @@ const duos = LAYERING.map((d) => ({
     gap: 10px;
     padding: 14px 28px;
     border: 1px solid var(--ink);
-    border-radius: 100px;
+    border-radius: 0;
     background: none;
     font: inherit;
     font-size: 14px;

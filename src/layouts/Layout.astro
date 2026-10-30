@@ -312,6 +312,8 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         --paper: #f7f5f2;
         --sand: #e7dfd0;
         --peach: #efc5a9;
+        /* Pastilles de prévente : le bordeaux se voyait trop (Sandro, 30 oct.). */
+        --prevente: #f2dc8f;
         --cream: var(--bg);
         --cream-2: var(--paper);
 
@@ -786,13 +788,13 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
       .footer-signup-text { margin: 0; font-size: 16px; line-height: 1.24; color: rgba(241, 238, 233, 0.8); }
       .footer-signup-form { display: flex; flex-direction: column; gap: 12px; }
       .footer-signup-form input {
-        height: 48px; padding: 8px 24px; border-radius: 8px;
+        height: 48px; padding: 8px 24px; border-radius: 0;
         border: 1px solid rgba(231, 223, 208, 0.12); background: rgba(231, 223, 208, 0.08);
         color: var(--cream); font: inherit; font-size: 16px;
       }
       .footer-signup-form input::placeholder { color: rgba(231, 223, 208, 0.8); }
       .footer-signup-form button {
-        height: 48px; border: 0; border-radius: 999px; background: var(--rose); color: var(--cream);
+        height: 48px; border: 0; border-radius: 0; background: var(--rose); color: var(--cream);
         font: inherit; font-size: 16px; font-weight: 500; cursor: pointer; transition: opacity 0.15s;
       }
       .footer-signup-form button:hover { opacity: 0.9; }

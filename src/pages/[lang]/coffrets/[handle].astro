@@ -11,6 +11,7 @@
  * La maquette décrit le Discovery Set, qui est le coffret le mieux garni ;
  * cette route sert tous les coffrets et se dégrade proprement pour les autres.
  */
+import { intlLocale } from "../../../lib/markets";
 import Layout from "../../../layouts/Layout.astro";
 import Faq from "../../../components/Faq.astro";
 import Pillars from "../../../components/Pillars.astro";
@@ -64,9 +65,9 @@ const { product, products } = Astro.props;
 
 const content = await getCoffretByHandle(product.handle, lang);
 const variant = getPrimaryVariant(product);
-const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
+const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang));
 // Prix normal barré pendant la prévente : le compareAtPrice Shopify, s'il dépasse le prix pratiqué.
-const compareLabel = getCompareAtLabel(product);
+const compareLabel = getCompareAtLabel(product, intlLocale(lang));
 
 const title = content?.titre ?? product.title;
 const description = content?.description ?? product.description;

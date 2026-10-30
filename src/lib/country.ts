@@ -156,8 +156,10 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
   const nodes = Array.from(root.querySelectorAll<HTMLElement>("[data-money]"));
   // Prix normal barré (prévente) : `compareAtPrice` de la même variante.
   const compares = Array.from(root.querySelectorAll<HTMLElement>("[data-money-compare]"));
+  // Économie de la prévente : prix normal moins prix pratiqué, de la même variante.
+  const savings = Array.from(root.querySelectorAll<HTMLElement>("[data-money-saving]"));
   const idsOf = (node: HTMLElement) => (node.dataset.money ?? "").split(",").map((id) => id.trim()).filter(Boolean);
-  const ids = Array.from(new Set([...nodes.flatMap(idsOf), ...compares.map((n) => n.dataset.moneyCompare ?? "")].filter(Boolean)));
+  const ids = Array.from(new Set([...nodes.flatMap(idsOf), ...compares.map((n) => n.dataset.moneyCompare ?? ""), ...savings.map((n) => n.dataset.moneySaving ?? "")].filter(Boolean)));
   if (!ids.length) return;
 
   const query = /* GraphQL */ `
@@ -209,6 +211,16 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
     const show = Boolean(was && Number(was.amount) > Number(now.amount));
     if (show) node.textContent = formatPrice(was!.amount, was!.currencyCode, locale);
     node.hidden = !show;
+  }
+
+  // Sans prix barré, l'économie garde son libellé du build : la phrase qui la
+  // porte est rendue côté serveur, on ne la casse pas ici.
+  for (const node of savings) {
+    const id = node.dataset.moneySaving ?? "";
+    const was = compareAt.get(id);
+    const now = prices.get(id);
+    if (!was || !now || Number(was.amount) <= Number(now.amount)) continue;
+    node.textContent = formatPrice(String(Number(was.amount) - Number(now.amount)), now.currencyCode, locale);
   }
 }
 

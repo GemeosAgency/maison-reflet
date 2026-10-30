@@ -18,6 +18,7 @@
  * apparition lente, aucune boîte ni ombre. Les prix portent `data-money`
  * pour être recalculés dans la devise du visiteur (voir lib/country.ts).
  */
+import { intlLocale } from "../lib/markets";
 import {
   formatPrice,
   getAllProducts,
@@ -27,7 +28,7 @@ import {
   isSampleVariantTitle,
   shopifyImage,
 } from "../lib/shopify";
-import { getCoffrets, getMenuParfums, responsiveImage, type ResponsiveImage } from "../lib/sanity";
+import { getCoffrets, getMenuParfums, getPrevente, responsiveImage, type ResponsiveImage } from "../lib/sanity";
 import { type Locale, locales, localeNames, localePath, useTranslations } from "../i18n";
 import { portraitAudioPath } from "../lib/luma/portraits";
 import { universeLabel } from "../lib/universes";
@@ -41,6 +42,8 @@ interface Props {
 
 const { lang, rest } = Astro.props;
 const t = useTranslations(lang);
+// Pas de « Best seller » tant que la prévente court : rien n'est encore vendu.
+const prevente = await getPrevente();
 
 const [products, menuParfums, coffretContent] = await Promise.all([
   getAllProducts(),
@@ -95,7 +98,7 @@ const reflets = products
       // Le portrait audio déjà enregistré (portraits.ts) : zéro crédit à l'écoute.
       audio: portraitAudioPath(lang, p.handle),
       listenLabel: t("luma.discover").replace("{name}", p.title),
-      price: formatPrice(price.amount, price.currencyCode),
+      price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
       variantId: variant.id,
       slides,
       thumb: picture(THUMB_WIDTHS, 4 / 5),
@@ -122,7 +125,7 @@ const coffrets = products
       handle: sp.handle,
       title: content?.titre ?? sp.title,
       href: localePath(lang, `/coffrets/${sp.handle}`),
-      price: formatPrice(price.amount, price.currencyCode),
+      price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
       variantId: variant.id,
       img,
     };
@@ -146,7 +149,7 @@ const maisonHref = localePath(lang, "/maison");
             <li class:list={["mega-entry", { "is-active": r.handle === initialHandle }]} data-menu-entry={r.handle}>
               <a class="mega-item" href={r.href} data-menu-item={r.handle}>
                 <span class="mega-item-name">{r.name}</span>
-                {r.bestSeller && <span class="mega-pill mega-pill-best">{t("product.bestSeller")}</span>}
+                {r.bestSeller && !prevente.active && <span class="mega-pill mega-pill-best">{t("product.bestSeller")}</span>}
                 {r.nouveau && <span class="mega-pill mega-pill-new">{t("menu.new")}</span>}
               </a>
             </li>
@@ -288,7 +291,7 @@ const maisonHref = localePath(lang, "/maison");
               <span class="msheet-row-text">
                 <span class="msheet-row-name">
                   {r.name}
-                  {r.bestSeller && <span class="mega-pill mega-pill-best">{t("product.bestSeller")}</span>}
+                  {r.bestSeller && !prevente.active && <span class="mega-pill mega-pill-best">{t("product.bestSeller")}</span>}
                   {r.nouveau && <span class="mega-pill mega-pill-new">{t("menu.new")}</span>}
                 </span>
                 {r.universe && <span class="msheet-row-meta">{r.universe}</span>}
@@ -914,7 +917,7 @@ const maisonHref = localePath(lang, "/maison");
     position: relative;
     display: block;
     margin: 0 -16px;
-    border-radius: 2px;
+    border-radius: 0;
     transition: background-color 0.25s ease;
   }
   .mega-entry:hover,
@@ -1149,7 +1152,7 @@ const maisonHref = localePath(lang, "/maison");
     gap: 12px;
     padding: 10px 14px;
     border: 1px solid rgba(21, 14, 10, 0.3);
-    border-radius: 100px;
+    border-radius: 0;
     font-size: 14px;
     transform: none;
     overflow: hidden;

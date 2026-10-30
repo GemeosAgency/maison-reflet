@@ -6,6 +6,7 @@
  * Même sélection que l'accueil et le catalogue, qui la construisent encore
  * chacun de leur côté ; La Maison passe par ici.
  */
+import { intlLocale } from "./markets";
 import { localePath, type Locale } from "../i18n";
 import { getCoffrets, responsiveImage, type ResponsiveImage } from "./sanity";
 import { formatPrice, getAllProducts, getPrimaryVariant, isCoffret, shopifyImage } from "./shopify";
@@ -36,7 +37,7 @@ export async function getDiscoveryBanner(lang: Locale): Promise<DiscoveryBanner 
           : sp.featuredImage
             ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
             : null,
-        price: formatPrice(variant.price.amount, variant.price.currencyCode),
+        price: formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang)),
         href: localePath(lang, `/coffrets/${sp.handle}`),
       };
     })

@@ -211,6 +211,8 @@ export type ShopifyCartLine = {
   cost: {
     totalAmount: ShopifyMoney;
     subtotalAmount: ShopifyMoney;
+    /** Prix normal unitaire (compareAtPrice de la variante) : le prix barré de la prévente. */
+    compareAtAmountPerQuantity?: ShopifyMoney | null;
   };
   merchandise: {
     id: string;
@@ -402,10 +404,10 @@ export function getCompareAtPrice(product: Pick<ShopifyProduct, "variants">): Sh
   return v.compareAtPrice && Number(v.compareAtPrice.amount) > Number(v.price.amount) ? v.compareAtPrice : null;
 }
 
-/** Le même, formaté comme les autres prix du site (« 380 AED »), ou null. */
-export function getCompareAtLabel(product: Pick<ShopifyProduct, "variants">): string | null {
+/** Le même, formaté comme les autres prix de la page (« 380 AED », « AED 380 »), ou null. */
+export function getCompareAtLabel(product: Pick<ShopifyProduct, "variants">, locale?: string): string | null {
   const c = getCompareAtPrice(product);
-  return c ? formatPrice(c.amount, c.currencyCode) : null;
+  return c ? formatPrice(c.amount, c.currencyCode, locale) : null;
 }
 
 /** Récupère un produit par son handle (slug Shopify) */
@@ -451,6 +453,10 @@ const CART_FRAGMENT = /* GraphQL */ `
             currencyCode
           }
           subtotalAmount {
+            amount
+            currencyCode
+          }
+          compareAtAmountPerQuantity {
             amount
             currencyCode
           }

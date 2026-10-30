@@ -1,4 +1,5 @@
 ---
+import { intlLocale } from "../../../lib/markets";
 import Layout from "../../../layouts/Layout.astro";
 import PerfumeGrid from "../../../components/PerfumeGrid.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
@@ -58,7 +59,7 @@ const discoveryCandidates = coffretContent
         : sp.featuredImage
           ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
           : null,
-      price: formatPrice(variant.price.amount, variant.price.currencyCode),
+      price: formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang)),
       href: localePath(lang, `/coffrets/${sp.handle}`),
     };
   })

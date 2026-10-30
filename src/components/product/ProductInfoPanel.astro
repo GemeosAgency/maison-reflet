@@ -62,6 +62,19 @@ interface Props {
   lang: Locale;
   /** Vignette de la barre d'achat collante (la première photo de la galerie). */
   thumb?: { src: string; srcset?: string } | null;
+  /**
+   * Prévente ouverte : pastille au-dessus du titre, prix de lancement sous la
+   * note, encadré sous le bouton et délai dans la barre collante. Les textes
+   * arrivent traduits et remplis par la page. null hors prévente.
+   */
+  prevente?: {
+    badge: string;
+    launchLabel: string;
+    infoTitle: string;
+    /** HTML : l'économie y est un <span data-money-saving> relu par pays. */
+    infoBody: string;
+    shipShort: string;
+  } | null;
 }
 
 const {
@@ -96,6 +109,7 @@ const {
   tipLabel,
   lang,
   thumb = null,
+  prevente = null,
 } = Astro.props;
 
 // Une seule jauge : le sillage. L'intensité affichait la même valeur sur les six
@@ -105,8 +119,9 @@ const gauges = [{ label: sillageLabel, value: sillage, valueLabel: sillageValueL
 const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length > 0);
 ---
 
-<div class="ppanel">
+<div class:list={["ppanel", { "is-prevente": prevente }]}>
   <div class="ppanel-head">
+    {prevente && <span class="ppanel-prevente-badge">{prevente.badge}</span>}
     <div class="ppanel-title-line">
       <h1 class="ppanel-title">
         {title}
@@ -127,6 +142,16 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
           <span class="ppanel-rating-count">· {reviewCount} {reviewsWord}</span>
         </div>
       ) : null
+    }
+    {
+      /* Le prix de lancement se lit dès le titre, pas seulement dans le bouton. */
+      prevente && (
+        <div class="ppanel-priceline">
+          <span class="ppanel-priceline-now" data-money={variantId}>{priceLabel}</span>
+          <s class="ppanel-priceline-was" data-money-compare={variantId} hidden={!compareLabel} aria-label={compareLabel ? `${compareA11y} ${compareLabel}` : undefined}>{compareLabel}</s>
+          <span class="ppanel-launch">{prevente.launchLabel}</span>
+        </div>
+      )
     }
     {descriptionHtml && <div class="ppanel-desc" set:html={descriptionHtml} />}
   </div>
@@ -215,6 +240,22 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
         </span>
       </button>
     </div>
+    {
+      prevente && (
+        <div class="ppanel-prevente-info">
+          <svg viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true">
+            <circle cx="10" cy="10" r="7.4" stroke="currentColor" stroke-width="1.2" />
+            <path d="M10 6v4.2l2.8 1.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <div>
+            <p class="ppanel-prevente-title">{prevente.infoTitle}</p>
+            <p set:html={prevente.infoBody} />
+          </div>
+        </div>
+      )
+    }
+    {/* « Être prévenu au lancement » (NotifyLaunch), apporté par la page. */}
+    <slot name="notify" />
     {/*
       Promesse de livraison juste sous le bouton : c'est le dernier doute avant
       l'ajout au panier — « quand est-ce que je le reçois, et combien ça
@@ -279,6 +320,7 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
       <s class="pbuy-was" data-money-compare={variantId} hidden={!compareLabel} aria-hidden="true">{compareLabel}</s>
       <span data-money={variantId}>{priceLabel}</span>
     </span>
+    {prevente && <span class="pbuy-ship">{prevente.shipShort}</span>}
   </span>
   <button type="button" class="pbuy-add" data-sticky-add>
     <span>{addLabel}</span>
@@ -468,6 +510,7 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
      « BOIS ALERT75 ML » se colle. Alignée à droite pour suivre la page. */
   :global([dir="rtl"]) .pbuy-name { direction: ltr; text-align: right; }
   .pbuy-price { font-size: 16px; font-weight: 500; line-height: 1.2; white-space: nowrap; }
+  .pbuy-ship { font-size: 11px; font-weight: 500; line-height: 1.2; color: var(--rose); white-space: nowrap; }
   /* Sous 400 px, le nom et la contenance ne tiennent pas : « FIFTH SEASON 7… »
      ne rend service à personne, on garde le nom seul. */
   @media (max-width: 399px) {
@@ -481,7 +524,7 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     min-height: 48px;
     padding: 0 20px;
     border: 0;
-    border-radius: 2px;
+    border-radius: 0;
     background: var(--rose, #812538);
     color: var(--paper, #f7f5f2);
     font: inherit;
@@ -588,6 +631,51 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   .ppanel-add-prices { display: inline-flex; align-items: baseline; gap: 10px; white-space: nowrap; }
   .ppanel-add-was { opacity: 0.7; }
   .pbuy-was { margin-inline-end: 6px; font-size: 0.875em; }
+  /* ---- prévente ---- */
+  .ppanel-prevente-badge {
+    align-self: flex-start;
+    padding: 6px 10px;
+    background: var(--prevente);
+    color: var(--ink);
+    font-size: 12px;
+    line-height: 14px;
+    font-weight: 500;
+    letter-spacing: 0.72px;
+    text-transform: uppercase;
+  }
+  .ppanel-priceline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 4px; }
+  .ppanel-priceline-now { font-size: 24px; line-height: 1.2; font-weight: 500; white-space: nowrap; }
+  .ppanel-priceline-was { font-size: 18px; opacity: 0.55; text-decoration-thickness: 1px; white-space: nowrap; }
+  .ppanel-priceline-was[hidden] { display: none; }
+  .ppanel-launch {
+    padding: 5px 9px;
+    background: var(--peach);
+    color: var(--rose);
+    font-size: 12px;
+    line-height: 14px;
+    font-weight: 500;
+    letter-spacing: 0.72px;
+    text-transform: uppercase;
+  }
+  /* Le prix est sous la note : la version du titre (mobile) ferait doublon. */
+  .is-prevente .ppanel-prices { display: none !important; }
+  .ppanel-prevente-info {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid rgba(21, 14, 10, 0.12);
+    background: #fff;
+    font-size: 14px;
+    line-height: 1.36;
+  }
+  .ppanel-prevente-info svg { flex-shrink: 0; margin-top: 1px; color: var(--rose); }
+  .ppanel-prevente-info p { margin: 0; }
+  .ppanel-prevente-title { font-weight: 500; color: var(--rose); margin-bottom: 2px !important; }
+  /* L'encadré dit déjà le délai : la ligne de livraison ferait doublon. */
+  .is-prevente .ppanel-ship { display: none; }
+  .is-prevente .ppanel-buy { gap: 14px; }
+  .is-prevente .ppanel-reassure { margin-top: 8px; }
+
   .ppanel-rating { display: flex; align-items: center; gap: 8px; font-size: 16px; }
   .ppanel-stars { display: inline-flex; gap: 2px; }
   .ppanel-rating strong { font-weight: 500; }

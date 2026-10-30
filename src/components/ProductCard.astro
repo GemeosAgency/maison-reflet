@@ -19,6 +19,8 @@
  * Sans seconde photo dans Sanity (imageRecommandationHover), le survol garde
  * la même image : l'assombrissement et le CTA fonctionnent quand même.
  */
+import { preventeCard } from "../lib/prevente-cards";
+
 interface Props {
   name: string;
   inspired?: string | null;
@@ -48,11 +50,16 @@ const {
   hoverImg,
   href,
   variantId,
-  badge = null,
+  badge: badgeProp = null,
   addLabel = "Add to bag",
   addedLabel = "",
   errorLabel = "",
 } = Astro.props;
+
+// Prévente ouverte : « PRÉCOMMANDE » en jaune remplace la pastille, et
+// « Prix de lancement » coiffe le prix barré.
+const prevente = await preventeCard(Astro.params.lang, Boolean(compare));
+const badge = prevente?.badge ?? badgeProp;
 ---
 
 <div class="product-card">
@@ -61,12 +68,13 @@ const {
   {hoverImg && <img class="product-card-img product-card-img-hover" src={hoverImg} alt="" loading="lazy" />}
   <div class="product-card-veil" aria-hidden="true"></div>
   <div class="product-card-overlay" aria-hidden="true"></div>
-  {badge && <span class="product-card-badge">{badge}</span>}
+  {badge && <span class:list={["product-card-badge", { "is-prevente": prevente }]}>{badge}</span>}
   <div class="product-card-meta">
     <h3>{name}</h3>
     <div class="product-card-row">
       {inspired ? <p class="product-card-inspired">{inspiredByLabel} {inspired}</p> : <span></span>}
       <p class="product-card-price">
+        {prevente?.launchLabel && <span class="product-card-launch">{prevente.launchLabel}</span>}
         <s class="price-was" data-money-compare={variantId} hidden={!compare}>{compare}</s>
         <span data-money={variantId}>{price}</span>
       </p>
@@ -140,6 +148,7 @@ const {
     background: var(--peach); color: var(--rose);
     font-size: 14px; font-weight: 500; text-transform: uppercase; line-height: 1;
   }
+  .product-card-badge.is-prevente { background: var(--prevente); color: var(--ink); }
 
   .product-card-meta {
     position: absolute; inset-inline: 24px; bottom: 24px; z-index: 2; pointer-events: none;
@@ -159,6 +168,12 @@ const {
     transition: opacity 0.25s ease;
   }
   .product-card:hover .product-card-price { opacity: 0; }
+  .product-card-launch {
+    display: block;
+    font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.88px;
+    text-transform: uppercase; color: var(--rose);
+  }
+  .product-card:hover .product-card-launch { opacity: 0; }
   .price-was { margin-inline-end: 8px; opacity: 0.6; text-decoration-thickness: 1px; }
   .price-was[hidden] { display: none; }
   .product-card-add-wrap {

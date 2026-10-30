@@ -12,6 +12,7 @@
  * gauche et « Tout voir » à droite, comme les bestsellers de l'accueil —
  * c'est le « Meet the Reflections » de La Maison (Figma 12018:1058).
  */
+import { intlLocale } from "../lib/markets";
 import ProductCard from "./ProductCard.astro";
 import { getProductHoverSrc } from "../lib/product-images";
 import {
@@ -67,8 +68,8 @@ const cards = ordered
     return {
       name: p.title,
       inspired: inspiredMap[p.handle] ?? null,
-      price: formatPrice(price.amount, price.currencyCode),
-      compare: getCompareAtLabel(p),
+      price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(p, intlLocale(lang)),
       // `imageRecommandation` est la photo « texte devant » de la maquette
       // (Figma 11928:1191) : le flacon remonté, du vide sous lui pour le nom et
       // le prix. On ne la recadre pas côté Sanity — la carte le fait elle-même,
