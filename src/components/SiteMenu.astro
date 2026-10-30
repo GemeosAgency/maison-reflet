@@ -380,7 +380,19 @@ const maisonHref = localePath(lang, "/maison");
 <script>
   import { trackSite } from "../lib/site-events";
   /* ---------------- Ordinateur ---------------- */
-  const trigger = document.querySelector<HTMLAnchorElement>("[data-menu-trigger]");
+  /*
+   * Deux liens ouvrent le même panneau : « Parfums » et « Coffrets » (Sandro,
+   * 30 oct. : au survol de Coffrets on doit pouvoir choisir entre les deux, et
+   * le panneau les montre déjà dans sa colonne de droite).
+   */
+  const triggers = Array.from(document.querySelectorAll<HTMLAnchorElement>("[data-menu-trigger]"));
+  const trigger = triggers[0] ?? null;
+  // Le lien qui a ouvert le panneau : c'est lui qui reprend le focus après Échap.
+  let lastTrigger = trigger;
+  // Seul le lien survolé se dit ouvert (souligné, chevron retourné) : les deux à la fois prêtaient à confusion.
+  const marquerLien = () => {
+    for (const t of triggers) t.setAttribute("aria-expanded", String(isOpen && t === lastTrigger));
+  };
   const panel = document.querySelector<HTMLElement>("[data-menu-panel]");
   const veil = document.querySelector<HTMLElement>("[data-menu-veil]");
   const hoverable = window.matchMedia("(hover: hover)");
@@ -528,7 +540,7 @@ const maisonHref = localePath(lang, "/maison");
     panel.classList.add("is-open");
     startSlides(activeHandle());
     veil?.classList.add("is-open");
-    trigger?.setAttribute("aria-expanded", "true");
+    marquerLien();
   }
   function closePanel() {
     window.clearTimeout(openTimer);
@@ -539,7 +551,7 @@ const maisonHref = localePath(lang, "/maison");
     document.body.classList.remove("menu-open");
     panel.classList.remove("is-open");
     veil?.classList.remove("is-open");
-    trigger?.setAttribute("aria-expanded", "false");
+    for (const t of triggers) t.setAttribute("aria-expanded", "false");
   }
   // Délais d'intention : ouvrir au passage de la souris serait agressif,
   // fermer à la sortie immédiate ferait perdre le panneau en diagonale.
@@ -556,38 +568,48 @@ const maisonHref = localePath(lang, "/maison");
   };
 
   if (trigger && panel) {
-    trigger.addEventListener("mouseenter", () => hoverable.matches && scheduleOpen());
-    trigger.addEventListener("mouseleave", () => hoverable.matches && scheduleClose());
-    panel.addEventListener("mouseenter", () => window.clearTimeout(closeTimer));
-    panel.addEventListener("mouseleave", () => hoverable.matches && scheduleClose());
-    // Sans survol (tactile) : le premier toucher ouvre, le second suit le lien.
-    trigger.addEventListener("click", (e) => {
-      if (!isOpen) {
-        e.preventDefault();
-        openPanel();
-      }
-    });
     // Le focus clavier ouvre — sauf quand c'est nous qui le rendons au
     // trigger après Échap, sinon le panneau se rouvrait aussitôt.
     let returningFocus = false;
-    trigger.addEventListener("focus", () => !returningFocus && openPanel());
+    for (const t of triggers) {
+      t.addEventListener("mouseenter", () => {
+        lastTrigger = t;
+        marquerLien();
+        if (hoverable.matches) scheduleOpen();
+      });
+      t.addEventListener("mouseleave", () => hoverable.matches && scheduleClose());
+      // Sans survol (tactile) : le premier toucher ouvre, le second suit le lien.
+      t.addEventListener("click", (e) => {
+        if (!isOpen) {
+          e.preventDefault();
+          lastTrigger = t;
+          openPanel();
+        }
+      });
+      t.addEventListener("focus", () => {
+        lastTrigger = t;
+        if (!returningFocus) openPanel();
+      });
+    }
+    panel.addEventListener("mouseenter", () => window.clearTimeout(closeTimer));
+    panel.addEventListener("mouseleave", () => hoverable.matches && scheduleClose());
     veil?.addEventListener("click", closePanel);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && isOpen) {
         closePanel();
         returningFocus = true;
-        trigger.focus();
+        (lastTrigger ?? trigger).focus();
         returningFocus = false;
       }
     });
     // Le focus clavier quitte le trigger et le panneau : on referme.
     document.addEventListener("focusin", (e) => {
       const target = e.target as Node | null;
-      if (isOpen && target && !panel.contains(target) && target !== trigger) closePanel();
+      if (isOpen && target && !panel.contains(target) && !triggers.includes(target as HTMLAnchorElement)) closePanel();
     });
     document.addEventListener("click", (e) => {
       const target = e.target as Node | null;
-      if (isOpen && target && !panel.contains(target) && !trigger.contains(target)) closePanel();
+      if (isOpen && target && !panel.contains(target) && !triggers.some((t) => t.contains(target))) closePanel();
     });
 
     // Survoler un nom change le visuel : chaque Reflet a sa figure empilée,
