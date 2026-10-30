@@ -342,7 +342,7 @@ const maisonHref = localePath(lang, "/maison");
         {
           locales.map((loc) => (
             <li>
-              <a href={localePath(loc, rest)} aria-current={loc === lang ? "true" : undefined} lang={loc}>
+              <a href={localePath(loc, rest)} aria-current={loc === lang ? "true" : undefined} lang={loc} data-lang-choice={loc}>
                 {localeNames[loc]}
               </a>
             </li>

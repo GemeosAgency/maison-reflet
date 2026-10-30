@@ -114,6 +114,7 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
             <a
               href={localePath(loc, rest)}
               lang={loc}
+              data-lang-choice={loc}
               aria-current={loc === lang ? "true" : undefined}
             >
               {localeNames[loc]}
