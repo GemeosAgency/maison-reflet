@@ -132,6 +132,53 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Langue de l'appareil, aussi pour les arrivées en profondeur.
+
+      La racine "/" choisit déjà la langue côté serveur (src/pages/index.astro),
+      mais un lien partagé, une story Instagram ou un résultat Google mènent
+      droit à /fr/… : page statique, servie telle quelle à un téléphone réglé
+      en anglais ou en arabe. Ce script la remplace par la même page dans la
+      bonne langue, avant le premier rendu (d'où sa place en tête du <head>).
+
+      Priorité : choix manuel mémorisé (cookie `lang`, posé au clic sur une
+      langue, lu aussi par la racine) > langues de l'appareil > anglais.
+      Garde-fous :
+      - jamais pour un robot : Google doit pouvoir indexer /fr et /ar, et ne
+        verrait sinon que la version de sa propre langue ;
+      - jamais en navigation interne sans choix mémorisé : si le cookie est
+        bloqué, cliquer « Français » ne doit pas renvoyer aussitôt en anglais.
+    -->
+    <script is:inline define:vars={{ pageLang: lang, langs: locales, fallback: fallbackLocale }}>
+      try {
+        document.addEventListener("click", function (e) {
+          var a = e.target.closest && e.target.closest("[data-lang-choice]");
+          if (a) {
+            document.cookie =
+              "lang=" + a.getAttribute("data-lang-choice") + "; path=/; max-age=31536000; SameSite=Lax";
+          }
+        });
+
+        var saved = document.cookie.match(/(?:^|;\s*)lang=([a-z]+)/);
+        var want = saved && langs.indexOf(saved[1]) !== -1 ? saved[1] : null;
+        var internal = document.referrer.indexOf(location.origin + "/") === 0;
+        var bot = /bot|crawl|spider|slurp|lighthouse|headless|preview/i.test(navigator.userAgent);
+
+        if (!want && !internal) {
+          var prefs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+          for (var i = 0; i < prefs.length && !want; i++) {
+            var base = String(prefs[i] || "").toLowerCase().split("-")[0];
+            if (langs.indexOf(base) !== -1) want = base;
+          }
+          want = want || fallback;
+        }
+
+        if (want && want !== pageLang && !bot) {
+          var rest = location.pathname.replace(/^\/(fr|ar|en)(?=\/|$)/, "");
+          location.replace("/" + want + rest + location.search + location.hash);
+        }
+      } catch (_) {}
+    </script>
     <meta name="description" content={description} />
     {!indexable && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonical} />
@@ -585,7 +632,11 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
             {
               locales.map((loc) => (
                 <li>
-                  <a href={localePath(loc, rest)} aria-current={loc === lang ? "true" : undefined}>
+                  <a
+                    href={localePath(loc, rest)}
+                    aria-current={loc === lang ? "true" : undefined}
+                    data-lang-choice={loc}
+                  >
                     {localeNames[loc]}
                   </a>
                 </li>
