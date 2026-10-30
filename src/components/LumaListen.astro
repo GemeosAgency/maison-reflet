@@ -201,7 +201,7 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
     width: 100%;
     padding: 12px 16px 12px 12px;
     border: 1px solid var(--line-pill, #dbd8d3);
-    border-radius: 0;
+    border-radius: 48px;
     color: var(--ink);
     font-size: 16px;
     letter-spacing: 0.06em;
@@ -236,7 +236,7 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
   .listen:hover .listen-icon, .is-playing .listen-icon { background: color-mix(in srgb, var(--rose) 88%, var(--ink)); }
   .listen-body { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; align-self: stretch; touch-action: none; }
   .listen-body:focus { outline: none; }
-  .listen-body:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 4px; border-radius: 0; }
+  .listen-body:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 4px; border-radius: 100px; }
   .listen-label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
   .listen-time { margin-inline-start: auto; flex-shrink: 0; font-size: 14px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
   .listen-pause, .listen-eq { display: none; }
