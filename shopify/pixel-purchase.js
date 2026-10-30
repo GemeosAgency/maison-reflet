@@ -4,7 +4,9 @@
 //   Vente de données : « Ne constitue pas une vente ». Enregistrer, puis Connecter.
 // Même event_id que le webhook (src/pages/api/webhooks/shopify-orders.ts) : « mr-checkout-<checkout token> ».
 // Meta n'en garde qu'un des deux.
-const PIXEL_ID = '2374522776687545';
+// ID de l'ensemble de données (pixel), PAS celui du compte (2374522776687545) :
+// avec l'ID du compte, Meta répond 200 mais l'événement n'arrive nulle part.
+const PIXEL_ID = '777365158804861';
 
 const lastDigits = (s) => (String(s ?? '').match(/(\d+)(?!.*\d)/) || [])[1];
 const text = (s) => (s == null ? '' : String(s)).trim().toLowerCase();
