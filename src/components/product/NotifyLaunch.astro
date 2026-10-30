@@ -90,15 +90,45 @@ const fill = (s: string) => s.replace("{name}", name).replace("{price}", priceLa
     const submit = form?.querySelector<HTMLButtonElement>("button[type=submit]");
     if (!open || !form || !done || !input || !submit) continue;
 
-    const deplier = (ouvert: boolean) => {
-      open.hidden = ouvert;
-      form.hidden = !ouvert;
+    /*
+     * Le passage d'un état à l'autre (bouton, formulaire, confirmation) se fait
+     * en douceur (Sandro, 30 oct.) : le bloc glisse de sa hauteur d'avant à
+     * celle d'après pendant que le nouveau contenu apparaît en fondu. Mesure,
+     * bascule, puis animation de la hauteur mesurée : pas de max-height
+     * arbitraire, et rien ne saute sous le bloc.
+     */
+    const reduit = matchMedia("(prefers-reduced-motion: reduce)");
+    const basculer = (montrer: HTMLElement, cacher: HTMLElement[]) => {
+      const avant = root.offsetHeight;
+      for (const el of cacher) el.hidden = true;
+      montrer.hidden = false;
+      if (reduit.matches) return;
+      const apres = root.offsetHeight;
+      root.style.overflow = "hidden";
+      root
+        .animate([{ height: `${avant}px` }, { height: `${apres}px` }], { duration: 420, easing: "cubic-bezier(0.22, 1, 0.36, 1)" })
+        .finished.finally(() => (root.style.overflow = ""));
+      montrer.animate(
+        [
+          { opacity: 0, transform: "translateY(-6px)" },
+          { opacity: 1, transform: "none" },
+        ],
+        { duration: 360, delay: 80, easing: "ease-out", fill: "backwards" }
+      );
+    };
+    const deplier = (ouvert: boolean, auClavier = true) => {
+      basculer(ouvert ? form : open, [ouvert ? open : form]);
       open.setAttribute("aria-expanded", String(ouvert));
-      if (ouvert) input.focus();
-      else open.focus();
+      // Le focus suit le contenu, sans faire défiler la page en plein glissement.
+      if (ouvert) input.focus({ preventScroll: true });
+      // Refermé à la souris, le bouton ne reprend pas le focus : sinon il garde
+      // un anneau de focus que personne n'a demandé.
+      else if (auClavier) open.focus({ preventScroll: true });
+      else (document.activeElement as HTMLElement | null)?.blur();
     };
     open.addEventListener("click", () => deplier(true));
-    root.querySelector("[data-notify-close]")?.addEventListener("click", () => deplier(false));
+    // `detail` vaut 0 pour un clic clavier (Entrée, Espace), 1 et plus à la souris.
+    root.querySelector("[data-notify-close]")?.addEventListener("click", (e) => deplier(false, (e as MouseEvent).detail === 0));
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -119,8 +149,7 @@ const fill = (s: string) => s.replace("{name}", name).replace("{price}", priceLa
         });
         const data = await res.json().catch(() => null);
         if (!res.ok || !data?.ok) throw new Error(data?.error || String(res.status));
-        form.hidden = true;
-        done.hidden = false;
+        basculer(done, [form]);
         try {
           identify({ email, site_locale: locale });
         } catch {
@@ -155,6 +184,9 @@ const fill = (s: string) => s.replace("{name}", name).replace("{price}", priceLa
     transition: background-color 0.15s;
   }
   .notify-open:hover { background: rgba(21, 14, 10, 0.04); }
+  /* Pas l'anneau bleu du navigateur : un filet d'encre, au clavier seulement. */
+  .notify-open:focus { outline: none; }
+  .notify-open:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; }
   .notify-open[hidden],
   .notify-box[hidden] { display: none; }
 
