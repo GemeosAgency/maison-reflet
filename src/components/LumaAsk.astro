@@ -42,7 +42,9 @@ if (kind === "parfum") {
 ---
 
 <div class="luma-ask">
-  <p class="luma-ask-title">{fill(t("luma.askTitle"), { name })}</p>
+  {/* Un nom de coffret est un nom commun (« Coffret découverte ») : « Une question
+     sur Coffret découverte ? » ne se dit pas. Les coffrets ont leur propre titre. */}
+  <p class="luma-ask-title">{kind === "coffret" ? t("luma.askTitleSet") : fill(t("luma.askTitle"), { name })}</p>
   <p class="luma-ask-lead">{t("luma.askLead")}</p>
   <div class="luma-ask-chips">
     {questions.map((q) => (

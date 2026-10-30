@@ -54,7 +54,7 @@ import {
   urlForImage,
   getPrevente,
 } from "../../../lib/sanity";
-import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
+import { type Locale, locales, localePath, useTranslations, withName } from "../../../i18n";
 
 export async function getStaticPaths() {
   // Un coffret n'est pas un parfum classique : il a sa propre page.
@@ -292,7 +292,7 @@ const related = products
     return {
       name: p.title,
       size: primaryVariant.title !== "Default Title" ? primaryVariant.title : null,
-      subtitle: inspiredMap[p.handle] ? `${t("product.twistOf")} ${inspiredMap[p.handle]}` : null,
+      subtitle: inspiredMap[p.handle] ? withName(t("product.twistOf"), inspiredMap[p.handle]) : null,
       price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
       compare: getCompareAtLabel(p, intlLocale(lang)),
       // Sans imageRecommandation dans Sanity on retombe sur la photo produit
@@ -357,7 +357,15 @@ const discovery =
 // contenu de la fiche.
 const seo = parfum?.seo ?? null;
 const seoTitle = seo?.metaTitle ?? product.title;
-const seoDescription = seo?.metaDescription ?? parfum?.accroche ?? product.description;
+// La description de la fiche, dans la langue de la page, plutôt que l'ancienne
+// `accroche` : écrite pour l'ancienne collection et en français seulement,
+// elle sortait « Le soleil à son sommet » pour Minuit Bourbon en anglais.
+const descriptionText = descriptionHtml
+  .replace(/<[^>]+>/g, " ")
+  .replace(/&(amp|quot|#39|lt|gt);/g, (_, e) => ({ amp: "&", quot: '"', "#39": "'", lt: "<", gt: ">" })[e as string] ?? "")
+  .replace(/\s+/g, " ")
+  .trim();
+const seoDescription = seo?.metaDescription ?? (descriptionText || null) ?? product.description;
 /*
  * Image de partage : réglage SEO > photo Shopify.
  * Recadrée en 1200x630 (~1,91:1) car c'est le format attendu par les réseaux
@@ -484,11 +492,11 @@ const productJsonLd = {
     </aside>
   </div>
 
-  <ScentNotes title={t("product.notes")} levels={scentLevels} openLabel={t("product.pyramid")} />
+  <ScentNotes lang={lang} title={t("product.notes")} levels={scentLevels} openLabel={t("product.pyramid")} />
 
   {specificTwist && <TwistSection title={t("product.specificTwist")} text={specificTwist} img={twistImg} />}
 
-  {perfumerWord && <PerfumerWord title={t("product.perfumerWord")} quote={perfumerWord} img={perfumerPhoto} />}
+  {perfumerWord && <PerfumerWord lang={lang} title={t("product.perfumerWord")} quote={perfumerWord} img={perfumerPhoto} />}
 
   <Reassurance items={reassurances} />
 
@@ -535,6 +543,7 @@ const productJsonLd = {
     niveau (lib/guide.ts) n'y figurent plus ; ils restent dans le guide.
   */}
   <PyramidDrawer
+    lang={lang}
     title={t("product.pyramid")}
     img={pyramidImg}
     levels={scentLevels.map((l) => ({ label: l.label, notes: l.notes }))}

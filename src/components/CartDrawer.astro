@@ -363,6 +363,13 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   );
   const accords: Accord[] = JSON.parse(document.getElementById("cart-accords")?.textContent ?? "[]");
   const I18N = JSON.parse(document.getElementById("cart-drawer-i18n")?.textContent ?? "{}");
+  // « INSPIRÉ DE » + nom, avec l'élision française devant une voyelle (même
+  // règle que withName() de i18n.ts, recopiée pour ne pas embarquer tout le
+  // dictionnaire dans le script du panier).
+  const inspired = (name: string): string =>
+    /\s(de|DE)$/.test(I18N.inspiredBy) && /^[aeiouyhâàäéèêëîïôöûüœ]/i.test(name)
+      ? `${I18N.inspiredBy.slice(0, -3)} ${I18N.inspiredBy.endsWith("DE") ? "D" : "d"}'${name}`
+      : `${I18N.inspiredBy} ${name}`;
   /**
    * Seuil applicable à la devise du panier. Le panier peut basculer de devise
    * en cours de session (changement de pays), d'où une lecture à chaque rendu
@@ -568,7 +575,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
               ${priceHtml}
             </div>
             ${tagHtml}
-            ${catalogEntry?.inspiredBy ? `<p class="cart-line-inspired">${I18N.inspiredBy} ${catalogEntry.inspiredBy}</p>` : ""}
+            ${catalogEntry?.inspiredBy ? `<p class="cart-line-inspired">${inspired(catalogEntry.inspiredBy)}</p>` : ""}
           </div>
           <div class="cart-line-bottom">
             <div class="cart-line-qty">
@@ -599,7 +606,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         <div class="cart-upsell-card-body">
           <div class="cart-upsell-card-text">
             ${href ? `<a class="cart-upsell-card-name" href="${href}">${p.title}</a>` : `<p class="cart-upsell-card-name">${p.title}</p>`}
-            ${p.inspiredBy ? `<p class="cart-upsell-card-inspired">${I18N.inspiredBy} ${p.inspiredBy}</p>` : ""}
+            ${p.inspiredBy ? `<p class="cart-upsell-card-inspired">${inspired(p.inspiredBy)}</p>` : ""}
           </div>
           <div class="cart-upsell-cta">
             <button type="button" class="cart-upsell-add" data-add-to-cart data-variant-id="${p.variantId}">
@@ -993,7 +1000,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           sampleImg.alt = opt.productTitle;
         }
         if (sampleLabel) {
-          sampleLabel.textContent = [opt.productTitle, opt.inspiredBy ? `${I18N.inspiredBy} ${opt.inspiredBy}` : null]
+          sampleLabel.textContent = [opt.productTitle, opt.inspiredBy ? inspired(opt.inspiredBy) : null]
             .filter(Boolean)
             .join(" · ");
         }
@@ -1005,7 +1012,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           <li>
             <button type="button" class="cart-sample-option" data-sample-variant="${s.variantId}">
               ${s.img ? `<img src="${s.img}" alt="" width="32" height="32" />` : ""}
-              <span>${[s.productTitle, s.inspiredBy ? `${I18N.inspiredBy} ${s.inspiredBy}` : null].filter(Boolean).join(" · ")}</span>
+              <span>${[s.productTitle, s.inspiredBy ? inspired(s.inspiredBy) : null].filter(Boolean).join(" · ")}</span>
             </button>
           </li>`
           )
@@ -1190,7 +1197,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       if (sampleLabel) {
         sampleLabel.textContent = [
           opt.productTitle,
-          opt.inspiredBy ? `${I18N.inspiredBy} ${opt.inspiredBy}` : null,
+          opt.inspiredBy ? inspired(opt.inspiredBy) : null,
         ]
           .filter(Boolean)
           .join(" · ");

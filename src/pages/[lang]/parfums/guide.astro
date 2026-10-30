@@ -18,7 +18,7 @@ import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import { COFFRET_HANDLE } from "../../../lib/coffret";
 import { formatPrice, getAllProducts, getDisplayPrice, getPrimaryVariant, isCoffret, shopifyImage } from "../../../lib/shopify";
 import { getCoffrets, getInspiredByMap, getParfumContent, responsiveImage } from "../../../lib/sanity";
-import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
+import { type Locale, locales, localePath, useTranslations, withName } from "../../../i18n";
 import { REFLET_UNIVERSE, UNIVERSE_LABELS, universeLabel, type UniverseKey } from "../../../lib/universes";
 import { GUIDE_MANIFESTO, GUIDE_REFLETS } from "../../../lib/guide";
 import { LAYERING, accordAudioPath, duosFor } from "../../../lib/layering";
@@ -220,7 +220,7 @@ const duos = LAYERING.map((d) => ({
                 <h3 class="guide-map-card-name"><a href={r.href}>{r.name}</a></h3>
                 {r.inspiredBy && (
                   <p class="guide-col-inspired">
-                    {t("product.inspiredBy")} {r.inspiredBy}
+                    {withName(t("product.inspiredBy"), r.inspiredBy)}
                   </p>
                 )}
                 {r.twistShort && (
@@ -308,7 +308,7 @@ const duos = LAYERING.map((d) => ({
               <h2 class="guide-col-name"><a href={r.href}>{r.name}</a></h2>
               {r.inspiredBy && (
                 <p class="guide-col-inspired">
-                  {t("product.inspiredBy")} {r.inspiredBy}
+                  {withName(t("product.inspiredBy"), r.inspiredBy)}
                 </p>
               )}
             </div>

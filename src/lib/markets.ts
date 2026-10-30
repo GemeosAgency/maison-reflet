@@ -253,8 +253,17 @@ export function intlLocale(locale: Locale): string {
   return locale === "fr" ? "fr-FR" : locale === "ar" ? "ar-AE" : "en-AE";
 }
 
+const COUNTRY_NAME_OVERRIDES: Record<string, Partial<Record<Locale, string>>> = {
+  HK: { fr: "Hong Kong", en: "Hong Kong", ar: "هونغ كونغ" },
+  DK: { ar: "الدنمارك" },
+};
+
 /** Nom du pays dans la langue du site — « France », « فرنسا », « France ». */
 export function countryName(code: string, locale: Locale): string {
+  // Intl dit « R.A.S. chinoise de Hong Kong » et « الدانمرك » : on garde les
+  // noms que tout le monde emploie.
+  const usual = COUNTRY_NAME_OVERRIDES[code]?.[locale];
+  if (usual) return usual;
   try {
     return new Intl.DisplayNames([intlLocale(locale)], { type: "region" }).of(code) ?? code;
   } catch {

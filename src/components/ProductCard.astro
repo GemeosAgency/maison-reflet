@@ -55,6 +55,7 @@ const {
   addedLabel = "",
   errorLabel = "",
 } = Astro.props;
+import { withName } from "../i18n";
 
 // Prévente ouverte : « PRÉCOMMANDE » en jaune remplace la pastille, et
 // « Prix de lancement » coiffe le prix barré.
@@ -72,7 +73,7 @@ const badge = prevente?.badge ?? badgeProp;
   <div class="product-card-meta">
     <h3>{name}</h3>
     <div class="product-card-row">
-      {inspired ? <p class="product-card-inspired">{inspiredByLabel} {inspired}</p> : <span></span>}
+      {inspired ? <p class="product-card-inspired">{withName(inspiredByLabel, inspired)}</p> : <span></span>}
       <p class="product-card-price">
         {prevente?.launchLabel && <span class="product-card-launch">{prevente.launchLabel}</span>}
         <s class="price-was" data-money-compare={variantId} hidden={!compare}>{compare}</s>

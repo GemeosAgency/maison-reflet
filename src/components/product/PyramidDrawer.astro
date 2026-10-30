@@ -24,6 +24,8 @@ export interface NoteLevel {
 }
 
 interface Props {
+  /** Langue de la page : séparateur « ، » en arabe. */
+  lang?: Locale;
   /** Titre du tiroir, et libellé de la rangée qui l'ouvre. */
   title: string;
   /** Schéma de la pyramide. Le tiroir fonctionne sans. */
@@ -35,7 +37,8 @@ interface Props {
   closeLabel: string;
 }
 
-const { title, img = null, levels, ingredients = [], ingredientsLabel = "", closeLabel } = Astro.props;
+const { title, img = null, levels, ingredients = [], ingredientsLabel = "", closeLabel, lang = "fr" } = Astro.props;
+const sep = lang === "ar" ? "، " : ", ";
 
 const filledLevels = levels.filter((l) => l.notes.length > 0);
 // Dès qu'un temps est raconté, les rangées passent en colonnes : une ligne
@@ -43,6 +46,7 @@ const filledLevels = levels.filter((l) => l.notes.length > 0);
 const raconte = filledLevels.some((l) => l.effect);
 const inciList = ingredients.filter((i): i is string => Boolean(i));
 const hasContent = img !== null || filledLevels.length > 0 || inciList.length > 0;
+import type { Locale } from "../../i18n";
 ---
 
 {
@@ -68,7 +72,7 @@ const hasContent = img !== null || filledLevels.length > 0 || inciList.length > 
                   </dt>
                   <dd>
                     {l.effect && <span class="pyr-effect">{l.effect}</span>}
-                    <span class="pyr-notes">{l.notes.join(", ")}</span>
+                    <span class="pyr-notes">{l.notes.join(sep)}</span>
                   </dd>
                 </div>
               ))}

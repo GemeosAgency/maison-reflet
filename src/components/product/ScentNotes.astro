@@ -53,9 +53,13 @@ interface Props {
   levels?: Level[];
   /** Mode « plusieurs parfums » : une barre d'onglets au-dessus du triptyque. */
   tabs?: Tab[];
+  /** Langue de la page : virgule arabe « ، » et deux-points sans espace hors français. */
+  lang?: Locale;
 }
 
-const { title, levels = [], tabs, openLabel = null } = Astro.props;
+const { title, levels = [], tabs, openLabel = null, lang = "fr" } = Astro.props;
+const comma = lang === "ar" ? "،" : ",";
+const colon = lang === "fr" ? " : " : ": ";
 
 // Un panneau = un triptyque. Une colonne vide (ni note ni photo) est retirée
 // plutôt qu'affichée en cadre sable vide.
@@ -64,6 +68,7 @@ const panels = (tabs ?? [{ id: "unique", label: title, levels }])
   .filter((p) => p.levels.length > 0);
 
 const hasTabs = Boolean(tabs) && panels.length > 1;
+import type { Locale } from "../../i18n";
 ---
 
 {
@@ -124,7 +129,7 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
               {openLabel && (
                 /* Toute la colonne ouvre le tiroir : le libellé n'est là que
                    pour les lecteurs d'écran et le clavier. */
-                <button type="button" class="snotes-open" data-pyramid-open aria-label={`${openLabel} : ${l.label}`}>
+                <button type="button" class="snotes-open" data-pyramid-open aria-label={`${openLabel}${colon}${l.label}`}>
                   <span class="snotes-open-sign" aria-hidden="true">
                     <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" /></svg>
                   </span>
@@ -134,7 +139,7 @@ const hasTabs = Boolean(tabs) && panels.length > 1;
                 {l.notes.map((n, j) => (
                   <span class:list={["snotes-note", { "is-key": j === l.keyIndex }]}>
                     {n}
-                    {j < l.notes.length - 1 ? "," : ""}
+                    {j < l.notes.length - 1 ? comma : ""}
                   </span>
                 ))}
               </p>

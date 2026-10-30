@@ -40,7 +40,7 @@ interface Props {
 
 const {
   title,
-  description = "Maison Reflet — Parfums franco-arabes",
+  description: descriptionProp,
   lang,
   breadcrumbs = [{ label: useTranslations(lang)("nav.home") }],
   ogImage = null,
@@ -48,6 +48,7 @@ const {
   jsonLd = [],
 } = Astro.props;
 const t = useTranslations(lang);
+const description = descriptionProp ?? `Maison Reflet, ${t("meta.homeTitle")}`;
 
 const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
 const prevente = await getPrevente();
@@ -555,7 +556,7 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
     <footer class="site-footer">
       <div class="footer-top">
         <div class="footer-main">
-          <nav class="footer-crumbs" aria-label="Breadcrumb">
+          <nav class="footer-crumbs" aria-label={t("nav.breadcrumb")}>
             {
               breadcrumbs.map((c, i) => (
                 <>
