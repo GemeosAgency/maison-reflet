@@ -530,10 +530,15 @@ const productJsonLd = {
   }
 
   {/* Hors du panneau d'achat, qui est `sticky` — voir PyramidDrawer. */}
+  {/*
+    Tiroir au dessin du Figma (11978:4443) : planche, titre, trois rangées
+    « niveau · notes », ingrédients. Le temps et la phrase d'effet de chaque
+    niveau (lib/guide.ts) n'y figurent plus ; ils restent dans le guide.
+  */}
   <PyramidDrawer
     title={t("product.pyramid")}
     img={pyramidImg}
-    levels={scentLevels.map((l) => ({ label: l.label, notes: l.notes, window: l.window, effect: l.effect }))}
+    levels={scentLevels.map((l) => ({ label: l.label, notes: l.notes }))}
     ingredients={parfum?.ingredients ?? []}
     ingredientsLabel={t("product.ingredientsLabel")}
     closeLabel={t("product.close")}

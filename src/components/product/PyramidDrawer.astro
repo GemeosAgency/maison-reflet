@@ -182,12 +182,14 @@ const hasContent = img !== null || filledLevels.length > 0 || inciList.length > 
    * Ombre portée reprise de la maquette : quatre couches, très douce et
    * décalée vers le bas-droite, qui fait décoller la planche du fond.
    */
+  /* Calée à gauche, comme la maquette (x = 32, la marge du panneau). */
   .pyr-illu {
-    align-self: center;
+    align-self: flex-start;
     width: 100%;
     max-width: 258px;
     height: auto;
     box-shadow:
+      70px 120px 39px rgba(31, 31, 31, 0),
       45px 77px 36px rgba(31, 31, 31, 0.01),
       25px 43px 30px rgba(31, 31, 31, 0.05),
       11px 19px 22px rgba(31, 31, 31, 0.09),
@@ -212,7 +214,8 @@ const hasContent = img !== null || filledLevels.length > 0 || inciList.length > 
   }
   .pyr-row + .pyr-row { padding-top: 12px; border-top: 1px solid rgba(21, 14, 10, 0.12); }
   .pyr-row dt { font-weight: 500; white-space: nowrap; }
-  .pyr-row dd { margin: 0; max-width: 272px; letter-spacing: 0.96px; text-align: end; }
+  /* Notes dans une colonne de 296 px alignée à gauche (Figma 11978:4455). */
+  .pyr-row dd { margin: 0; flex: 0 0 296px; max-width: 296px; letter-spacing: 0.96px; text-align: start; }
 
   /* Version racontée : le temps sous le niveau, la phrase, puis les matières. */
   .is-told .pyr-row { flex-direction: column; gap: 8px; }
@@ -245,7 +248,7 @@ const hasContent = img !== null || filledLevels.length > 0 || inciList.length > 
     .pyr.is-open .pyr-panel { transform: translateX(0); }
     .pyr-body { gap: 24px; }
     .pyr-row { flex-direction: column; gap: 2px; }
-    .pyr-row dd { max-width: none; text-align: start; }
+    .pyr-row dd { flex: none; max-width: none; text-align: start; }
   }
 
   @media (prefers-reduced-motion: reduce) {
