@@ -314,6 +314,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   import { getActiveCurrency, hydratePrices, pageLocale } from "../lib/country";
   import type { CartUpdatedEvent } from "../lib/cart";
   import { trackSite } from "../lib/site-events";
+  import { withAttribution } from "../lib/attribution";
 
   type UpsellItem = {
     handle: string;
@@ -1040,7 +1041,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     if (subtotalEl) {
       subtotalEl.textContent = money(cart?.cost.subtotalAmount.amount ?? 0);
     }
-    if (checkoutLink) checkoutLink.href = cart?.checkoutUrl ?? "#";
+    // L'adresse du checkout porte aussi les paramètres de la pub d'origine (attribution.ts).
+    if (checkoutLink) checkoutLink.href = cart?.checkoutUrl ? withAttribution(cart.checkoutUrl) : "#";
 
     if (cart) reconcileAndRender(cart);
   }

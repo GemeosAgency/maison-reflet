@@ -1,0 +1,73 @@
+{%- comment -%}
+  Passerelle Maison Reflet (kit checkout headless) : snippets/gateway.liquid du thème Shopify, rendu EN PREMIER dans
+  le <head> de layout/theme.liquid :
+    {%- render 'gateway' -%}
+  La boutique vit sur https://www.maisonreflet.com (site headless) : le thème Shopify n'est jamais montré. Toute page de
+  la boutique renvoie au même endroit sur le site, en gardant utm, gclid, fbclid.
+  Le checkout, la page Merci et le statut de commande n'utilisent pas ce layout : le paiement n'est pas touché.
+  - account, apps, challenge, checkout(s), orders restent sur Shopify ; les politiques aussi (le site n'a pas de pages
+    légales : le checkout affiche leurs liens, ils doivent rester lisibles).
+  - Les six Reflets vont sur leur fiche, les coffrets sur leur page ; tout autre produit et les collections vont sur le
+    catalogue.
+  - /cart (l'icône panier du checkout) rouvre la page panier du site.
+  - JAMAIS de mot de passe sur la boutique (il bloque le checkout), et JAMAIS maisonreflet.com ou www connectés à
+    Shopify tant que ce thème est publié (boucle infinie).
+  Source : shopify/gateway.liquid dans le dépôt du site.
+{%- endcomment -%}
+{%- unless request.design_mode -%}
+  {%- liquid
+    assign gw_site = 'https://www.maisonreflet.com'
+    assign gw_products = 'bois-alert,new-oud,melting-mango,ultra-cuir,minuit-bourbon,fifth-season' | split: ','
+    assign gw_coffrets = 'sample-box,all-6-perfums-box' | split: ','
+    assign gw_iso = request.locale.iso_code | downcase | slice: 0, 2
+    assign gw_lang = 'en'
+    if gw_iso == 'fr' or gw_iso == 'ar'
+      assign gw_lang = gw_iso
+    endif
+    assign gw_path = request.path | downcase
+    assign gw_parts = gw_path | split: '/'
+    assign gw_first = gw_parts[1]
+    assign gw_skip = false
+    case gw_first
+      when 'account', 'apps', 'challenge', 'checkout', 'checkouts', 'orders', 'policies'
+        assign gw_skip = true
+    endcase
+    assign gw_to = '/'
+    if template.name == 'product' and gw_products contains product.handle
+      assign gw_to = '/' | append: gw_lang | append: '/parfums/' | append: product.handle
+    elsif template.name == 'product' and gw_coffrets contains product.handle
+      assign gw_to = '/' | append: gw_lang | append: '/coffrets/' | append: product.handle
+    elsif template.name == 'product' or template.name == 'collection' or template.name == 'list-collections'
+      assign gw_to = '/' | append: gw_lang | append: '/parfums'
+    elsif template.name == 'cart' or gw_first == 'cart'
+      assign gw_to = '/' | append: gw_lang | append: '/panier'
+    endif
+    assign gw_url = gw_site | append: gw_to
+  -%}
+  <meta name="robots" content="noindex, nofollow">
+  {%- unless template.name == '404' or gw_skip -%}
+    <link rel="canonical" href="{{ gw_url }}">
+    <meta property="og:url" content="{{ gw_url }}">
+    <meta http-equiv="refresh" content="0;url={{ gw_url }}">
+  {%- endunless -%}
+  <script>
+    (function () {
+      // Même correspondance, lue sur la vraie adresse (sur une 404, le chemin de Shopify n'est pas celui tapé).
+      var site = {{ gw_site | json }};
+      var lang = {{ gw_lang | json }};
+      var products = {{ gw_products | json }};
+      var coffrets = {{ gw_coffrets | json }};
+      var p = location.pathname.toLowerCase();
+      if (/^\/(account|apps|challenge|checkouts?|orders|policies)(\/|$)/.test(p)) return;
+      var product = p.match(/^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?(?:collections\/[^/]+\/)?products\/([a-z0-9-]+)/);
+      var to = product
+        ? products.indexOf(product[1]) > -1 ? '/' + lang + '/parfums/' + product[1]
+          : coffrets.indexOf(product[1]) > -1 ? '/' + lang + '/coffrets/' + product[1]
+          : '/' + lang + '/parfums'
+        : /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?collections(\/|$)/.test(p) ? '/' + lang + '/parfums'
+        : /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?cart(\/|$)/.test(p) ? '/' + lang + '/panier'
+        : '/';
+      location.replace(site + to + location.search);
+    })();
+  </script>
+{%- endunless -%}

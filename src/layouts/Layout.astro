@@ -829,6 +829,8 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
     </style>
 
     <script>
+      // En premier : lit les paramètres de pub (et ?internal=) avant tout pixel.
+      import "../lib/attribution";
       import { loadCart, initAddToCartButtons, visibleQuantity, type CartUpdatedEvent } from "../lib/cart";
       import { trackPageView } from "../lib/site-events";
       import { initKlaviyo, identify } from "../lib/klaviyo";

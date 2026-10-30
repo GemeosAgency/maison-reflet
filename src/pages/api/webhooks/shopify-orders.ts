@@ -230,19 +230,52 @@ function isValidShopifyHmac(rawBody: string, hmacHeader: string, secret: string)
  * est saisi librement au checkout — un numéro local ("050 123 4567") haché
  * sans indicatif ne matcherait jamais rien, mieux vaut omettre le champ.
  */
-function normalizePhone(phone: unknown): string | null {
-  if (typeof phone !== "string" || !phone.trim().startsWith("+")) return null;
-  const digits = phone.replace(/\D/g, "").replace(/^0+/, "");
-  return digits.length >= 8 ? digits : null;
+function normalizePhone(phone: unknown, country: string): string | null {
+  if (typeof phone !== "string") return null;
+  const raw = phone.trim();
+  let digits = raw.replace(/\D/g, "");
+  if (raw.startsWith("+")) {
+    // déjà international
+  } else if (digits.startsWith("00")) {
+    digits = digits.slice(2);
+  } else if (country === "AE" && digits.startsWith("0")) {
+    // Numéro émirien saisi en local (« 050 123 4567 ») : indicatif 971, comme le kit checkout.
+    digits = `971${digits.slice(1)}`;
+  } else if (country === "AE" && digits.length === 9 && digits.startsWith("5")) {
+    digits = `971${digits}`;
+  } else {
+    return null;
+  }
+  return digits.length >= 8 && digits.length <= 15 ? digits : null;
 }
 
 // Format des cookies Meta (même garde-fou que le relais /api/meta-events) :
 // les attributs de panier sont modifiables par n'importe quel client via la
 // Storefront API publique, on ne relaie pas de valeurs arbitraires vers Meta.
 const FB_COOKIE_RE = /^fb\.\d\.\d+\..+$/;
+// external_id du Pixel du site (crypto.randomUUID, voir lib/meta.ts).
+const EXTERNAL_ID_RE = /^[a-f0-9-]{32,64}$/i;
+const CHECKOUT_TOKEN_RE = /^[A-Za-z0-9_-]{8,64}$/;
+// Commande d'exemple du bouton « Envoyer une notification test » de Shopify.
+const SAMPLE_ORDER_IDS = new Set(["820982911946154508"]);
+const SAMPLE_EMAILS = new Set(["jon@example.com", "jon@doe.ca"]);
+// Au-delà, un rejeu manuel compterait la vente deux fois chez Meta (déduplication sur 48 h).
+const MAX_RELAY_AGE_MS = 47 * 60 * 60 * 1000;
+// Shopify attend la réponse 5 s au plus.
+const RELAY_TIMEOUT_MS = 4000;
 
 // Sous-ensemble du payload orders/paid réellement utilisé (l'objet complet
 // est bien plus large) — champs tous optionnels par prudence.
+type ShopifyAddress = {
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  province_code?: string | null;
+  zip?: string | null;
+  country_code?: string | null;
+};
+
 type ShopifyOrderWebhook = {
   id?: number;
   name?: string;
@@ -285,8 +318,11 @@ type ShopifyOrderWebhook = {
     last_name?: string | null;
     phone?: string | null;
   } | null;
-  billing_address?: { phone?: string | null; country_code?: string | null } | null;
-  shipping_address?: { country_code?: string | null } | null;
+  /** Clé partagée avec le pixel du checkout pour l'event_id du Purchase. */
+  checkout_token?: string | null;
+  browser_ip?: string | null;
+  billing_address?: ShopifyAddress | null;
+  shipping_address?: ShopifyAddress | null;
   client_details?: { browser_ip?: string | null; user_agent?: string | null } | null;
   note_attributes?: { name?: string; value?: string }[];
 };
@@ -522,42 +558,73 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: true, skipped: "commande de test" }, 200);
   }
 
+  // Attributs du panier (cart.ts), revenus dans note_attributes — tous
+  // modifiables par n'importe quel client via la Storefront API publique :
+  // chaque valeur est validée avant d'être relayée.
+  const attrs: Record<string, string> = {};
+  for (const attr of order.note_attributes ?? []) {
+    if (typeof attr.name === "string" && typeof attr.value === "string") attrs[attr.name] = attr.value;
+  }
+
+  // Jamais remontés à Meta ni à Google (kit checkout headless) : appareils de
+  // l'équipe, commande d'exemple du bouton « Envoyer une notification test »,
+  // paiement de plus de 47 h (un rejeu manuel tardif serait compté deux fois).
+  const emailRaw = (order.email ?? order.contact_email ?? "").trim().toLowerCase();
+  const paidAtMs = Date.parse(order.processed_at ?? order.created_at ?? "") || Date.now();
+  const skip =
+    attrs._internal === "1"
+      ? "appareil de l'équipe"
+      : SAMPLE_ORDER_IDS.has(String(order.id)) || SAMPLE_EMAILS.has(emailRaw)
+        ? "commande d'exemple Shopify"
+        : Date.now() - paidAtMs > MAX_RELAY_AGE_MS
+          ? "payée il y a plus de 47 h"
+          : "";
+  if (skip) {
+    console.log("[webhooks/shopify-orders] Purchase non relayé :", skip, order.id);
+    return json({ ok: true, skipped: skip }, 200);
+  }
+
   // ---------- user_data ----------
   const userData: Record<string, unknown> = {};
+  const address = order.billing_address ?? order.shipping_address ?? null;
+  const country = (address?.country_code ?? order.shipping_address?.country_code ?? "AE").toUpperCase();
 
-  const email = (order.email ?? order.contact_email ?? "").trim().toLowerCase();
-  if (email) userData.em = [sha256(email)];
+  if (emailRaw) userData.em = [sha256(emailRaw)];
 
-  const phone = normalizePhone(order.customer?.phone ?? order.billing_address?.phone);
+  const phone = normalizePhone(order.customer?.phone ?? address?.phone ?? order.shipping_address?.phone, country);
   if (phone) userData.ph = [sha256(phone)];
 
-  const firstName = order.customer?.first_name?.trim().toLowerCase();
+  const firstName = (order.customer?.first_name ?? address?.first_name)?.trim().toLowerCase();
   if (firstName) userData.fn = [sha256(firstName)];
-  const lastName = order.customer?.last_name?.trim().toLowerCase();
+  const lastName = (order.customer?.last_name ?? address?.last_name)?.trim().toLowerCase();
   if (lastName) userData.ln = [sha256(lastName)];
+  // Normalisation Meta avant hachage : ville en lettres seules, émirat/code postal compactés.
+  const city = address?.city?.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z]/g, "");
+  if (city) userData.ct = [sha256(city)];
+  const province = address?.province_code?.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (province) userData.st = [sha256(province)];
+  const zip = address?.zip?.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (zip) userData.zp = [sha256(zip)];
+  if (/^[A-Z]{2}$/.test(country)) userData.country = [sha256(country.toLowerCase())];
 
   // IP + user-agent du NAVIGATEUR DE L'ACHETEUR au checkout (fournis par
   // Shopify dans la commande) — pas ceux de la requête webhook (Shopify).
-  if (order.client_details?.browser_ip) {
-    userData.client_ip_address = order.client_details.browser_ip;
-  }
+  const browserIp = order.browser_ip ?? order.client_details?.browser_ip;
+  if (browserIp) userData.client_ip_address = browserIp;
   if (order.client_details?.user_agent) {
     userData.client_user_agent = order.client_details.user_agent;
   }
 
-  // _fbp/_fbc/_ga posés en attributs de panier par cart.ts, revenus avec la
-  // commande — format validé avant relais (attributs falsifiables côté client).
-  let ga4ClientId: string | null = null;
-  for (const attr of order.note_attributes ?? []) {
-    const value = attr.value ?? "";
-    if (attr.name === "_ga" && GA4_CLIENT_ID_RE.test(value)) {
-      ga4ClientId = value;
-      continue;
-    }
-    if (!FB_COOKIE_RE.test(value)) continue;
-    if (attr.name === "_fbp" && value.length <= 128) userData.fbp = value;
-    if (attr.name === "_fbc" && value.length <= 512) userData.fbc = value;
-  }
+  // _fbp/_fbc, posés par cart.ts : même garde-fou de format que le relais /api/meta-events.
+  if (FB_COOKIE_RE.test(attrs._fbp ?? "") && attrs._fbp.length <= 128) userData.fbp = attrs._fbp;
+  if (FB_COOKIE_RE.test(attrs._fbc ?? "") && attrs._fbc.length <= 512) userData.fbc = attrs._fbc;
+  // Le même external_id que le Pixel du site (haché comme le fait le relais
+  // /api/meta-events), plus le compte client Shopify quand il existe.
+  const externalIds = [
+    EXTERNAL_ID_RE.test(attrs._xid ?? "") ? sha256(attrs._xid) : null,
+    order.customer?.id ? sha256(`shopify-customer-${order.customer.id}`) : null,
+  ].filter((v): v is string => Boolean(v));
+  if (externalIds.length) userData.external_id = externalIds;
 
   // ---------- custom_data ----------
   const contents = (order.line_items ?? [])
@@ -569,10 +636,10 @@ export const POST: APIRoute = async ({ request }) => {
     }));
 
   const value = Number(order.total_price ?? 0);
+  const currency = order.currency ?? "AED";
 
   // Horodatage réel du paiement, borné à la fenêtre CAPI (7 jours) — un rejeu
   // très tardif du webhook garde ainsi un event_time acceptable.
-  const paidAtMs = Date.parse(order.processed_at ?? order.created_at ?? "") || Date.now();
   const eventTimeMs = Math.min(Math.max(paidAtMs, Date.now() - MAX_EVENT_AGE_MS), Date.now());
 
   // action_source "website" exige client_user_agent et event_source_url côté
@@ -584,24 +651,37 @@ export const POST: APIRoute = async ({ request }) => {
   const isWebsiteOrder = Boolean(order.client_details?.user_agent);
   const siteOrigin = import.meta.env.PUBLIC_SITE_URL || "https://maisonreflet.com";
 
-  // Un 5xx sur l'un OU l'autre déclenche un rejeu Shopify du webhook entier —
-  // sans risque, les deux sont idempotents (event_id pour Meta, transaction_id
-  // pour GA4), un rejeu ne compte jamais la vente en double.
-  let hardFailure = false;
+  /*
+   * event_id partagé avec le pixel personnalisé du checkout (shopify/
+   * pixel-purchase.js) : « mr-checkout-<checkout token> ». Le token du
+   * checkout est la seule clé identique des deux côtés (l'id de commande ne
+   * l'est pas côté navigateur) — Meta garde un seul des deux Purchase.
+   */
+  const eventId = CHECKOUT_TOKEN_RE.test(order.checkout_token ?? "")
+    ? `mr-checkout-${order.checkout_token}`
+    : `purchase:${order.id}`;
 
-  if (metaConfigured) {
+  /*
+   * Meta et GA4 partent en parallèle, chacun borné à 4 s : Shopify n'attend
+   * la réponse que 5 s, et considère tout dépassement comme un échec (19 de
+   * suite et le webhook est supprimé). Un 5xx sur l'un OU l'autre déclenche un
+   * rejeu du webhook entier — sans risque, les deux sont idempotents (event_id
+   * pour Meta, transaction_id pour GA4).
+   */
+  const sendMeta = async (): Promise<boolean> => {
+    if (!metaConfigured) return false;
     const payload = {
       data: [
         {
           event_name: "Purchase",
           event_time: Math.floor(eventTimeMs / 1000),
-          event_id: `purchase:${order.id}`,
+          event_id: eventId,
           action_source: isWebsiteOrder ? "website" : "other",
           ...(isWebsiteOrder && { event_source_url: siteOrigin }),
           user_data: userData,
           custom_data: {
             value,
-            currency: order.currency ?? "AED",
+            currency,
             content_type: "product",
             content_ids: contents.map((c) => c.id),
             contents,
@@ -613,80 +693,74 @@ export const POST: APIRoute = async ({ request }) => {
       access_token: ACCESS_TOKEN,
       ...(TEST_EVENT_CODE && { test_event_code: TEST_EVENT_CODE }),
     };
-
     try {
       const res = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${PIXEL_ID}/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(RELAY_TIMEOUT_MS),
       });
-
-      if (!res.ok) {
-        const detail = await res.text().catch(() => "");
-        console.error(
-          "[webhooks/shopify-orders] Meta a refusé le Purchase :",
-          res.status,
-          detail.slice(0, 500)
-        );
-        // 4xx Meta = configuration (token invalide, payload refusé) : rejouer
-        // ne changera rien. 5xx = incident passager, on redemande un rejeu.
-        if (res.status >= 500) hardFailure = true;
-      }
+      if (res.ok) return false;
+      const detail = await res.text().catch(() => "");
+      console.error("[webhooks/shopify-orders] Meta a refusé le Purchase :", res.status, detail.slice(0, 500));
+      // 4xx Meta = configuration (token invalide, payload refusé) : rejouer
+      // ne changera rien. 429/5xx = incident passager, on redemande un rejeu.
+      return res.status === 429 || res.status >= 500;
     } catch (error) {
       console.error("[webhooks/shopify-orders] Meta injoignable :", error);
-      hardFailure = true;
+      return true;
     }
-  }
+  };
 
-  // GA4 exige un client_id — sans lui (Pixel jamais chargé ET jamais bloqué
-  // détecté, cas rare : panier créé avant l'activation de GA4_MEASUREMENT_ID)
-  // impossible de rattacher la vente à une session, on n'envoie rien plutôt
-  // que d'inventer un id qui créerait un profil GA4 fantôme.
-  if (ga4Configured && ga4ClientId) {
+  const sendGa4 = async (): Promise<boolean> => {
+    if (!ga4Configured) return false;
+    // Les ids GA4 de la visite ; sans eux (gtag bloqué, panier ancien), un
+    // client_id propre à la commande, pour que la vente compte quand même —
+    // sans session, elle ne sera simplement pas rattachée à une source.
+    const clientId = GA4_CLIENT_ID_RE.test(attrs._ga ?? "") ? attrs._ga : `${order.id}.${Math.floor(paidAtMs / 1000)}`;
+    const sessionId = /^\d{6,12}$/.test(attrs._ga_sid ?? "") ? Number(attrs._ga_sid) : undefined;
     const ga4Payload = {
-      client_id: ga4ClientId,
+      client_id: clientId,
+      // Le moment du paiement (Google accepte 72 h en arrière) : un rejeu garde la même heure.
+      timestamp_micros: Math.min(paidAtMs, Date.now()) * 1000,
       events: [
         {
           name: "purchase",
           params: {
             transaction_id: String(order.id),
             value,
-            currency: order.currency ?? "AED",
+            currency,
             items: contents.map((c) => ({ item_id: c.id, quantity: c.quantity, price: c.item_price })),
+            ...(sessionId && { session_id: sessionId, engagement_time_msec: 1 }),
           },
         },
       ],
     };
-
     try {
-      const res = await fetch(
-        `${GA4_COLLECT_URL}?measurement_id=${GA4_MEASUREMENT_ID}&api_secret=${GA4_API_SECRET}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(ga4Payload),
-        }
-      );
-
+      const res = await fetch(`${GA4_COLLECT_URL}?measurement_id=${GA4_MEASUREMENT_ID}&api_secret=${GA4_API_SECRET}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ga4Payload),
+        signal: AbortSignal.timeout(RELAY_TIMEOUT_MS),
+      });
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
-        console.error(
-          "[webhooks/shopify-orders] GA4 a refusé le Purchase :",
-          res.status,
-          detail.slice(0, 500)
-        );
-        if (res.status >= 500) hardFailure = true;
-      } else if (GA4_DEBUG_MODE) {
+        console.error("[webhooks/shopify-orders] GA4 a refusé le Purchase :", res.status, detail.slice(0, 500));
+        return res.status === 429 || res.status >= 500;
+      }
+      if (GA4_DEBUG_MODE) {
         const detail = await res.text().catch(() => "");
         console.warn("[webhooks/shopify-orders] Validation GA4 :", detail.slice(0, 1000));
       }
+      return false;
     } catch (error) {
       console.error("[webhooks/shopify-orders] GA4 injoignable :", error);
-      hardFailure = true;
+      return true;
     }
-  }
+  };
 
-  if (hardFailure) {
+  const [metaRetry, ga4Retry] = await Promise.all([sendMeta(), sendGa4()]);
+  if (metaRetry || ga4Retry) {
     return json({ ok: false, error: "Tracker indisponible, rejeu demandé." }, 502);
   }
   return json({ ok: true }, 200);

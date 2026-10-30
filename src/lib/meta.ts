@@ -27,6 +27,7 @@
  */
 
 import { getIdentifiedEmail } from "./klaviyo";
+import { isInternalDevice } from "./attribution";
 
 const PIXEL_ID = import.meta.env.PUBLIC_META_PIXEL_ID as string | undefined;
 
@@ -139,9 +140,12 @@ function getOrCreateExternalId(): string | null {
  * Identifiants navigateur pour les attributs de panier Shopify (cart.ts).
  * Null si le tracking Meta est désactivé — aucun id n'est alors généré.
  */
-export function getMetaBrowserIds(): { fbp: string | null; fbc: string | null } {
-  if (!PIXEL_ID) return { fbp: null, fbc: null };
-  return { fbp: getOrCreateFbp(), fbc: getOrDeriveFbc() };
+export function getMetaBrowserIds(): { fbp: string | null; fbc: string | null; externalId: string | null } {
+  if (!PIXEL_ID) return { fbp: null, fbc: null, externalId: null };
+  // externalId : le même que celui du Pixel du site (fbq init) — le pixel du
+  // checkout et le webhook le relisent sur la commande (`_xid`), Meta relie
+  // ainsi la visite à l'achat.
+  return { fbp: getOrCreateFbp(), fbc: getOrDeriveFbc(), externalId: getOrCreateExternalId() };
 }
 
 // ---------- Pixel (chemin navigateur) ----------
@@ -208,7 +212,8 @@ function makeEventId(event: string): string {
 
 /** Envoie un événement par les deux chemins (best effort, jamais bloquant). */
 export function trackMeta(eventName: string, customData: Record<string, unknown> = {}) {
-  if (!PIXEL_ID) return;
+  // Appareil de l'équipe (?internal=1) : ni Pixel ni relais serveur.
+  if (!PIXEL_ID || isInternalDevice()) return;
   const eventId = makeEventId(eventName);
   try {
     window.fbq?.("track", eventName, customData, { eventID: eventId });
@@ -224,7 +229,7 @@ export function trackMeta(eventName: string, customData: Record<string, unknown>
  * (double flux, comme tout le reste).
  */
 export function initMetaPixel() {
-  if (!PIXEL_ID) return;
+  if (!PIXEL_ID || isInternalDevice()) return;
   try {
     injectPixelStub();
     const externalId = getOrCreateExternalId();

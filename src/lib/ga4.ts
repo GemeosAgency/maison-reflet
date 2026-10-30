@@ -28,6 +28,8 @@
  * Tout est inerte tant que PUBLIC_GA4_MEASUREMENT_ID n'est pas défini.
  */
 
+import { isInternalDevice } from "./attribution";
+
 const MEASUREMENT_ID = import.meta.env.PUBLIC_GA4_MEASUREMENT_ID as string | undefined;
 
 const GA_COOKIE = "_ga";
@@ -171,7 +173,8 @@ function sendToRelay(eventName: string, params: Record<string, unknown>) {
  * l'aiguillage en tête de fichier). Best effort, jamais bloquant.
  */
 export function trackGa4(eventName: string, params: Record<string, unknown> = {}) {
-  if (!MEASUREMENT_ID) return;
+  // Appareil de l'équipe (?internal=1) : rien ne part.
+  if (!MEASUREMENT_ID || isInternalDevice()) return;
 
   if (gtagBlocked === true) {
     sendToRelay(eventName, params);
@@ -200,7 +203,7 @@ export function trackGa4(eventName: string, params: Record<string, unknown> = {}
  * sans jamais passer par le relais en cas de blocage tardif).
  */
 export function initGa4() {
-  if (!MEASUREMENT_ID) return;
+  if (!MEASUREMENT_ID || isInternalDevice()) return;
   try {
     injectGtagStub();
     window.gtag?.("js", new Date());
