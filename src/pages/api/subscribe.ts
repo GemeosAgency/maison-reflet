@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { locales, type Locale } from "../../i18n";
+import { getAllProducts } from "../../lib/shopify";
 
 // Rendu à la demande (fonction serverless Vercel), pas prégénéré.
 export const prerender = false;
@@ -203,11 +204,29 @@ async function recordNotifyRequest(email: string, handle: string, path: string |
     console.error("[subscribe] KLAVIYO_PRIVATE_API_KEY absente — demande de lancement non enregistrée.");
     return;
   }
+  // Nom et photo du produit demandé : les e-mails de la relance et du lancement
+  // les affichent sans avoir à les retrouver dans Klaviyo. Best effort.
+  let productName: string | null = null;
+  let imageUrl: string | null = null;
+  try {
+    const produit = (await getAllProducts()).find((p) => p.handle === handle);
+    productName = produit?.title ?? null;
+    const image = produit?.featuredImage?.url;
+    imageUrl = image ? `${image}${image.includes("?") ? "&" : "?"}width=900` : null;
+  } catch {
+    // le catalogue injoignable ne doit pas bloquer l'inscription
+  }
   const payload = {
     data: {
       type: "event",
       attributes: {
-        properties: { handle, product_url: path ? `${origin}${path}` : null, site_locale: locale },
+        properties: {
+          handle,
+          product_name: productName,
+          image_url: imageUrl,
+          product_url: path ? `${origin}${path}` : null,
+          site_locale: locale,
+        },
         unique_id: `notify-${handle}-${email}`,
         metric: { data: { type: "metric", attributes: { name: "Notify Me Requested" } } },
         profile: {
