@@ -34,6 +34,7 @@ import { type Locale, locales, localeNames, localePath, useTranslations } from "
 import { portraitAudioPath } from "../lib/luma/portraits";
 import { universeLabel } from "../lib/universes";
 import { getProductImageOverride } from "../lib/product-images";
+import { COFFRET_HANDLE } from "../lib/coffret";
 
 interface Props {
   lang: Locale;
@@ -123,6 +124,9 @@ const coffrets = products
       : content?.image
         ? responsiveImage(content.image as any, { widths: BOX_WIDTHS, aspect: 4 / 3 })
         : null;
+    const isDiscovery = sp.handle === COFFRET_HANDLE;
+    // « 6 × 2 ml », tiré de la contenance Sanity (« 6 × 2 ml : un échantillon… »).
+    const size = content?.contenance?.match(/^\d+\s*×\s*\d+\s*(ml|مل)/)?.[0] ?? null;
     return {
       handle: sp.handle,
       title: content?.titre ?? sp.title,
@@ -131,6 +135,10 @@ const coffrets = products
       compare: getCompareAtLabel(sp, intlLocale(lang)),
       variantId: variant.id,
       img,
+      kicker: t(isDiscovery ? "menu.setDiscovery" : "menu.setAll"),
+      meta: [size, isDiscovery ? t("coffret.creditShort") : null].filter(Boolean).join(" · "),
+      // Photo du coffret 6 parfums en portrait : on garde les flacons, pas le sol.
+      focus: isDiscovery ? "center" : "center 30%",
     };
   });
 
@@ -234,19 +242,32 @@ const maisonHref = localePath(lang, "/maison");
         {
           coffrets.map((c) => (
             <a class="mega-box" href={c.href}>
-              {c.img && (
-                <img
-                  class="mega-box-img"
-                  src={c.img.src}
-                  srcset={c.img.srcset}
-                  sizes="240px"
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                />
-              )}
-              <span class="mega-box-title">{c.title}</span>
-              <span class="mega-box-price"><s data-money-compare={c.variantId} hidden={!c.compare}>{c.compare}</s><span data-money={c.variantId}>{c.price}</span></span>
+              <span class="mega-box-media">
+                {c.img && (
+                  <img
+                    class="mega-box-img"
+                    src={c.img.src}
+                    srcset={c.img.srcset}
+                    sizes="(min-width: 1600px) 480px, 360px"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    style={`object-position: ${c.focus}`}
+                  />
+                )}
+              </span>
+              {/* Même légende que le Reflet du milieu : chapeau rose, nom et prix, puis l'argument et « Découvrir ». */}
+              <span class="mega-box-caption">
+                <span class="mega-fig-universe">{c.kicker}</span>
+                <span class="mega-box-row">
+                  <span class="mega-box-title">{c.title}</span>
+                  <span class="mega-box-price"><s data-money-compare={c.variantId} hidden={!c.compare}>{c.compare}</s><span data-money={c.variantId}>{c.price}</span></span>
+                </span>
+                <span class="mega-box-row">
+                  {c.meta && <span class="mega-box-meta">{c.meta}</span>}
+                  <span class="mega-fig-cta">{t("menu.discover")}</span>
+                </span>
+              </span>
             </a>
           ))
         }
@@ -1045,17 +1066,25 @@ const maisonHref = localePath(lang, "/maison");
 
   /* Coffrets : deux cartes qui partagent la hauteur de la colonne, l'image remplit, le texte reste au bas. */
   .mega-boxes { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 24px; }
-  .mega-box { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+  .mega-box { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; color: inherit; text-decoration: none; }
+  .mega-box-media { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: var(--sand); }
   .mega-box-img {
-    flex: 1 1 auto;
-    min-height: 0;
+    position: absolute;
+    inset: 0;
     width: 100%;
+    height: 100%;
     object-fit: cover;
-    transition: opacity 0.3s ease;
+    transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
   }
-  .mega-box:hover .mega-box-img { opacity: 0.86; }
-  .mega-box-title { font-size: 16px; }
-  .mega-box-price { font-size: 13px; opacity: 0.6; }
+  .mega-box:hover .mega-box-img { transform: scale(1.04); }
+  .mega-box-caption { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+  .mega-box-row { display: flex; align-items: baseline; gap: 12px; }
+  .mega-box-title { font-size: 18px; font-weight: 500; }
+  .mega-box-price { margin-inline-start: auto; font-size: 14px; white-space: nowrap; }
+  .mega-box-price s { margin-inline-end: 6px; opacity: 0.5; }
+  .mega-box-meta { font-size: 13px; opacity: 0.6; }
+  .mega-box .mega-fig-cta { font-size: 14px; }
+  .mega-box:hover .mega-fig-cta { text-decoration-color: currentColor; }
 
   /* Visuel : les six figures empilées dans la même cellule ; la photo prend la hauteur restante. */
   .mega-visual-stack { flex: 1 1 auto; min-height: 0; display: grid; }

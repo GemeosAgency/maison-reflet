@@ -20,9 +20,11 @@ interface Props {
   name: string;
   /** Prix de précommande déjà formaté, pour la confirmation. */
   priceLabel: string;
+  /** Un coffret n'a pas de nom propre qui s'accorde (« Les 6 Reflets est… ») : textes à part. */
+  kind?: "parfum" | "coffret";
 }
 
-const { lang, handle, name, priceLabel } = Astro.props;
+const { lang, handle, name, priceLabel, kind = "parfum" } = Astro.props;
 const t = useTranslations(lang);
 const fill = (s: string) => s.replace("{name}", name).replace("{price}", priceLabel);
 ---
@@ -39,7 +41,7 @@ const fill = (s: string) => s.replace("{name}", name).replace("{price}", priceLa
     <div class="notify-head">
       <div class="notify-text">
         <p class="notify-title">{t("notify.title")}</p>
-        <p class="notify-body">{fill(t("notify.body"))}</p>
+        <p class="notify-body">{fill(t(kind === "coffret" ? "notify.bodySet" : "notify.body"))}</p>
       </div>
       <button type="button" class="notify-close" data-notify-close aria-label={t("product.close")}>
         <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" /></svg>
@@ -69,7 +71,7 @@ const fill = (s: string) => s.replace("{name}", name).replace("{price}", priceLa
     </svg>
     <div class="notify-text">
       <p class="notify-title">{t("notify.doneTitle")}</p>
-      <p class="notify-body">{fill(t("notify.doneBody"))}</p>
+      <p class="notify-body">{fill(t(kind === "coffret" ? "notify.doneBodySet" : "notify.doneBody"))}</p>
     </div>
   </div>
 </div>

@@ -22,6 +22,7 @@ import LumaAsk from "../../../components/LumaAsk.astro";
 import PerfumeGrid from "../../../components/PerfumeGrid.astro";
 import ProductGallery from "../../../components/product/ProductGallery.astro";
 import ProductInfoPanel from "../../../components/product/ProductInfoPanel.astro";
+import NotifyLaunch from "../../../components/product/NotifyLaunch.astro";
 import { COFFRET_HANDLE } from "../../../lib/coffret";
 import ScentNotes from "../../../components/product/ScentNotes.astro";
 import PerfumerWord from "../../../components/product/PerfumerWord.astro";
@@ -274,6 +275,7 @@ const productJsonLd = {
         tipLabel={t("product.tipOpen")}
         prevente={preventeBloc}
       >
+        {prevente.active && <NotifyLaunch slot="notify" lang={lang} handle={product.handle} name={title} priceLabel={priceLabel} kind="coffret" />}
         <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={title} kind="coffret" />
       </ProductInfoPanel>
     </aside>

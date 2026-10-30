@@ -349,6 +349,7 @@ export async function getCoffrets(locale: Locale): Promise<CoffretContent[]> {
     shopifyHandle,
     "titre": coalesce(titre.${l}, titre.fr),
     "description": coalesce(description.${l}, description.fr),
+    "contenance": coalesce(contenance.${l}, contenance.fr),
     image
   }`;
   return sanityClient.fetch(query);
