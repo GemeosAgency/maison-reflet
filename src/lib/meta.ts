@@ -233,6 +233,9 @@ export function initMetaPixel() {
   try {
     injectPixelStub();
     const externalId = getOrCreateExternalId();
+    // Pas d'événements devinés par Meta (SubscribedButtonClick sur le bouton « Subscribe », Microdata) :
+    // seuls ceux que le site envoie, en double flux, comptent.
+    window.fbq?.("set", "autoConfig", false, PIXEL_ID);
     window.fbq?.("init", PIXEL_ID, externalId ? { external_id: externalId } : undefined);
     trackMeta("PageView");
   } catch {
