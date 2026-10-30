@@ -306,7 +306,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     increase: t("cart.increase"),
     empty: t("cart.empty"),
     error: t("cart.error"),
-    inspiredBy: t("product.inspiredBy"),
+    // « Twist spécifique de », jamais « Inspiré de » (Sandro, 30 oct.).
+    inspiredBy: t("product.twistOf"),
     accordWith: t("cart.accordWith"),
     accordListen: t("layering.recommendation"),
     seek: t("luma.seek"),
@@ -363,7 +364,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   );
   const accords: Accord[] = JSON.parse(document.getElementById("cart-accords")?.textContent ?? "[]");
   const I18N = JSON.parse(document.getElementById("cart-drawer-i18n")?.textContent ?? "{}");
-  // « INSPIRÉ DE » + nom, avec l'élision française devant une voyelle (même
+  // « Twist spécifique de » + nom, avec l'élision française devant une voyelle (même
   // règle que withName() de i18n.ts, recopiée pour ne pas embarquer tout le
   // dictionnaire dans le script du panier).
   const inspired = (name: string): string =>
