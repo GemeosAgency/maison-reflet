@@ -474,8 +474,7 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
           aria-label={t("region.open")}
         >
           <img
-            src={`/flags/${initialCountry.code.toLowerCase()}.png`}
-            srcset={`/flags/${initialCountry.code.toLowerCase()}.png 1x, /flags/${initialCountry.code.toLowerCase()}@2x.png 2x`}
+            src={`/flags/${initialCountry.code.toLowerCase()}.svg`}
             alt=""
             width="20"
             height="20"
@@ -704,7 +703,7 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         text-transform: uppercase;
         cursor: pointer;
       }
-      .currency .flag { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+      .currency .flag { width: 20px; height: 20px; border-radius: 50%; }
       .currency .chev { transform: rotate(180deg); }
       .icons { display: flex; gap: 16px; align-items: center; }
       .bag { position: relative; display: inline-flex; }

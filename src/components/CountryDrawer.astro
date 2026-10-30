@@ -149,8 +149,7 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
                 >
                   <img
                     class="cdr-flag"
-                    src={`/flags/${c.code.toLowerCase()}.png`}
-                    srcset={`/flags/${c.code.toLowerCase()}.png 1x, /flags/${c.code.toLowerCase()}@2x.png 2x`}
+                    src={`/flags/${c.code.toLowerCase()}.svg`}
                     alt=""
                     width="20"
                     height="20"
@@ -232,8 +231,7 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
       el.textContent = countryPill(country, pageLocale(), getActiveCurrency());
     }
     for (const el of document.querySelectorAll<HTMLImageElement>("[data-region-flag]")) {
-      el.src = `/flags/${code}.png`;
-      el.srcset = `/flags/${code}.png 1x, /flags/${code}@2x.png 2x`;
+      el.src = `/flags/${code}.svg`;
     }
     for (const row of document.querySelectorAll<HTMLElement>("[data-region-country]")) {
       row.setAttribute(
@@ -495,7 +493,10 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
   .cdr-row:hover { background: var(--paper); }
   .cdr-row[aria-pressed="true"] { background: var(--sand); font-weight: 500; }
   .cdr-row.is-pending { opacity: 0.5; pointer-events: none; }
-  .cdr-flag { flex: none; width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+  /* Drapeaux dessinés pour le rond (circle-flags, MIT) : recadrer un drapeau
+     rectangulaire au centre coupait la bande rouge des Émirats, le motif de
+     Bahreïn ou du Qatar. */
+  .cdr-flag { flex: none; width: 20px; height: 20px; border-radius: 50%; }
   .cdr-row-name { flex: 1; min-width: 0; }
   .cdr-row-cur { flex: none; font-size: 13px; opacity: 0.55; font-variant-numeric: tabular-nums; }
 
