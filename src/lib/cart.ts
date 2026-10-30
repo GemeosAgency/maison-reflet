@@ -30,6 +30,7 @@ import {
 } from "./meta";
 import { getGa4ClientId, ga4AddToCart, ga4BeginCheckout } from "./ga4";
 import { clientPrevente } from "./prevente";
+import { attributionAttributes, isInternalDevice } from "./attribution";
 
 const CART_ID_KEY = "maison-reflet:cartId";
 
@@ -96,12 +97,21 @@ function currentLangPrefix(): string {
 
 /** Attributs de tracking (_fbp/_fbc Meta, _ga GA4) à attacher au panier — vide pour tout tracker désactivé. */
 function trackingCartAttributes(): CartAttributeInput[] {
-  const { fbp, fbc } = getMetaBrowserIds();
+  const { fbp, fbc, externalId } = getMetaBrowserIds();
   const ga4ClientId = getGa4ClientId();
   const attributes: CartAttributeInput[] = [];
   if (fbp) attributes.push({ key: "_fbp", value: fbp });
   if (fbc) attributes.push({ key: "_fbc", value: fbc });
+  if (externalId) attributes.push({ key: "_xid", value: externalId });
   if (ga4ClientId) attributes.push({ key: "_ga", value: ga4ClientId });
+  // Session GA4 (cookie _ga_<ID> : GS1.1.<session>… ou GS2.1.s<session>$…) : le
+  // purchase du webhook retombe ainsi dans la bonne session, pas une nouvelle.
+  const gaSession = document.cookie.match(/(?:^|; )_ga_[A-Z0-9]+=GS\d\.\d\.s?(\d{6,12})/)?.[1];
+  if (gaSession) attributes.push({ key: "_ga_sid", value: gaSession });
+  // Appareil de l'équipe (?internal=1) : la commande n'est remontée ni à Meta ni à Google.
+  if (isInternalDevice()) attributes.push({ key: "_internal", value: "1" });
+  // Pub d'origine gardée 30 jours (attribution.ts) : utm_*, gclid, fbclid, page d'arrivée.
+  attributes.push(...attributionAttributes());
   // Tour de contrôle : l'identifiant anonyme du parcours revient dans la commande (note_attributes) — c'est ce qui relie une vente à ses pages, ses écoutes et son panier.
   attributes.push({ key: "mr_anon", value: anonId() });
   // L'environnement d'où part le panier : une commande née sur staging ou en local est marquée « test » et n'entre pas dans le chiffre.

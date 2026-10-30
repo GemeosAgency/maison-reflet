@@ -30,7 +30,7 @@ const indexable = process.env.PUBLIC_ALLOW_INDEXING === 'true';
  * neutre ; le pistage peut échouer, jamais l'achat. Côté navigateur seulement :
  * le serveur garde les noms d'Astro.
  */
-const TRACKING_NAME = /ga4|gtag|analytic|klaviyo|meta|pixel|track|event|ads?\b/i;
+const TRACKING_NAME = /ga4|gtag|analytic|klaviyo|meta|pixel|track|event|attribution|ads?\b/i;
 
 // https://astro.build/config
 export default defineConfig({

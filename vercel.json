@@ -7,5 +7,23 @@
       "path": "/api/admin/retention",
       "schedule": "0 23 * * *"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/cart/c/:token*",
+      "destination": "https://checkout.maisonreflet.com/cart/c/:token*",
+      "permanent": false
+    },
+    {
+      "source": "/checkouts/:path*",
+      "destination": "https://checkout.maisonreflet.com/checkouts/:path*",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:path*/",
+      "destination": "/api/:path*"
+    }
   ]
 }
