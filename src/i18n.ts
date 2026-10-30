@@ -136,13 +136,13 @@ const ui = {
     "footer.privacyPolicy": "Politique de confidentialité",
     "footer.salesConditions": "Conditions générales de vente",
     "footer.cookieManagement": "Gestion des cookies",
-    "product.twistOf": "Twist spécifique de",
+    "product.twistOf": "Twist de",
     "catalog.subtitle": "Découvrez nos interprétations des profils olfactifs les plus iconiques.",
     "product.description": "Description du produit",
     "product.close": "Fermer",
     "product.pyramid": "Pyramide olfactive",
     "product.notesAccords": "Notes et accords",
-    "product.specificTwist": "Le twist spécifique",
+    "product.specificTwist": "Le twist",
     "product.perfumerWord": "Le mot du parfumeur",
     "product.ingredientsLabel": "Ingrédients :",
     "product.twistPhilosophy1":
@@ -264,7 +264,7 @@ const ui = {
     "cart.remove": "Retirer",
     "cart.loading": "Chargement du panier…",
     "cart.error": "Impossible de charger le panier. Veuillez recharger la page.",
-    "cart.bagTitle": "Sac",
+    "cart.bagTitle": "Panier",
     "cart.close": "Fermer le panier",
     "cart.freeShippingRemaining": "Plus que {amount} pour la livraison offerte",
     "cart.freeShippingUnlocked": "La livraison vous est offerte.",
@@ -845,13 +845,13 @@ const ui = {
     "footer.privacyPolicy": "Privacy Policy",
     "footer.salesConditions": "Terms of sale",
     "footer.cookieManagement": "Cookie settings",
-    "product.twistOf": "Specific Twist of",
+    "product.twistOf": "Our twist on",
     "catalog.subtitle": "Discover our interpretations of the world's most iconic fragrance profiles.",
     "product.description": "Product description",
     "product.close": "Close",
     "product.pyramid": "Olfactory pyramid",
     "product.notesAccords": "Notes & Accords",
-    "product.specificTwist": "The Specific Twist",
+    "product.specificTwist": "Our twist",
     "product.perfumerWord": "A word from the perfumer",
     "product.ingredientsLabel": "Ingredients:",
     "product.twistPhilosophy1":
@@ -924,7 +924,7 @@ const ui = {
     "product.notes.coeur": "Heart",
     "product.notes.fond": "Base",
     "product.inspiration": "Cultural inspiration",
-    "product.addToCart": "Add to bag",
+    "product.addToCart": "Add to cart",
     "prevente.add": "Pre-order",
     "prevente.banner": "Pre-orders open · launch price",
     "prevente.shipOn": "Pre-order · ships from {date}",
@@ -970,7 +970,7 @@ const ui = {
     "cart.remove": "Remove",
     "cart.loading": "Loading cart…",
     "cart.error": "Couldn't load the cart. Please reload.",
-    "cart.bagTitle": "Bag",
+    "cart.bagTitle": "Cart",
     "cart.close": "Close cart",
     "cart.freeShippingRemaining": "You're {amount} away from free shipping",
     "cart.freeShippingUnlocked": "Your shipping is on us.",
@@ -1036,9 +1036,9 @@ const ui = {
     "luma.emailDone": "Noted.",
     "luma.privacy": "This conversation is kept for 90 days, then anonymised.",
     "luma.you": "You",
-    "luma.addToCart": "Add to bag",
+    "luma.addToCart": "Add to cart",
     "luma.viewProduct": "Discover",
-    "luma.added": "Added to your bag",
+    "luma.added": "Added to your cart",
     "luma.soldOut": "Unavailable for now",
     "luma.resume": "Resume the conversation",
     "luma.alternative": "The alternative",
@@ -1092,7 +1092,7 @@ const ui = {
 export type UIKey = keyof (typeof ui)["fr"];
 
 /**
- * « Twist spécifique de » + « Oud Maracuja » : en français, « de » s'élide
+ * « Twist de » + « Oud Maracuja » : en français, « de » s'élide
  * devant une voyelle ou un h muet (« d'Oud Maracuja », « D'ALTHAÏR »). Les
  * autres langues collent simplement le libellé et le nom.
  */
