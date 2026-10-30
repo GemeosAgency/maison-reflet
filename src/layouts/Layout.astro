@@ -534,8 +534,8 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         <div class="icons">
           {/* Pas de loupe : elle n'ouvrait aucune recherche, donc elle promettait
               une fonction qui n'existe pas (Sandro). À remettre le jour où la
-              recherche sera branchée. */}
-          <img class="icon-desktop" src="/brand/account.svg" alt="Account" width="20" height="20" />
+              recherche sera branchée. Pas d'icône compte non plus, pour la même
+              raison : il n'existe pas d'espace client (Sandro, 30 oct.). */}
           <a href={localePath(lang, "/panier")} class="bag" aria-label={t("nav.panier")} data-cart-open-trigger>
             <img src="/brand/bag.svg" alt="" width="20" height="20" />
             <span data-cart-count class="cart-count"></span>
@@ -857,7 +857,6 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         .menu-burger span { display: block; height: 1px; width: 20px; background: var(--ink); }
         .currency-label,
         .currency .chev { display: none; }
-        .icon-desktop { display: none; }
         .site-logo img { width: 187px; height: 22px; }
         .promo-banner p {
           min-width: 0;
