@@ -5,25 +5,55 @@
  * avec un token public. Ici le token est un secret serveur : il ne doit jamais
  * être préfixé PUBLIC_, ni traverser le navigateur.
  *
- * Sans SHOPIFY_ADMIN_TOKEN, les fonctions renoncent proprement et disent
+ * Deux façons de s'authentifier : SHOPIFY_ADMIN_CLIENT_ID + SHOPIFY_ADMIN_CLIENT_SECRET
+ * (app du Dev Dashboard, seule voie depuis 2026 : le jeton est demandé par
+ * client_credentials et vit 24 h), ou SHOPIFY_ADMIN_TOKEN (ancienne app
+ * personnalisée, jeton shpat_ fixe).
+ *
+ * Sans l'un ni l'autre, les fonctions renoncent proprement et disent
  * pourquoi : le site continue de tourner, seul l'avoir n'est pas émis. C'est
  * voulu — le webhook des commandes alimente aussi Meta, GA4 et la tour de
  * contrôle, et il ne doit pas tomber parce qu'un token manque.
  */
 const DOMAIN = import.meta.env.PUBLIC_SHOPIFY_STORE_DOMAIN;
 const TOKEN = import.meta.env.SHOPIFY_ADMIN_TOKEN;
+const CLIENT_ID = import.meta.env.SHOPIFY_ADMIN_CLIENT_ID;
+const CLIENT_SECRET = import.meta.env.SHOPIFY_ADMIN_CLIENT_SECRET;
 const VERSION = import.meta.env.PUBLIC_SHOPIFY_API_VERSION ?? "2025-10";
 
-export const adminPret = () => Boolean(DOMAIN && TOKEN);
+export const adminPret = () => Boolean(DOMAIN && (TOKEN || (CLIENT_ID && CLIENT_SECRET)));
+
+// Jeton client_credentials gardé le temps de la fonction, redemandé 5 min avant son expiration.
+let jeton: { valeur: string; expire: number } | null = null;
+
+async function accessToken(): Promise<string | null> {
+  if (TOKEN) return TOKEN;
+  if (jeton && Date.now() < jeton.expire) return jeton.valeur;
+  const res = await fetch(`https://${DOMAIN}/admin/oauth/access_token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "client_credentials", client_id: CLIENT_ID, client_secret: CLIENT_SECRET }),
+  });
+  if (!res.ok) {
+    console.error("[shopify-admin] jeton refusé : HTTP", res.status, (await res.text()).slice(0, 300));
+    return null;
+  }
+  const { access_token, expires_in } = (await res.json()) as { access_token?: string; expires_in?: number };
+  if (!access_token) return null;
+  jeton = { valeur: access_token, expire: Date.now() + Math.max(60, (expires_in ?? 3600) - 300) * 1000 };
+  return access_token;
+}
 
 async function admin<T>(query: string, variables: Record<string, unknown>): Promise<T | null> {
   if (!adminPret()) {
-    console.warn("[shopify-admin] SHOPIFY_ADMIN_TOKEN manquant : l'avoir n'est pas émis.");
+    console.warn("[shopify-admin] accès Admin manquant (SHOPIFY_ADMIN_CLIENT_ID/SECRET ou SHOPIFY_ADMIN_TOKEN) : l'avoir n'est pas émis.");
     return null;
   }
+  const token = await accessToken();
+  if (!token) return null;
   const res = await fetch(`https://${DOMAIN}/admin/api/${VERSION}/graphql.json`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": TOKEN },
+    headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": token },
     body: JSON.stringify({ query, variables }),
   });
   if (!res.ok) {
