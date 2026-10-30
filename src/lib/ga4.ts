@@ -123,8 +123,12 @@ function injectGtagStub() {
     return;
   }
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function (...args: unknown[]) {
-    window.dataLayer!.push(args);
+  // gtag.js ne lit que des objets `arguments` dans la file : un tableau
+  // (`...args`) est ignoré sans erreur, et plus rien ne part (ni config ni
+  // événements). Ne pas réécrire en fonction fléchée ni en rest params.
+  window.gtag = function () {
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer!.push(arguments);
   };
 
   const script = document.createElement("script");
