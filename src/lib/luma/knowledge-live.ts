@@ -15,7 +15,7 @@
 
 import type { Locale } from "../../i18n";
 import { getCountry, type Country } from "../markets";
-import { getLumaParfums } from "../sanity";
+import { getLumaParfums, getPrevente } from "../sanity";
 import { getAllProducts } from "../shopify";
 import { buildKnowledge, type Knowledge } from "./knowledge";
 
@@ -33,7 +33,10 @@ async function read(country: Country, locale: Locale, now?: Date): Promise<Knowl
     getAllProducts(50, { country: country.code, language: locale.toUpperCase() }),
     getLumaParfums(locale),
   ]);
-  return buildKnowledge({ products, parfums, country, locale, now });
+  // Lu une fois par instance, comme le site statique : un changement de
+  // réglage passe par un redéploiement, qui remet tout le monde d'accord.
+  const prevente = await getPrevente();
+  return buildKnowledge({ products, parfums, country, locale, now, prevente });
 }
 
 export async function getKnowledge(opts: {

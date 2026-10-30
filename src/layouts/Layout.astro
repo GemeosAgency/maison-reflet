@@ -21,6 +21,7 @@ import {
   getCountry,
   countryPill,
 } from "../lib/markets";
+import { getPrevente } from "../lib/sanity";
 
 type Breadcrumb = { label: string; href?: string };
 
@@ -49,6 +50,7 @@ const {
 const t = useTranslations(lang);
 
 const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
+const prevente = await getPrevente();
 const rest = Astro.url.pathname.replace(/^\/(fr|ar|en)/, "") || "/";
 
 /*
@@ -121,7 +123,12 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
 ---
 
 <!doctype html>
-<html lang={lang} dir={isRtl(lang) ? "rtl" : "ltr"}>
+<html
+  lang={lang}
+  dir={isRtl(lang) ? "rtl" : "ltr"}
+  data-prevente={prevente.active ? "on" : undefined}
+  data-prevente-ship={prevente.active && prevente.shipDate ? prevente.shipDate : undefined}
+>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -382,9 +389,20 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
           gabarit traduit pour que `hydrateShippingThresholds` n'ait plus qu'à
           remplacer le montant, sans retraduire la phrase dans le navigateur.
         */}
-        <p data-free-shipping-threshold={t("banner.promo")}>
-          {t("banner.promo").replace("{amount}", initialThreshold)}
-        </p>
+        {/*
+          Prévente ouverte : elle prend la place de la livraison offerte, qui
+          reste dite dans le panier. Deux messages, pas trois — l'alternance
+          ci-dessous est réglée au demi-cycle pour exactement deux.
+        */}
+        {prevente.active ? (
+          <p>
+            <a class="promo-lien" href={localePath(lang, "/parfums")}>{t("prevente.banner")}</a>
+          </p>
+        ) : (
+          <p data-free-shipping-threshold={t("banner.promo")}>
+            {t("banner.promo").replace("{amount}", initialThreshold)}
+          </p>
+        )}
         {/*
           Le lien couvre toute la ligne, et non les seuls mots du bouton : dans un
           bandeau, on clique le message, pas son appel à l'action. Le libellé

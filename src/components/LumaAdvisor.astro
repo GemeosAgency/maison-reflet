@@ -38,6 +38,7 @@
  */
 import { useTranslations, type Locale } from "../i18n";
 import { CONTACT_EMAIL } from "../lib/luma/collection";
+import { getPrevente } from "../lib/sanity";
 
 interface Props {
   lang: Locale;
@@ -45,6 +46,7 @@ interface Props {
 
 const { lang } = Astro.props;
 const t = useTranslations(lang);
+const prevente = await getPrevente();
 ---
 
 <script
@@ -59,7 +61,7 @@ const t = useTranslations(lang);
     emailConsent: t("luma.emailConsent"),
     emailSend: t("luma.send"),
     emailDone: t("luma.emailDone"),
-    addToCart: t("luma.addToCart"),
+    addToCart: prevente.active ? t("prevente.add") : t("luma.addToCart"),
     viewProduct: t("luma.viewProduct"),
     added: t("luma.added"),
     soldOut: t("luma.soldOut"),

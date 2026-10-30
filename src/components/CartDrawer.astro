@@ -17,7 +17,8 @@
  * une jauge quatre fois trop longue.
  */
 import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle, shopifyImage } from "../lib/shopify";
-import { getCoffrets, getInspiredByMap } from "../lib/sanity";
+import { getCoffrets, getInspiredByMap, getPrevente } from "../lib/sanity";
+import { preventeShipLine } from "../lib/prevente";
 import { LAYERING, accordAudioPath } from "../lib/layering";
 import { type Locale, localePath, useTranslations } from "../i18n";
 import { DEFAULT_COUNTRY, formatMoney, freeShippingThreshold, getCountry, intlLocale } from "../lib/markets";
@@ -30,6 +31,10 @@ interface Props {
 
 const { lang } = Astro.props;
 const t = useTranslations(lang);
+const prevente = await getPrevente();
+const preventeLine = prevente.active
+  ? preventeShipLine(prevente, lang, { shipOn: t("prevente.shipOn"), shipSoon: t("prevente.shipSoon") })
+  : null;
 
 const allProducts = await getAllProducts();
 const inspiredMap = await getInspiredByMap();
@@ -227,6 +232,16 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         <span>{t("cart.subtotal")}</span>
         <strong data-cart-drawer-subtotal></strong>
       </div>
+      {/*
+        Prévente : dite juste avant de payer, pour qu'aucune commande ne parte
+        en croyant à la livraison du jour même.
+      */}
+      {preventeLine && (
+        <p class="cart-drawer-prevente">
+          <strong>{preventeLine}</strong>
+          <span>{t("prevente.cartNote")}</span>
+        </p>
+      )}
       <a class="cart-drawer-checkout" data-cart-drawer-checkout href="#">{t("cart.checkout")}</a>
       {/*
         « Livraison offerte » ne s'annonce qu'une fois le seuil franchi : affichée
@@ -1407,6 +1422,16 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   .cart-drawer-subtotal-row { display: flex; align-items: baseline; justify-content: space-between; }
   .cart-drawer-subtotal-row span { font-size: 18px; font-weight: 500; color: var(--ink); }
   .cart-drawer-subtotal-row strong { font-size: 16px; font-weight: 500; color: var(--ink); }
+  .cart-drawer-prevente {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0 0 12px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .cart-drawer-prevente strong { font-weight: 500; color: var(--rose); }
+  .cart-drawer-prevente span { opacity: 0.7; }
   .cart-drawer-checkout {
     display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 999px;
     background: var(--rose); color: #fff; font-size: 16px; font-weight: 500; text-transform: uppercase;

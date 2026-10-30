@@ -12,6 +12,7 @@ import {
   formatPrice,
   getAllProducts,
   getDisplayPrice,
+  getCompareAtLabel,
   getPrimaryVariant,
   isCoffret,
   secondaryImage,
@@ -28,6 +29,7 @@ import {
   getPageBySlug,
   responsiveImage,
   urlForImage,
+  getPrevente,
 } from "../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../i18n";
 
@@ -37,6 +39,9 @@ export function getStaticPaths() {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+// Prévente ouverte (réglage Sanity) : « Précommander » partout où l'on achète.
+const prevente = await getPrevente();
+const addLabel = prevente.active ? t("prevente.add") : t("product.addToCart");
 
 const settings = await getSettings(lang);
 const baseline = settings?.baseline ?? "Six parfums, six reflets d'une identité franco-arabe.";
@@ -77,6 +82,7 @@ const bestsellers = [...perfumes]
       name: p.title,
       inspired: inspiredMap[p.handle] ?? null,
       price: formatPrice(price.amount, price.currencyCode),
+      compare: getCompareAtLabel(p),
       img: recoImg?.main
         ? tileImage(recoImg.main)
         : p.featuredImage
@@ -251,12 +257,13 @@ const heroPanels = [
               inspired={p.inspired}
               inspiredByLabel={t("product.twistOf")}
               price={p.price}
+              compare={p.compare}
               img={p.img}
               hoverImg={p.hoverImg}
               href={p.href}
               variantId={p.variantId}
               badge={p.badge}
-              addLabel={t("product.addToCart")}
+              addLabel={addLabel}
               addedLabel={t("cart.added")}
               errorLabel={t("product.error")}
             />

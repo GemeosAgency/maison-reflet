@@ -12,6 +12,8 @@ export interface RelatedItem {
   size?: string | null;
   subtitle: string | null;
   price: string;
+  /** Prix normal barré (prévente), ou null. */
+  compare?: string | null;
   img: ResponsiveImage | null;
   /** Photo du survol (voir ProductTile). */
   hoverImg?: ResponsiveImage | null;
@@ -44,6 +46,7 @@ const { title, items, addLabel, addedLabel, errorLabel } = Astro.props;
             size={p.size}
             subtitle={p.subtitle}
             price={p.price}
+            compare={p.compare}
             img={p.img}
             hoverImg={p.hoverImg}
             href={p.href}

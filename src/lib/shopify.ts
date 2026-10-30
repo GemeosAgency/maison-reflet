@@ -197,6 +197,8 @@ export type ShopifyProduct = {
       sku: string | null;
       availableForSale: boolean;
       price: ShopifyMoney;
+      /** Prix normal, affiché barré pendant la prévente (null = pas de remise). */
+      compareAtPrice: ShopifyMoney | null;
       image: ShopifyImage | null;
       selectedOptions: { name: string; value: string }[];
     }[];
@@ -279,6 +281,10 @@ const PRODUCT_FRAGMENT = /* GraphQL */ `
         sku
         availableForSale
         price {
+          amount
+          currencyCode
+        }
+        compareAtPrice {
           amount
           currencyCode
         }
@@ -385,6 +391,21 @@ export function getPrimaryVariant(product: Pick<ShopifyProduct, "variants">): Pr
 /** Prix d'affichage d'un produit (celui de sa variante principale, hors échantillon) */
 export function getDisplayPrice(product: Pick<ShopifyProduct, "variants">): ShopifyMoney {
   return getPrimaryVariant(product).price;
+}
+
+/**
+ * Prix normal de la variante principale, seulement s'il est au-dessus du prix
+ * pratiqué — c'est le prix barré de la prévente. Même règle que `hydratePrices`.
+ */
+export function getCompareAtPrice(product: Pick<ShopifyProduct, "variants">): ShopifyMoney | null {
+  const v = getPrimaryVariant(product);
+  return v.compareAtPrice && Number(v.compareAtPrice.amount) > Number(v.price.amount) ? v.compareAtPrice : null;
+}
+
+/** Le même, formaté comme les autres prix du site (« 380 AED »), ou null. */
+export function getCompareAtLabel(product: Pick<ShopifyProduct, "variants">): string | null {
+  const c = getCompareAtPrice(product);
+  return c ? formatPrice(c.amount, c.currencyCode) : null;
 }
 
 /** Récupère un produit par son handle (slug Shopify) */

@@ -6,6 +6,7 @@ import { createClient } from "@sanity/client";
 import { createImageUrlBuilder } from "@sanity/image-url";
 import { toHTML, type PortableTextComponents } from "@portabletext/to-html";
 import { locales, defaultLocale, type Locale } from "../i18n";
+import { PREVENTE_OFF, type Prevente } from "./prevente";
 
 type SanityImageSource =
   | string
@@ -458,6 +459,24 @@ export type SiteSettings = {
   baseline: string | null;
   about: string | null;
 };
+
+let preventeOnce: Promise<Prevente> | null = null;
+
+/**
+ * Le réglage de prévente (voir src/lib/prevente.ts). Lu une fois par build :
+ * le Layout le demande à chaque page, une requête par page serait du gâchis
+ * pour une valeur qui ne bouge pas pendant le build. En cas d'échec, la
+ * prévente est considérée fermée — le site retombe sur son comportement normal.
+ */
+export function getPrevente(): Promise<Prevente> {
+  preventeOnce ??= sanityClient
+    .fetch<{ active?: boolean; dateExpedition?: string | null } | null>(
+      `*[_type == "settings"][0].prevente{ active, dateExpedition }`
+    )
+    .then((p) => ({ active: p?.active === true, shipDate: p?.dateExpedition ?? null }))
+    .catch(() => PREVENTE_OFF);
+  return preventeOnce;
+}
 
 /** Réglages globaux de la marque (localisés). */
 export async function getSettings(locale: Locale): Promise<SiteSettings | null> {

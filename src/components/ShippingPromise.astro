@@ -19,6 +19,8 @@ import {
   getCountry,
   shippingRate,
 } from "../lib/markets";
+import { getPrevente } from "../lib/sanity";
+import { preventeShipLine } from "../lib/prevente";
 
 interface Props {
   lang: Locale;
@@ -42,8 +44,14 @@ const free = formatMoney(freeShippingThreshold(country.currency), country.curren
 // État « guichet fermé » au build : le rebours n'a de sens qu'à l'exécution,
 // et annoncer une heure limite déjà passée serait un mensonge dans le HTML
 // statique servi par le CDN.
-const mainLabel = t("shipping.sameDayClosed");
-const subLabel = `${t("shipping.restOfUae")
+//
+// En prévente, la date d'expédition remplace le jour même (même règle que
+// shipping-promise.ts, qui reprend la main dans le navigateur).
+const prevente = await getPrevente();
+const mainLabel = prevente.active
+  ? preventeShipLine(prevente, lang, { shipOn: t("prevente.shipOn"), shipSoon: t("prevente.shipSoon") })
+  : t("shipping.sameDayClosed");
+const subLabel = `${t(prevente.active ? "shipping.days" : "shipping.restOfUae")
   .replace("{min}", String(days.min))
   .replace("{max}", String(days.max))} · ${rate}, ${t("shipping.freeFrom").replace("{amount}", free)}`;
 ---

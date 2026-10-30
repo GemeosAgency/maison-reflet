@@ -212,7 +212,11 @@ function productLines(p: KnowledgeProduct): string {
   const sample = p.variants.find((v) => v.sample);
   const head =
     `- ${p.name} (${p.kind}${p.bestSeller ? ", best-seller" : ""}) — handle ${p.handle}` +
-    (main ? ` — ${p.kind === "parfum" ? "75 ml : " : ""}${money(main.price, main.currency)} (${availability(main.available)})` : "") +
+    (main
+      ? ` — ${p.kind === "parfum" ? "75 ml : " : ""}${money(main.price, main.currency)}${
+          main.compareAt !== null ? ` (prix de prévente ; prix normal ${money(main.compareAt, main.currency)})` : ""
+        } (${availability(main.available)})`
+      : "") +
     (sample ? ` · échantillon 2 ml : ${money(sample.price, sample.currency)} (${availability(sample.available)})` : "");
 
   const details: string[] = [];
@@ -258,6 +262,14 @@ export function buildCatalogueBlock(knowledge: Knowledge): string {
     `Livraison offerte dès ${money(L.freeShippingThreshold, L.currency)} ; sinon ${money(L.shippingRate, L.currency)}.`,
     `Délai annoncé pour ce pays : ${L.deliveryDays.min} à ${L.deliveryDays.max} jours ouvrés.`,
   ];
+  if (L.prevente.active) {
+    logistics.unshift(
+      L.prevente.shipDate
+        ? `PRÉVENTE OUVERTE : toute commande est payée aujourd'hui et expédiée à partir du ${L.prevente.shipDate} (date à dire en toutes lettres, dans la langue du visiteur). Le délai de livraison ci-dessous court à partir de l'expédition.`
+        : "PRÉVENTE OUVERTE : toute commande est payée aujourd'hui et expédiée dès l'arrivée des premiers flacons. La date n'est pas encore fixée : ne jamais en donner une, ni un nombre de semaines. Le délai de livraison ci-dessous court à partir de l'expédition.",
+      "Pendant la prévente, pas de livraison le jour même. Le prix de prévente est un prix de lancement, à dire sans insister : jamais « promo », « soldes » ni « moins cher »."
+    );
+  }
   if (L.sameDayDubai) {
     logistics.push(
       L.sameDayDubai.open

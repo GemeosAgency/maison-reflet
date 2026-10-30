@@ -137,7 +137,8 @@ export async function resolveCurrency(code = selectedCountryCode()): Promise<str
  * Hydratation des prix
  * ------------------------------------------------------------------ */
 
-type VariantPrice = { id: string; price: { amount: string; currencyCode: string } };
+type Money = { amount: string; currencyCode: string };
+type VariantPrice = { id: string; price: Money; compareAtPrice: Money | null };
 
 /**
  * Relit le prix des variantes marquées dans le DOM et réécrit leur libellé.
@@ -153,8 +154,10 @@ type VariantPrice = { id: string; price: { amount: string; currencyCode: string 
  */
 export async function hydratePrices(root: ParentNode = document): Promise<void> {
   const nodes = Array.from(root.querySelectorAll<HTMLElement>("[data-money]"));
+  // Prix normal barré (prévente) : `compareAtPrice` de la même variante.
+  const compares = Array.from(root.querySelectorAll<HTMLElement>("[data-money-compare]"));
   const idsOf = (node: HTMLElement) => (node.dataset.money ?? "").split(",").map((id) => id.trim()).filter(Boolean);
-  const ids = Array.from(new Set(nodes.flatMap(idsOf)));
+  const ids = Array.from(new Set([...nodes.flatMap(idsOf), ...compares.map((n) => n.dataset.moneyCompare ?? "")].filter(Boolean)));
   if (!ids.length) return;
 
   const query = /* GraphQL */ `
@@ -166,17 +169,22 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
             amount
             currencyCode
           }
+          compareAtPrice {
+            amount
+            currencyCode
+          }
         }
       }
     }
   `;
 
-  let prices: Map<string, VariantPrice["price"]>;
+  let prices: Map<string, Money>;
+  let compareAt: Map<string, Money | null>;
   try {
     const data = await shopifyFetch<{ nodes: (VariantPrice | null)[] }>(query, { ids });
-    prices = new Map(
-      data.nodes.filter((n): n is VariantPrice => Boolean(n?.id)).map((n) => [n.id, n.price])
-    );
+    const found = data.nodes.filter((n): n is VariantPrice => Boolean(n?.id));
+    prices = new Map(found.map((n) => [n.id, n.price]));
+    compareAt = new Map(found.map((n) => [n.id, n.compareAtPrice]));
   } catch {
     return;
   }
@@ -185,9 +193,22 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
   for (const node of nodes) {
     const found = idsOf(node).map((id) => prices.get(id));
     if (!found.length || found.some((p) => !p)) continue;
-    const parts = found as VariantPrice["price"][];
+    const parts = found as Money[];
     const total = parts.reduce((sum, p) => sum + Number(p.amount), 0);
     node.textContent = formatPrice(String(total), parts[0].currencyCode, locale);
+  }
+
+  // Un prix normal n'a de sens qu'au-dessus du prix pratiqué : sinon (pas de
+  // compareAt, ou compareAt périmé), le prix barré disparaît plutôt que de
+  // mentir.
+  for (const node of compares) {
+    const id = node.dataset.moneyCompare ?? "";
+    if (!prices.has(id)) continue;
+    const was = compareAt.get(id);
+    const now = prices.get(id)!;
+    const show = Boolean(was && Number(was.amount) > Number(now.amount));
+    if (show) node.textContent = formatPrice(was!.amount, was!.currencyCode, locale);
+    node.hidden = !show;
   }
 }
 

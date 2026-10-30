@@ -29,6 +29,7 @@ import {
   shopifyNumericId,
 } from "./meta";
 import { getGa4ClientId, ga4AddToCart, ga4BeginCheckout } from "./ga4";
+import { clientPrevente } from "./prevente";
 
 const CART_ID_KEY = "maison-reflet:cartId";
 
@@ -105,6 +106,12 @@ function trackingCartAttributes(): CartAttributeInput[] {
   attributes.push({ key: "mr_anon", value: anonId() });
   // L'environnement d'où part le panier : une commande née sur staging ou en local est marquée « test » et n'entre pas dans le chiffre.
   attributes.push({ key: "mr_env", value: window.location.host.slice(0, 80) });
+  // Prévente : la commande le dit d'elle-même dans l'admin Shopify (« Détails
+  // supplémentaires »), avec la date annoncée au client au moment de l'achat.
+  const prevente = clientPrevente();
+  if (prevente.active) {
+    attributes.push({ key: "Prévente", value: prevente.shipDate ? `Expédition annoncée le ${prevente.shipDate}` : "Date d'expédition à confirmer" });
+  }
   return attributes;
 }
 

@@ -45,6 +45,7 @@ import {
   REFLET_BRIEFS,
   type RefletBrief,
 } from "./collection";
+import { PREVENTE_OFF, type Prevente } from "../prevente";
 
 export type KnowledgeVariant = {
   id: string;
@@ -52,6 +53,8 @@ export type KnowledgeVariant = {
   /** Échantillon 2 ml — l'alternative quand le visiteur ne veut en tester qu'un. */
   sample: boolean;
   price: number;
+  /** Prix normal pendant la prévente (le compareAtPrice Shopify), null hors remise. */
+  compareAt: number | null;
   currency: string;
   available: boolean;
 };
@@ -96,6 +99,8 @@ export type Logistics = {
    * aujourd'hui » dit la même chose sans chiffre.
    */
   sameDayDubai: { open: boolean } | null;
+  /** Prévente ouverte (réglage Sanity) : rien ne part avant la date d'expédition. */
+  prevente: Prevente;
 };
 
 export type Knowledge = {
@@ -122,9 +127,17 @@ export type KnowledgeInput = {
   country: Country;
   locale: Locale;
   now?: Date;
+  prevente?: Prevente;
 };
 
-export function buildKnowledge({ products, parfums, country, locale, now = new Date() }: KnowledgeInput): Knowledge {
+export function buildKnowledge({
+  products,
+  parfums,
+  country,
+  locale,
+  now = new Date(),
+  prevente = PREVENTE_OFF,
+}: KnowledgeInput): Knowledge {
   const docByHandle = new Map(parfums.map((doc) => [doc.shopifyHandle, doc]));
 
   // Shopify fait foi : une fiche Sanity ou collection.ts sans produit vendu
@@ -146,7 +159,9 @@ export function buildKnowledge({ products, parfums, country, locale, now = new D
     freeShippingThreshold: freeShippingThreshold(currency),
     shippingRate: shippingRate(country.zone, currency),
     deliveryDays,
-    sameDayDubai: isUae ? { open: sameDayStatus(now).open } : null,
+    // Pas de jour même en prévente : rien n'est encore expédié.
+    sameDayDubai: isUae && !prevente.active ? { open: sameDayStatus(now).open } : null,
+    prevente,
   };
 
   return {
@@ -184,6 +199,10 @@ function toKnowledgeProduct(
     title: v.title,
     sample: isSampleVariantTitle(v.title),
     price: Number(v.price.amount),
+    compareAt:
+      v.compareAtPrice && Number(v.compareAtPrice.amount) > Number(v.price.amount)
+        ? Number(v.compareAtPrice.amount)
+        : null,
     currency: v.price.currencyCode,
     available: v.availableForSale,
   }));
@@ -245,7 +264,10 @@ function compareProducts(a: KnowledgeProduct, b: KnowledgeProduct): number {
 function allowedNumbers(items: KnowledgeProduct[], logistics: Logistics): number[] {
   const numbers = new Set<number>();
   for (const p of items) {
-    for (const v of p.variants) numbers.add(v.price);
+    for (const v of p.variants) {
+      numbers.add(v.price);
+      if (v.compareAt !== null) numbers.add(v.compareAt);
+    }
     for (const text of [p.twistOf, p.essence, p.inspiredBy, p.description, p.familles]) {
       for (const n of text?.match(/\d+/g) ?? []) numbers.add(Number(n));
     }

@@ -32,6 +32,23 @@ export default defineType({
       ],
     }),
     defineField({ name: "defaultSeo", title: "SEO par défaut", type: "seo" }),
+    defineField({
+      name: "prevente",
+      title: "Prévente",
+      description:
+        "Ouvre la prévente sur tout le site : bouton « Précommander », livraison remplacée par la date d'expédition. La remise se règle dans Shopify (prix barré = « Compare-at price »). Le site doit être redéployé pour prendre le changement.",
+      type: "object",
+      options: { collapsible: true, collapsed: false },
+      fields: [
+        defineField({ name: "active", title: "Prévente ouverte", type: "boolean", initialValue: false }),
+        defineField({
+          name: "dateExpedition",
+          title: "Date d'expédition",
+          description: "Laisser vide tant qu'elle n'est pas fixée : le site annonce alors une expédition « dès l'arrivée des premiers flacons ».",
+          type: "date",
+        }),
+      ],
+    }),
   ],
   preview: { prepare: () => ({ title: "Réglages de la marque" }) },
 });

@@ -23,6 +23,8 @@ interface Props {
   size?: string | null;
   subtitle?: string | null;
   price: string;
+  /** Prix normal barré (prévente), déjà formaté, ou null. */
+  compare?: string | null;
   img: ResponsiveImage | null;
   /** Photo du survol. Sans elle, le survol garde la première image. */
   hoverImg?: ResponsiveImage | null;
@@ -40,6 +42,7 @@ const {
   size = null,
   subtitle,
   price,
+  compare = null,
   img,
   hoverImg = null,
   href,
@@ -107,7 +110,10 @@ const hasAdd = Boolean(variantId && addLabel);
   <div class="ptile-meta">
     <h3>{name}{size && <span class="ptile-size">{size}</span>}</h3>
     {subtitle && <p class="ptile-subtitle">{subtitle}</p>}
-    <p class="ptile-price" data-money={variantId}>{price}</p>
+    <p class="ptile-price">
+      <s class="price-was" data-money-compare={variantId} hidden={!compare}>{compare}</s>
+      <span data-money={variantId}>{price}</span>
+    </p>
   </div>
 </div>
 
@@ -215,6 +221,8 @@ const hasAdd = Boolean(variantId && addLabel);
     font-weight: 400;
     white-space: nowrap;
   }
+  .price-was { margin-inline-end: 6px; font-weight: 400; opacity: 0.6; text-decoration-thickness: 1px; }
+  .price-was[hidden] { display: none; }
   .ptile-subtitle,
   .ptile-price {
     margin: 0;

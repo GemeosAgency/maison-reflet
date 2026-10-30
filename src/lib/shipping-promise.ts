@@ -23,6 +23,7 @@ import {
   type Country,
 } from "./markets";
 import { getActiveCurrency, pageLocale, selectedCountry } from "./country";
+import { clientPrevente, preventeShipLine } from "./prevente";
 
 export type RegionI18n = Record<string, string>;
 
@@ -72,6 +73,24 @@ export function promiseFor(country: Country): Promise2Lines {
   const rate = formatMoney(shippingRate(country.zone, currency), currency, locale);
   const free = formatMoney(freeShippingThreshold(currency), currency, locale);
   const freeFrom = t("shipping.freeFrom", { amount: free });
+
+  /*
+   * Prévente : rien ne part avant la date d'expédition, donc ni « livré
+   * aujourd'hui à Dubaï » ni rebours. La ligne principale annonce l'expédition,
+   * la seconde garde le délai de transport du pays et les frais.
+   */
+  const prevente = clientPrevente();
+  if (prevente.active) {
+    const transit = country.zone === "domestic" ? UAE_DELIVERY_DAYS : days;
+    return {
+      main: preventeShipLine(prevente, locale, {
+        shipOn: t("prevente.shipOn"),
+        shipSoon: t("prevente.shipSoon"),
+      }),
+      sub: `${t("shipping.days", { min: transit.min, max: transit.max })} · ${rate}, ${freeFrom}`,
+      urgent: false,
+    };
+  }
 
   // Émirats : Dubaï le jour même avant 14 h, le reste sur le délai standard.
   // C'est la seule promesse qui bouge au fil de la journée, d'où le rebours.
@@ -138,7 +157,7 @@ export function initShippingPromises(i18n: RegionI18n): void {
 
   const start = () => {
     stop();
-    if (selectedCountry().zone !== "domestic") return;
+    if (selectedCountry().zone !== "domestic" || clientPrevente().active) return;
     if (!document.querySelector("[data-shipping-promise]")) return;
     ticker = window.setInterval(() => renderShippingPromises(), 1000);
   };

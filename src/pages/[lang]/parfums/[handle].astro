@@ -32,6 +32,7 @@ import {
   getAllProducts,
   getPrimaryVariant,
   getDisplayPrice,
+  getCompareAtLabel,
   isCoffret,
   isSampleVariantTitle,
   secondaryImage,
@@ -48,6 +49,7 @@ import {
   richTextToHtml,
   responsiveImage,
   urlForImage,
+  getPrevente,
 } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations } from "../../../i18n";
 
@@ -66,11 +68,16 @@ interface Props {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+// Prévente ouverte (réglage Sanity) : « Précommander » partout où l'on achète.
+const prevente = await getPrevente();
+const addLabel = prevente.active ? t("prevente.add") : t("product.addToCart");
 const { product, products } = Astro.props;
 
 const parfum = await getParfumContent(product.handle, lang);
 const variant = getPrimaryVariant(product);
 const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode);
+// Prix normal barré pendant la prévente : le compareAtPrice Shopify, s'il dépasse le prix pratiqué.
+const compareLabel = getCompareAtLabel(product);
 
 const inspiredMap = await getInspiredByMap();
 const recoImages = await getRecoImages();
@@ -266,6 +273,7 @@ const related = products
       size: primaryVariant.title !== "Default Title" ? primaryVariant.title : null,
       subtitle: inspiredMap[p.handle] ? `${t("product.twistOf")} ${inspiredMap[p.handle]}` : null,
       price: formatPrice(price.amount, price.currencyCode),
+      compare: getCompareAtLabel(p),
       // Sans imageRecommandation dans Sanity on retombe sur la photo produit
       // Shopify — c'est le bon rendu du flacon, avec la bonne étiquette. Il
       // faut la passer par shopifyImage() : servie brute, elle pèse jusqu'à
@@ -406,8 +414,10 @@ const productJsonLd = {
         sillageValueLabel={gaugeLabel(sillage, t("product.sillageLow"), t("product.sillageMid"), t("product.sillageHigh"))}
         variantId={variant.id}
         priceLabel={priceLabel}
+        compareLabel={compareLabel}
+        compareA11y={t("prevente.was")}
         lang={lang}
-        addLabel={t("product.addToCart")}
+        addLabel={addLabel}
         addedLabel={t("product.added")}
         errorLabel={t("product.error")}
         decreaseLabel={t("cart.decrease")}

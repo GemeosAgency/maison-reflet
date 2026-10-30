@@ -41,6 +41,10 @@ interface Props {
   inspiredBy?: string | null;
   variantId: string;
   priceLabel: string;
+  /** Prix normal barré (prévente), déjà formaté — null quand il n'y a pas de remise. */
+  compareLabel?: string | null;
+  /** « Prix normal », pour les lecteurs d'écran devant le prix barré. */
+  compareA11y?: string;
   addLabel: string;
   addedLabel: string;
   errorLabel: string;
@@ -78,6 +82,8 @@ const {
   inspiredBy,
   variantId,
   priceLabel,
+  compareLabel = null,
+  compareA11y = "",
   addLabel,
   addedLabel,
   errorLabel,
@@ -104,7 +110,10 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
         {title}
         {sizeLabel && <span class="ppanel-size">{sizeLabel}</span>}
       </h1>
-      <span class="ppanel-price" data-money={variantId}>{priceLabel}</span>
+      <span class="ppanel-prices">
+        <s class="ppanel-was" data-money-compare={variantId} hidden={!compareLabel} aria-label={compareLabel ? `${compareA11y} ${compareLabel}` : undefined}>{compareLabel}</s>
+        <span class="ppanel-price" data-money={variantId}>{priceLabel}</span>
+      </span>
     </div>
     <div class="ppanel-rating">
       <span class="ppanel-stars">
@@ -194,7 +203,10 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
         data-error-label={errorLabel}
       >
         <span>{addLabel}</span>
-        <span data-panel-add-price data-money={variantId}>{priceLabel}</span>
+        <span class="ppanel-add-prices">
+          <s class="ppanel-add-was" data-money-compare={variantId} hidden={!compareLabel} aria-hidden="true">{compareLabel}</s>
+          <span data-panel-add-price data-money={variantId}>{priceLabel}</span>
+        </span>
       </button>
     </div>
     {/*
@@ -257,11 +269,17 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   )}
   <span class="pbuy-summary">
     <span class="pbuy-name">{title}{sizeLabel && <span class="pbuy-size">{sizeLabel}</span>}</span>
-    <span class="pbuy-price" data-money={variantId}>{priceLabel}</span>
+    <span class="pbuy-price">
+      <s class="pbuy-was" data-money-compare={variantId} hidden={!compareLabel} aria-hidden="true">{compareLabel}</s>
+      <span data-money={variantId}>{priceLabel}</span>
+    </span>
   </span>
   <button type="button" class="pbuy-add" data-sticky-add>
     <span>{addLabel}</span>
-    <span class="pbuy-add-price" data-money={variantId}>{priceLabel}</span>
+    <span class="pbuy-add-price">
+      <s class="pbuy-was" data-money-compare={variantId} hidden={!compareLabel} aria-hidden="true">{compareLabel}</s>
+      <span data-money={variantId}>{priceLabel}</span>
+    </span>
   </button>
 </div>
 
@@ -541,7 +559,29 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     line-height: 1.2;
   }
   .ppanel-size { font-size: 16px; font-weight: 500; letter-spacing: 0.96px; }
-  .ppanel-price { display: none; flex-shrink: 0; font-size: 18px; font-weight: 500; white-space: nowrap; }
+  .ppanel-price { flex-shrink: 0; font-size: 18px; font-weight: 500; white-space: nowrap; }
+  /* Prix du titre : mobile seulement (sur ordinateur il est dans le bouton). */
+  .ppanel-prices { display: none; flex-shrink: 0; align-items: baseline; gap: 8px; }
+  /*
+   * Prix normal barré de la prévente : même corps, plus clair, filet fin. Il
+   * se lit avant le prix pratiqué, comme sur une étiquette. `[hidden]` est
+   * redit parce que le `display` des règles ci-dessous l'écraserait.
+   */
+  .ppanel-was,
+  .ppanel-add-was,
+  .pbuy-was {
+    font-weight: 400;
+    opacity: 0.6;
+    text-decoration-thickness: 1px;
+    white-space: nowrap;
+  }
+  .ppanel-was { font-size: 16px; }
+  .ppanel-was[hidden],
+  .ppanel-add-was[hidden],
+  .pbuy-was[hidden] { display: none; }
+  .ppanel-add-prices { display: inline-flex; align-items: baseline; gap: 10px; white-space: nowrap; }
+  .ppanel-add-was { opacity: 0.7; }
+  .pbuy-was { margin-inline-end: 6px; font-size: 0.875em; }
   .ppanel-rating { display: flex; align-items: center; gap: 8px; font-size: 16px; }
   .ppanel-stars { display: inline-flex; gap: 2px; }
   .ppanel-rating strong { font-weight: 500; }
@@ -661,7 +701,10 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     .ppanel-meta { order: 4; }
     .ppanel-after-perks { order: 5; }
     .ppanel-title { font-size: 28px; }
-    .ppanel-price { display: inline; }
+    .ppanel-prices { display: inline-flex; }
+    /* Le prix barré écrasait le nom sur deux lignes ; le bouton, juste
+       dessous, le montre déjà. */
+    .ppanel-prices .ppanel-was { display: none; }
     /* La quantité se règle dans le panier : une seule décision sur la fiche,
        et un bouton d'achat pleine largeur, plus rapide à comprendre/toucher. */
     .ppanel-qty { display: none; }

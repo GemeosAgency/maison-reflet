@@ -24,6 +24,8 @@ interface Props {
   inspired?: string | null;
   inspiredByLabel: string;
   price: string;
+  /** Prix normal barré (prévente), déjà formaté, ou null. */
+  compare?: string | null;
   img: string | null;
   hoverImg?: string | null;
   href: string;
@@ -41,6 +43,7 @@ const {
   inspired,
   inspiredByLabel,
   price,
+  compare = null,
   img,
   hoverImg,
   href,
@@ -63,7 +66,10 @@ const {
     <h3>{name}</h3>
     <div class="product-card-row">
       {inspired ? <p class="product-card-inspired">{inspiredByLabel} {inspired}</p> : <span></span>}
-      <p class="product-card-price" data-money={variantId}>{price}</p>
+      <p class="product-card-price">
+        <s class="price-was" data-money-compare={variantId} hidden={!compare}>{compare}</s>
+        <span data-money={variantId}>{price}</span>
+      </p>
     </div>
     <div class="product-card-add-wrap">
       <button
@@ -153,6 +159,8 @@ const {
     transition: opacity 0.25s ease;
   }
   .product-card:hover .product-card-price { opacity: 0; }
+  .price-was { margin-inline-end: 8px; opacity: 0.6; text-decoration-thickness: 1px; }
+  .price-was[hidden] { display: none; }
   .product-card-add-wrap {
     max-height: 0; opacity: 0; overflow: hidden;
     transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
