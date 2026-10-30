@@ -201,3 +201,23 @@ export async function clientDeCommande(orderId: number | string): Promise<number
   const n = Number(gid.split("/").pop());
   return Number.isFinite(n) ? n : null;
 }
+
+const PORTEES = `
+  query portees {
+    currentAppInstallation { accessScopes { handle } }
+  }
+`;
+
+/** Comment le site s'authentifie, pour le diagnostic (/api/admin/shopify-status). */
+export const modeAdmin = (): "permanent" | "client_credentials" | null =>
+  TOKEN ? "permanent" : CLIENT_ID && CLIENT_SECRET ? "client_credentials" : null;
+
+/**
+ * Les portées réellement accordées à l'app, lues chez Shopify. null si l'accès
+ * échoue (raison dans les logs [shopify-admin]). L'avoir a besoin de
+ * write_discounts, et de read_products / read_orders pour le borner.
+ */
+export async function porteesAdmin(): Promise<string[] | null> {
+  const d = await admin<{ currentAppInstallation: { accessScopes: { handle: string }[] } }>(PORTEES, {});
+  return d ? d.currentAppInstallation.accessScopes.map((s) => s.handle) : null;
+}
