@@ -191,6 +191,33 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
     return;
   }
 
+  /*
+   * Shopify ne renvoie aucun prix barré aux visiteurs de l'Espace économique
+   * européen (réglage de la boutique, directive Omnibus, introuvable dans
+   * l'admin). Sandro veut les prix barrés partout (30 oct.) : pour une variante
+   * sans prix barré dans ce pays, on relit la boutique de base (Émirats) et on
+   * applique son rapport prix normal / prix pratiqué au prix local. Une
+   * variante sans prix barré à la base reste sans prix barré.
+   */
+  const manquants = Array.from(prices.keys()).filter((id) => !compareAt.get(id));
+  if (manquants.length) {
+    try {
+      const base = await shopifyFetch<{ nodes: (VariantPrice | null)[] }>(query, { ids: manquants }, { context: { country: DEFAULT_COUNTRY } });
+      for (const n of base.nodes) {
+        if (!n?.id || !n.compareAtPrice) continue;
+        const ratio = Number(n.compareAtPrice.amount) / Number(n.price.amount);
+        const local = prices.get(n.id);
+        if (!local || !(ratio > 1)) continue;
+        const brut = Number(local.amount) * ratio;
+        // Prix rond, prix barré rond (320 → 380, pas 379,99).
+        const was = Number.isInteger(Number(local.amount)) ? Math.round(brut) : Math.round(brut * 100) / 100;
+        compareAt.set(n.id, { amount: String(was), currencyCode: local.currencyCode });
+      }
+    } catch {
+      // sans la base, les prix barrés manquants restent masqués
+    }
+  }
+
   const locale = intlLocale(pageLocale());
   for (const node of nodes) {
     const found = idsOf(node).map((id) => prices.get(id));

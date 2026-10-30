@@ -305,6 +305,14 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     freeShippingUnlocked: t("cart.freeShippingUnlocked"),
     free: t("cart.free"),
     prevente: prevente.active,
+    // Rapport prix normal / prix pratiqué par variante, pour les pays où Shopify
+    // ne renvoie pas le prix barré (Espace économique européen, voir country.ts).
+    compareRatios: Object.fromEntries(
+      allProducts
+        .map((p) => [getPrimaryVariant(p), getCompareAtPrice(p)] as const)
+        .filter(([, c]) => c)
+        .map(([v, c]) => [v.id, Number(c!.amount) / Number(v.price.amount)])
+    ),
     preorderTag: t("prevente.cardBadge"),
     preorderCheckout: t("prevente.checkout"),
     wasA11y: t("prevente.was"),
@@ -532,7 +540,12 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       if (sampleOptions.some((s) => s.variantId === line.merchandise.id)) continue;
       const amount = Number(line.cost.totalAmount.amount);
       // Une ligne offerte (0) n'a pas de prix barré : c'est un cadeau, pas une remise.
-      const unitWas = Number(line.cost.compareAtAmountPerQuantity?.amount ?? 0);
+      const ratio = Number(I18N.compareRatios?.[line.merchandise.id] ?? 0);
+      const unitWas = line.cost.compareAtAmountPerQuantity
+        ? Number(line.cost.compareAtAmountPerQuantity.amount)
+        : ratio > 1
+          ? Math.round((amount / line.quantity) * ratio)
+          : 0;
       const compare = amount > 0 && unitWas * line.quantity > amount ? unitWas * line.quantity : amount;
       const existing = groups.get(line.merchandise.id);
       if (existing) {
