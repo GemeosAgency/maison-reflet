@@ -1,7 +1,6 @@
 ---
-import { getProductHoverSrc } from "../../../lib/product-images";
 import Layout from "../../../layouts/Layout.astro";
-import ProductCard from "../../../components/ProductCard.astro";
+import PerfumeGrid from "../../../components/PerfumeGrid.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import { COFFRET_HANDLE } from "../../../lib/coffret";
 import Faq from "../../../components/Faq.astro";
@@ -13,19 +12,12 @@ import {
   formatPrice,
   getAllProducts,
   getPrimaryVariant,
-  getDisplayPrice,
-  getCompareAtLabel,
   isCoffret,
-  secondaryImage,
-  hoverGalleryImage,
   shopifyImage,
 } from "../../../lib/shopify";
 import {
-  getInspiredByMap,
-  getRecoImages,
   getCoffrets,
   getReassurances,
-  getBestSellerMap,
   getPageBySlug,
   responsiveImage,
   urlForImage,
@@ -44,52 +36,6 @@ const prevente = await getPrevente();
 const addLabel = prevente.active ? t("prevente.add") : t("product.addToCart");
 
 const allProducts = await getAllProducts();
-const inspiredMap = await getInspiredByMap();
-const recoImages = await getRecoImages();
-const bestSellerMap = await getBestSellerMap();
-
-// Grille catalogue : tous les parfums (hors coffrets).
-const perfumes = allProducts
-  .filter((p) => !isCoffret(p))
-  .map((p) => {
-    const recoImg = recoImages[p.handle];
-    const variant = getPrimaryVariant(p);
-    const price = getDisplayPrice(p);
-    return {
-      name: p.title,
-      inspired: inspiredMap[p.handle] ?? null,
-      price: formatPrice(price.amount, price.currencyCode),
-      compare: getCompareAtLabel(p),
-      // `imageRecommandation` est la photo « texte devant » de la maquette
-      // (Figma 11928:1191) : le flacon remonté, du vide sous lui pour le nom et
-      // le prix. On ne la recadre pas côté Sanity — la carte le fait elle-même,
-      // en `cover` ancré en bas, et un recadrage serveur rognerait justement ce
-      // vide.
-      img: recoImg?.main
-        ? urlForImage(recoImg.main as any).width(1200).url()
-        : p.featuredImage
-          ? shopifyImage(p.featuredImage, [480, 720, 1200]).src
-          : null,
-      // Seconde photo du survol : la version curée dans Sanity si elle existe,
-      // sinon la deuxième photo produit de Shopify. Les visuels de variante
-      // échantillon sont écartés — ce sont des vignettes de 192px destinées au
-      // panier, pas des angles de flacon.
-      hoverImg: getProductHoverSrc(p.handle, p.title) ??
-        (() => {
-          const im = hoverGalleryImage(p);
-          return im ? shopifyImage(im, [480, 720, 1200]).src : null;
-        })() ??
-        (recoImg?.hover
-        ? urlForImage(recoImg.hover as any).width(1200).height(1605).url()
-        : (() => {
-            const im = secondaryImage(p);
-            return im ? shopifyImage(im, [480, 720, 1200]).src : null;
-          })()),
-      variantId: variant.id,
-      href: localePath(lang, `/parfums/${p.handle}`),
-      badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
-    };
-  });
 
 /*
  * « The Discovery Set » : la maquette du catalogue (node 11003:9970) remplace
@@ -165,27 +111,8 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
     </div>
   </section>
 
-  <section class="catalog-grid full-bleed">
-    {
-      perfumes.map((p) => (
-        <ProductCard
-          name={p.name}
-          inspired={p.inspired}
-          inspiredByLabel={t("product.twistOf")}
-          price={p.price}
-          compare={p.compare}
-          img={p.img}
-          hoverImg={p.hoverImg}
-          href={p.href}
-          variantId={p.variantId}
-          badge={p.badge}
-          addLabel={addLabel}
-          addedLabel={t("cart.added")}
-          errorLabel={t("product.error")}
-        />
-      ))
-    }
-  </section>
+  {/* Grille catalogue : les six Reflets (hors coffrets). */}
+  <PerfumeGrid products={allProducts} lang={lang} addLabel={addLabel} />
 
   <LumaDoors lang={lang} />
 
@@ -285,28 +212,10 @@ const reviews = Array.from({ length: 5 }, () => ({ author: "—", date: "", quot
   .catalog-hero-content h1 { margin: 0; font-size: clamp(30px, 2.78vw, 48px); font-weight: 500; text-transform: uppercase; line-height: 1.2; }
   .catalog-hero-content p { margin: 0; font-size: 18px; line-height: 1.32; letter-spacing: -0.36px; }
 
-  /* Grille produits : 3 colonnes sur toute la largeur du container, gap 2px,
-     deux rangées de trois. La hauteur découle du ratio de la maquette
-     (478,67 x 640) et non d'une valeur fixe, donc les tuiles gardent leurs
-     proportions sur écran large. */
-  .catalog-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2px;
-    width: 100%;
-    margin-top: 2px;
-  }
-  .catalog-grid :global(.product-card) { aspect-ratio: 478.6667 / 640; height: auto; }
 
   @media (max-width: 900px) {
     .catalog-hero { min-height: 440px; }
     .catalog-hero-inner { padding: 40px var(--gutter-x); }
     .catalog-hero-content p { font-size: 16px; }
-    .catalog-grid { grid-template-columns: repeat(2, 1fr); }
-  }
-
-  @media (max-width: 560px) {
-    .catalog-grid { grid-template-columns: 1fr; }
-    .catalog-grid :global(.product-card) { aspect-ratio: 4 / 5; }
   }
 </style>

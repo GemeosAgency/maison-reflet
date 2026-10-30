@@ -13,6 +13,7 @@ import Reassurance from "../../../components/Reassurance.astro";
 import LumaAsk from "../../../components/LumaAsk.astro";
 import LumaListen from "../../../components/LumaListen.astro";
 import RelatedProducts from "../../../components/RelatedProducts.astro";
+import Reviews from "../../../components/Reviews.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import ProductGallery from "../../../components/product/ProductGallery.astro";
 import ProductInfoPanel from "../../../components/product/ProductInfoPanel.astro";
@@ -169,7 +170,13 @@ const gaugeLabel = (value: number | null, low: string, mid: string, high: string
   if (value == null) return null;
   return value <= 2 ? low : value === 3 ? mid : high;
 };
+// La rangée Sillage n'est plus affichée (Figma 11978:3836 : quatre rangées) ;
+// la valeur reste lue pour son libellé, au cas où elle reviendrait.
 const sillage = parfum?.sillage ?? null;
+// Rangée « Specific twist of » du Figma (11978:3836) : le parfum d'origine et
+// sa maison. Les cartes et Luma gardent le nom seul (inspiredMap).
+const inspired = inspiredMap[product.handle] ?? parfum?.inspiredBy ?? null;
+const twistOfLine = inspired ? [inspired, parfum?.maisonOrigine].filter(Boolean).join(" · ") : null;
 
 // Contenance affichée à côté du titre (variante principale Shopify).
 const sizeLabel = variant.title !== "Default Title" ? variant.title : null;
@@ -406,11 +413,11 @@ const productJsonLd = {
         descriptionHtml={descriptionHtml}
         famillesLabel={t("product.olfactiveFamily")}
         familles={familles}
-        pyramidLabel={t("product.pyramid")}
+        pyramidLabel={t("product.notesAccords")}
         pyramidImg={pyramidImg}
         noteLevels={scentLevels.map((l) => ({ label: l.label, notes: l.notes }))}
         sillageLabel={t("product.sillage")}
-        sillage={sillage}
+        sillage={null}
         sillageValueLabel={gaugeLabel(sillage, t("product.sillageLow"), t("product.sillageMid"), t("product.sillageHigh"))}
         variantId={variant.id}
         priceLabel={priceLabel}
@@ -425,8 +432,8 @@ const productJsonLd = {
         perks={perks}
         longevityLabel={t("product.longevity")}
         tipLabel={t("product.tipOpen")}
-        inspiredByLabel={t("product.inspiredBy")}
-        inspiredBy={inspiredMap[product.handle] ?? null}
+        inspiredByLabel={t("product.twistOf")}
+        inspiredBy={twistOfLine}
       >
         <TwistLine slot="after-description" lang={lang} handle={product.handle} />
         <LumaListen slot="after-description" lang={lang} handle={product.handle} name={product.title} note={t("luma.listenNote")} />
@@ -472,40 +479,20 @@ const productJsonLd = {
 
   <Reassurance items={reassurances} />
 
-  <!--
-    Avis clients : aucun système d'avis branché — bloc de démonstration,
-    à remplacer par de vrais avis (Judge.me / Loox…) avant le lancement.
-  -->
-  <section class="reviews">
-    <div class="reviews-head">
-      <h2>{t("home.reviews.title").replace("{count}", String(reviewCount))}</h2>
-      <div class="reviews-rating">
-        <span class="stars">
-          {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="14" height="14" />)}
-        </span>
-        <span class="reviews-rated">
-          <strong>{t("home.reviews.rated")}</strong>
-          <span>{t("home.reviews.customers")}</span>
-        </span>
-      </div>
-    </div>
-    <div class="reviews-list">
-      {
-        reviews.map((r) => (
-          <div class="review">
-            <div class="review-head">
-              <span class="stars">
-                {[0, 1, 2, 3, 4].map(() => <img src="/brand/star.svg" alt="" width="14" height="14" />)}
-              </span>
-              <p class="review-author">{r.author}</p>
-              {r.date && <p class="review-date">{r.date}</p>}
-            </div>
-            <p class="review-quote">“{r.quote}”</p>
-          </div>
-        ))
-      }
-    </div>
-  </section>
+  {/*
+    Avis clients : même composant que la page coffret (nom, date, photo,
+    pagination, Figma 11939:2606). Aucun système d'avis n'est branché : ce
+    sont encore les avis de démonstration, à remplacer avant le lancement.
+  */}
+  <Reviews
+    title={t("home.reviews.title")}
+    ratingLabel={t("home.reviews.rated")}
+    customersLabel={t("home.reviews.customers")}
+    reviews={reviews}
+    totalCount={reviewCount}
+    previousLabel={t("reviews.previous")}
+    nextLabel={t("reviews.next")}
+  />
 
   {/*
     Sans bouton d'ajout : sur un parfum qu'on ne peut pas sentir, cinq
@@ -628,38 +615,10 @@ const productJsonLd = {
   }
 
   /* Avis (placeholder) */
-  .reviews {
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-    padding: 96px var(--gutter-x) 80px;
-  }
-  .reviews-head { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
-  .reviews-head h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; }
-  .reviews-rating { display: flex; align-items: center; gap: 8px; }
-  .stars { display: inline-flex; gap: 2px; }
-  .reviews-rated { display: flex; align-items: baseline; gap: 4px; }
-  .reviews-rated strong { font-size: 16px; font-weight: 500; }
-  .reviews-rated span { font-size: 14px; }
-  .reviews-list { display: flex; flex-direction: column; }
-  .review {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 24px 0;
-    border-top: 1px solid rgba(21, 14, 10, 0.12);
-  }
-  .reviews-list .review:last-child { border-bottom: 1px solid rgba(21, 14, 10, 0.12); }
-  .review-head { display: flex; flex-direction: column; gap: 8px; }
-  .review-author { margin: 0; font-size: 16px; font-weight: 500; text-transform: uppercase; }
-  .review-date { margin: 0; font-size: 16px; opacity: 0.7; }
-  .review-quote { margin: 0; max-width: 60rem; font-size: 18px; line-height: 1.28; letter-spacing: 1.08px; }
 
   @media (max-width: 900px) {
     .produit { grid-template-columns: minmax(0, 1fr); }
     .produit-panel { position: static; padding: 24px var(--gutter-x) 32px; }
-    .reviews { padding: 56px var(--gutter-x) 40px; }
-    .reviews-head h2 { font-size: 26px; }
     /* `flex: none` est indispensable : en flex-direction column, le
        `flex: 1 0 0` du desktop s'applique à la HAUTEUR et écrase
        l'aspect-ratio — les piliers s'effondraient à 48px de haut.

@@ -161,6 +161,8 @@ export type ParfumContent = {
   accroche: string | null;
   description: unknown[] | null;
   inspiredBy: string | null;
+  /** Maison du parfum de référence, pour la rangée « Specific twist of » (Figma 11978:3836). */
+  maisonOrigine: string | null;
   specificTwist: string | null;
   perfumerWord: string | null;
   perfumerPhoto: unknown | null;
@@ -193,6 +195,7 @@ export async function getParfumContent(
     "accroche": coalesce(accroche.${l}, accroche.fr),
     "description": coalesce(description.${l}, description.fr),
     inspiredBy,
+    maisonOrigine,
     "specificTwist": coalesce(specificTwist.${l}, specificTwist.fr),
     "perfumerWord": coalesce(perfumerWord.${l}, perfumerWord.fr),
     perfumerPhoto,

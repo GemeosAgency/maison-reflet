@@ -4,9 +4,9 @@
  * de l'avoir et bouton à droite. Contenu éditorial depuis Sanity (coffret),
  * prix depuis Shopify, assemblés par la page appelante.
  *
- * Le bouton porte le prix à sa droite et prend le bordeaux de la maison, comme
- * le bouton d'achat des fiches : c'était le seul appel du site à ressembler à
- * un lien de rubrique alors qu'il vend un produit (Sandro).
+ * Maquette du 30 oct. (Figma 11026:16157) : le prix sur sa propre ligne sous
+ * la description, puis un bouton bordeaux compact « Shop now → ». Il garde le
+ * bordeaux de la maison : c'est un appel qui vend un produit.
  */
 import Tip from "./Tip.astro";
 import type { ResponsiveImage } from "../lib/sanity";
@@ -54,9 +54,13 @@ const { title, description, priceLabel, href, img, ctaLabel, creditLabel = null,
         </p>
       )
     }
+    <p class="dset-price">{priceLabel}</p>
     <a class="dset-cta" href={href}>
       <span>{ctaLabel}</span>
-      <span class="dset-cta-price">{priceLabel}</span>
+      {/* Même tracé que /brand/arrow-right.svg, en ligne pour prendre la couleur du bouton. */}
+      <svg class="dset-arrow" viewBox="0 0 13.5 11.0459" width="12" height="10" fill="none" aria-hidden="true">
+        <path d="M0.75 4.77297C0.335786 4.77297 0 5.10876 0 5.52297C0 5.93718 0.335786 6.27297 0.75 6.27297V5.52297V4.77297ZM13.2803 6.0533C13.5732 5.76041 13.5732 5.28553 13.2803 4.99264L8.50736 0.21967C8.21447 -0.0732236 7.73959 -0.0732236 7.4467 0.21967C7.15381 0.512563 7.15381 0.987437 7.4467 1.28033L11.6893 5.52297L7.4467 9.76561C7.15381 10.0585 7.15381 10.5334 7.4467 10.8263C7.73959 11.1192 8.21447 11.1192 8.50736 10.8263L13.2803 6.0533ZM0.75 5.52297V6.27297H12.75V5.52297V4.77297H0.75V5.52297Z" fill="currentColor" />
+      </svg>
     </a>
   </div>
 </section>
@@ -89,7 +93,7 @@ const { title, description, priceLabel, href, img, ctaLabel, creditLabel = null,
     flex-direction: column;
     align-items: flex-start;
     gap: 24px;
-    padding-bottom: 56px;
+    padding-bottom: 48px;
   }
   .dset-text h2 {
     margin: 0;
@@ -119,26 +123,30 @@ const { title, description, priceLabel, href, img, ctaLabel, creditLabel = null,
     font-weight: 500;
     color: var(--ink);
   }
-  /* Même dessin que le bouton d'achat des fiches : libellé à gauche, prix à
-     droite, sur toute la largeur du texte. */
+  .dset-price {
+    margin: -8px 0 8px;
+    font-size: 16px;
+    line-height: 1.5;
+    letter-spacing: 0.96px;
+  }
+  /* Bouton de la maquette : 48 px de haut, 20 px de côté, flèche de 12 px. */
   .dset-cta {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    width: 100%;
-    max-width: 420px;
-    height: 56px;
-    padding: 0 22px;
+    gap: 12px;
+    height: 48px;
+    padding: 0 20px;
     background: var(--rose);
-    color: var(--bg);
+    color: var(--paper, #f1eee9);
     font-size: 16px;
     font-weight: 500;
     text-transform: uppercase;
+    text-decoration: none;
     transition: opacity 0.15s;
   }
   .dset-cta:hover { opacity: 0.92; }
-  .dset-cta-price { font-variant-numeric: tabular-nums; }
+  .dset-arrow { flex: none; }
+  :global([dir="rtl"]) .dset-arrow { transform: scaleX(-1); }
 
   @media (max-width: 900px) {
     .dset { flex-direction: column; align-items: stretch; gap: 24px; padding: 56px var(--gutter-x) 40px; }

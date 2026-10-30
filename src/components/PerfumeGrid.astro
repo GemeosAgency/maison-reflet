@@ -1,0 +1,211 @@
+---
+/**
+ * La grille des six Reflets en grandes cartes (ProductCard) : 3 colonnes,
+ * 2 px d'écart, ratio de la maquette (478,67 x 640).
+ *
+ * Partagée par le catalogue (Figma 11003:9970) et la page coffret, dont le
+ * « You may also like » est désormais la même grille, avec titre et sous-titre
+ * (Figma 12013:546). La construction des cartes vit ici pour que les deux
+ * pages ne divergent pas.
+ *
+ * `layout="row"` : une rangée de quatre cartes (358,5 x 528) avec le titre à
+ * gauche et « Tout voir » à droite, comme les bestsellers de l'accueil —
+ * c'est le « Meet the Reflections » de La Maison (Figma 12018:1058).
+ */
+import ProductCard from "./ProductCard.astro";
+import { getProductHoverSrc } from "../lib/product-images";
+import {
+  formatPrice,
+  getPrimaryVariant,
+  getDisplayPrice,
+  getCompareAtLabel,
+  isCoffret,
+  secondaryImage,
+  hoverGalleryImage,
+  shopifyImage,
+  type ShopifyProduct,
+} from "../lib/shopify";
+import { getInspiredByMap, getRecoImages, getBestSellerMap, urlForImage } from "../lib/sanity";
+import { type Locale, localePath, useTranslations } from "../i18n";
+
+interface Props {
+  products: ShopifyProduct[];
+  lang: Locale;
+  addLabel: string;
+  /** Titre et sous-titre centrés au-dessus de la grille (page coffret). */
+  title?: string;
+  subtitle?: string;
+  layout?: "grid" | "row";
+  /** Nombre de cartes ; la rangée en montre quatre, best-sellers d'abord. */
+  limit?: number;
+  seeAllHref?: string;
+  seeAllLabel?: string;
+}
+
+const { products, lang, addLabel, title, subtitle, layout = "grid", seeAllHref, seeAllLabel } = Astro.props;
+const limit = Astro.props.limit ?? (layout === "row" ? 4 : undefined);
+const t = useTranslations(lang);
+
+const [inspiredMap, recoImages, bestSellerMap] = await Promise.all([
+  getInspiredByMap(),
+  getRecoImages(),
+  getBestSellerMap(),
+]);
+
+const perfumes = products.filter((p) => !isCoffret(p));
+const ordered =
+  layout === "row"
+    ? [...perfumes].sort((a, b) => Number(Boolean(bestSellerMap[b.handle])) - Number(Boolean(bestSellerMap[a.handle])))
+    : perfumes;
+
+const cards = ordered
+  .slice(0, limit)
+  .map((p) => {
+    const recoImg = recoImages[p.handle];
+    const variant = getPrimaryVariant(p);
+    const price = getDisplayPrice(p);
+    return {
+      name: p.title,
+      inspired: inspiredMap[p.handle] ?? null,
+      price: formatPrice(price.amount, price.currencyCode),
+      compare: getCompareAtLabel(p),
+      // `imageRecommandation` est la photo « texte devant » de la maquette
+      // (Figma 11928:1191) : le flacon remonté, du vide sous lui pour le nom et
+      // le prix. On ne la recadre pas côté Sanity — la carte le fait elle-même,
+      // en `cover` ancré en bas, et un recadrage serveur rognerait justement ce
+      // vide.
+      img: recoImg?.main
+        ? urlForImage(recoImg.main as any).width(1200).url()
+        : p.featuredImage
+          ? shopifyImage(p.featuredImage, [480, 720, 1200]).src
+          : null,
+      // Seconde photo du survol : la galerie locale, sinon la version curée dans
+      // Sanity, sinon la deuxième photo produit de Shopify. Les visuels de
+      // variante échantillon sont écartés — ce sont des vignettes de 192px
+      // destinées au panier, pas des angles de flacon.
+      hoverImg:
+        getProductHoverSrc(p.handle, p.title) ??
+        (() => {
+          const im = hoverGalleryImage(p);
+          return im ? shopifyImage(im, [480, 720, 1200]).src : null;
+        })() ??
+        (recoImg?.hover
+          ? urlForImage(recoImg.hover as any).width(1200).height(1605).url()
+          : (() => {
+              const im = secondaryImage(p);
+              return im ? shopifyImage(im, [480, 720, 1200]).src : null;
+            })()),
+      variantId: variant.id,
+      href: localePath(lang, `/parfums/${p.handle}`),
+      badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
+    };
+  });
+---
+
+{
+  title && (
+    <div class:list={["pgrid-head", { "is-row": layout === "row" }]}>
+      <div class="pgrid-head-text">
+        <h2>{title}</h2>
+        {subtitle && <p>{subtitle}</p>}
+      </div>
+      {seeAllHref && seeAllLabel && (
+        <a class="pgrid-all" href={seeAllHref}>
+          {seeAllLabel}
+          <img src="/brand/arrow-right.svg" alt="" width="12" height="12" />
+        </a>
+      )}
+    </div>
+  )
+}
+<section class:list={["pgrid full-bleed", { "is-row": layout === "row" }]}>
+  {
+    cards.map((p) => (
+      <ProductCard
+        name={p.name}
+        inspired={p.inspired}
+        inspiredByLabel={t("product.twistOf")}
+        price={p.price}
+        compare={p.compare}
+        img={p.img}
+        hoverImg={p.hoverImg}
+        href={p.href}
+        variantId={p.variantId}
+        badge={p.badge}
+        addLabel={addLabel}
+        addedLabel={t("cart.added")}
+        errorLabel={t("product.error")}
+      />
+    ))
+  }
+</section>
+
+<style>
+  /* En-tête du « You may also like » de la page coffret (Figma 12013:547). */
+  .pgrid-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 56px var(--gutter-x) 40px;
+    text-align: center;
+  }
+  .pgrid-head-text { display: flex; flex-direction: column; align-items: inherit; gap: 8px; }
+  .pgrid-head h2 { margin: 0; font-size: 32px; font-weight: 500; text-transform: uppercase; line-height: 1.2; }
+  .pgrid-head p { margin: 0; font-size: 18px; line-height: 1.36; }
+  /* Rangée : titre à gauche, « Tout voir » à droite (en-tête des bestsellers). */
+  .pgrid-head.is-row {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 96px var(--gutter-x) 40px;
+    text-align: start;
+  }
+  .pgrid-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    height: 48px;
+    padding: 0 20px;
+    background: var(--sand);
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 500;
+    text-transform: uppercase;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .pgrid-all:hover { opacity: 0.85; }
+  :global([dir="rtl"]) .pgrid-all img { transform: scaleX(-1); }
+
+  /* Grille produits : 3 colonnes sur toute la largeur du container, gap 2px,
+     deux rangées de trois. La hauteur découle du ratio de la maquette
+     (478,67 x 640) et non d'une valeur fixe, donc les tuiles gardent leurs
+     proportions sur écran large. */
+  .pgrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    width: 100%;
+    margin-top: 2px;
+  }
+  .pgrid :global(.product-card) { aspect-ratio: 478.6667 / 640; height: auto; }
+  .pgrid.is-row { grid-template-columns: repeat(4, 1fr); }
+  .pgrid.is-row :global(.product-card) { aspect-ratio: 358.5 / 528; }
+
+  @media (max-width: 900px) {
+    .pgrid-head { padding: 40px var(--gutter-x) 24px; }
+    .pgrid-head h2 { font-size: 26px; }
+    .pgrid-head p { font-size: 16px; }
+    .pgrid { grid-template-columns: repeat(2, 1fr); }
+    .pgrid.is-row { grid-template-columns: repeat(2, 1fr); }
+    .pgrid-head.is-row { padding: 56px var(--gutter-x) 32px; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+  }
+
+  @media (max-width: 560px) {
+    .pgrid { grid-template-columns: 1fr; }
+    .pgrid :global(.product-card) { aspect-ratio: 4 / 5; }
+  }
+</style>

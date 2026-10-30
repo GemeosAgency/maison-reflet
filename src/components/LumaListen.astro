@@ -189,7 +189,8 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
 </script>
 
 <style>
-  .listen-wrap { margin-top: 20px; width: 100%; }
+  /* 360 px dans la maquette (11978:3702), pleine largeur sous ce seuil. */
+  .listen-wrap { margin-top: 20px; width: 100%; max-width: 360px; }
   /* La pilule du menu, qui est aussi la barre : le remplissage et l'ombre du survol vivent derrière le contenu. */
   .listen {
     position: relative;

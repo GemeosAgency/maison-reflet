@@ -48,6 +48,14 @@ export default defineType({
       group: "contenu",
     }),
     defineField({
+      name: "maisonOrigine",
+      title: "Maison d'origine",
+      type: "string",
+      description:
+        "Maison du parfum de référence (ex : Maison Francis Kurkdjian). Affichée seulement dans la rangée « Specific twist of » de la fiche : « Baccarat Rouge 540 · Maison Francis Kurkdjian ».",
+      group: "contenu",
+    }),
+    defineField({
       name: "specificTwist",
       title: "Le twist spécifique de ce reflet",
       description:

@@ -2,6 +2,8 @@
 /**
  * « Perfumer's word » : image à gauche, citation à droite.
  * Image = perfumerPhoto (Sanity), citation = perfumerWord (Sanity).
+ * Signature du parfumeur sous la citation (Figma 12013:620) : la police de la
+ * maquette (Authentic Signature) n'est pas sur le site, d'où le tracé SVG.
  */
 import type { ResponsiveImage } from "../../lib/sanity";
 
@@ -32,6 +34,7 @@ const { title, quote, img } = Astro.props;
   <div class="pword-text">
     <h2>{title}</h2>
     <p>“{quote}”</p>
+    <img class="pword-sign" src="/brand/signature-parfumeur.svg" alt="Sebastien Martin" width="201" height="33" loading="lazy" decoding="async" />
   </div>
 </section>
 
@@ -63,8 +66,9 @@ const { title, quote, img } = Astro.props;
     display: flex;
     flex-direction: column;
     gap: 24px;
-    padding-bottom: 32px;
+    padding-bottom: 48px;
   }
+  .pword-sign { display: block; width: 201px; height: auto; }
   .pword-text h2 {
     margin: 0;
     font-size: 32px;

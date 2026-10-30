@@ -1,6 +1,13 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import DiscoverySetBanner from "../../components/DiscoverySetBanner.astro";
+import Faq from "../../components/Faq.astro";
+import PerfumeGrid from "../../components/PerfumeGrid.astro";
 import { type Locale, locales, localePath, useTranslations } from "../../i18n";
+import { COFFRET_HANDLE } from "../../lib/coffret";
+import { getDiscoveryBanner } from "../../lib/discovery";
+import { getPageBySlug, getPrevente } from "../../lib/sanity";
+import { getAllProducts } from "../../lib/shopify";
 
 export function getStaticPaths() {
   return locales.map((lang) => ({ params: { lang } }));
@@ -9,16 +16,27 @@ export function getStaticPaths() {
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
 
-// Sections texte + image alternées (d'après le Figma). `textFirst` inverse
-// l'ordre (texte à gauche, image à droite) ; par défaut image à gauche.
+// Sections texte + image alternées, dans l'ordre du Figma (10612:10942) :
+// Inspiration, Notre histoire, le twist. `textFirst` inverse l'ordre (texte à
+// gauche, image à droite) ; par défaut image à gauche.
 const rows = [
   { img: "/maison/inspiration.jpg", title: t("maison.inspiration.title"), body: t("maison.inspiration.body"), textFirst: false },
-  { img: "/maison/twist.jpg", title: t("maison.twist.title"), body: t("maison.twist.body"), textFirst: true },
+  { img: "/maison/story.jpg", title: t("maison.story.title"), body: t("maison.story.body"), textFirst: true },
+  { img: "/maison/twist.jpg", title: t("maison.twist.title"), body: t("maison.twist.body"), textFirst: false },
 ];
-const rowsAfter = [
-  { img: "/maison/tradition.jpg", title: t("maison.tradition.title"), body: t("maison.tradition.body"), textFirst: true },
-  { img: "/maison/story.jpg", title: t("maison.story.title"), body: t("maison.story.body"), textFirst: false },
-];
+
+const prevente = await getPrevente();
+const addLabel = prevente.active ? t("prevente.add") : t("product.addToCart");
+const products = await getAllProducts();
+
+// Bannière coffret : la photo propre à La Maison (Figma 12018:1012, la boîte
+// sur une table, ombres de feuillage), le reste comme ailleurs.
+const discovery = await getDiscoveryBanner(lang);
+const discoveryImg = { src: "/maison/coffret.jpg", srcset: "/maison/coffret.jpg 1632w" };
+
+// FAQ : les questions rattachées à la page « maison » dans le Studio, sinon
+// celles de l'accueil, comme le catalogue.
+const faqPage = (await getPageBySlug("maison", lang)) ?? (await getPageBySlug("home", lang));
 
 const pillars = [
   { img: "/maison/pillar-quality.jpg", title: t("home.pillars.quality.title"), text: t("home.pillars.quality.text") },
@@ -85,21 +103,44 @@ const pillars = [
     </div>
   </section>
 
-  <section class="maison-rows">
-    {
-      rowsAfter.map((r) => (
-        <div class:list={["maison-row", { "text-first": r.textFirst }]}>
-          <div class="maison-row-img">
-            <img src={r.img} alt="" loading="lazy" />
-          </div>
-          <div class="maison-row-text">
-            <h2>{r.title}</h2>
-            <p>{r.body}</p>
-          </div>
-        </div>
-      ))
-    }
+  {/* Tradition : titre et texte côte à côte, puis l'image en pleine largeur du container (Figma 11035:16371). */}
+  <section class="maison-wide">
+    <div class="maison-wide-text">
+      <h2>{t("maison.tradition.title")}</h2>
+      <p>{t("maison.tradition.body")}</p>
+    </div>
+    <div class="maison-wide-img">
+      <img src="/maison/tradition.jpg" alt="" loading="lazy" decoding="async" />
+    </div>
   </section>
+
+  <PerfumeGrid
+    products={products}
+    lang={lang}
+    addLabel={addLabel}
+    layout="row"
+    title={t("maison.reflections")}
+    seeAllHref={localePath(lang, "/parfums")}
+    seeAllLabel={t("home.seeAll")}
+  />
+
+  {
+    discovery && (
+      <DiscoverySetBanner
+        title={discovery.titre}
+        description={discovery.description}
+        priceLabel={discovery.price}
+        href={discovery.href}
+        img={discoveryImg}
+        ctaLabel={t("home.hero.cta")}
+        creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
+        creditNote={discovery.handle === COFFRET_HANDLE ? t("coffret.creditNote") : null}
+        tipLabel={t("product.tipOpen")}
+      />
+    )
+  }
+
+  <Faq items={faqPage?.faqs ?? []} title={t("nav.faq")} />
 </Layout>
 
 <style>
@@ -168,17 +209,22 @@ const pillars = [
     gap: 72px;
     padding: 72px;
   }
+  /* Proportions de la maquette : image 816 x 560, texte 416, 64 px d'écart,
+     texte calé en bas de l'image. */
   .maison-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 816fr) minmax(0, 416fr);
     gap: 64px;
-    align-items: center;
+    align-items: end;
+  }
+  .maison-row.text-first {
+    grid-template-columns: minmax(0, 416fr) minmax(0, 816fr);
   }
   .maison-row.text-first .maison-row-img {
     order: 2;
   }
   .maison-row-img {
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 816 / 560;
     overflow: hidden;
     background: #dec9b8;
   }
@@ -207,6 +253,38 @@ const pillars = [
     line-height: 1.36;
     white-space: pre-line;
   }
+
+  /* Tradition (Figma 11035:16371) : titre à gauche, texte à droite, puis
+     l'image pleine largeur du container au ratio 1296 x 560. */
+  .maison-wide {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+    padding: 120px var(--gutter-x) 72px;
+  }
+  .maison-wide-text {
+    display: flex;
+    justify-content: space-between;
+    gap: 64px;
+  }
+  .maison-wide-text h2 {
+    margin: 0;
+    max-width: 422px;
+    font-size: clamp(26px, 2.22vw, 32px);
+    font-weight: 500;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+  .maison-wide-text p {
+    margin: 0;
+    max-width: 732px;
+    font-size: 18px;
+    line-height: 1.32;
+    letter-spacing: 1.08px;
+    white-space: pre-line;
+  }
+  .maison-wide-img { aspect-ratio: 1296 / 560; overflow: hidden; background: #dec9b8; }
+  .maison-wide-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
   /* Section piliers (Qualité / Tenue / Caractère) */
   .maison-pillars {
@@ -303,10 +381,15 @@ const pillars = [
       padding: 40px 24px;
       gap: 48px;
     }
-    .maison-row {
+    .maison-row,
+    .maison-row.text-first {
       grid-template-columns: 1fr;
       gap: 24px;
     }
+    .maison-wide { padding: 48px var(--gutter-x) 40px; gap: 24px; }
+    .maison-wide-text { flex-direction: column; gap: 16px; }
+    .maison-wide-text p { font-size: 16px; }
+    .maison-wide-img { aspect-ratio: 3 / 2; }
     .maison-row.text-first .maison-row-img {
       order: 0;
     }

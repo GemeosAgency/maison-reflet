@@ -1,5 +1,4 @@
 ---
-import { getProductHoverImage } from "../../../lib/product-images";
 /**
  * Page coffret v2 (maquette Figma « Discovery », septembre 2026) — assemblage
  * de sections : galerie + panneau sticky, Scent Notes à onglets (un par parfum
@@ -17,32 +16,25 @@ import Faq from "../../../components/Faq.astro";
 import Pillars from "../../../components/Pillars.astro";
 import Reassurance from "../../../components/Reassurance.astro";
 import LumaAsk from "../../../components/LumaAsk.astro";
-import RelatedProducts from "../../../components/RelatedProducts.astro";
+import PerfumeGrid from "../../../components/PerfumeGrid.astro";
 import Reviews from "../../../components/Reviews.astro";
 import ProductGallery from "../../../components/product/ProductGallery.astro";
 import ProductInfoPanel from "../../../components/product/ProductInfoPanel.astro";
-import CoffretCredit from "../../../components/product/CoffretCredit.astro";
 import { COFFRET_HANDLE } from "../../../lib/coffret";
 import ScentNotes from "../../../components/product/ScentNotes.astro";
 import PerfumerWord from "../../../components/product/PerfumerWord.astro";
 import {
   formatPrice,
   getAllProducts,
-  getDisplayPrice,
   getCompareAtLabel,
   getPrimaryVariant,
   isCoffret,
-  secondaryImage,
-  hoverGalleryImage,
   shopifyImage,
   type ShopifyProduct,
 } from "../../../lib/shopify";
 import {
-  getBestSellerMap,
   getCoffretByHandle,
-  getInspiredByMap,
   getReassurances,
-  getRecoImages,
   responsiveImage,
   richTextToHtml,
   urlForImage,
@@ -70,9 +62,6 @@ const prevente = await getPrevente();
 const addLabel = prevente.active ? t("prevente.add") : t("product.addToCart");
 const { product, products } = Astro.props;
 
-// Largeurs des tuiles "You may also like" (287px de large dans la maquette,
-// jusqu'à 860 pour la densité 2x sur grand écran).
-const TILE_WIDTHS = [320, 480, 640, 860];
 
 const content = await getCoffretByHandle(product.handle, lang);
 const variant = getPrimaryVariant(product);
@@ -106,7 +95,12 @@ const descriptionHtml = description ? `<p>${description.replace(/\n/g, "</p><p>"
 // Avantages sous le CTA. L'échantillon offert ne vaut que pour l'achat d'un
 // parfum, et « l'attention offerte » a été retirée du site : il ne reste que le
 // retour, qui s'applique au coffret comme au flacon.
+// Avoir du coffret découverte (Figma 12013:543 et 12015:763) : une rangée dans
+// le panneau, et une réassurance qui porte les conditions dans son infobulle.
+// Remplace l'ancien encadré CoffretCredit.
+const isDiscovery = product.handle === COFFRET_HANDLE;
 const perks: { icon: string; label: string; note?: string }[] = [
+  ...(isDiscovery ? [{ icon: "/brand/gift.svg", label: t("coffret.creditShort"), note: t("coffret.creditNote") }] : []),
   { icon: "/brand/reassurance-retour.svg", label: t("product.perkReturn"), note: t("product.perkReturnNote") },
 ];
 
@@ -170,50 +164,6 @@ const reassurances = (await getReassurances(lang)).map((r) => ({
   lignes: (r.texte ?? "").split("\n").filter(Boolean),
 }));
 
-// "You may also like" : les parfums de la collection (5 max, maquette).
-const [inspiredMap, bestSellerMap, recoImages] = await Promise.all([
-  getInspiredByMap(),
-  getBestSellerMap(),
-  getRecoImages(),
-]);
-const related = products
-  .filter((p) => !isCoffret(p))
-  .slice(0, 5)
-  .map((p) => {
-    const recoImg = recoImages[p.handle];
-    const price = getDisplayPrice(p);
-    const primaryVariant = getPrimaryVariant(p);
-    return {
-      name: p.title,
-      size: primaryVariant.title !== "Default Title" ? primaryVariant.title : null,
-      subtitle: inspiredMap[p.handle] ? `${t("product.twistOf")} ${inspiredMap[p.handle]}` : null,
-      price: formatPrice(price.amount, price.currencyCode),
-      compare: getCompareAtLabel(p),
-      // Sans imageRecommandation dans Sanity on retombe sur la photo produit
-      // Shopify — servie brute elle pèse jusqu'à 7,4 Mo pour une tuile de 287px.
-      // Ici le nom est SOUS l'image : c'est le packshot Shopify qu'il faut, pas
-      // `imageRecommandation`, réservée aux cartes qui portent leur texte par
-      // -dessus la photo (catalogue, accueil).
-      img: p.featuredImage ? shopifyImage(p.featuredImage, TILE_WIDTHS) : null,
-      // Photo du survol : la version curée dans Sanity si elle existe, sinon
-      // la deuxième photo produit de Shopify (voir secondaryImage). Même
-      // chaîne de repli que les tuiles du catalogue et de l'accueil.
-      hoverImg: getProductHoverImage(p.handle, p.title) ??
-        (() => {
-          const im = hoverGalleryImage(p);
-          return im ? shopifyImage(im, TILE_WIDTHS) : null;
-        })() ??
-        (recoImg?.hover
-        ? responsiveImage(recoImg.hover as any, { widths: TILE_WIDTHS, aspect: 287 / 352 })
-        : (() => {
-            const im = secondaryImage(p);
-            return im ? shopifyImage(im, TILE_WIDTHS) : null;
-          })()),
-      href: localePath(lang, `/parfums/${p.handle}`),
-      badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
-      variantId: primaryVariant.id,
-    };
-  });
 
 const pillars = [
   { title: t("home.pillars.quality.title"), text: t("home.pillars.quality.text"), image: "/home/pillar-quality.jpg" },
@@ -316,7 +266,7 @@ const productJsonLd = {
         sillageLabel={t("product.sillage")}
         sillage={null}
         sillageValueLabel={null}
-        plainRows={content?.contenance ? [content.contenance] : []}
+        plainRows={[content?.contenance, isDiscovery ? t("coffret.creditRow") : null].filter((r): r is string => Boolean(r))}
         variantId={variant.id}
         priceLabel={priceLabel}
         compareLabel={compareLabel}
@@ -331,15 +281,6 @@ const productJsonLd = {
         tipLabel={t("product.tipOpen")}
       >
         <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={title} kind="coffret" />
-        {product.handle === COFFRET_HANDLE && (
-          <CoffretCredit
-            slot="after-description"
-            eyebrow={t("coffret.creditEyebrow")}
-            amount={t("coffret.creditAmount")}
-            headline={t("coffret.creditHeadline")}
-            body={t("coffret.creditNote")}
-          />
-        )}
       </ProductInfoPanel>
     </aside>
   </div>
@@ -360,12 +301,13 @@ const productJsonLd = {
     nextLabel={t("reviews.next")}
   />
 
-  <RelatedProducts
-    title={t("product.related")}
-    items={related}
+  {/* « You may also like » : la grille des six du catalogue, avec titre et sous-titre (Figma 12013:546). */}
+  <PerfumeGrid
+    products={products}
+    lang={lang}
     addLabel={addLabel}
-    addedLabel={t("cart.added")}
-    errorLabel={t("product.error")}
+    title={t("product.related")}
+    subtitle={t("catalog.subtitle")}
   />
 
   <Pillars
