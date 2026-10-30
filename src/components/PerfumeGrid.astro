@@ -194,6 +194,11 @@ const cards = ordered
   .pgrid :global(.product-card) { aspect-ratio: 478.6667 / 640; height: auto; }
   .pgrid.is-row { grid-template-columns: repeat(4, 1fr); }
   .pgrid.is-row :global(.product-card) { aspect-ratio: 358.5 / 528; }
+  /* Rangée de La Maison (Figma 12018:1058) : au repos, le nom et le prix
+     seulement ; « Specific twist of » n'apparaît qu'au survol, avec le bouton. */
+  @media (hover: hover) {
+    .pgrid.is-row :global(.product-card:not(:hover) .product-card-inspired) { display: none; }
+  }
 
   @media (max-width: 900px) {
     .pgrid-head { padding: 40px var(--gutter-x) 24px; }
