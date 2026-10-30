@@ -151,6 +151,8 @@ const prevente = await getPrevente();
     url: string;
     image: string | null;
     price: string | null;
+    /** Prix normal barré (prévente), ou null. */
+    compare?: string | null;
     available: boolean;
     variantId: string | null;
     /** Portrait audio statique du produit, s'il existe. */
@@ -573,7 +575,12 @@ const prevente = await getPrevente();
       const body = el("div", "luma-card-body");
       const head = el("div", "luma-card-head");
       head.append(el("p", "luma-card-name", card.name));
-      if (card.price) head.append(el("p", "luma-card-price", card.price));
+      if (card.price) {
+        const price = el("p", "luma-card-price");
+        if (card.compare) price.append(el("s", "luma-card-was", card.compare), " ");
+        price.append(card.price);
+        head.append(price);
+      }
       body.append(head);
 
       const actions = el("div", "luma-card-actions");
@@ -1128,6 +1135,7 @@ const prevente = await getPrevente();
   .luma-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .luma-card-name { font-size: 15px; font-weight: 500; text-transform: uppercase; }
   .luma-card-price { font-size: 14px; opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .luma-card-was { opacity: 0.6; text-decoration-thickness: 1px; }
   .luma-card-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
   /* Le CTA panier du site : pilule rose, blanc, capitales (BoxCard, tiroir panier). */
   .luma-card-add {

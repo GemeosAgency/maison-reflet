@@ -11,6 +11,8 @@
  * La maquette décrit le Discovery Set, qui est le coffret le mieux garni ;
  * cette route sert tous les coffrets et se dégrade proprement pour les autres.
  */
+import { avecAvoir } from "../../../lib/coffret-avoir";
+import { preventePanel } from "../../../lib/prevente-cards";
 import { intlLocale } from "../../../lib/markets";
 import Layout from "../../../layouts/Layout.astro";
 import Faq from "../../../components/Faq.astro";
@@ -57,6 +59,8 @@ interface Props {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
 // Prévente ouverte (réglage Sanity) : « Précommander » partout où l'on achète.
 const prevente = await getPrevente();
 const addLabel = prevente.active ? t("prevente.add") : t("product.addToCart");
@@ -70,6 +74,8 @@ const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode,
 const compareLabel = getCompareAtLabel(product, intlLocale(lang));
 
 const title = content?.titre ?? product.title;
+// Prévente : le coffret porte la même pastille, le même prix de lancement et le même encadré que les parfums.
+const preventeBloc = await preventePanel(lang, product, title);
 const description = content?.description ?? product.description;
 
 // ---------- Galerie ----------
@@ -100,7 +106,7 @@ const descriptionHtml = description ? `<p>${description.replace(/\n/g, "</p><p>"
 // Remplace l'ancien encadré CoffretCredit.
 const isDiscovery = product.handle === COFFRET_HANDLE;
 const perks: { icon: string; label: string; note?: string }[] = [
-  ...(isDiscovery ? [{ icon: "/brand/gift.svg", label: t("coffret.creditShort"), note: t("coffret.creditNote") }] : []),
+  ...(isDiscovery ? [{ icon: "/brand/gift.svg", label: t("coffret.creditShort"), note: tc("coffret.creditNote") }] : []),
   { icon: "/brand/reassurance-retour.svg", label: t("product.perkReturn"), note: t("product.perkReturnNote") },
 ];
 
@@ -253,7 +259,7 @@ const productJsonLd = {
         sillageLabel={t("product.sillage")}
         sillage={null}
         sillageValueLabel={null}
-        plainRows={[content?.contenance, isDiscovery ? t("coffret.creditRow") : null].filter((r): r is string => Boolean(r))}
+        plainRows={[content?.contenance, isDiscovery ? tc("coffret.creditRow") : null].filter((r): r is string => Boolean(r))}
         variantId={variant.id}
         priceLabel={priceLabel}
         compareLabel={compareLabel}
@@ -266,6 +272,7 @@ const productJsonLd = {
         increaseLabel={t("cart.increase")}
         perks={perks}
         tipLabel={t("product.tipOpen")}
+        prevente={preventeBloc}
       >
         <LumaAsk slot="after-perks" lang={lang} handle={product.handle} name={title} kind="coffret" />
       </ProductInfoPanel>

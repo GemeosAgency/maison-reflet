@@ -15,6 +15,8 @@ interface Props {
   title: string;
   description: string | null;
   priceLabel: string;
+  /** Prix normal barré (prévente), ou null. */
+  compareLabel?: string | null;
   href: string;
   img: ResponsiveImage | null;
   ctaLabel: string;
@@ -24,7 +26,7 @@ interface Props {
   tipLabel?: string | null;
 }
 
-const { title, description, priceLabel, href, img, ctaLabel, creditLabel = null, creditNote = null, tipLabel = null } =
+const { title, description, priceLabel, compareLabel = null, href, img, ctaLabel, creditLabel = null, creditNote = null, tipLabel = null } =
   Astro.props;
 ---
 
@@ -54,7 +56,7 @@ const { title, description, priceLabel, href, img, ctaLabel, creditLabel = null,
         </p>
       )
     }
-    <p class="dset-price">{priceLabel}</p>
+    <p class="dset-price">{compareLabel && <s data-money-compare="">{compareLabel}</s>}{priceLabel}</p>
     <a class="dset-cta" href={href}>
       <span>{ctaLabel}</span>
       {/* Même tracé que /brand/arrow-right.svg, en ligne pour prendre la couleur du bouton. */}

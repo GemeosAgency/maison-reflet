@@ -16,7 +16,8 @@
  * cela, un panier en euros affichait une barre calée sur 400 — c'est-à-dire
  * une jauge quatre fois trop longue.
  */
-import { getAllProducts, getPrimaryVariant, isCoffret, isSampleVariantTitle, shopifyImage } from "../lib/shopify";
+import { avecAvoir } from "../lib/coffret-avoir";
+import { getAllProducts, getCompareAtPrice, getPrimaryVariant, isCoffret, isSampleVariantTitle, shopifyImage } from "../lib/shopify";
 import { getCoffrets, getInspiredByMap, getPrevente } from "../lib/sanity";
 import { preventeShipLine } from "../lib/prevente";
 import { LAYERING, accordAudioPath } from "../lib/layering";
@@ -31,6 +32,8 @@ interface Props {
 
 const { lang } = Astro.props;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
 const prevente = await getPrevente();
 const preventeLine = prevente.active
   ? preventeShipLine(prevente, lang, { shipOn: t("prevente.shipOn"), shipSoon: t("prevente.shipSoon") })
@@ -61,6 +64,7 @@ const coffretUpsell = coffretProduit
       img: coffretProduit.featuredImage ? shopifyImage(coffretProduit.featuredImage, [THUMB_WIDTH]).src : null,
       variantId: getPrimaryVariant(coffretProduit).id,
       price: Number(getPrimaryVariant(coffretProduit).price.amount),
+      compare: getCompareAtPrice(coffretProduit) ? Number(getCompareAtPrice(coffretProduit)!.amount) : null,
       href: localePath(lang, `/coffrets/${COFFRET_HANDLE}`),
     }
   : null;
@@ -79,6 +83,8 @@ const upsellCatalog = allProducts
       img: p.featuredImage ? shopifyImage(p.featuredImage, [THUMB_WIDTH]).src : null,
       variantId: variant.id,
       price: Number(variant.price.amount),
+      // Prix normal barré de la prévente, ou null.
+      compare: getCompareAtPrice(p) ? Number(getCompareAtPrice(p)!.amount) : null,
       currency: variant.price.currencyCode,
     };
   });
@@ -204,7 +210,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           <div class="cart-coffret-body">
             <p class="cart-coffret-kicker">
               <span data-cart-coffret-args></span>
-              <Tip text={t("coffret.creditNote")} label={t("product.tipOpen")} align="fin" />
+              <Tip text={tc("coffret.creditNote")} label={t("product.tipOpen")} align="fin" />
             </p>
             <p class="cart-coffret-title">{coffretUpsell.title}</p>
             <div class="cart-coffret-cta">
@@ -213,7 +219,10 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
                   <svg viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" /></svg>
                   <span data-reco-add-label>{t("cart.add")}</span>
                 </span>
-                <span class="cart-upsell-price" data-money={coffretUpsell.variantId}>{formatMoney(coffretUpsell.price, getCountry(DEFAULT_COUNTRY).currency, lang)}</span>
+                <span class="cart-upsell-price">
+                  {coffretUpsell.compare && <s data-money-compare={coffretUpsell.variantId}>{formatMoney(coffretUpsell.compare, getCountry(DEFAULT_COUNTRY).currency, lang)}</s>}
+                  <span data-money={coffretUpsell.variantId}>{formatMoney(coffretUpsell.price, getCountry(DEFAULT_COUNTRY).currency, lang)}</span>
+                </span>
               </button>
             </div>
           </div>
@@ -270,8 +279,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         */}
         <li data-cart-perk-coffret hidden>
           <img src="/brand/reassurance-echantillons.svg" alt="" width="20" height="20" />
-          <span>{t("cart.coffretCredit")}</span>
-          <Tip text={t("coffret.creditNote")} label={t("product.tipOpen")} align="fin" />
+          <span>{tc("cart.coffretCredit")}</span>
+          <Tip text={tc("coffret.creditNote")} label={t("product.tipOpen")} align="fin" />
         </li>
         <li><img src="/brand/reassurance-paiement.svg" alt="" width="20" height="20" /> {t("cart.perkSecure")}</li>
       </ul>
@@ -290,7 +299,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   set:html={JSON.stringify({
     freeShippingRemaining: t("cart.freeShippingRemaining"),
     coffretHandle: COFFRET_HANDLE,
-    coffretPushCredit: t("cart.coffretPushCredit"),
+    coffretPushCredit: tc("cart.coffretPushCredit"),
     coffretPushShipping: t("cart.coffretPushShipping"),
     coffretPrice: coffretUpsell?.price ?? 0,
     freeShippingUnlocked: t("cart.freeShippingUnlocked"),
@@ -340,6 +349,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     img: string | null;
     variantId: string;
     price: number;
+    compare: number | null;
     currency: string;
   };
   type Accord = { id: string; pair: [string, string]; name: string; audio: string | null };
@@ -594,11 +604,18 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       </div>`;
   }
 
+  /** Prix d'une suggestion, précédé de son prix normal barré pendant la prévente. */
+  function upsellPriceHtml(p: UpsellItem): string {
+    const fmt = (n: number) => formatPrice(String(n), p.currency, intlLocale(pageLocale()));
+    const was = p.compare && p.compare > p.price ? fmt(p.compare) : "";
+    return `<span class="cart-upsell-price"><s data-money-compare="${p.variantId}"${was ? "" : " hidden"}>${was}</s><span data-money="${p.variantId}">${fmt(p.price)}</span></span>`;
+  }
+
   function upsellCardHtml(p: UpsellItem): string {
     // Les prix des suggestions viennent du catalogue cuit au build (AED) :
     // `data-money` les fait relire dans la devise du pays choisi, comme
     // partout ailleurs dans la page.
-    const price = `<span class="cart-upsell-price" data-money="${p.variantId}">${formatPrice(String(p.price), p.currency, intlLocale(pageLocale()))}</span>`;
+    const price = upsellPriceHtml(p);
     const href = productHref(p.handle);
     const vignette = p.img ? `<img src="${p.img}" alt="${p.title}" width="120" height="120" />` : "";
     return `
@@ -629,7 +646,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
    */
   function accordHtml(a: Accord, mine: UpsellItem, partner: UpsellItem): string {
     const href = productHref(partner.handle);
-    const price = `<span class="cart-upsell-price" data-money="${partner.variantId}">${formatPrice(String(partner.price), partner.currency, intlLocale(pageLocale()))}</span>`;
+    const price = upsellPriceHtml(partner);
     const vignette = partner.img ? `<img src="${partner.img}" alt="${partner.title}" width="120" height="120" />` : "";
     const listen = a.audio
       ? `

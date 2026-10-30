@@ -27,7 +27,7 @@ export function localePath(locale: Locale, path = "/"): string {
 const ui = {
   fr: {
     "banner.promo": "Livraison offerte dès {amount}",
-    "banner.coffret": "Un avoir de 160 AED avec le coffret découverte",
+    "banner.coffret": "Un avoir de {credit} AED avec le coffret découverte",
     "banner.coffretCta": "Découvrir",
     "nav.discovery": "Coffrets",
     "menu.open": "Menu",
@@ -94,15 +94,15 @@ const ui = {
     "product.perkSample": "Échantillon offert pour l'achat d'un parfum",
     "product.setsTitle": "Vous hésitez encore ?",
     "coffret.creditShort": "Déduit de votre premier flacon",
-    "coffret.creditRow": "Un avoir de 160 AED offert sur votre premier flacon",
+    "coffret.creditRow": "Un avoir de {credit} AED offert sur votre premier flacon",
     "coffret.creditEyebrow": "Votre avoir",
-    "cart.coffretCredit": "Un avoir de 160 AED pour votre prochain flacon",
+    "cart.coffretCredit": "Un avoir de {credit} AED pour votre prochain flacon",
     "cart.coffretPush": "Ajoutez le coffret découverte",
-    "cart.coffretPushCredit": "160 AED d'avoir",
+    "cart.coffretPushCredit": "{credit} AED d'avoir",
     "cart.coffretPushShipping": "· livraison offerte",
     "coffret.creditNote":
-      "En achetant le coffret, vous recevez par e-mail un avoir de 160 AED, valable 90 jours sur le Reflet de votre choix.",
-    "coffret.creditAmount": "160 AED",
+      "En achetant le coffret, vous recevez par e-mail un avoir de {credit} AED, valable 90 jours sur le Reflet de votre choix.",
+    "coffret.creditAmount": "{credit} AED",
     "coffret.creditHeadline": "d'avoir sur votre premier flacon",
     "product.discoverSet": "Découvrir le coffret",
     "product.securePayment": "Paiement sécurisé",
@@ -193,7 +193,7 @@ const ui = {
     "maison.tradition.title": "Entre tradition\net modernité",
     "maison.faqTitle": "Questions fréquentes",
     "maison.discoveryTitle": "Le coffret découverte",
-    "maison.discoveryBody": "Le coffret découverte réunit six échantillons, et 160 AED vous sont rendus sur votre prochain flacon.",
+    "maison.discoveryBody": "Le coffret découverte réunit six échantillons, et {credit} AED vous sont rendus sur votre prochain flacon.",
     "maison.tradition.body":
       "Maison Reflet réunit la précision de la parfumerie traditionnelle et une approche contemporaine du parfum. Nous travaillons en étroite collaboration avec des parfumeurs expérimentés et des partenaires de confiance pour développer des compositions expressives, élégantes et ancrées dans leur époque. De la formule au flacon, chaque détail est pensé pour créer une expérience sensorielle complète.",
     "maison.story.title": "Notre histoire",
@@ -384,7 +384,7 @@ const ui = {
   },
   ar: {
     "banner.promo": "شحن مجاني للطلبات من {amount}",
-    "banner.coffret": "رصيد 160 درهمًا مع علبة الاكتشاف",
+    "banner.coffret": "رصيد {credit} درهمًا مع علبة الاكتشاف",
     "banner.coffretCta": "اكتشفها",
     "nav.discovery": "العلب",
     "menu.open": "القائمة",
@@ -451,15 +451,15 @@ const ui = {
     "product.perkSample": "عيّنة مجانية مع شراء أي عطر",
     "product.setsTitle": "لم تقرّروا بعد؟",
     "coffret.creditShort": "يُخصم من زجاجتكم الأولى",
-    "coffret.creditRow": "رصيد 160 درهمًا هديةً على زجاجتكم الأولى",
+    "coffret.creditRow": "رصيد {credit} درهمًا هديةً على زجاجتكم الأولى",
     "coffret.creditEyebrow": "رصيدك",
-    "cart.coffretCredit": "رصيد 160 درهمًا لزجاجتكم القادمة",
+    "cart.coffretCredit": "رصيد {credit} درهمًا لزجاجتكم القادمة",
     "cart.coffretPush": "أضف علبة الاكتشاف",
-    "cart.coffretPushCredit": "رصيد 160 درهمًا",
+    "cart.coffretPushCredit": "رصيد {credit} درهمًا",
     "cart.coffretPushShipping": "· توصيل مجاني",
     "coffret.creditNote":
-      "عند شراء العلبة، يصلكم بالبريد الإلكتروني رصيد بقيمة 160 درهمًا، صالح لمدة 90 يومًا على الانعكاس الذي تختارونه.",
-    "coffret.creditAmount": "160 درهمًا",
+      "عند شراء العلبة، يصلكم بالبريد الإلكتروني رصيد بقيمة {credit} درهمًا، صالح لمدة 90 يومًا على الانعكاس الذي تختارونه.",
+    "coffret.creditAmount": "{credit} درهمًا",
     "coffret.creditHeadline": "رصيد لزجاجتك الأولى",
     "product.discoverSet": "اكتشفوا العلبة",
     "product.securePayment": "دفع آمن",
@@ -547,7 +547,7 @@ const ui = {
     "maison.tradition.title": "بين التقليد والحداثة",
     "maison.faqTitle": "الأسئلة الشائعة",
     "maison.discoveryTitle": "علبة الاكتشاف",
-    "maison.discoveryBody": "تضمّ علبة الاكتشاف ست عيّنات، مع رصيد 160 درهمًا يُخصم من زجاجتكم الكاملة التالية.",
+    "maison.discoveryBody": "تضمّ علبة الاكتشاف ست عيّنات، مع رصيد {credit} درهمًا يُخصم من زجاجتكم الكاملة التالية.",
     "maison.tradition.body":
       "تجمع Maison Reflet بين دقة صناعة العطور التقليدية ومقاربة معاصرة للعطر. نعمل عن قرب مع خبراء عطور متمرّسين وشركاء موثوقين لتطوير تركيبات معبّرة وأنيقة ومصمَّمة لعصرنا.\n\nمن تركيبة العطر إلى الزجاجة، كل تفصيل مدروس لخلق تجربة حسية متكاملة.",
     "maison.story.title": "قصتنا",
@@ -736,7 +736,7 @@ const ui = {
   },
   en: {
     "banner.promo": "Free shipping on orders from {amount}",
-    "banner.coffret": "A 160 AED credit with the discovery set",
+    "banner.coffret": "A {credit} AED credit with the discovery set",
     "banner.coffretCta": "Discover",
     "nav.discovery": "Sets",
     "menu.open": "Menu",
@@ -803,15 +803,15 @@ const ui = {
     "product.perkSample": "Free sample with the purchase of a perfume",
     "product.setsTitle": "Not sure yet?",
     "coffret.creditShort": "Deducted from your first bottle",
-    "coffret.creditRow": "Get a free 160 AED credit towards your first bottle",
+    "coffret.creditRow": "Get a free {credit} AED credit towards your first bottle",
     "coffret.creditEyebrow": "Your credit",
-    "cart.coffretCredit": "A 160 AED credit for your next bottle",
+    "cart.coffretCredit": "A {credit} AED credit for your next bottle",
     "cart.coffretPush": "Add the discovery set",
-    "cart.coffretPushCredit": "160 AED of credit",
+    "cart.coffretPushCredit": "{credit} AED of credit",
     "cart.coffretPushShipping": "· free delivery",
     "coffret.creditNote":
-      "Buying the set earns you a 160 AED credit by email, valid for 90 days on the Reflet of your choice.",
-    "coffret.creditAmount": "160 AED",
+      "Buying the set earns you a {credit} AED credit by email, valid for 90 days on the Reflet of your choice.",
+    "coffret.creditAmount": "{credit} AED",
     "coffret.creditHeadline": "of credit towards your first bottle",
     "product.discoverSet": "Discover the set",
     "product.securePayment": "Secure payment",
@@ -900,7 +900,7 @@ const ui = {
     "maison.tradition.title": "Between tradition\nand modernity",
     "maison.faqTitle": "Frequently asked questions",
     "maison.discoveryTitle": "The Discovery Set",
-    "maison.discoveryBody": "The Discovery Set gathers six samples, with a 160 AED credit towards your first full-size bottle.",
+    "maison.discoveryBody": "The Discovery Set gathers six samples, with a {credit} AED credit towards your first full-size bottle.",
     "maison.tradition.body":
       "Maison Reflet brings together the precision of traditional perfumery and a contemporary approach to fragrance. We work closely with experienced perfumers and trusted partners to develop compositions that are expressive, elegant and made for today. From the fragrance formula to the bottle, every detail is considered to create a complete sensory experience.",
     "maison.story.title": "Our story",
@@ -1089,7 +1089,7 @@ const ui = {
   },
 } as const;
 
-type UIKey = keyof (typeof ui)["fr"];
+export type UIKey = keyof (typeof ui)["fr"];
 
 /**
  * « Twist spécifique de » + « Oud Maracuja » : en français, « de » s'élide

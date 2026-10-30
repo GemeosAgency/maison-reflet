@@ -1,4 +1,5 @@
 ---
+import { avecAvoir } from "../../lib/coffret-avoir";
 import Layout from "../../layouts/Layout.astro";
 import DiscoverySetBanner from "../../components/DiscoverySetBanner.astro";
 import Faq from "../../components/Faq.astro";
@@ -15,6 +16,8 @@ export function getStaticPaths() {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
 
 // Sections texte + image alternées, dans l'ordre du Figma (10612:10942) :
 // Inspiration, Notre histoire, le twist. `textFirst` inverse l'ordre (texte à
@@ -133,8 +136,9 @@ const pillars = [
     discovery && (
       <DiscoverySetBanner
         title={discovery.handle === COFFRET_HANDLE ? t("maison.discoveryTitle") : discovery.titre}
-        description={discovery.handle === COFFRET_HANDLE ? t("maison.discoveryBody") : discovery.description}
+        description={discovery.handle === COFFRET_HANDLE ? tc("maison.discoveryBody") : discovery.description}
         priceLabel={discovery.price}
+        compareLabel={discovery.compare}
         href={discovery.href}
         img={discoveryImg}
         ctaLabel={t("home.hero.cta")}

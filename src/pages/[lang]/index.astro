@@ -1,4 +1,5 @@
 ---
+import { avecAvoir } from "../../lib/coffret-avoir";
 import { intlLocale } from "../../lib/markets";
 import { getProductHoverSrc } from "../../lib/product-images";
 import Layout from "../../layouts/Layout.astro";
@@ -39,6 +40,8 @@ export function getStaticPaths() {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
 // Prévente ouverte (réglage Sanity) : « Précommander » partout où l'on achète.
 const prevente = await getPrevente();
 const addLabel = prevente.active ? t("prevente.add") : t("product.addToCart");
@@ -132,6 +135,7 @@ const discoveryCandidates = coffretContent
           ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
           : null,
       price: formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(sp, intlLocale(lang)),
       href: localePath(lang, `/coffrets/${sp.handle}`),
     };
   })
@@ -291,11 +295,12 @@ const heroPanels = [
         title={discovery.titre}
         description={discovery.description}
         priceLabel={discovery.price}
+        compareLabel={discovery.compare}
         href={discovery.href}
         img={discovery.img}
         ctaLabel={t("home.hero.cta")}
         creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
-        creditNote={discovery.handle === COFFRET_HANDLE ? t("coffret.creditNote") : null}
+        creditNote={discovery.handle === COFFRET_HANDLE ? tc("coffret.creditNote") : null}
         tipLabel={t("product.tipOpen")}
       />
     )

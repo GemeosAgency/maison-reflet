@@ -9,7 +9,7 @@
 import { intlLocale } from "./markets";
 import { localePath, type Locale } from "../i18n";
 import { getCoffrets, responsiveImage, type ResponsiveImage } from "./sanity";
-import { formatPrice, getAllProducts, getPrimaryVariant, isCoffret, shopifyImage } from "./shopify";
+import { formatPrice, getAllProducts, getCompareAtLabel, getPrimaryVariant, isCoffret, shopifyImage } from "./shopify";
 
 export type DiscoveryBanner = {
   handle: string;
@@ -17,6 +17,8 @@ export type DiscoveryBanner = {
   description: string | null;
   img: ResponsiveImage | null;
   price: string;
+  /** Prix normal barré (prévente), ou null. */
+  compare: string | null;
   href: string;
 };
 
@@ -38,6 +40,7 @@ export async function getDiscoveryBanner(lang: Locale): Promise<DiscoveryBanner 
             ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
             : null,
         price: formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang)),
+        compare: getCompareAtLabel(sp, intlLocale(lang)),
         href: localePath(lang, `/coffrets/${sp.handle}`),
       };
     })

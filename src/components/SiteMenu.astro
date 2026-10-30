@@ -23,6 +23,7 @@ import {
   formatPrice,
   getAllProducts,
   getDisplayPrice,
+  getCompareAtLabel,
   getPrimaryVariant,
   isCoffret,
   isSampleVariantTitle,
@@ -99,6 +100,7 @@ const reflets = products
       audio: portraitAudioPath(lang, p.handle),
       listenLabel: t("luma.discover").replace("{name}", p.title),
       price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(p, intlLocale(lang)),
       variantId: variant.id,
       slides,
       thumb: picture(THUMB_WIDTHS, 4 / 5),
@@ -126,6 +128,7 @@ const coffrets = products
       title: content?.titre ?? sp.title,
       href: localePath(lang, `/coffrets/${sp.handle}`),
       price: formatPrice(price.amount, price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(sp, intlLocale(lang)),
       variantId: variant.id,
       img,
     };
@@ -191,7 +194,7 @@ const maisonHref = localePath(lang, "/maison");
               {r.universe && <span class="mega-fig-universe">{r.universe}</span>}
               <a class="mega-fig-title" href={r.href} tabindex="-1">
                 <span class="mega-fig-name">{r.name}</span>
-                <span class="mega-fig-price" data-money={r.variantId}>{r.price}</span>
+                <span class="mega-fig-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
                 <span class="mega-fig-cta">{t("menu.discover")}</span>
               </a>
               {r.audio && (
@@ -243,7 +246,7 @@ const maisonHref = localePath(lang, "/maison");
                 />
               )}
               <span class="mega-box-title">{c.title}</span>
-              <span class="mega-box-price" data-money={c.variantId}>{c.price}</span>
+              <span class="mega-box-price"><s data-money-compare={c.variantId} hidden={!c.compare}>{c.compare}</s><span data-money={c.variantId}>{c.price}</span></span>
             </a>
           ))
         }
@@ -296,7 +299,7 @@ const maisonHref = localePath(lang, "/maison");
                 </span>
                 {r.universe && <span class="msheet-row-meta">{r.universe}</span>}
               </span>
-              <span class="msheet-row-price" data-money={r.variantId}>{r.price}</span>
+              <span class="msheet-row-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
             </a>
           </li>
         ))
@@ -324,7 +327,7 @@ const maisonHref = localePath(lang, "/maison");
               <span class="msheet-row-text">
                 <span class="msheet-row-name">{c.title}</span>
               </span>
-              <span class="msheet-row-price" data-money={c.variantId}>{c.price}</span>
+              <span class="msheet-row-price"><s data-money-compare={c.variantId} hidden={!c.compare}>{c.compare}</s><span data-money={c.variantId}>{c.price}</span></span>
             </a>
           </li>
         ))

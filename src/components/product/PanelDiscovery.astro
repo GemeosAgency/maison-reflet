@@ -20,6 +20,8 @@ interface Props {
   eyebrow: string;
   title: string;
   priceLabel: string;
+  /** Prix normal barré (prévente), ou null. */
+  compareLabel?: string | null;
   href: string;
   img: ResponsiveImage | null;
   ctaLabel: string;
@@ -30,7 +32,7 @@ interface Props {
   tipLabel?: string | null;
 }
 
-const { eyebrow, title, priceLabel, href, img, ctaLabel, creditLabel = null, creditNote = null, tipLabel = null } = Astro.props;
+const { eyebrow, title, priceLabel, compareLabel = null, href, img, ctaLabel, creditLabel = null, creditNote = null, tipLabel = null } = Astro.props;
 ---
 
 <div class="pdisc">
@@ -41,7 +43,7 @@ const { eyebrow, title, priceLabel, href, img, ctaLabel, creditLabel = null, cre
     </span>
     <span class="pdisc-text">
       <span class="pdisc-name">{title}</span>
-      <span class="pdisc-price">{priceLabel}</span>
+      <span class="pdisc-price">{compareLabel && <s data-money-compare="">{compareLabel}</s>}{priceLabel}</span>
     </span>
     <span class="pdisc-cta">{ctaLabel}</span>
   </a>

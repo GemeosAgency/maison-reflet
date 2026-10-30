@@ -159,7 +159,7 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
   // Économie de la prévente : prix normal moins prix pratiqué, de la même variante.
   const savings = Array.from(root.querySelectorAll<HTMLElement>("[data-money-saving]"));
   const idsOf = (node: HTMLElement) => (node.dataset.money ?? "").split(",").map((id) => id.trim()).filter(Boolean);
-  const ids = Array.from(new Set([...nodes.flatMap(idsOf), ...compares.map((n) => n.dataset.moneyCompare ?? ""), ...savings.map((n) => n.dataset.moneySaving ?? "")].filter(Boolean)));
+  const ids = Array.from(new Set([...nodes.flatMap(idsOf), ...compares.flatMap((n) => (n.dataset.moneyCompare ?? "").split(",").map((id) => id.trim())), ...savings.map((n) => n.dataset.moneySaving ?? "")].filter(Boolean)));
   if (!ids.length) return;
 
   const query = /* GraphQL */ `
@@ -202,14 +202,19 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
 
   // Un prix normal n'a de sens qu'au-dessus du prix pratiqué : sinon (pas de
   // compareAt, ou compareAt périmé), le prix barré disparaît plutôt que de
-  // mentir.
+  // mentir. Plusieurs gids (« ajouter les deux ») : somme des prix normaux,
+  // le prix pratiqué valant pour une variante sans prix barré.
   for (const node of compares) {
-    const id = node.dataset.moneyCompare ?? "";
-    if (!prices.has(id)) continue;
-    const was = compareAt.get(id);
-    const now = prices.get(id)!;
-    const show = Boolean(was && Number(was.amount) > Number(now.amount));
-    if (show) node.textContent = formatPrice(was!.amount, was!.currencyCode, locale);
+    const list = (node.dataset.moneyCompare ?? "").split(",").map((id) => id.trim()).filter(Boolean);
+    if (!list.length || list.some((id) => !prices.has(id))) continue;
+    const now = list.reduce((sum, id) => sum + Number(prices.get(id)!.amount), 0);
+    const was = list.reduce((sum, id) => {
+      const c = compareAt.get(id);
+      const p = prices.get(id)!;
+      return sum + Number(c && Number(c.amount) > Number(p.amount) ? c.amount : p.amount);
+    }, 0);
+    const show = was > now;
+    if (show) node.textContent = formatPrice(String(was), prices.get(list[0])!.currencyCode, locale);
     node.hidden = !show;
   }
 

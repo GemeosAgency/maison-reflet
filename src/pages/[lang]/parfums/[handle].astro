@@ -6,6 +6,7 @@
  * FAQ. Commerce (prix/variantes/panier) = Shopify ; éditorial = Sanity,
  * chaque section se masque si son contenu n'est pas rempli dans le Studio.
  */
+import { avecAvoir } from "../../../lib/coffret-avoir";
 import { intlLocale } from "../../../lib/markets";
 import Layout from "../../../layouts/Layout.astro";
 import Faq from "../../../components/Faq.astro";
@@ -28,6 +29,7 @@ import { getProductImageOverride, getProductHoverImage } from "../../../lib/prod
 import LayeringRow from "../../../components/product/LayeringRow.astro";
 import PanelDiscovery from "../../../components/product/PanelDiscovery.astro";
 import NotifyLaunch from "../../../components/product/NotifyLaunch.astro";
+import { preventePanel } from "../../../lib/prevente-cards";
 import LayeringDrawer from "../../../components/product/LayeringDrawer.astro";
 import {
   formatPrice,
@@ -35,7 +37,6 @@ import {
   getPrimaryVariant,
   getDisplayPrice,
   getCompareAtLabel,
-  getCompareAtPrice,
   isCoffret,
   isSampleVariantTitle,
   secondaryImage,
@@ -71,6 +72,8 @@ interface Props {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
 // Prévente ouverte (réglage Sanity) : « Précommander » partout où l'on achète.
 const prevente = await getPrevente();
 const addLabel = prevente.active ? t("prevente.add") : t("product.addToCart");
@@ -81,28 +84,8 @@ const variant = getPrimaryVariant(product);
 const priceLabel = formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang));
 // Prix normal barré pendant la prévente : le compareAtPrice Shopify, s'il dépasse le prix pratiqué.
 const compareLabel = getCompareAtLabel(product, intlLocale(lang));
-/*
- * Prévente : « en production, expédition sous 2 mois environ » (Sandro,
- * 30 oct.), et l'économie du prix de lancement quand Shopify porte un prix
- * barré. Pas de date : le délai reste volontairement approximatif.
- */
-const compareAt = getCompareAtPrice(product);
-const savingLabel = compareAt
-  ? formatPrice(String(Number(compareAt.amount) - Number(variant.price.amount)), variant.price.currencyCode, intlLocale(lang))
-  : null;
-const preventePanel = prevente.active
-  ? {
-      badge: t("prevente.badge"),
-      launchLabel: t("prevente.launchPrice"),
-      infoTitle: t("prevente.infoTitle"),
-      // HTML : l'économie est relue dans la devise du pays (data-money-saving).
-      infoBody: (savingLabel
-        ? t("prevente.infoBody").replace("{saving}", `<span data-money-saving="${variant.id}">${savingLabel}</span>`)
-        : t("prevente.infoBodyPlain")
-      ).replace("{name}", product.title),
-      shipShort: t("prevente.shipShort"),
-    }
-  : null;
+// Prévente : pastille, prix de lancement, encadré du délai (voir prevente-cards).
+const preventeBloc = await preventePanel(lang, product, product.title);
 
 const inspiredMap = await getInspiredByMap();
 const recoImages = await getRecoImages();
@@ -342,6 +325,7 @@ const discoveryCandidates = coffretContent
           ? shopifyImage(sp.featuredImage, [640, 960, 1280, 1600])
           : null,
       price: formatPrice(v.price.amount, v.price.currencyCode, intlLocale(lang)),
+      compare: getCompareAtLabel(sp, intlLocale(lang)),
       href: localePath(lang, `/coffrets/${sp.handle}`),
     };
   })
@@ -453,7 +437,7 @@ const productJsonLd = {
         tipLabel={t("product.tipOpen")}
         inspiredByLabel={t("product.twistOf")}
         inspiredBy={twistOfLine}
-        prevente={preventePanel}
+        prevente={preventeBloc}
       >
         {prevente.active && <NotifyLaunch slot="notify" lang={lang} handle={product.handle} name={product.title} priceLabel={priceLabel} />}
         <TwistLine slot="after-description" lang={lang} handle={product.handle} />
@@ -479,11 +463,12 @@ const productJsonLd = {
             eyebrow={t("product.setsTitle")}
             title={discovery.titre}
             priceLabel={discovery.price}
+            compareLabel={discovery.compare}
             href={discovery.href}
             img={discovery.img}
             ctaLabel={t("product.discoverSet")}
             creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
-            creditNote={discovery.handle === COFFRET_HANDLE ? t("coffret.creditNote") : null}
+            creditNote={discovery.handle === COFFRET_HANDLE ? tc("coffret.creditNote") : null}
             tipLabel={t("product.tipOpen")}
           />
         )}
@@ -526,11 +511,12 @@ const productJsonLd = {
         title={discovery.titre}
         description={discovery.description}
         priceLabel={discovery.price}
+        compareLabel={discovery.compare}
         href={discovery.href}
         img={discovery.img}
         ctaLabel={t("home.hero.cta")}
         creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
-        creditNote={discovery.handle === COFFRET_HANDLE ? t("coffret.creditNote") : null}
+        creditNote={discovery.handle === COFFRET_HANDLE ? tc("coffret.creditNote") : null}
         tipLabel={t("product.tipOpen")}
       />
     )

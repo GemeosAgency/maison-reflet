@@ -410,6 +410,16 @@ export function getCompareAtLabel(product: Pick<ShopifyProduct, "variants">, loc
   return c ? formatPrice(c.amount, c.currencyCode, locale) : null;
 }
 
+/**
+ * Prix normal barré de plusieurs produits réunis (« ajouter les deux »), ou
+ * null si aucun n'a de remise. Un produit sans prix barré compte pour son prix.
+ */
+export function getCompareAtTotalLabel(products: Pick<ShopifyProduct, "variants">[], locale?: string): string | null {
+  if (!products.some((p) => getCompareAtPrice(p))) return null;
+  const total = products.reduce((sum, p) => sum + Number((getCompareAtPrice(p) ?? getDisplayPrice(p)).amount), 0);
+  return formatPrice(String(total), getDisplayPrice(products[0]).currencyCode, locale);
+}
+
 /** Récupère un produit par son handle (slug Shopify) */
 export async function getProductByHandle(handle: string, context?: ShopifyContext) {
   const query = /* GraphQL */ `

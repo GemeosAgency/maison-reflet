@@ -1,4 +1,5 @@
 ---
+import { avecAvoir } from "../lib/coffret-avoir";
 import {
   type Locale,
   locales,
@@ -48,6 +49,8 @@ const {
   jsonLd = [],
 } = Astro.props;
 const t = useTranslations(lang);
+// Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
+const tc = await avecAvoir(t);
 const description = descriptionProp ?? `Maison Reflet, ${t("meta.homeTitle")}`;
 
 const indexable = import.meta.env.PUBLIC_ALLOW_INDEXING === "true";
@@ -239,6 +242,13 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
     }
     <title>{title} | Maison Reflet</title>
     <style is:global>
+      /*
+       * Prix normal barré (prévente), partout où un prix s'affiche : même dessin
+       * par défaut, les composants l'affinent. `hidden` est redit, un `display`
+       * local l'écraserait.
+       */
+      s[data-money-compare] { margin-inline-end: 0.4em; opacity: 0.6; font-weight: 400; text-decoration-thickness: 1px; white-space: nowrap; }
+      s[data-money-compare][hidden] { display: none; }
       /*
        * L'attribut `hidden` doit toujours l'emporter.
        *
@@ -460,7 +470,7 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         */}
         <p>
           <a class="promo-lien" href={localePath(lang, `/coffrets/${COFFRET_HANDLE}`)}>
-            {t("banner.coffret")}
+            {tc("banner.coffret")}
             <span class="promo-cta">{t("banner.coffretCta")}</span>
           </a>
         </p>

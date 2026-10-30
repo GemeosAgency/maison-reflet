@@ -19,7 +19,7 @@ import PhotoSlides from "../PhotoSlides.astro";
 import { accordAudioPath, duosFor } from "../../lib/layering";
 import { universeLabel } from "../../lib/universes";
 import { type ResponsiveImage } from "../../lib/sanity";
-import { formatPrice, getDisplayPrice, getPrimaryVariant, isSampleVariantTitle, shopifyImage, type ShopifyProduct } from "../../lib/shopify";
+import { formatPrice, getCompareAtTotalLabel, getDisplayPrice, getPrimaryVariant, isSampleVariantTitle, shopifyImage, type ShopifyProduct } from "../../lib/shopify";
 import { getProductImageOverride } from "../../lib/product-images";
 
 interface Props {
@@ -59,6 +59,7 @@ const accord =
           duo: first.duo,
           variants: first.first ? `${myVariantId},${variant.id}` : `${variant.id},${myVariantId}`,
           total: formatPrice(String(Number(mine.amount) + Number(price.amount)), price.currencyCode, intlLocale(lang)),
+          totalWas: getCompareAtTotalLabel([me, partnerProduct], intlLocale(lang)),
           partner: {
             name: partnerProduct.title,
             href: localePath(lang, `/parfums/${partnerProduct.handle}`),
@@ -113,7 +114,10 @@ const accord =
               data-error-label={t("product.error")}
             >
               <span data-layering-label>{t("layering.addBoth")}</span>
-              <span data-money={accord.variants}>{accord.total}</span>
+              <span>
+                <s data-money-compare={accord.variants} hidden={!accord.totalWas}>{accord.totalWas}</s>
+                <span data-money={accord.variants}>{accord.total}</span>
+              </span>
             </button>
           </div>
         </div>
