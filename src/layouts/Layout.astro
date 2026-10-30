@@ -504,14 +504,14 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
               Le même trait que « Lire le portrait » sur la fiche (LumaListen). */}
           <svg class="site-nav-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </a>
-        {/* « Coffrets » ouvre le même panneau, dont la colonne de droite présente les deux coffrets. */}
+        {/* « Coffrets » ouvre sa propre fenêtre, avec seulement les deux coffrets (SiteMenu). */}
         <a
           href={localePath(lang, "/coffrets/sample-box")}
           class="site-nav-trigger"
-          data-menu-trigger
+          data-sets-trigger
           aria-haspopup="true"
           aria-expanded="false"
-          aria-controls="site-mega"
+          aria-controls="site-sets"
         >
           {t("nav.discovery")}
           <svg class="site-nav-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>

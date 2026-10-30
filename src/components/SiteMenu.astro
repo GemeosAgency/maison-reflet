@@ -283,6 +283,46 @@ const maisonHref = localePath(lang, "/maison");
   </div>
 </div>
 
+{/*
+  ---------------- Ordinateur : la fenêtre Coffrets ----------------
+  « Coffrets » ouvre un menu à lui, avec seulement les deux coffrets (Sandro,
+  30 oct.) : une fenêtre ancrée sous le lien, pas le grand panneau. Mêmes
+  cartes que la colonne Coffrets du panneau Parfums.
+*/}
+<div class="msets" id="site-sets" data-sets-panel aria-label={t("menu.coffrets")}>
+  <div class="msets-inner">
+        {
+          coffrets.map((c) => (
+            <a class="mega-box" href={c.href}>
+              <span class="mega-box-media">
+                {c.img && (
+                  <img
+                    class="mega-box-img"
+                    src={c.img.src}
+                    srcset={c.img.srcset}
+                    sizes="(min-width: 1600px) 480px, 360px"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    style={`object-position: ${c.focus}`}
+                  />
+                )}
+              </span>
+              {/* Photo carrée à gauche, texte à droite (Sandro) : la boîte est carrée et
+                  les six flacons en portrait, un bandeau large les écrasait. */}
+              <span class="mega-box-caption">
+                <span class="mega-fig-universe">{c.kicker}</span>
+                <span class="mega-box-title">{c.title}</span>
+                <span class="mega-box-price"><s data-money-compare={c.variantId} hidden={!c.compare}>{c.compare}</s><span data-money={c.variantId}>{c.price}</span></span>
+                {c.meta && <span class="mega-box-meta">{c.meta}</span>}
+                <span class="mega-fig-cta">{t("menu.discover")}</span>
+              </span>
+            </a>
+          ))
+        }
+  </div>
+</div>
+
 {/* ---------------- Mobile : la feuille ---------------- */}
 <div class="msheet" id="site-menu-sheet" data-menu-sheet aria-hidden="true" role="dialog" aria-label={t("menu.open")}>
   <div class="msheet-head">
@@ -381,9 +421,9 @@ const maisonHref = localePath(lang, "/maison");
   import { trackSite } from "../lib/site-events";
   /* ---------------- Ordinateur ---------------- */
   /*
-   * Deux liens ouvrent le même panneau : « Parfums » et « Coffrets » (Sandro,
-   * 30 oct. : au survol de Coffrets on doit pouvoir choisir entre les deux, et
-   * le panneau les montre déjà dans sa colonne de droite).
+   * Les liens qui ouvrent ce panneau (aujourd'hui « Parfums » seul : « Coffrets »
+   * a sa propre fenêtre, plus bas). Une liste plutôt qu'un lien unique, pour
+   * qu'un second lien puisse s'y brancher sans réécrire l'ouverture.
    */
   const triggers = Array.from(document.querySelectorAll<HTMLAnchorElement>("[data-menu-trigger]"));
   const trigger = triggers[0] ?? null;
@@ -530,7 +570,10 @@ const maisonHref = localePath(lang, "/maison");
   let closeTimer: number | undefined;
   let isOpen = false;
 
+  // Assignée plus bas par la fenêtre Coffrets : les deux ne s'ouvrent jamais ensemble.
+  let fermerCoffrets: () => void = () => {};
   function openPanel() {
+    fermerCoffrets();
     window.clearTimeout(closeTimer);
     seenThisOpen = new Set();
     if (!panel || isOpen) return;
@@ -619,6 +662,87 @@ const maisonHref = localePath(lang, "/maison");
       entry.addEventListener("mouseenter", show);
       entry.addEventListener("focusin", show);
     }
+  }
+
+  /* ---------------- Ordinateur : la fenêtre Coffrets ---------------- */
+  const setsTrigger = document.querySelector<HTMLAnchorElement>("[data-sets-trigger]");
+  const setsPanel = document.querySelector<HTMLElement>("[data-sets-panel]");
+  if (setsTrigger && setsPanel) {
+    let setsOpen = false;
+    let setsOpenTimer: number | undefined;
+    let setsCloseTimer: number | undefined;
+    // Ancrée sous le lien, quelle que soit la langue (« Coffrets », « Sets », arabe à droite).
+    const placer = () => {
+      const hote = (setsPanel.offsetParent as HTMLElement | null) ?? document.body;
+      const lien = setsTrigger.getBoundingClientRect();
+      const cadre = hote.getBoundingClientRect();
+      const rtl = document.documentElement.dir === "rtl";
+      const x = rtl ? cadre.right - lien.right - 24 : lien.left - cadre.left - 24;
+      setsPanel.style.setProperty("--sets-x", `${Math.max(16, Math.round(x))}px`);
+    };
+    const ouvrirCoffrets = () => {
+      window.clearTimeout(setsCloseTimer);
+      if (setsOpen) return;
+      closePanel();
+      setsOpen = true;
+      placer();
+      setsPanel.classList.add("is-open");
+      veil?.classList.add("is-open");
+      document.body.classList.add("menu-open");
+      setsTrigger.setAttribute("aria-expanded", "true");
+    };
+    const fermer = () => {
+      window.clearTimeout(setsOpenTimer);
+      if (!setsOpen) return;
+      setsOpen = false;
+      setsPanel.classList.remove("is-open");
+      if (!isOpen) {
+        veil?.classList.remove("is-open");
+        document.body.classList.remove("menu-open");
+      }
+      setsTrigger.setAttribute("aria-expanded", "false");
+    };
+    fermerCoffrets = fermer;
+    // Mêmes délais d'intention que le panneau Parfums.
+    const planifierOuverture = () => {
+      window.clearTimeout(setsCloseTimer);
+      setsOpenTimer = window.setTimeout(ouvrirCoffrets, 120);
+    };
+    const planifierFermeture = () => {
+      window.clearTimeout(setsOpenTimer);
+      setsCloseTimer = window.setTimeout(fermer, 220);
+    };
+    setsTrigger.addEventListener("mouseenter", () => hoverable.matches && planifierOuverture());
+    setsTrigger.addEventListener("mouseleave", () => hoverable.matches && planifierFermeture());
+    setsPanel.addEventListener("mouseenter", () => window.clearTimeout(setsCloseTimer));
+    setsPanel.addEventListener("mouseleave", () => hoverable.matches && planifierFermeture());
+    // Sans survol (tactile) : le premier toucher ouvre, le second suit le lien.
+    setsTrigger.addEventListener("click", (e) => {
+      if (!setsOpen) {
+        e.preventDefault();
+        ouvrirCoffrets();
+      }
+    });
+    let rendFocus = false;
+    setsTrigger.addEventListener("focus", () => !rendFocus && ouvrirCoffrets());
+    veil?.addEventListener("click", fermer);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && setsOpen) {
+        fermer();
+        rendFocus = true;
+        setsTrigger.focus();
+        rendFocus = false;
+      }
+    });
+    document.addEventListener("focusin", (e) => {
+      const cible = e.target as Node | null;
+      if (setsOpen && cible && !setsPanel.contains(cible) && cible !== setsTrigger) fermer();
+    });
+    document.addEventListener("click", (e) => {
+      const cible = e.target as Node | null;
+      if (setsOpen && cible && !setsPanel.contains(cible) && !setsTrigger.contains(cible)) fermer();
+    });
+    addEventListener("resize", () => setsOpen && placer(), { passive: true });
   }
 
   /* ---------------- Portraits audio ----------------
@@ -894,6 +1018,28 @@ const maisonHref = localePath(lang, "/maison");
     transition: opacity 0.4s ease, visibility 0s 0.4s;
   }
   .mega-veil.is-open { opacity: 1; visibility: visible; transition: opacity 0.4s ease; }
+
+  /* ===== Fenêtre Coffrets (ordinateur) ===== */
+  .msets {
+    position: absolute;
+    top: 100%;
+    inset-inline-start: var(--sets-x, 120px);
+    z-index: 3;
+    background: var(--bg);
+    box-shadow: 0 18px 48px -16px rgba(21, 14, 10, 0.45);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.28s ease, transform 0.28s ease, visibility 0s 0.28s;
+  }
+  .msets.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition: opacity 0.36s ease, transform 0.36s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .msets-inner { display: flex; gap: 32px; padding: 24px; }
+  .msets .mega-box { width: 380px; grid-template-columns: 168px minmax(0, 1fr); }
 
   .mega {
     position: absolute;
@@ -1329,6 +1475,7 @@ const maisonHref = localePath(lang, "/maison");
 
   @media (max-width: 720px) {
     .mega,
+    .msets,
     .mega-veil { display: none; }
     .msheet { display: flex; }
     .msheet:not(.is-open) { pointer-events: none; }
