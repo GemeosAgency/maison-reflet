@@ -16,6 +16,8 @@ export const GET: APIRoute = ({ site }) => {
         "",
         // Le checkout et le panier n'ont rien à faire dans l'index.
         "Disallow: /*/panier",
+        // La tour de contrôle est derrière une connexion, mais n'a pas à être explorée.
+        "Disallow: /admin",
         "",
         site ? `Sitemap: ${new URL("sitemap-index.xml", site).href}` : "",
       ]

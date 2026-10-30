@@ -60,8 +60,12 @@ export default defineConfig({
               defaultLocale: 'fr',
               locales: { fr: 'fr', ar: 'ar', en: 'en' },
             },
-            // La racine "/" ne fait que rediriger vers la langue détectée.
-            filter: (page) => new URL(page).pathname !== '/',
+            // La racine "/" ne fait que rediriger vers la langue détectée ;
+            // la tour de contrôle (/admin) est privée, et le panier n'a rien à indexer.
+            filter: (page) => {
+              const path = new URL(page).pathname;
+              return path !== '/' && !path.startsWith('/admin') && !/\/panier\/?$/.test(path);
+            },
           }),
         ]
       : []),
