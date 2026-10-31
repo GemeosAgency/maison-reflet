@@ -73,9 +73,9 @@ const accord =
 
 {
   accord && (
-    <div class="lay" data-layering-drawer aria-hidden="true">
+    <div class="lay" data-layering-drawer aria-hidden="true" inert>
       <div class="lay-backdrop" data-layering-close />
-      <aside class="lay-panel" role="dialog" aria-modal="true" aria-label={t("layering.title")}>
+      <div class="lay-panel" role="dialog" aria-modal="true" aria-label={t("layering.title")}>
         <button type="button" class="lay-close" data-layering-close aria-label={closeLabel}>
           <img src="/brand/close.svg" alt="" width="16" height="16" />
         </button>
@@ -122,38 +122,45 @@ const accord =
           </div>
         </div>
         </div>
-      </aside>
+      </div>
     </div>
   )
 }
 
 <script>
   import { bindLayeringAdds } from "../../lib/layering-client";
+  import { setDialogOpen, trapTab } from "../../lib/dialog";
   const drawer = document.querySelector<HTMLElement>("[data-layering-drawer]");
   if (drawer) {
     bindLayeringAdds(drawer);
     const slides = drawer.querySelector<HTMLElement>("[data-slides]");
+    let ouvreur: HTMLElement | null = null;
     const open = () => {
+      if (!drawer.classList.contains("is-open")) ouvreur = document.activeElement as HTMLElement | null;
       drawer.classList.add("is-open");
-      drawer.setAttribute("aria-hidden", "false");
+      setDialogOpen(drawer, true);
       document.body.style.overflow = "hidden";
       slides?.dispatchEvent(new CustomEvent("slides:start"));
-      drawer.querySelector<HTMLButtonElement>("[data-layering-close]")?.focus();
+      // La croix, pas le voile (qui porte aussi `data-layering-close` sans être focalisable).
+      drawer.querySelector<HTMLButtonElement>("button[data-layering-close]")?.focus({ focusVisible: false } as FocusOptions);
     };
     const close = () => {
+      if (!drawer.classList.contains("is-open")) return;
       drawer.classList.remove("is-open");
-      drawer.setAttribute("aria-hidden", "true");
+      setDialogOpen(drawer, false);
       document.body.style.overflow = "";
       slides?.dispatchEvent(new CustomEvent("slides:stop"));
       // La recommandation ne continue pas de parler derrière un bandeau fermé.
       for (const a of drawer.querySelectorAll<HTMLAudioElement>("audio")) a.pause();
-      // Le focus retourne à la rangée qui a ouvert le bandeau.
-      document.querySelector<HTMLButtonElement>("[data-layering-open]")?.focus();
+      // Le focus retourne à ce qui a ouvert le bandeau (la rangée du panneau, en général).
+      (ouvreur && ouvreur !== document.body ? ouvreur : document.querySelector<HTMLButtonElement>("[data-layering-open]"))?.focus();
     };
     document.addEventListener("layering:open", open);
     for (const el of drawer.querySelectorAll<HTMLElement>("[data-layering-close]")) el.addEventListener("click", close);
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && drawer.classList.contains("is-open")) close();
+      if (!drawer.classList.contains("is-open")) return;
+      if (e.key === "Escape") close();
+      else trapTab(drawer, e);
     });
   }
 </script>

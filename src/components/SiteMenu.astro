@@ -150,7 +150,7 @@ const maisonHref = localePath(lang, "/maison");
 
 {/* ---------------- Ordinateur : le panneau ---------------- */}
 <div class="mega-veil" data-menu-veil aria-hidden="true"></div>
-<div class="mega" id="site-mega" data-menu-panel aria-label={t("nav.perfumes")}>
+<div class="mega" id="site-mega" data-menu-panel aria-label={t("nav.perfumes")} inert>
   <div class="mega-inner">
     <div class="mega-col mega-col-reflets">
       <p class="mega-eyebrow">{t("menu.reflets")}</p>
@@ -289,7 +289,7 @@ const maisonHref = localePath(lang, "/maison");
   30 oct.) : une fenêtre ancrée sous le lien, pas le grand panneau. Mêmes
   cartes que la colonne Coffrets du panneau Parfums.
 */}
-<div class="msets" id="site-sets" data-sets-panel aria-label={t("menu.coffrets")}>
+<div class="msets" id="site-sets" data-sets-panel aria-label={t("menu.coffrets")} inert>
   <div class="msets-inner">
         {
           coffrets.map((c) => (
@@ -324,7 +324,7 @@ const maisonHref = localePath(lang, "/maison");
 </div>
 
 {/* ---------------- Mobile : la feuille ---------------- */}
-<div class="msheet" id="site-menu-sheet" data-menu-sheet aria-hidden="true" role="dialog" aria-label={t("menu.open")}>
+<div class="msheet" id="site-menu-sheet" data-menu-sheet aria-hidden="true" inert role="dialog" aria-modal="true" aria-label={t("menu.open")}>
   <div class="msheet-head">
     <img src="/brand/logo.svg" alt="Maison Reflet" height="22" />
     <button type="button" class="msheet-close" data-menu-close aria-label={t("menu.close")}>
@@ -419,6 +419,50 @@ const maisonHref = localePath(lang, "/maison");
 
 <script>
   import { trackSite } from "../lib/site-events";
+  import { focusables, setDialogOpen, trapTab } from "../lib/dialog";
+  /*
+   * Ordre de tabulation = ordre visuel. Les panneaux sont montés après
+   * l'en-tête (il leur faut toute la largeur de la barre collante), si bien
+   * que Tab depuis « Parfums » passait à « Coffrets », puis au logo et au
+   * panier, avant d'atteindre les liens du panneau. Au clavier, on les insère
+   * donc juste après leur lien : Tab y entre, Tab depuis le dernier repart au
+   * lien suivant de la barre, Maj+Tab fait le chemin inverse.
+   */
+  function insererAuClavier(lien: HTMLElement, panneau: HTMLElement, ouvert: () => boolean, ouvrir: () => void) {
+    const apresLien = () => {
+      const barre = focusables(document.body).filter((el) => !panneau.contains(el));
+      const i = barre.indexOf(lien);
+      // Lien masqué (mobile, la nav cède la place au bouton menu) : rien à insérer.
+      return i < 0 ? null : barre[i + 1] ?? null;
+    };
+    document.addEventListener("keydown", (e) => {
+      // Déjà traité par l'autre panneau (le focus vient d'y arriver) : on ne l'enchaîne pas.
+      if (e.defaultPrevented || e.key !== "Tab" || e.altKey || e.ctrlKey || e.metaKey) return;
+      const actif = document.activeElement as HTMLElement | null;
+      if (!actif) return;
+      const dedans = ouvert() ? focusables(panneau) : [];
+      if (!e.shiftKey && actif === lien && dedans.length) {
+        e.preventDefault();
+        dedans[0].focus();
+      } else if (!e.shiftKey && dedans.length && actif === dedans[dedans.length - 1]) {
+        const suivant = apresLien();
+        if (!suivant) return;
+        e.preventDefault();
+        suivant.focus();
+      } else if (e.shiftKey && dedans.length && actif === dedans[0]) {
+        e.preventDefault();
+        lien.focus();
+      } else if (e.shiftKey && !dedans.length && actif === apresLien()) {
+        // Retour depuis le lien suivant : le panneau se rouvre sur son dernier lien.
+        ouvrir();
+        const liste = focusables(panneau);
+        if (!liste.length) return;
+        e.preventDefault();
+        liste[liste.length - 1].focus();
+      }
+    });
+  }
+
   /* ---------------- Ordinateur ---------------- */
   /*
    * Les liens qui ouvrent ce panneau (aujourd'hui « Parfums » seul : « Coffrets »
@@ -584,6 +628,8 @@ const maisonHref = localePath(lang, "/maison");
     openedAt = performance.now();
     primeDurations();
     document.body.classList.add("menu-open");
+    // Fermé, le panneau reste visible 0,28 s (fondu) : `inert` l'ôte aussitôt du clavier.
+    panel.inert = false;
     panel.classList.add("is-open");
     startSlides(activeHandle());
     veil?.classList.add("is-open");
@@ -596,6 +642,7 @@ const maisonHref = localePath(lang, "/maison");
     stopSlides();
     isOpen = false;
     document.body.classList.remove("menu-open");
+    panel.inert = true;
     panel.classList.remove("is-open");
     veil?.classList.remove("is-open");
     for (const t of triggers) t.setAttribute("aria-expanded", "false");
@@ -666,6 +713,10 @@ const maisonHref = localePath(lang, "/maison");
       entry.addEventListener("mouseenter", show);
       entry.addEventListener("focusin", show);
     }
+    insererAuClavier(trigger, panel, () => isOpen, () => {
+      lastTrigger = trigger;
+      openPanel();
+    });
   }
 
   /* ---------------- Ordinateur : la fenêtre Coffrets ---------------- */
@@ -694,6 +745,7 @@ const maisonHref = localePath(lang, "/maison");
       setsOpen = true;
       setsOpenedAt = performance.now();
       placer();
+      setsPanel.inert = false;
       setsPanel.classList.add("is-open");
       veil?.classList.add("is-open");
       document.body.classList.add("menu-open");
@@ -703,6 +755,7 @@ const maisonHref = localePath(lang, "/maison");
       window.clearTimeout(setsOpenTimer);
       if (!setsOpen) return;
       setsOpen = false;
+      setsPanel.inert = true;
       setsPanel.classList.remove("is-open");
       if (!isOpen) {
         veil?.classList.remove("is-open");
@@ -750,7 +803,10 @@ const maisonHref = localePath(lang, "/maison");
       const cible = e.target as Node | null;
       if (setsOpen && cible && !setsPanel.contains(cible) && !setsTrigger.contains(cible)) fermer();
     });
-    addEventListener("resize", () => setsOpen && placer(), { passive: true });
+    // Recalée aussi fermée : invisible, elle compte quand même dans la largeur de
+    // la page, et une position périmée suffisait à créer un défilement horizontal.
+    addEventListener("resize", placer, { passive: true });
+    insererAuClavier(setsTrigger, setsPanel, () => setsOpen, ouvrirCoffrets);
   }
 
   /* ---------------- Portraits audio ----------------
@@ -965,6 +1021,12 @@ const maisonHref = localePath(lang, "/maison");
   const sheet = document.querySelector<HTMLElement>("[data-menu-sheet]");
   const burger = document.querySelector<HTMLButtonElement>("[data-menu-open]");
   let sheetOpen = false;
+  /*
+   * La feuille est modale : ouverte, le reste de la page devient inerte (ni
+   * Tab ni lecteur d'écran ne s'y égarent) ; fermée, c'est elle qui l'est.
+   */
+  const derriere = () =>
+    Array.from(document.querySelectorAll<HTMLElement>(".promo-banner, .site-header, main, .site-footer"));
 
   function openSheet() {
     if (!sheet) return;
@@ -972,7 +1034,8 @@ const maisonHref = localePath(lang, "/maison");
     primeDurations();
     document.body.classList.add("menu-open");
     sheet.classList.add("is-open");
-    sheet.setAttribute("aria-hidden", "false");
+    setDialogOpen(sheet, true);
+    for (const el of derriere()) el.inert = true;
     burger?.setAttribute("aria-expanded", "true");
     document.body.style.overflow = "hidden";
     sheet.querySelector<HTMLElement>("[data-menu-close]")?.focus();
@@ -983,17 +1046,22 @@ const maisonHref = localePath(lang, "/maison");
     sheetOpen = false;
     document.body.classList.remove("menu-open");
     sheet.classList.remove("is-open");
-    sheet.setAttribute("aria-hidden", "true");
+    setDialogOpen(sheet, false);
+    for (const el of derriere()) el.inert = false;
     burger?.setAttribute("aria-expanded", "false");
     document.body.style.overflow = "";
   }
   burger?.addEventListener("click", () => (sheetOpen ? closeSheet() : openSheet()));
-  sheet?.querySelector("[data-menu-close]")?.addEventListener("click", closeSheet);
+  sheet?.querySelector("[data-menu-close]")?.addEventListener("click", () => {
+    closeSheet();
+    burger?.focus();
+  });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && sheetOpen) {
+    if (!sheetOpen || !sheet) return;
+    if (e.key === "Escape") {
       closeSheet();
       burger?.focus();
-    }
+    } else trapTab(sheet, e);
   });
   // Luma et le sélecteur de pays ouvrent leur propre panneau : la feuille se
   // retire d'abord, sinon ils s'ouvriraient derrière elle.
