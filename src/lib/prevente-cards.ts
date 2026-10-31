@@ -10,7 +10,7 @@
  * navigateur.
  */
 import { getPrevente } from "./sanity";
-import { formatPrice, getCompareAtPrice, getPrimaryVariant, type ShopifyProduct } from "./shopify";
+import { formatPrice, getCompareAtPrice, getPrimaryVariant, isCoffret, type ShopifyProduct } from "./shopify";
 import { intlLocale } from "./markets";
 import { locales, useTranslations, type Locale } from "../i18n";
 
@@ -29,6 +29,10 @@ export async function preventeCard(lang: string | undefined, hasCompare: boolean
  * lancement », encadré « en production, expédition sous 2 mois environ »
  * (Sandro, 30 oct.) avec l'économie quand Shopify porte un prix barré. Pas de
  * date : le délai reste volontairement approximatif. null hors prévente.
+ *
+ * Un coffret a ses propres phrases : « {name} est en cours de production »
+ * donnait « Les 6 Reflets est… » (audit du 31 oct.), et l'arabe accordait
+ * au masculin. D'où « Ce coffret est… » / « هذه العلبة… وتُشحن ».
  */
 export async function preventePanel(lang: Locale, product: ShopifyProduct, name: string) {
   const prevente = await getPrevente();
@@ -39,14 +43,17 @@ export async function preventePanel(lang: Locale, product: ShopifyProduct, name:
   const saving = compareAt
     ? formatPrice(String(Number(compareAt.amount) - Number(variant.price.amount)), variant.price.currencyCode, intlLocale(lang))
     : null;
+  const coffret = isCoffret(product);
+  const body = coffret ? "prevente.infoBodyCoffret" : "prevente.infoBody";
+  const plain = coffret ? "prevente.infoBodyCoffretPlain" : "prevente.infoBodyPlain";
   return {
     badge: t("prevente.badge"),
     launchLabel: t("prevente.launchPrice"),
     infoTitle: t("prevente.infoTitle"),
     // HTML : l'économie est relue dans la devise du pays (data-money-saving).
     infoBody: (saving
-      ? t("prevente.infoBody").replace("{saving}", `<span data-money-saving="${variant.id}">${saving}</span>`)
-      : t("prevente.infoBodyPlain")
+      ? t(body).replace("{saving}", `<span data-money-saving="${variant.id}">${saving}</span>`)
+      : t(plain)
     ).replace("{name}", name),
     shipShort: t("prevente.shipShort"),
   };
