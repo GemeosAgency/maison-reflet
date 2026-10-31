@@ -205,8 +205,15 @@ const cards = ordered
     .pgrid-head { padding: 40px var(--gutter-x) 24px; }
     .pgrid-head h2 { font-size: 26px; }
     .pgrid-head p { font-size: 16px; }
-    .pgrid { grid-template-columns: repeat(2, 1fr); }
-    .pgrid.is-row { grid-template-columns: repeat(2, 1fr); }
+    /*
+     * La seconde carte de La Maison sortait de l'écran (413 px de page pour
+     * 390) : une colonne `1fr` ne descend pas sous la largeur de son contenu,
+     * d'où minmax(0, 1fr), et la carte déduisait sa largeur de son ratio et
+     * de sa hauteur minimale (320 px, ProductCard) au lieu de suivre la colonne.
+     */
+    .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pgrid.is-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pgrid :global(.product-card) { width: 100%; }
     .pgrid-head.is-row { padding: 56px var(--gutter-x) 32px; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
   }
 

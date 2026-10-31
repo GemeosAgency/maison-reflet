@@ -1101,7 +1101,12 @@ const maisonHref = localePath(lang, "/maison");
   .msets {
     position: absolute;
     top: 100%;
-    inset-inline-start: var(--sets-x, 120px);
+    /*
+     * 16 px tant que le script ne l'a pas placée sous son lien : à 120 px par
+     * défaut, la fenêtre fermée (invisible, mais toujours là) débordait de
+     * l'écran entre 721 et 959 px et toute la page défilait de côté.
+     */
+    inset-inline-start: var(--sets-x, 16px);
     z-index: 3;
     background: var(--bg);
     box-shadow: 0 18px 48px -16px rgba(21, 14, 10, 0.45);

@@ -765,6 +765,15 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   }
   .ppanel-add:hover { opacity: 0.92; }
   .ppanel-add:disabled { opacity: 0.6; }
+  /*
+   * Entre 900 et 1100 px, la colonne d'achat est étroite : « Précommander 380 AED
+   * 320 AED » sortait de l'écran en français (le bouton finissait à 1047 px pour
+   * 1024). Le prix barré quitte le bouton ; il reste lisible juste au-dessus,
+   * dans la ligne de prix de la prévente.
+   */
+  @media (min-width: 900px) and (max-width: 1100px) {
+    .ppanel-add-was { display: none; }
+  }
 
   /* Livraison et réassurances : une seule liste, un seul rythme. Le bloc gardait
      32 px entre la livraison et les deux lignes suivantes, puis 12 px entre
