@@ -142,7 +142,8 @@ const blocks = locales.map((lang: Locale) => {
     font-weight: 500;
     letter-spacing: 0.08em;
   }
-  .nf-block + .nf-block { margin-top: 56px; padding-top: 40px; border-top: 0.8px solid rgba(0, 0, 0, 0.1); }
+  /* Filet entre les trois messages, seulement quand ils sont tous affichés (sans JavaScript). */
+  :global(html:not([data-lang])) .nf-block + .nf-block { margin-top: 56px; padding-top: 40px; border-top: 0.8px solid rgba(0, 0, 0, 0.1); }
   h1 {
     margin: 0 0 16px;
     font-size: clamp(28px, 4vw, 40px);
