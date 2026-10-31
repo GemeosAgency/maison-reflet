@@ -15,6 +15,7 @@
  */
 import Tip from "../Tip.astro";
 import type { ResponsiveImage } from "../../lib/sanity";
+import { priceA11y } from "../../lib/price-a11y";
 
 interface Props {
   eyebrow: string;
@@ -33,6 +34,7 @@ interface Props {
 }
 
 const { eyebrow, title, priceLabel, compareLabel = null, href, img, ctaLabel, creditLabel = null, creditNote = null, tipLabel = null } = Astro.props;
+const a11y = priceA11y(Astro.params.lang);
 ---
 
 <div class="pdisc">
@@ -43,7 +45,7 @@ const { eyebrow, title, priceLabel, compareLabel = null, href, img, ctaLabel, cr
     </span>
     <span class="pdisc-text">
       <span class="pdisc-name">{title}</span>
-      <span class="pdisc-price">{compareLabel && <s data-money-compare="">{compareLabel}</s>}{priceLabel}</span>
+      <span class="pdisc-price">{compareLabel && <><s data-money-compare=""><span class="sr-only">{a11y.was}</span>{compareLabel}</s><span class="sr-only">{a11y.now}</span></>}{priceLabel}</span>
     </span>
     <span class="pdisc-cta">{ctaLabel}</span>
   </a>

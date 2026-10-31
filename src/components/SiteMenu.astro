@@ -35,6 +35,7 @@ import { portraitAudioPath } from "../lib/luma/portraits";
 import { universeLabel } from "../lib/universes";
 import { getProductImageOverride } from "../lib/product-images";
 import { COFFRET_HANDLE } from "../lib/coffret";
+import { priceA11y } from "../lib/price-a11y";
 
 interface Props {
   lang: Locale;
@@ -44,6 +45,7 @@ interface Props {
 
 const { lang, rest } = Astro.props;
 const t = useTranslations(lang);
+const a11y = priceA11y(lang);
 // Pas de « Best seller » tant que la prévente court : rien n'est encore vendu.
 const prevente = await getPrevente();
 
@@ -202,7 +204,7 @@ const maisonHref = localePath(lang, "/maison");
               {r.universe && <span class="mega-fig-universe">{r.universe}</span>}
               <a class="mega-fig-title" href={r.href} tabindex="-1">
                 <span class="mega-fig-name">{r.name}</span>
-                <span class="mega-fig-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
+                <span class="mega-fig-price"><s data-money-compare={r.variantId} hidden={!r.compare}><span class="sr-only">{a11y.was}</span><span data-money-amount>{r.compare}</span></s><span class="sr-only sr-launch">{a11y.now}</span><span data-money={r.variantId}>{r.price}</span></span>
                 <span class="mega-fig-cta">{t("menu.discover")}</span>
               </a>
               {r.audio && (
@@ -261,7 +263,7 @@ const maisonHref = localePath(lang, "/maison");
               <span class="mega-box-caption">
                 <span class="mega-fig-universe">{c.kicker}</span>
                 <span class="mega-box-title">{c.title}</span>
-                <span class="mega-box-price"><s data-money-compare={c.variantId} hidden={!c.compare}>{c.compare}</s><span data-money={c.variantId}>{c.price}</span></span>
+                <span class="mega-box-price"><s data-money-compare={c.variantId} hidden={!c.compare}><span class="sr-only">{a11y.was}</span><span data-money-amount>{c.compare}</span></s><span class="sr-only sr-launch">{a11y.now}</span><span data-money={c.variantId}>{c.price}</span></span>
                 {c.meta && <span class="mega-box-meta">{c.meta}</span>}
                 <span class="mega-fig-cta">{t("menu.discover")}</span>
               </span>
@@ -313,7 +315,7 @@ const maisonHref = localePath(lang, "/maison");
               <span class="mega-box-caption">
                 <span class="mega-fig-universe">{c.kicker}</span>
                 <span class="mega-box-title">{c.title}</span>
-                <span class="mega-box-price"><s data-money-compare={c.variantId} hidden={!c.compare}>{c.compare}</s><span data-money={c.variantId}>{c.price}</span></span>
+                <span class="mega-box-price"><s data-money-compare={c.variantId} hidden={!c.compare}><span class="sr-only">{a11y.was}</span><span data-money-amount>{c.compare}</span></s><span class="sr-only sr-launch">{a11y.now}</span><span data-money={c.variantId}>{c.price}</span></span>
                 {c.meta && <span class="mega-box-meta">{c.meta}</span>}
                 <span class="mega-fig-cta">{t("menu.discover")}</span>
               </span>
@@ -357,7 +359,7 @@ const maisonHref = localePath(lang, "/maison");
                 </span>
                 {r.universe && <span class="msheet-row-meta">{r.universe}</span>}
               </span>
-              <span class="msheet-row-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
+              <span class="msheet-row-price"><s data-money-compare={r.variantId} hidden={!r.compare}><span class="sr-only">{a11y.was}</span><span data-money-amount>{r.compare}</span></s><span class="sr-only sr-launch">{a11y.now}</span><span data-money={r.variantId}>{r.price}</span></span>
             </a>
           </li>
         ))
@@ -385,7 +387,7 @@ const maisonHref = localePath(lang, "/maison");
               <span class="msheet-row-text">
                 <span class="msheet-row-name">{c.title}</span>
               </span>
-              <span class="msheet-row-price"><s data-money-compare={c.variantId} hidden={!c.compare}>{c.compare}</s><span data-money={c.variantId}>{c.price}</span></span>
+              <span class="msheet-row-price"><s data-money-compare={c.variantId} hidden={!c.compare}><span class="sr-only">{a11y.was}</span><span data-money-amount>{c.compare}</span></s><span class="sr-only sr-launch">{a11y.now}</span><span data-money={c.variantId}>{c.price}</span></span>
             </a>
           </li>
         ))

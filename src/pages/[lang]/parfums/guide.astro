@@ -23,6 +23,7 @@ import { type Locale, locales, localePath, useTranslations, withName } from "../
 import { REFLET_UNIVERSE, UNIVERSE_LABELS, universeLabel, type UniverseKey } from "../../../lib/universes";
 import { GUIDE_MANIFESTO, GUIDE_REFLETS } from "../../../lib/guide";
 import { LAYERING, accordAudioPath, duosFor } from "../../../lib/layering";
+import { priceA11y } from "../../../lib/price-a11y";
 
 export function getStaticPaths() {
   return locales.map((lang) => ({ params: { lang } }));
@@ -30,6 +31,7 @@ export function getStaticPaths() {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+const a11y = priceA11y(lang);
 // Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
 const tc = await avecAvoir(t);
 
@@ -255,7 +257,7 @@ const duos = LAYERING.map((d) => ({
                 )}
                 <LumaListen lang={lang} handle={r.handle} name={r.name} />
                 <div class="guide-col-foot">
-                  <span class="guide-col-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
+                  <span class="guide-col-price"><s data-money-compare={r.variantId} hidden={!r.compare}><span class="sr-only">{a11y.was}</span><span data-money-amount>{r.compare}</span></s><span class="sr-only sr-launch">{a11y.now}</span><span data-money={r.variantId}>{r.price}</span></span>
                   <a class="guide-link" href={r.href}>{t("guide.discover")}</a>
                 </div>
               </div>
@@ -362,7 +364,7 @@ const duos = LAYERING.map((d) => ({
               <LumaListen lang={lang} handle={r.handle} name={r.name} label={t("menu.listenPortrait")} />
             </div>
             <div class="guide-col-foot">
-              <span class="guide-col-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
+              <span class="guide-col-price"><s data-money-compare={r.variantId} hidden={!r.compare}><span class="sr-only">{a11y.was}</span><span data-money-amount>{r.compare}</span></s><span class="sr-only sr-launch">{a11y.now}</span><span data-money={r.variantId}>{r.price}</span></span>
               <a class="guide-link" href={r.href}>{t("guide.discover")}</a>
             </div>
           </article>
@@ -599,7 +601,7 @@ const duos = LAYERING.map((d) => ({
                   >
                     <span data-layering-label>{t("layering.addBoth")}</span>
                     <span>
-                      <s data-money-compare={`${first.variantId},${second.variantId}`} hidden={!totalWas}>{totalWas}</s>
+                      <s data-money-compare={`${first.variantId},${second.variantId}`} hidden={!totalWas} aria-hidden="true">{totalWas}</s>
                       <span data-money={`${first.variantId},${second.variantId}`}>{total}</span>
                     </span>
                   </button>

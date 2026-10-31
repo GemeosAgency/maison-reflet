@@ -115,7 +115,7 @@ const accord =
             >
               <span data-layering-label>{t("layering.addBoth")}</span>
               <span>
-                <s data-money-compare={accord.variants} hidden={!accord.totalWas}>{accord.totalWas}</s>
+                <s data-money-compare={accord.variants} hidden={!accord.totalWas} aria-hidden="true">{accord.totalWas}</s>
                 <span data-money={accord.variants}>{accord.total}</span>
               </span>
             </button>

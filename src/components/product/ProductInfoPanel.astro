@@ -11,6 +11,7 @@
 import Tip from "../Tip.astro";
 import ShippingPromise from "../ShippingPromise.astro";
 import type { Locale } from "../../i18n";
+import { priceA11y } from "../../lib/price-a11y";
 interface NoteLevel {
   label: string;
   notes: string[];
@@ -45,8 +46,6 @@ interface Props {
   priceLabel: string;
   /** Prix normal barré (prévente), déjà formaté — null quand il n'y a pas de remise. */
   compareLabel?: string | null;
-  /** « Prix normal », pour les lecteurs d'écran devant le prix barré. */
-  compareA11y?: string;
   addLabel: string;
   addedLabel: string;
   errorLabel: string;
@@ -98,7 +97,6 @@ const {
   variantId,
   priceLabel,
   compareLabel = null,
-  compareA11y = "",
   addLabel,
   addedLabel,
   errorLabel,
@@ -111,6 +109,8 @@ const {
   thumb = null,
   prevente = null,
 } = Astro.props;
+// « Prix normal : » et « Prix de lancement : », lus devant les deux prix (texte masqué).
+const a11y = priceA11y(lang);
 
 // Une seule jauge : le sillage. L'intensité affichait la même valeur sur les six
 // Reflets, elle ne disait donc rien de ce parfum-ci (Sandro, 16 sept.).
@@ -125,11 +125,11 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     <div class="ppanel-title-line">
       <h1 class="ppanel-title">
         {title}
-        {sizeLabel && <span class="ppanel-size">{sizeLabel}</span>}
+        {sizeLabel && <span class="ppanel-size"><bdi>{sizeLabel}</bdi></span>}
       </h1>
       <span class="ppanel-prices">
-        <s class="ppanel-was" data-money-compare={variantId} hidden={!compareLabel} aria-label={compareLabel ? `${compareA11y} ${compareLabel}` : undefined}>{compareLabel}</s>
-        <span class="ppanel-price" data-money={variantId}>{priceLabel}</span>
+        <s class="ppanel-was" data-money-compare={variantId} hidden={!compareLabel}><span class="sr-only">{a11y.was}</span><span data-money-amount>{compareLabel}</span></s>
+        <span class="sr-only sr-launch">{a11y.now}</span><span class="ppanel-price" data-money={variantId}>{priceLabel}</span>
       </span>
     </div>
     {
@@ -147,9 +147,10 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
       /* Le prix de lancement se lit dès le titre, pas seulement dans le bouton. */
       prevente && (
         <div class="ppanel-priceline">
-          <span class="ppanel-priceline-now" data-money={variantId}>{priceLabel}</span>
-          <s class="ppanel-priceline-was" data-money-compare={variantId} hidden={!compareLabel} aria-label={compareLabel ? `${compareA11y} ${compareLabel}` : undefined}>{compareLabel}</s>
-          <span class="ppanel-launch">{prevente.launchLabel}</span>
+          {/* À l'oreille : « Prix de lancement : 320 AED, Prix normal : 380 AED » ; l'étiquette visible n'est pas relue. */}
+          <span class="sr-only">{a11y.now}</span><span class="ppanel-priceline-now" data-money={variantId}>{priceLabel}</span>
+          <s class="ppanel-priceline-was" data-money-compare={variantId} hidden={!compareLabel}><span class="sr-only">{a11y.was}</span><span data-money-amount>{compareLabel}</span></s>
+          <span class="ppanel-launch" aria-hidden="true">{prevente.launchLabel}</span>
         </div>
       )
     }
