@@ -322,6 +322,11 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     decrease: t("cart.decrease"),
     increase: t("cart.increase"),
     empty: t("cart.empty"),
+    // Panier vide : une issue vers les parfums et le coffret, plutôt qu'un cul-de-sac.
+    emptyPerfumes: t("cart.emptyPerfumes"),
+    emptyPerfumesHref: localePath(lang, "/parfums"),
+    emptyCoffret: coffretUpsell ? t("cart.emptyCoffret") : null,
+    emptyCoffretHref: coffretUpsell?.href ?? null,
     error: t("cart.error"),
     // « Twist spécifique de », jamais « Inspiré de » (Sandro, 30 oct.).
     inspiredBy: t("product.twistOf"),
@@ -976,7 +981,13 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     if (linesEl) {
       linesEl.innerHTML = grouped.length
         ? grouped.map(lineHtml).join("")
-        : `<p class="cart-empty">${I18N.empty}</p>`;
+        : `<div class="cart-empty-wrap">
+            <p class="cart-empty">${I18N.empty}</p>
+            <div class="cart-empty-links">
+              <a class="cart-empty-link is-primary" href="${I18N.emptyPerfumesHref}">${I18N.emptyPerfumes}</a>
+              ${I18N.emptyCoffret ? `<a class="cart-empty-link" href="${I18N.emptyCoffretHref}">${I18N.emptyCoffret}</a>` : ""}
+            </div>
+          </div>`;
     }
     // Panier vide : le pied (sous-total à 0, bouton de paiement) disparaît.
     drawer?.classList.toggle("is-empty", grouped.length === 0);
@@ -1078,9 +1089,16 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     }
     accordDivider?.toggleAttribute("hidden", !accordPick);
     accordSection?.toggleAttribute("hidden", !accordPick);
-    // Une seule proposition commerciale à la fois : l'accord personnalisé
-    // prime sur le coffret. Sans accord disponible, le coffret prend le relais.
-    coffretPush?.toggleAttribute("hidden", !(relance && !accordPick));
+    // L'accord personnalisé prime sur le coffret. Mais les six Reflets ont
+    // tous un partenaire d'accord : avec cette seule règle, le coffret ne
+    // s'affichait jamais (audit du 31 oct.). Il revient donc dans le cas où il
+    // pèse le plus, un seul flacon et rien d'autre : flacon + coffret franchit
+    // la livraison offerte, et l'avoir porte sur le flacon suivant.
+    const unFlaconSeul =
+      grouped.length === 1 &&
+      grouped[0].quantity === 1 &&
+      upsellCatalog.some((p) => p.variantId === grouped[0].variantId);
+    coffretPush?.toggleAttribute("hidden", !(relance && (!accordPick || unFlaconSeul)));
     if (accordBody) {
       const currentSrc = accordBody.querySelector<HTMLElement>("[data-accord-listen]")?.dataset.src ?? null;
       if (!accordPick || accordPick.a.audio !== currentSrc) stopAccordAudio();
@@ -1392,6 +1410,16 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
 
   .cart-drawer-lines { display: flex; flex-direction: column; gap: 24px; }
   .cart-empty { margin: 0; font-size: 16px; opacity: 0.7; }
+  .cart-empty-wrap { display: flex; flex-direction: column; gap: 24px; }
+  .cart-empty-links { display: flex; flex-direction: column; gap: 12px; }
+  .cart-empty-link {
+    display: flex; align-items: center; justify-content: center; height: 48px; padding: 0 16px; border-radius: 0;
+    border: 1px solid rgba(21, 14, 10, 0.32); color: var(--ink); font-size: 16px; font-weight: 500;
+    text-transform: uppercase; text-decoration: none; text-align: center; transition: opacity 0.15s, border-color 0.15s;
+  }
+  .cart-empty-link:hover { border-color: var(--ink); }
+  .cart-empty-link.is-primary { background: var(--rose); border-color: var(--rose); color: #fff; }
+  .cart-empty-link.is-primary:hover { opacity: 0.9; }
   .cart-line { display: flex; gap: 20px; }
   .cart-line-img { width: 120px; height: 120px; object-fit: cover; background: var(--sand); flex-shrink: 0; }
   .cart-line-body { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; justify-content: center; }
