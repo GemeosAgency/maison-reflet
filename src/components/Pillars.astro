@@ -22,10 +22,13 @@ interface Props {
 
 const { title1, title2, subtitle, pillars } = Astro.props;
 
-const responsiveSources = (image: string) => {
+// Chaque visuel existe en WebP et en AVIF aux trois largeurs (public/home,
+// stem-640/960/1400) ; l'AVIF pèse environ la moitié, le WebP reste le repli.
+const responsiveSources = (image: string, format: "webp" | "avif" = "webp") => {
   const stem = image.replace(/\.[^.]+$/, "");
-  return [640, 960, 1400].map((width) => `${stem}-${width}.webp ${width}w`).join(", ");
+  return [640, 960, 1400].map((width) => `${stem}-${width}.${format} ${width}w`).join(", ");
 };
+const SIZES = "(max-width: 900px) 100vw, 34vw";
 ---
 
 <section class="pillars">
@@ -40,15 +43,18 @@ const responsiveSources = (image: string) => {
     {
       pillars.map((p) => (
         <div class="pillar">
-          <img
-            class="pillar-media"
-            src={p.image}
-            srcset={responsiveSources(p.image)}
-            sizes="(max-width: 900px) 100vw, 34vw"
-            alt=""
-            loading="lazy"
-            decoding="async"
-          />
+          <picture class="pillar-pic">
+            <source type="image/avif" srcset={responsiveSources(p.image, "avif")} sizes={SIZES} />
+            <img
+              class="pillar-media"
+              src={p.image}
+              srcset={responsiveSources(p.image)}
+              sizes={SIZES}
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
+          </picture>
           <h3>{p.title}</h3>
           <p>{p.text}</p>
         </div>
@@ -87,6 +93,8 @@ const responsiveSources = (image: string) => {
     padding: 32px;
     color: var(--paper);
   }
+  /* L'enveloppe <picture> ne change rien à la mise en page de l'image. */
+  .pillar-pic { display: contents; }
   .pillar-media {
     position: absolute;
     inset: 0;

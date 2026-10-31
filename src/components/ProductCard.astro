@@ -30,6 +30,11 @@ interface Props {
   compare?: string | null;
   img: string | null;
   hoverImg?: string | null;
+  /** srcset des deux photos, quand la source sait servir plusieurs largeurs. */
+  imgSrcset?: string;
+  hoverSrcset?: string;
+  /** Largeur affichée de la carte, pour que le navigateur choisisse dans le srcset. */
+  sizes?: string;
   href: string;
   variantId: string;
   /** Pastille d'angle, ex. « BEST SELLER ». Masquée si absente. */
@@ -48,6 +53,9 @@ const {
   compare = null,
   img,
   hoverImg,
+  imgSrcset,
+  hoverSrcset,
+  sizes = "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 34vw",
   href,
   variantId,
   badge: badgeProp = null,
@@ -65,8 +73,18 @@ const badge = prevente?.badge ?? badgeProp;
 
 <div class="product-card">
   <a class="product-card-link" href={href} aria-label={name}></a>
-  {img && <img class="product-card-img product-card-img-base" src={img} alt={name} loading="lazy" />}
-  {hoverImg && <img class="product-card-img product-card-img-hover" src={hoverImg} alt="" loading="lazy" />}
+  {img && <img class="product-card-img product-card-img-base" src={img} srcset={imgSrcset} sizes={imgSrcset ? sizes : undefined} alt={name} loading="lazy" decoding="async" />}
+  {/*
+    La photo de survol ne s'affiche jamais au doigt (voir `hover: none` plus
+    bas) : un pixel vide la remplace, au lieu de 50 à 180 Kio par carte
+    téléchargés pour rien sur mobile.
+  */}
+  {hoverImg && (
+    <picture class="product-card-pic">
+      <source media="(hover: none)" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
+      <img class="product-card-img product-card-img-hover" src={hoverImg} srcset={hoverSrcset} sizes={hoverSrcset ? sizes : undefined} alt="" loading="lazy" decoding="async" />
+    </picture>
+  )}
   <div class="product-card-veil" aria-hidden="true"></div>
   <div class="product-card-overlay" aria-hidden="true"></div>
   {badge && <span class:list={["product-card-badge", { "is-prevente": prevente }]}>{badge}</span>}
@@ -108,6 +126,8 @@ const badge = prevente?.badge ?? badgeProp;
     overflow: hidden;
   }
   .product-card-link { position: absolute; inset: 0; z-index: 1; }
+  /* L'enveloppe <picture> ne doit rien changer à la mise en page de l'image. */
+  .product-card-pic { display: contents; }
   .product-card-img {
     position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
     /* La maquette ancre la photo en haut et laisse déborder 8,7 % en bas. On
