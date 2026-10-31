@@ -955,7 +955,11 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   function reconcileAndRender(cart: ShopifyCart) {
     ensureSampleLine(cart)
       .then((next) => {
-        if (next) render(next);
+        if (!next) return;
+        // Des +/− ont été cliqués pendant la réconciliation : le prochain
+        // envoi rendra, avec ce panier comme point de départ.
+        if (quantityBusy()) currentCart = next;
+        else render(next);
       })
       .catch(() => {
         // Réseau ou Shopify indisponible : l'affichage courant reste, le
@@ -1147,11 +1151,31 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
    * deviné à l'écran sauterait ensuite à la correction. Mieux vaut le laisser
    * pâlir un instant — voir `.is-pending` dans les styles.
    */
+  /*
+   * Deux états, et non plus un seul (audit du 31 oct., panier vidé sur un +
+   * puis − rapide) :
+   *  - `pendingQty` : la quantité voulue, pas encore envoyée ;
+   *  - `inflightQty` : la quantité envoyée, que Shopify n'a pas encore
+   *    confirmée.
+   * Avant, la file était vidée AU DÉPART de la requête : un clic arrivé
+   * pendant l'aller-retour repartait de la quantité du panier périmé (+ puis
+   * − donnait 1 − 1 = 0, la ligne disparaissait), et le second envoi partait
+   * en parallèle du premier avec des identifiants de ligne que Shopify venait
+   * de remplacer (« The merchandise line … does not exist »). Désormais la
+   * quantité affichée reste la cible jusqu'à confirmation, et les envois se
+   * suivent : un seul à la fois, chacun repart du panier rendu par le
+   * précédent.
+   */
   const pendingQty = new Map<string, number>();
+  const inflightQty = new Map<string, number>();
   let flushTimer: number | undefined;
+  let flushing = false;
+
+  /** Une quantité attend d'être envoyée ou confirmée : aucun rendu ne doit l'écraser. */
+  const quantityBusy = () => pendingQty.size > 0 || flushing;
 
   function displayedQuantity(variantId: string): number {
-    const queued = pendingQty.get(variantId);
+    const queued = pendingQty.get(variantId) ?? inflightQty.get(variantId);
     if (queued !== undefined) return queued;
     return groupLines(currentCart).find((g) => g.variantId === variantId)?.quantity ?? 0;
   }
@@ -1168,10 +1192,11 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
       if (next === 0) lineEl.hidden = true;
     }
     // Le compteur du sac suit tout de suite : c'est une somme d'unités, pas
-    // un prix, on peut la deviner sans risque.
+    // un prix, on peut la deviner sans risque — à partir des quantités
+    // affichées, pas du panier, qui peut avoir un envoi de retard.
     if (countEl && currentCart) {
-      const avant = groupLines(currentCart).find((g) => g.variantId === variantId)?.quantity ?? 0;
-      countEl.textContent = String(Math.max(0, visibleQuantity(currentCart) + next - avant));
+      const total = groupLines(currentCart).reduce((n, g) => n + displayedQuantity(g.variantId), 0);
+      countEl.textContent = String(total);
     }
 
     window.clearTimeout(flushTimer);
@@ -1179,11 +1204,47 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   }
 
   async function flushQuantities() {
-    const jobs = [...pendingQty.entries()];
-    pendingQty.clear();
+    // Un envoi à la fois ; celui en cours relancera la file en finissant. Même
+    // règle pendant la réconciliation de l'échantillon, qui mute le panier.
+    if (flushing) return;
+    if (reconciling) {
+      flushTimer = window.setTimeout(flushQuantities, 150);
+      return;
+    }
+    flushing = true;
     let cart = currentCart;
-    for (const [variantId, quantity] of jobs) {
-      cart = await setVariantQuantity(variantId, quantity, cart);
+    try {
+      while (pendingQty.size > 0) {
+        const jobs = [...pendingQty.entries()];
+        pendingQty.clear();
+        for (const [variantId, quantity] of jobs) inflightQty.set(variantId, quantity);
+        for (const [variantId, quantity] of jobs) {
+          try {
+            cart = await setVariantQuantity(variantId, quantity, cart);
+          } catch {
+            // Lignes périmées (un autre onglet, l'échantillon remplacé entre-temps) :
+            // une seconde tentative, sur le panier relu chez Shopify.
+            cart = await setVariantQuantity(variantId, quantity);
+          }
+          // Confirmé, sauf si un clic plus récent a déjà pris le relais.
+          if (inflightQty.get(variantId) === quantity) inflightQty.delete(variantId);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      // Shopify a refusé deux fois : on réaffiche le panier tel qu'il est
+      // vraiment, plutôt qu'une quantité qui n'existe qu'à l'écran.
+      pendingQty.clear();
+      cart = await loadCart().catch(() => cart);
+    } finally {
+      inflightQty.clear();
+      flushing = false;
+    }
+    // Un clic arrivé pendant la dernière réponse : son minuteur est armé, il
+    // rendra à son tour.
+    if (pendingQty.size > 0) {
+      currentCart = cart;
+      return;
     }
     render(cart);
   }
@@ -1252,7 +1313,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     // voir changer. On garde le panier de côté, le prochain flush rendra.
     // Idem pendant un échange d'échantillon : le rendu intermédiaire est
     // exactement ce qui faisait clignoter la section (voir ensureSampleLine).
-    if (pendingQty.size > 0 || reconciling) {
+    if (quantityBusy() || reconciling) {
       currentCart = cart;
       return;
     }
