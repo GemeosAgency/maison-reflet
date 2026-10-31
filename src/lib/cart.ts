@@ -165,7 +165,7 @@ function trackAddedToCart(cart: ShopifyCart, lines: CartLine[]) {
         Price: price,
         Quantity: l.quantity,
         ImageURL: line.merchandise.product.featuredImage?.url ?? null,
-        ProductURL: `${window.location.origin}${currentLangPrefix()}/parfums/${line.merchandise.product.handle}`,
+        ProductURL: `${window.location.origin}${currentLangPrefix()}/parfums/${line.merchandise.product.handle}/`,
         VariantId: l.variantId,
       };
     })

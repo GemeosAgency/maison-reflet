@@ -17,10 +17,18 @@ export function isRtl(locale: Locale): boolean {
   return locale === "ar";
 }
 
-/** Préfixe une route interne avec la langue : localePath("ar", "/parfums") => "/ar/parfums" */
+/**
+ * Préfixe une route interne avec la langue : localePath("ar", "/parfums") => "/ar/parfums/".
+ *
+ * Toujours avec la barre finale : c'est la forme que servent les pages
+ * statiques (dossier/index.html), celle des canoniques et du sitemap. Sans
+ * elle, /fr et /fr/ répondaient tous deux en 200 et le hreflang pointait une
+ * autre URL que le canonical (audit du 30 oct.) ; vercel.json redirige
+ * désormais la forme sans barre vers celle-ci.
+ */
 export function localePath(locale: Locale, path = "/"): string {
   const clean = path === "/" ? "" : path.startsWith("/") ? path : `/${path}`;
-  return `/${locale}${clean}`;
+  return `/${locale}${clean}`.replace(/\/?$/, "/");
 }
 
 /** Libellés d'interface (le contenu éditorial vient de Sanity, lui). */
@@ -125,6 +133,18 @@ const ui = {
     "meta.catalog": "Les six parfums Maison Reflet : nos twists des grandes signatures, composés en France.",
     "meta.maison": "L'histoire de Maison Reflet, maison de parfums franco-arabe.",
     "meta.cart": "Votre panier Maison Reflet.",
+    "meta.productTitle": "{name}, eau de parfum {ml} ml",
+    "meta.catalogTitle": "Les six Reflets, eaux de parfum 75 ml",
+    "meta.contact": "Écrire à Maison Reflet, ou poser votre question à Luma, la conseillère de la Maison.",
+    "contact.title": "Contact",
+    "contact.lead": "Une question sur un parfum, une commande ou la prévente ? La Maison vous répond.",
+    "contact.emailTitle": "Par e-mail",
+    "contact.emailText": "Écrivez-nous, nous vous répondons dans les meilleurs délais.",
+    "contact.lumaTitle": "Avec Luma",
+    "contact.lumaText": "Luma, la conseillère de la Maison, vous répond tout de suite sur les parfums, les accords et le coffret découverte.",
+    "contact.lumaCta": "Parler à Luma",
+    "notFound.title": "Cette page n'existe pas",
+    "notFound.text": "Le lien est peut-être ancien, ou l'adresse contient une faute. Vous pouvez reprendre ici :",
     "nav.parfums": "Les 6 Reflets",
     "nav.perfumes": "Parfums",
     "nav.services": "Services",
@@ -151,7 +171,6 @@ const ui = {
       "Un reflet ne se contente jamais de reproduire fidèlement ce qu'il capture. Il l'absorbe et le renvoie transformé par l'eau qui le porte, l'angle du regard, la lumière de l'instant.",
     "product.twistPhilosophy2":
       "Chaque parfum de cette collection fait écho à un nom légendaire de la parfumerie : nous en préservons l'âme, mais nous en transformons la perspective pour lui donner une dimension franco-arabe plus sensuelle et plus intime.",
-    "product.reviews": "avis",
     "product.related": "Vous aimerez aussi",
     "product.boxes": "Nos coffrets",
     "home.discover": "Découvrir la collection",
@@ -173,9 +192,6 @@ const ui = {
     "home.story.p2": "Nous revisitons des signatures olfactives iconiques et leur offrons une nouvelle perspective à travers des notes inattendues, des contrastes raffinés et des twists singuliers.",
     "home.story.p3": "Le résultat : une collection de parfums familiers et pourtant surprenants, pensée pour celles et ceux qui savent ce qu'ils aiment tout en cherchant encore autre chose.",
     "home.story.cta": "découvrir notre histoire",
-    "home.reviews.title": "Avis ({count})",
-    "home.reviews.rated": "Noté 4,9",
-    "home.reviews.customers": "par plus de 600 clients",
     "home.pillars.title1": "Conçus pour être portés,",
     "home.pillars.title2": "remarqués et partagés.",
     "home.pillars.subtitle": "Chaque parfum Maison Reflet est développé avec la même exigence :",
@@ -277,8 +293,6 @@ const ui = {
     "cart.freeShippingRemaining": "Plus que {amount} pour la livraison offerte",
     "cart.freeShippingUnlocked": "La livraison vous est offerte.",
     "cart.freeShippingLabel": "Livraison offerte",
-    "reviews.previous": "Avis précédents",
-    "reviews.next": "Avis suivants",
     "cart.decrease": "Diminuer la quantité",
     "cart.increase": "Augmenter la quantité",
     "cart.selectSample": "Choisissez votre échantillon",
@@ -490,6 +504,18 @@ const ui = {
     "meta.catalog": "عطور Maison Reflet الستة: قراءتنا لأشهر التوقيعات العطرية، مصنوعة في فرنسا.",
     "meta.maison": "حكاية Maison Reflet، دار عطور فرنسية عربية.",
     "meta.cart": "سلّتكم في Maison Reflet.",
+    "meta.productTitle": "{name}، أو دو بارفان {ml} مل",
+    "meta.catalogTitle": "الانعكاسات الستة، أو دو بارفان 75 مل",
+    "meta.contact": "راسلوا Maison Reflet، أو اطرحوا سؤالكم على لوما، مستشارة الدار.",
+    "contact.title": "تواصلوا معنا",
+    "contact.lead": "سؤال عن عطر أو عن طلب أو عن الطلب المسبق؟ الدار تجيبكم.",
+    "contact.emailTitle": "عبر البريد الإلكتروني",
+    "contact.emailText": "راسلونا وسنردّ عليكم في أقرب وقت.",
+    "contact.lumaTitle": "مع لوما",
+    "contact.lumaText": "لوما، مستشارة الدار، تجيبكم فورًا عن العطور والتركيبات وعلبة الاكتشاف.",
+    "contact.lumaCta": "تحدّثوا إلى لوما",
+    "notFound.title": "هذه الصفحة غير موجودة",
+    "notFound.text": "ربما يكون الرابط قديمًا، أو في العنوان خطأ. يمكنكم المتابعة من هنا:",
     "nav.parfums": "الانعكاسات الستة",
     "nav.perfumes": "عطور",
     "nav.services": "خدمات",
@@ -516,7 +542,6 @@ const ui = {
       "لا يكتفي الانعكاس أبدًا بإعادة إنتاج ما يلتقطه بأمانة. بل يستوعبه ويرسله من جديد، متحوّلاً بفعل الماء الذي يحمله، وزاوية النظر، وضوء اللحظة.",
     "product.twistPhilosophy2":
       "كل عطر في هذه المجموعة يردد صدى اسم أسطوري في عالم العطور: نحافظ على روحه، لكننا نُحوّل منظوره لنمنحه بُعدًا فرنسيًا عربيًا أكثر حسية وحميمية.",
-    "product.reviews": "تقييم",
     "product.related": "قد يعجبكم أيضًا",
     "product.boxes": "علبنا",
     "home.discover": "اكتشف المجموعة",
@@ -535,9 +560,6 @@ const ui = {
     "home.story.p2": "نعيد اكتشاف توقيعات عطرية أسطورية ونمنحها منظورًا جديدًا عبر نفحات غير متوقعة، وتباينات راقية، ولمسات مميزة.",
     "home.story.p3": "والنتيجة: مجموعة من العطور المألوفة والمفاجئة في آن واحد، صُممت لمن يعرفون ما يحبونه ولا يزالون يبحثون عن شيء مختلف.",
     "home.story.cta": "اكتشف قصتنا",
-    "home.reviews.title": "التقييمات ({count})",
-    "home.reviews.rated": "تقييم 4.9",
-    "home.reviews.customers": "من أكثر من 600 عميل",
     "home.pillars.title1": "صُممت لتُرتدى،",
     "home.pillars.title2": "تُذكر وتُشارك.",
     "home.pillars.subtitle": "كل عطر من Maison Reflet يُطوَّر بالعناية نفسها:",
@@ -638,8 +660,6 @@ const ui = {
     "cart.freeShippingRemaining": "لم يتبقَّ سوى {amount} للحصول على شحن مجاني",
     "cart.freeShippingUnlocked": "حصلتم على الشحن المجاني!",
     "cart.freeShippingLabel": "شحن مجاني",
-    "reviews.previous": "التقييمات السابقة",
-    "reviews.next": "التقييمات التالية",
     "cart.decrease": "إنقاص الكمية",
     "cart.increase": "زيادة الكمية",
     "cart.selectSample": "اختاروا عيّنتكم",
@@ -850,6 +870,18 @@ const ui = {
     "meta.catalog": "The six Maison Reflet perfumes: our twists on great signatures, made in France.",
     "meta.maison": "The story of Maison Reflet, a Franco-Arab perfume house.",
     "meta.cart": "Your Maison Reflet cart.",
+    "meta.productTitle": "{name}, eau de parfum {ml} ml",
+    "meta.catalogTitle": "The six Reflets, eau de parfum 75 ml",
+    "meta.contact": "Write to Maison Reflet, or ask Luma, the House's advisor.",
+    "contact.title": "Contact",
+    "contact.lead": "A question about a perfume, an order or the pre-order? The House will answer.",
+    "contact.emailTitle": "By email",
+    "contact.emailText": "Write to us and we will get back to you as soon as we can.",
+    "contact.lumaTitle": "With Luma",
+    "contact.lumaText": "Luma, the House's advisor, answers right away about the perfumes, the pairings and the discovery set.",
+    "contact.lumaCta": "Talk to Luma",
+    "notFound.title": "This page does not exist",
+    "notFound.text": "The link may be out of date, or the address may contain a typo. You can pick up here:",
     "nav.parfums": "The 6 Reflets",
     "nav.perfumes": "Perfumes",
     "nav.services": "Services",
@@ -876,7 +908,6 @@ const ui = {
       "A reflection is never content to simply reproduce faithfully what it captures. It takes it in and sends it back transformed by the water that carries it, the angle of the gaze, the light of the moment.",
     "product.twistPhilosophy2":
       "Each fragrance in this collection echoes a legendary name from the world of perfumery: we preserve its soul, but transform its perspective to give it a more sensual, more intimate Franco-Arab dimension.",
-    "product.reviews": "reviews",
     "product.related": "You may also like",
     "product.boxes": "Our sets",
     "home.discover": "Discover the collection",
@@ -896,9 +927,6 @@ const ui = {
     "home.story.p2": "We revisit iconic olfactory signatures and give them a new perspective through unexpected notes, refined contrasts and distinctive twists.",
     "home.story.p3": "The result is a collection of familiar yet surprising fragrances, created for those who know what they love but are still looking for something different.",
     "home.story.cta": "discover our story",
-    "home.reviews.title": "Reviews ({count})",
-    "home.reviews.rated": "Rated 4.9",
-    "home.reviews.customers": "by 600+ customers",
     "home.pillars.title1": "Designed to be worn,",
     "home.pillars.title2": "remembered and shared.",
     "home.pillars.subtitle": "Every Maison Reflet fragrance is developed with the same focus:",
@@ -999,8 +1027,6 @@ const ui = {
     "cart.freeShippingRemaining": "You're {amount} away from free shipping",
     "cart.freeShippingUnlocked": "Your shipping is on us.",
     "cart.freeShippingLabel": "Free shipping",
-    "reviews.previous": "Previous reviews",
-    "reviews.next": "Next reviews",
     "cart.decrease": "Decrease quantity",
     "cart.increase": "Increase quantity",
     "cart.selectSample": "Select your sample",

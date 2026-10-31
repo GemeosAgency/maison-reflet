@@ -9,8 +9,23 @@ const COMING_SOON = import.meta.env.PUBLIC_COMING_SOON === "true";
 // Tracking onsite Klaviyo sur la page teaser (même variable que Layout.astro,
 // voir le commentaire là-bas pour la limite mono-compte staging/prod).
 const KLAVIYO_ID = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
+// Pas chargé sur un appareil de l'équipe (?internal=1, même clé que
+// src/lib/attribution.ts), comme sur le site.
 const KLAVIYO_SNIPPET = KLAVIYO_ID
-  ? `<script type="text/javascript" async src="https://static.klaviyo.com/onsite/js/${KLAVIYO_ID}/klaviyo.js"></script>`
+  ? `<script>(function () {
+      var internal = false;
+      try {
+        var flag = new URLSearchParams(location.search).get("internal");
+        if (flag === "1") localStorage.setItem("maison-reflet:internal", "1");
+        if (flag === "0") localStorage.removeItem("maison-reflet:internal");
+        internal = localStorage.getItem("maison-reflet:internal") === "1";
+      } catch (_) {}
+      if (internal) return;
+      var s = document.createElement("script");
+      s.async = true;
+      s.src = "https://static.klaviyo.com/onsite/js/${KLAVIYO_ID}/klaviyo.js";
+      document.head.appendChild(s);
+    })();</script>`
   : "";
 
 const HOLDING_PAGE = `<!doctype html>

@@ -10,6 +10,8 @@
  */
 import type { Locale } from "../i18n";
 import { DEFAULT_COUNTRY, formatMoney, freeShippingThreshold, getCountry } from "../lib/markets";
+import { Picture } from "astro:assets";
+import texture from "../assets/brand/texture-reassurance.jpg";
 
 interface Props {
   items: { icone: string | null; lignes: string[] }[];
@@ -24,7 +26,21 @@ const threshold = formatMoney(freeShippingThreshold(currency), currency, lang);
 {
   items.length > 0 && (
     <section class="reassurance full-bleed">
-      <img class="reassurance-texture" src="/brand/texture-reassurance.jpg" alt="" loading="lazy" aria-hidden="true" />
+      {/* Texture à 20 % d'opacité : une qualité basse ne se voit pas, et
+          l'AVIF pèse une fraction du JPEG de 486 Kio servi jusqu'ici. */}
+      <Picture
+        class="reassurance-texture"
+        src={texture}
+        formats={["avif", "webp"]}
+        fallbackFormat="jpg"
+        widths={[640, 1024, 1600]}
+        sizes="100vw"
+        quality={45}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        aria-hidden="true"
+      />
       <div class="reassurance-inner">
         {items.map((r) => (
           <div class="reassurance-item">
@@ -65,6 +81,7 @@ const threshold = formatMoney(freeShippingThreshold(currency), currency, lang);
     opacity: 0.2;
     pointer-events: none;
   }
+  .reassurance > :global(picture) { display: contents; }
   .reassurance-inner {
     position: relative;
     display: flex;

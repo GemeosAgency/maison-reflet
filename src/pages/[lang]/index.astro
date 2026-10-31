@@ -9,6 +9,10 @@ import Faq from "../../components/Faq.astro";
 import Pillars from "../../components/Pillars.astro";
 import ProductCard from "../../components/ProductCard.astro";
 import Reassurance from "../../components/Reassurance.astro";
+import { Picture } from "astro:assets";
+import heroLeft from "../../assets/home/hero-left.jpg";
+import heroRight from "../../assets/home/hero-right.jpg";
+import storyImage from "../../assets/home/story.jpg";
 import {
   formatPrice,
   getAllProducts,
@@ -64,12 +68,11 @@ const bestSellerMap = await getBestSellerMap();
  */
 const TILE_RATIO = 358.5 / 528;
 const TILE_WIDTH = 900; // ~449 px de large dans le container, x2 pour les écrans denses
+// Plusieurs largeurs : en mobile la carte fait une demi-largeur d'écran, le
+// palier 900 y était téléchargé pour rien.
 const tileImage = (source: unknown) =>
-  urlForImage(source as any)
-    .width(TILE_WIDTH)
-    .height(Math.round(TILE_WIDTH / TILE_RATIO))
-    .auto("format")
-    .url();
+  responsiveImage(source as any, { widths: [480, 720, TILE_WIDTH], aspect: TILE_RATIO });
+const TILE_SIZES = "(max-width: 900px) 50vw, 25vw";
 
 const bestsellers = [...perfumes]
   .sort(
@@ -89,22 +92,25 @@ const bestsellers = [...perfumes]
       img: recoImg?.main
         ? tileImage(recoImg.main)
         : p.featuredImage
-          ? shopifyImage(p.featuredImage, [480, 720, TILE_WIDTH]).src
+          ? shopifyImage(p.featuredImage, [480, 720, TILE_WIDTH])
           : null,
       // Seconde photo du survol — même chaîne de repli que le catalogue : la
       // version curée dans Sanity, sinon la deuxième photo produit de Shopify
       // (hors visuels de variante échantillon, qui sont des vignettes de 192 px
       // destinées au panier).
-      hoverImg: getProductHoverSrc(p.handle, p.title) ??
+      hoverImg: (() => {
+        const local = getProductHoverSrc(p.handle, p.title);
+        return local ? { src: local, srcset: "" } : null;
+      })() ??
         (() => {
           const im = hoverGalleryImage(p);
-          return im ? shopifyImage(im, [480, 720, TILE_WIDTH]).src : null;
+          return im ? shopifyImage(im, [480, 720, TILE_WIDTH]) : null;
         })() ??
         (recoImg?.hover
         ? tileImage(recoImg.hover)
         : (() => {
             const im = secondaryImage(p);
-            return im ? shopifyImage(im, [480, 720, TILE_WIDTH]).src : null;
+            return im ? shopifyImage(im, [480, 720, TILE_WIDTH]) : null;
           })()),
       variantId: variant.id,
       href: localePath(lang, `/parfums/${p.handle}`),
@@ -192,10 +198,13 @@ const heroOffer = {
 
 /*
  * Héros scindé en deux volets (node 11101:6088). Les photos sont statiques
- * (public/home) et non éditoriales : elles fixent le ton de la page d'accueil.
- * Deux fichiers par volet, servis en srcset 1x/2x — c'est le LCP de la page,
- * on ne peut pas se contenter d'un 1800 px pour tout le monde.
+ * (src/assets/home) et non éditoriales : elles fixent le ton de la page
+ * d'accueil. C'est le LCP de la page : Astro les sert en AVIF (WebP en repli)
+ * à plusieurs largeurs, sous un nom haché donc gardé un an en cache. Le
+ * palier 720 couvre un téléphone en densité 2 ; on servait un JPEG de 900 à
+ * 1800 px (77 à 441 Kio).
  */
+const HERO_WIDTHS = [480, 720, 960, 1280, 1800];
 const heroPanels = [
   {
     title1: t("home.hero.title1"),
@@ -205,7 +214,7 @@ const heroPanels = [
     // un flacon livré tout de suite.
     cta: prevente.active ? t("prevente.add") : t("home.hero.cta"),
     href: localePath(lang, "/parfums"),
-    img: "hero-left",
+    img: heroLeft,
   },
   {
     title1: t("home.hero2.title1"),
@@ -215,7 +224,7 @@ const heroPanels = [
     text: t("home.story.p1"),
     cta: t("home.story.cta"),
     href: localePath(lang, "/maison"),
-    img: "hero-right",
+    img: heroRight,
   },
 ];
 ---
@@ -235,14 +244,18 @@ const heroPanels = [
               Aucun `loading="lazy"` : les DEUX volets sont au-dessus de la
               ligne de flottaison sur desktop, différer le second ne ferait
               que le faire apparaître en retard. */}
-          <img
+          <Picture
             class="hero-img"
-            src={`/home/${panel.img}.jpg`}
-            srcset={`/home/${panel.img}.jpg 900w, /home/${panel.img}@2x.jpg 1800w`}
+            src={panel.img}
+            formats={["avif", "webp"]}
+            fallbackFormat="jpg"
+            widths={HERO_WIDTHS}
             sizes="(max-width: 900px) 100vw, (min-width: 1800px) 900px, 50vw"
+            quality={70}
             alt=""
+            loading="eager"
             fetchpriority={i === 0 ? "high" : undefined}
-            decoding="async"
+            decoding={i === 0 ? "sync" : "async"}
           />
           <div class="hero-text">
             {i === 0 ? (
@@ -313,8 +326,11 @@ const heroPanels = [
               inspiredByLabel={t("product.twistOf")}
               price={p.price}
               compare={p.compare}
-              img={p.img}
-              hoverImg={p.hoverImg}
+              img={p.img?.src ?? null}
+              imgSrcset={p.img?.srcset || undefined}
+              hoverImg={p.hoverImg?.src ?? null}
+              hoverSrcset={p.hoverImg?.srcset || undefined}
+              sizes={TILE_SIZES}
               href={p.href}
               variantId={p.variantId}
               badge={p.badge}
@@ -347,7 +363,17 @@ const heroPanels = [
       </a>
     </div>
     <div class="story-img">
-      <img src="/home/story.jpg" alt="" loading="lazy" decoding="async" />
+      <Picture
+        src={storyImage}
+        formats={["avif", "webp"]}
+        fallbackFormat="jpg"
+        widths={[480, 816, 1200, 1520]}
+        sizes="(max-width: 900px) 100vw, 56vw"
+        quality={70}
+        alt=""
+        loading="lazy"
+        decoding="async"
+      />
     </div>
   </section>
 
@@ -564,6 +590,10 @@ const heroPanels = [
     overflow: hidden;
   }
   .story-img img { width: 100%; height: 100%; object-fit: cover; object-position: bottom; }
+  /* Les <picture> d'Astro ne doivent rien changer à la mise en page : l'image
+     reste l'enfant direct du volet (absolue) ou du cadre du récit. */
+  .hero-panel > :global(picture),
+  .story-img > :global(picture) { display: contents; }
 
   @media (max-width: 900px) {
     /* Volets empilés : le ratio de la maquette (0,95) donnerait deux blocs

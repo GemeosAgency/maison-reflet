@@ -9,6 +9,9 @@ import Faq from "../../../components/Faq.astro";
 import Pillars from "../../../components/Pillars.astro";
 import LumaDoors from "../../../components/LumaDoors.astro";
 import Reassurance from "../../../components/Reassurance.astro";
+import { getImage } from "astro:assets";
+import heroWide from "../../../assets/catalog/hero.jpg";
+import heroNarrow from "../../../assets/catalog/hero-narrow.jpg";
 import {
   formatPrice,
   getCompareAtLabel,
@@ -87,13 +90,31 @@ const reassurances = (await getReassurances(lang)).map((r) => ({
   lignes: (r.texte ?? "").split("\n").filter(Boolean),
 }));
 
+
+/*
+ * Héros : deux cadrages (voir plus bas), chacun en AVIF puis WebP à plusieurs
+ * largeurs, le JPEG en dernier recours. Noms hachés sous /_astro : gardés un
+ * an en cache. Le cadrage étroit, LCP du mobile, pesait 178 Kio en JPEG.
+ */
+const heroSet = async (src: ImageMetadata, widths: number[]) => {
+  const at = (format: "avif" | "webp" | "jpg") =>
+    getImage({ src, format, widths, quality: format === "jpg" ? 75 : 65 });
+  const [avif, webp, jpg] = await Promise.all([at("avif"), at("webp"), at("jpg")]);
+  return { avif: avif.srcSet.attribute, webp: webp.srcSet.attribute, jpg: jpg.srcSet.attribute, src: jpg.src };
+};
+const [heroNarrowSet, heroWideSet] = await Promise.all([
+  heroSet(heroNarrow, [480, 720, 960, 1440, 1800]),
+  heroSet(heroWide, [1024, 1440, 2048, 2810]),
+]);
+// Image de partage : le cadrage large en JPEG 1200 px (les réseaux n'aiment pas l'AVIF).
+const heroShare = await getImage({ src: heroWide, format: "jpg", width: 1200, quality: 80 });
 ---
 
 <Layout
-  title={t("nav.parfums")}
+  title={t("meta.catalogTitle")}
   description={t("meta.catalog")}
   lang={lang}
-  ogImage="/catalog/hero.jpg"
+  ogImage={heroShare.src}
   breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: t("nav.perfumes") }]}
 >
   <section class="catalog-hero full-bleed">
@@ -102,11 +123,15 @@ const reassurances = (await getReassurances(lang)).map((r) => ({
          flacons sont à droite dans le large, au centre dans l'étroit. Un écran
          de téléphone recadre le large en son milieu et couperait les flacons. -->
     <picture>
-      <source media="(max-width: 900px)" srcset="/catalog/hero-narrow.jpg" />
+      <source media="(max-width: 900px)" type="image/avif" srcset={heroNarrowSet.avif} sizes="100vw" />
+      <source media="(max-width: 900px)" type="image/webp" srcset={heroNarrowSet.webp} sizes="100vw" />
+      <source media="(max-width: 900px)" srcset={heroNarrowSet.jpg} sizes="100vw" />
+      <source type="image/avif" srcset={heroWideSet.avif} sizes="100vw" />
+      <source type="image/webp" srcset={heroWideSet.webp} sizes="100vw" />
       <img
         class="catalog-hero-img"
-        src="/catalog/hero.jpg"
-        srcset="/catalog/hero-1440.jpg 1440w, /catalog/hero.jpg 2810w"
+        src={heroWideSet.src}
+        srcset={heroWideSet.jpg}
         sizes="100vw"
         alt=""
         fetchpriority="high"

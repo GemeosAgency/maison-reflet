@@ -80,7 +80,9 @@ const initialPill = countryPill(initialCountry, lang);
 const base = Astro.site ?? new URL(Astro.url.origin);
 const absolute = (path: string) => new URL(path, base).href;
 
-const canonical = absolute(Astro.url.pathname);
+// Toujours avec la barre finale, comme les liens internes (localePath) et le
+// sitemap : une seule forme d'URL par page.
+const canonical = absolute(Astro.url.pathname.replace(/\/?$/, "/"));
 const socialImage = absolute(ogImage ?? "/brand/logo-email.png");
 
 // og:locale attend une balise de type "fr_FR" et non "fr".
@@ -166,7 +168,11 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         var saved = document.cookie.match(/(?:^|;\s*)lang=([a-z]+)/);
         var want = saved && langs.indexOf(saved[1]) !== -1 ? saved[1] : null;
         var internal = document.referrer.indexOf(location.origin + "/") === 0;
-        var bot = /bot|crawl|spider|slurp|lighthouse|headless|preview/i.test(navigator.userAgent);
+        // Robots : « bot » couvre Googlebot, AdsBot, Storebot… mais pas les
+        // outils de Google sans ce mot : Google-InspectionTool (test en direct
+        // de la Search Console, redirigé de /ar vers /en jusqu'ici), GoogleOther,
+        // Google-Read-Aloud, ni les aperçus de liens des réseaux sociaux.
+        var bot = /bot|crawl|spider|slurp|lighthouse|headless|preview|inspectiontool|googleother|google-|-google|facebookexternalhit|whatsapp/i.test(navigator.userAgent);
 
         if (!want && !internal) {
           var prefs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
@@ -186,8 +192,12 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
     <meta name="description" content={description} />
     {!indexable && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonical} />
-    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
+    {/* /favicon.ico existe aussi (demandé d'office par les navigateurs et
+        Google, en 404 jusqu'ici) ; 48 et 192 px : Google veut un multiple de 48. */}
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
 
     <!-- Open Graph : sans ces balises, un lien partagé (WhatsApp, Instagram,
          LinkedIn) s'affiche sans image ni titre soigné. -->
@@ -207,12 +217,9 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={socialImage} />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
+    {/* Polices auto-hébergées uniquement (public/fonts) : la feuille Google
+        Fonts de Hanken Grotesk, simple repli jamais affiché (PP Neue Montreal
+        couvre toutes les graisses), bloquait le rendu 0,9 à 1,3 s en mobile. */}
     <link rel="preload" href="/fonts/ppneuemontreal-book.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/ppneuemontreal-medium.woff2" as="font" type="font/woff2" crossorigin />
     {locales.map((loc) => <link rel="alternate" hreflang={loc} href={absolute(localePath(loc, rest))} />)}
@@ -230,14 +237,27 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         />
       ))
     }
+    {/*
+      klaviyo.js n'est pas chargé sur un appareil de l'équipe (`?internal=1`,
+      mémorisé par attribution.ts ; `?internal=0` le retire) : sinon son suivi
+      onsite (Active on Site, pages vues) comptait nos propres visites. Lu ici,
+      avant le module d'attribution, d'où la relecture de l'URL.
+    */}
     {
       klaviyoCompanyId && (
-        <script
-          is:inline
-          async
-          type="text/javascript"
-          src={`https://static.klaviyo.com/onsite/js/${klaviyoCompanyId}/klaviyo.js`}
-        />
+        <script is:inline define:vars={{ klaviyoSrc: `https://static.klaviyo.com/onsite/js/${klaviyoCompanyId}/klaviyo.js` }}>
+          var internal = false;
+          try {
+            var flag = new URLSearchParams(location.search).get("internal");
+            internal = flag === "1" || (flag !== "0" && localStorage.getItem("maison-reflet:internal") === "1");
+          } catch (_) {}
+          if (!internal) {
+            var s = document.createElement("script");
+            s.async = true;
+            s.src = klaviyoSrc;
+            document.head.appendChild(s);
+          }
+        </script>
       )
     }
     <title>{title} | Maison Reflet</title>
@@ -384,7 +404,7 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
       body {
         background: var(--cream);
         color: var(--ink);
-        font-family: "PP Neue Montreal", "Hanken Grotesk", system-ui, sans-serif;
+        font-family: "PP Neue Montreal", system-ui, sans-serif;
         font-size: 16px;
         line-height: 1.5;
         -webkit-font-smoothing: antialiased;

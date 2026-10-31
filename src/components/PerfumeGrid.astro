@@ -26,7 +26,7 @@ import {
   shopifyImage,
   type ShopifyProduct,
 } from "../lib/shopify";
-import { getInspiredByMap, getRecoImages, getBestSellerMap, urlForImage } from "../lib/sanity";
+import { getInspiredByMap, getRecoImages, getBestSellerMap, responsiveImage } from "../lib/sanity";
 import { type Locale, localePath, useTranslations } from "../i18n";
 
 interface Props {
@@ -59,12 +59,40 @@ const ordered =
     ? [...perfumes].sort((a, b) => Number(Boolean(bestSellerMap[b.handle])) - Number(Boolean(bestSellerMap[a.handle])))
     : perfumes;
 
+// Largeurs servies : une carte fait un tiers (grille) ou un quart (rangée)
+// de l'écran en ordinateur, la moitié ou tout l'écran en mobile. Sanity sert
+// l'AVIF ou le WebP selon le navigateur (auto=format, dans responsiveImage) ;
+// on servait jusqu'ici un JPEG de 1200 px, 190 Kio, à chaque carte.
+const CARD_WIDTHS = [480, 720, 960, 1200];
+const sizes =
+  layout === "row"
+    ? "(max-width: 900px) 50vw, 25vw"
+    : "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 34vw";
+
 const cards = ordered
   .slice(0, limit)
   .map((p) => {
     const recoImg = recoImages[p.handle];
     const variant = getPrimaryVariant(p);
     const price = getDisplayPrice(p);
+    const base = recoImg?.main
+      ? responsiveImage(recoImg.main as any, { widths: CARD_WIDTHS })
+      : p.featuredImage
+        ? shopifyImage(p.featuredImage, [480, 720, 1200])
+        : null;
+    const localHover = getProductHoverSrc(p.handle, p.title);
+    const hover = localHover
+      ? { src: localHover, srcset: undefined }
+      : (() => {
+          const im = hoverGalleryImage(p);
+          return im ? shopifyImage(im, [480, 720, 1200]) : null;
+        })() ??
+        (recoImg?.hover
+          ? responsiveImage(recoImg.hover as any, { widths: CARD_WIDTHS, aspect: 1200 / 1605 })
+          : (() => {
+              const im = secondaryImage(p);
+              return im ? shopifyImage(im, [480, 720, 1200]) : null;
+            })());
     return {
       name: p.title,
       inspired: inspiredMap[p.handle] ?? null,
@@ -75,27 +103,14 @@ const cards = ordered
       // le prix. On ne la recadre pas côté Sanity — la carte le fait elle-même,
       // en `cover` ancré en bas, et un recadrage serveur rognerait justement ce
       // vide.
-      img: recoImg?.main
-        ? urlForImage(recoImg.main as any).width(1200).url()
-        : p.featuredImage
-          ? shopifyImage(p.featuredImage, [480, 720, 1200]).src
-          : null,
+      img: base?.src ?? null,
+      imgSrcset: base?.srcset || undefined,
       // Seconde photo du survol : la galerie locale, sinon la version curée dans
       // Sanity, sinon la deuxième photo produit de Shopify. Les visuels de
       // variante échantillon sont écartés — ce sont des vignettes de 192px
       // destinées au panier, pas des angles de flacon.
-      hoverImg:
-        getProductHoverSrc(p.handle, p.title) ??
-        (() => {
-          const im = hoverGalleryImage(p);
-          return im ? shopifyImage(im, [480, 720, 1200]).src : null;
-        })() ??
-        (recoImg?.hover
-          ? urlForImage(recoImg.hover as any).width(1200).height(1605).url()
-          : (() => {
-              const im = secondaryImage(p);
-              return im ? shopifyImage(im, [480, 720, 1200]).src : null;
-            })()),
+      hoverImg: hover?.src ?? null,
+      hoverSrcset: hover?.srcset || undefined,
       variantId: variant.id,
       href: localePath(lang, `/parfums/${p.handle}`),
       badge: bestSellerMap[p.handle] ? t("product.bestSeller") : null,
@@ -130,6 +145,9 @@ const cards = ordered
         compare={p.compare}
         img={p.img}
         hoverImg={p.hoverImg}
+        imgSrcset={p.imgSrcset}
+        hoverSrcset={p.hoverSrcset}
+        sizes={sizes}
         href={p.href}
         variantId={p.variantId}
         badge={p.badge}

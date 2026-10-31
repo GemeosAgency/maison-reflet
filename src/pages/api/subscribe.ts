@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { locales, type Locale } from "../../i18n";
 import { getAllProducts } from "../../lib/shopify";
+import { allow, clientIp, fromOurSite } from "../../lib/rate-limit";
 
 // Rendu à la demande (fonction serverless Vercel), pas prégénéré.
 export const prerender = false;
@@ -254,7 +255,23 @@ async function recordNotifyRequest(email: string, handle: string, path: string |
   }
 }
 
-export const POST: APIRoute = async ({ request, url }) => {
+/*
+ * Débit par IP : de quoi s'inscrire, se tromper d'adresse et recommencer, pas
+ * de quoi remplir une liste Klaviyo (facturée au profil) depuis un script.
+ */
+const SUBSCRIBE_PER_10_MIN = 5;
+const SUBSCRIBE_PER_DAY = 20;
+
+export const POST: APIRoute = async ({ request, url, clientAddress }) => {
+  // Seules nos pages inscrivent : une origine étrangère était acceptée jusqu'ici
+  // (audit du 30 oct., POST depuis evil.example traité).
+  // Pas de message d'erreur ici : le formulaire affiche le sien, traduit.
+  if (!fromOurSite(request)) return json({ ok: false }, 403);
+  const ip = clientIp(request, clientAddress);
+  if (!allow(`subscribe:10m:${ip}`, SUBSCRIBE_PER_10_MIN, 10 * 60_000) || !allow(`subscribe:day:${ip}`, SUBSCRIBE_PER_DAY, 24 * 60 * 60_000)) {
+    return json({ ok: false }, 429);
+  }
+
   let email = "";
   let locale: Locale | null = null;
   let source = "teaser";

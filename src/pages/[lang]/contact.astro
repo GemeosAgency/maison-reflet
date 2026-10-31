@@ -1,0 +1,98 @@
+---
+/**
+ * Contact : l'adresse de la Maison et Luma, dans les trois langues.
+ *
+ * L'adresse est celle que Luma donne déjà quand elle passe la main
+ * (CONTACT_EMAIL, lib/luma/collection.ts) : une seule source, pour que la page
+ * et la conseillère ne divergent jamais. Le bouton Luma ouvre le widget global
+ * du Layout (`data-luma-open`), comme les entrées du menu et du guide.
+ */
+import Layout from "../../layouts/Layout.astro";
+import { CONTACT_EMAIL } from "../../lib/luma/collection";
+import { type Locale, locales, localePath, useTranslations } from "../../i18n";
+
+export function getStaticPaths() {
+  return locales.map((lang) => ({ params: { lang } }));
+}
+
+const lang = Astro.params.lang as Locale;
+const t = useTranslations(lang);
+---
+
+<Layout
+  title={t("contact.title")}
+  description={t("meta.contact")}
+  lang={lang}
+  breadcrumbs={[{ label: t("nav.home"), href: localePath(lang, "/") }, { label: t("contact.title") }]}
+>
+  <section class="contact">
+    <h1>{t("contact.title")}</h1>
+    <p class="contact-lead">{t("contact.lead")}</p>
+    <div class="contact-ways">
+      <div class="contact-way">
+        <h2>{t("contact.emailTitle")}</h2>
+        <p>{t("contact.emailText")}</p>
+        {/* L'adresse reste en latin et de gauche à droite, même en arabe. */}
+        <a class="contact-cta" href={`mailto:${CONTACT_EMAIL}`} dir="ltr">{CONTACT_EMAIL}</a>
+      </div>
+      <div class="contact-way">
+        <h2>{t("contact.lumaTitle")}</h2>
+        <p>{t("contact.lumaText")}</p>
+        <button type="button" class="contact-cta" data-luma-open data-luma-source="contact">{t("contact.lumaCta")}</button>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .contact {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 72px var(--gutter-x) 96px;
+  }
+  h1 {
+    margin: 0 0 16px;
+    font-size: clamp(32px, 4vw, 48px);
+    font-weight: 500;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+  .contact-lead { margin: 0 0 48px; max-width: 560px; font-size: 18px; line-height: 1.4; }
+  .contact-ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; }
+  .contact-way {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 32px;
+    background: var(--paper);
+  }
+  h2 { margin: 0; font-size: 16px; font-weight: 500; text-transform: uppercase; }
+  .contact-way p { margin: 0 0 8px; line-height: 1.4; opacity: 0.8; }
+  /* Coins carrés, comme tous les CTA du site. */
+  .contact-cta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    margin-top: auto;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 0;
+    background: var(--sand);
+    color: var(--ink);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    overflow-wrap: anywhere;
+  }
+  button.contact-cta { text-transform: uppercase; }
+  .contact-cta:hover { opacity: 0.85; }
+  .contact-cta:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  @media (max-width: 720px) {
+    .contact { padding: 40px var(--gutter-x) 64px; }
+    .contact-ways { grid-template-columns: 1fr; }
+    .contact-way { padding: 24px; }
+  }
+</style>

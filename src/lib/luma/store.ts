@@ -216,6 +216,36 @@ export async function userMessageTimes(visitor: Visitor): Promise<number[]> {
   return (data ?? []).map((r) => Date.parse(r.created_at as string));
 }
 
+/**
+ * Tours demandés depuis une même IP sur 24 h (événements « ip_turn », sans
+ * session). L'empreinte change chaque jour (lib/rate-limit.ts) : l'adresse
+ * n'est jamais stockée, et la fenêtre « jour » repart à minuit UTC.
+ *
+ * C'est le débit que le visiteur ne choisit pas : celui par visiteur repose
+ * sur l'identifiant X-Anon, qu'un script peut changer à chaque message.
+ */
+export async function ipTurnTimes(fingerprint: string): Promise<number[]> {
+  const { data, error } = await db()
+    .from("luma_events")
+    .select("created_at")
+    .eq("name", "ip_turn")
+    .eq("props->>ip", fingerprint)
+    .gte("created_at", new Date(Date.now() - 24 * 60 * 60_000).toISOString())
+    .limit(1000);
+  if (error) fail("lecture débit IP", error);
+  return (data ?? []).map((r) => Date.parse(r.created_at as string));
+}
+
+/** Oublie les empreintes de plus de deux jours : elles ne servent plus à rien. */
+export async function pruneIpTurns(): Promise<void> {
+  const { error } = await db()
+    .from("luma_events")
+    .delete()
+    .eq("name", "ip_turn")
+    .lt("created_at", new Date(Date.now() - 2 * 24 * 60 * 60_000).toISOString());
+  if (error) console.error("[luma/store] purge des empreintes IP :", error.message);
+}
+
 /** Tokens consommés depuis minuit UTC, tous visiteurs — pour le plafond quotidien. */
 export async function tokensToday(): Promise<number> {
   const start = new Date();

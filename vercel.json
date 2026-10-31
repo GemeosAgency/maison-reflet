@@ -8,6 +8,73 @@
       "schedule": "0 23 * * *"
     }
   ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Content-Security-Policy-Report-Only",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.klaviyo.com https://static-tracking.klaviyo.com https://static-forms.klaviyo.com https://connect.facebook.net https://www.googletagmanager.com https://vercel.live; style-src 'self' 'unsafe-inline' https://static-forms.klaviyo.com https://fonts.googleapis.com; img-src 'self' data: blob: https://cdn.shopify.com https://cdn.sanity.io https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://www.google.com https://*.klaviyo.com https://vercel.live https://vercel.com; font-src 'self' data: https://fonts.gstatic.com https://static-forms.klaviyo.com; connect-src 'self' https://gcg0sc-yv.myshopify.com https://checkout.maisonreflet.com https://*.klaviyo.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://www.google.com https://www.facebook.com https://connect.facebook.net https://vercel.live wss://ws-us3.pusher.com; media-src 'self' blob:; frame-src 'self' https://www.facebook.com https://www.googletagmanager.com https://vercel.live; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.maisonreflet.com; frame-ancestors 'self'; report-uri /api/csp-report"
+        }
+      ]
+    },
+    {
+      "source": "/fonts/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=2592000, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
+      "source": "/:dir(brand|home|catalog|maison|products|flags|teaser|luma)/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        }
+      ]
+    },
+    {
+      "source": "/:icon(favicon.ico|favicon.png|favicon-64.png|favicon-192.png|apple-touch-icon.png|site.webmanifest)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        }
+      ]
+    },
+    {
+      "source": "/_astro/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
   "redirects": [
     {
       "source": "/cart/c/:token*",
@@ -18,6 +85,91 @@
       "source": "/checkouts/:path*",
       "destination": "https://checkout.maisonreflet.com/checkouts/:path*",
       "permanent": false
+    },
+    {
+      "source": "/:lang(fr|en|ar)/products/:handle(bois-alert|fifth-season|melting-mango|minuit-bourbon|new-oud|ultra-cuir)",
+      "destination": "/:lang/parfums/:handle/",
+      "permanent": true
+    },
+    {
+      "source": "/products/:handle(bois-alert|fifth-season|melting-mango|minuit-bourbon|new-oud|ultra-cuir)",
+      "destination": "/fr/parfums/:handle/",
+      "permanent": true
+    },
+    {
+      "source": "/:lang(fr|en|ar)/products/:handle(sample-box|all-6-perfums-box)",
+      "destination": "/:lang/coffrets/:handle/",
+      "permanent": true
+    },
+    {
+      "source": "/products/:handle(sample-box|all-6-perfums-box)",
+      "destination": "/fr/coffrets/:handle/",
+      "permanent": true
+    },
+    {
+      "source": "/:lang(fr|en|ar)/:legacy(products|collections)/:path*",
+      "destination": "/:lang/parfums/",
+      "permanent": true
+    },
+    {
+      "source": "/:legacy(products|collections)/:path*",
+      "destination": "/fr/parfums/",
+      "permanent": true
+    },
+    {
+      "source": "/:legacy(products|collections)",
+      "destination": "/fr/parfums/",
+      "permanent": true
+    },
+    {
+      "source": "/pages/contact",
+      "destination": "/fr/contact/",
+      "permanent": true
+    },
+    {
+      "source": "/:lang(fr|en|ar)/pages/contact",
+      "destination": "/:lang/contact/",
+      "permanent": true
+    },
+    {
+      "source": "/:lang(fr|en|ar)/pages/:path*",
+      "destination": "/:lang/maison/",
+      "permanent": true
+    },
+    {
+      "source": "/pages/:path*",
+      "destination": "/fr/maison/",
+      "permanent": true
+    },
+    {
+      "source": "/cart",
+      "destination": "/fr/panier/",
+      "permanent": true
+    },
+    {
+      "source": "/:lang(fr|en|ar)/cart",
+      "destination": "/:lang/panier/",
+      "permanent": true
+    },
+    {
+      "source": "/:lang(fr|en|ar)/coffrets",
+      "destination": "/:lang/coffrets/sample-box/",
+      "permanent": true
+    },
+    {
+      "source": "/:lang(fr|en|ar)/coffrets/",
+      "destination": "/:lang/coffrets/sample-box/",
+      "permanent": true
+    },
+    {
+      "source": "/:lang(fr|en|ar)",
+      "destination": "/:lang/",
+      "permanent": true
+    },
+    {
+      "source": "/:lang(fr|en|ar)/:path(.*[^/])",
+      "destination": "/:lang/:path/",
+      "permanent": true
     }
   ],
   "rewrites": [

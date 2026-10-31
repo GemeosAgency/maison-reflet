@@ -24,7 +24,12 @@
  *    `unique_id` partagé sert de filet : Klaviyo fusionne tout doublon.
  *
  * On ne crée jamais de profil Klaviyo anonyme (facturation au profil actif).
+ *
+ * Appareil de l'équipe (`?internal=1`, voir attribution.ts) : aucun suivi
+ * Klaviyo, ni événement, ni identification, ni rejeu. Une inscription
+ * volontaire à la newsletter passe toujours (elle va au serveur, /api/subscribe).
  */
+import { isInternalDevice } from "./attribution";
 
 type KlaviyoObject = {
   track: (event: string, properties?: Record<string, unknown>) => unknown;
@@ -182,6 +187,7 @@ function flushQueue(email: string) {
 
 /** Envoie un événement (best effort, jamais bloquant, sans doublon). */
 export function track(event: string, properties: Record<string, unknown> = {}) {
+  if (isInternalDevice()) return;
   const uniqueId = makeEventId(event);
   const now = new Date().toISOString();
   const email = getStoredEmail();
@@ -213,7 +219,7 @@ export function identify(properties: Record<string, unknown>) {
   const email = String(properties.email ?? "")
     .trim()
     .toLowerCase();
-  if (!EMAIL_RE.test(email)) return;
+  if (!EMAIL_RE.test(email) || isInternalDevice()) return;
 
   storeEmail(email);
   // klaviyo.js reste utile quand il charge : cookie d'identité, Active on Site, forms.
@@ -229,6 +235,7 @@ export function identify(properties: Record<string, unknown>) {
  *   (rattrapage si un précédent envoi a échoué).
  */
 export function initKlaviyo() {
+  if (isInternalDevice()) return;
   try {
     const utmEmail = new URLSearchParams(window.location.search).get("utm_email");
     if (utmEmail && EMAIL_RE.test(utmEmail.trim())) {

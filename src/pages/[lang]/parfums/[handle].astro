@@ -2,7 +2,7 @@
 /**
  * Fiche produit v2 (refonte design août 2026) — assemblage de sections :
  * galerie + panneau sticky, Scent Notes, Specific Twist, Perfumer's word,
- * réassurance, avis (placeholder), You may also like, piliers, Discovery Set,
+ * réassurance, You may also like, piliers, Discovery Set,
  * FAQ. Commerce (prix/variantes/panier) = Shopify ; éditorial = Sanity,
  * chaque section se masque si son contenu n'est pas rempli dans le Studio.
  */
@@ -340,13 +340,25 @@ const discovery =
 // titre, la description et l'image de partage ; sinon on retombe sur le
 // contenu de la fiche.
 const seo = parfum?.seo ?? null;
-const seoTitle = seo?.metaTitle ?? product.title;
+// Titre par langue avec le type et le format (« Bois Alert, eau de parfum
+// 75 ml »), sous les 60 caractères avec « | Maison Reflet » : le seul nom du
+// parfum, identique en trois langues, ne disait pas ce qu'on vend.
+const sizeMl = sizeLabel?.match(/\d+/)?.[0] ?? "75";
+const seoTitle = seo?.metaTitle ?? t("meta.productTitle").replace("{name}", product.title).replace("{ml}", sizeMl);
 // La description de la fiche, dans la langue de la page, plutôt que l'ancienne
 // `accroche` : écrite pour l'ancienne collection et en français seulement,
 // elle sortait « Le soleil à son sommet » pour Minuit Bourbon en anglais.
+// Le texte est décodé UNE fois ici, puis réencodé par Astro dans l'attribut :
+// toute entité restée telle quelle (&#x27; de Portable Text) sortait en
+// « l&amp;#x27;ADN » dans la balise, et Google l'aurait affichée.
+const ENTITIES: Record<string, string> = { amp: "&", quot: '"', apos: "'", lt: "<", gt: ">", nbsp: " " };
 const descriptionText = descriptionHtml
   .replace(/<[^>]+>/g, " ")
-  .replace(/&(amp|quot|#39|lt|gt);/g, (_, e) => ({ amp: "&", quot: '"', "#39": "'", lt: "<", gt: ">" })[e as string] ?? "")
+  .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (all, e: string) => {
+    if (e[0] !== "#") return ENTITIES[e.toLowerCase()] ?? all;
+    const code = e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+    return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : "";
+  })
   .replace(/\s+/g, " ")
   .trim();
 const seoDescription = seo?.metaDescription ?? (descriptionText || null) ?? product.description;
@@ -384,9 +396,16 @@ const productJsonLd = {
     url: productUrl,
     price: Number(variant.price.amount),
     priceCurrency: variant.price.currencyCode,
-    availability: variant.availableForSale
-      ? "https://schema.org/InStock"
-      : "https://schema.org/OutOfStock",
+    // Prévente ouverte (interrupteur Sanity, lib/prevente.ts) : le flacon se
+    // commande mais ne part pas tout de suite, c'est une précommande.
+    availability: !variant.availableForSale
+      ? "https://schema.org/OutOfStock"
+      : prevente.active
+        ? "https://schema.org/PreOrder"
+        : "https://schema.org/InStock",
+    ...(prevente.active && variant.availableForSale && prevente.shipDate
+      ? { availabilityStarts: prevente.shipDate }
+      : {}),
   },
 };
 ---

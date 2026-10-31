@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { requestIsTest } from "../../../lib/admin/env";
+import { allow, clientIp, fromOurSite, ipFingerprint } from "../../../lib/rate-limit";
 import { localePath, locales, type Locale } from "../../../i18n";
 import { COUNTRY_COOKIE, getCountry, isShippedCountry } from "../../../lib/markets";
 import { answer } from "../../../lib/luma/agent";
@@ -11,9 +12,11 @@ import { UNAVAILABLE_REPLY, type VisitContext } from "../../../lib/luma/persona"
 import { SCRIPT_MAX_CHARS, encodeScript, signScript, voiceEnabled } from "../../../lib/luma/voice";
 import { portraitAudioPath } from "../../../lib/luma/portraits";
 import {
+  ipTurnTimes,
   latestProfile,
   loadHistory,
   logEvent,
+  pruneIpTurns,
   recordAssistantMessage,
   recordUserMessage,
   resumeOrCreateSession,
@@ -54,6 +57,11 @@ const MESSAGE_MAX_CHARS = 1000;
 // Par visiteur : de quoi converser, pas de quoi scripter.
 const RATE_PER_MINUTE = 8;
 const RATE_PER_DAY = 150;
+// Par IP réelle (Vercel), que le client ne choisit pas. Plus large que par
+// visiteur : derrière un même opérateur mobile, beaucoup d'abonnés partagent
+// une IP (CGNAT, courant aux Émirats).
+const IP_RATE_PER_MINUTE = 20;
+const IP_RATE_PER_DAY = 300;
 // Tous visiteurs, entrée + sortie, cache compris (brief §7 « plafond quotidien »).
 const DAILY_TOKEN_CAP = Number(import.meta.env.LUMA_DAILY_TOKEN_CAP) || 1_500_000;
 // Réponses parlées par session : au-delà, Luma continue par écrit (économie de crédits ElevenLabs).
@@ -157,19 +165,16 @@ function parseContext(value: unknown): VisitContext {
   return ctx;
 }
 
-/** Même site ou rien : le widget vit sur maisonreflet.com, pas ailleurs. */
-function sameOrigin(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  if (!origin) return true; // appels serveur et tests ; le navigateur envoie toujours Origin sur un POST
-  try {
-    return new URL(origin).host === new URL(request.url).host;
-  } catch {
-    return false;
-  }
-}
+/** Secret de l'empreinte IP : celui qui signe déjà les scripts de la voix. */
+const IP_SECRET = import.meta.env.LUMA_VOICE_SECRET ?? import.meta.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
-export const POST: APIRoute = async ({ request, cookies }) => {
-  if (!sameOrigin(request)) return json({ ok: false, error: "Origine refusée." }, 403);
+export const POST: APIRoute = async ({ request, cookies, clientAddress }) => {
+  // Nos pages ou rien, et l'en-tête Origin (ou Referer) devient obligatoire :
+  // son absence laissait passer n'importe quel script (audit du 30 oct.).
+  if (!fromOurSite(request)) return json({ ok: false, error: "Origine refusée." }, 403);
+  // Premier filet, en mémoire de l'instance, avant toute lecture en base.
+  const ip = clientIp(request, clientAddress);
+  const ipAllowed = allow(`luma:${ip}`, IP_RATE_PER_MINUTE, 60_000);
 
   let message = "";
   let locale: Locale | null = null;
@@ -231,14 +236,38 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       try {
         send({ type: "status", state: "thinking" });
 
-        // Catalogue (cache 60 s) et visiteur : rien ne dépend de l'autre.
-        const [knowledge, visitor] = await Promise.all([
+        // Rafale depuis une même IP sur cette instance : refus sans toucher la base.
+        if (!ipAllowed) {
+          send({ type: "text", text: unavailable });
+          send({ type: "done", sessionId: null, fallback: true, reason: "rate_limited" });
+          return;
+        }
+
+        // Catalogue (cache 60 s), visiteur et débit de l'IP : rien ne dépend de l'autre.
+        const fingerprint = IP_SECRET ? await ipFingerprint(ip, IP_SECRET) : null;
+        const [knowledge, visitor, ipTimes] = await Promise.all([
           getKnowledge({ country: country.code, locale: lang }),
           visitorOf(anonId, lang),
+          fingerprint ? ipTurnTimes(fingerprint) : Promise.resolve([] as number[]),
         ]);
         mark("lookup_ms");
 
-        // Débit par visiteur, avant tout appel payant.
+        // Débit par IP puis par visiteur, avant tout appel payant.
+        const ipPerMinute = ipTimes.filter((t) => t >= t0 - 60_000).length;
+        if (ipPerMinute >= IP_RATE_PER_MINUTE || ipTimes.length >= IP_RATE_PER_DAY) {
+          await logEvent(visitor.live?.id ?? null, "rate_limited", { scope: "ip", perMinute: ipPerMinute, perDay: ipTimes.length });
+          send({ type: "text", text: unavailable });
+          send({ type: "done", sessionId: visitor.live?.id ?? null, fallback: true, reason: "rate_limited" });
+          return;
+        }
+        // Le tour compte dès qu'il est accepté, même si le visiteur est ensuite
+        // refusé : c'est l'IP qu'on mesure. Sans session, il n'apparaît pas dans
+        // les conversations de la tour de contrôle.
+        if (fingerprint) {
+          void logEvent(null, "ip_turn", { ip: fingerprint });
+          if (Math.random() < 0.02) void pruneIpTurns();
+        }
+
         const times = await userMessageTimes(visitor);
         const perMinute = times.filter((t) => t >= t0 - 60_000).length;
         if (perMinute >= RATE_PER_MINUTE || times.length >= RATE_PER_DAY) {
