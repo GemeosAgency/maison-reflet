@@ -620,7 +620,7 @@ const prevente = await getPrevente();
           const active = isMine() && !audio.paused && !audio.ended;
           listen.textContent = active ? i18n.pause : i18n.listen;
           listen.setAttribute("aria-pressed", String(active));
-          listen.setAttribute("aria-label", `${active ? i18n.pause : i18n.listen} — ${card.name}`);
+          listen.setAttribute("aria-label", `${active ? i18n.pause : i18n.listen}, ${card.name}`);
         };
         listen.addEventListener("click", () => {
           if (isMine() && !audio.paused) {
@@ -670,7 +670,7 @@ const prevente = await getPrevente();
         case "handoff_to_human": {
           const p = el("p", "luma-handoff");
           const link = el("a", undefined, i18n.writeTo) as HTMLAnchorElement;
-          link.href = `mailto:${action.email}?subject=${encodeURIComponent("Maison Reflet — " + action.reason)}`;
+          link.href = `mailto:${action.email}?subject=${encodeURIComponent("Maison Reflet · " + action.reason)}`;
           p.append(link);
           into.append(p);
           break;

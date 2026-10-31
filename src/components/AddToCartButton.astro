@@ -33,7 +33,7 @@ const cartUrl = localePath(lang, "/panier");
         <select data-cart-variant>
           {variants.map((variant) => (
             <option value={variant.id} disabled={!variant.availableForSale}>
-              {variant.title} — {formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang))}
+              {variant.title} · {formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang))}
               {!variant.availableForSale && ` (${t("product.soldOut")})`}
             </option>
           ))}
@@ -73,7 +73,7 @@ const cartUrl = localePath(lang, "/panier");
 
       try {
         await addToCart(variantId, 1);
-        feedback.innerHTML = `${msg.msgAdded ?? ""} — <a href="${msg.cartUrl}">${msg.msgSee ?? ""}</a>`;
+        feedback.innerHTML = `${msg.msgAdded ?? ""} · <a href="${msg.cartUrl}">${msg.msgSee ?? ""}</a>`;
       } catch (error) {
         console.error(error);
         feedback.textContent = msg.msgError ?? "";

@@ -21,7 +21,7 @@ const HOLDING_PAGE = `<!doctype html>
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <title>Maison Reflet — The art of a different reflection</title>
+    <title>Maison Reflet · The art of a different reflection</title>
     <meta property="og:title" content="Maison Reflet" />
     <meta property="og:description" content="The art of a different reflection. Get early access and be the first to discover the collection." />
     <meta property="og:image" content="/teaser/bg.jpg" />
