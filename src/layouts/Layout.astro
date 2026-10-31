@@ -192,8 +192,12 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
     <meta name="description" content={description} />
     {!indexable && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonical} />
-    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
+    {/* /favicon.ico existe aussi (demandé d'office par les navigateurs et
+        Google, en 404 jusqu'ici) ; 48 et 192 px : Google veut un multiple de 48. */}
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
 
     <!-- Open Graph : sans ces balises, un lien partagé (WhatsApp, Instagram,
          LinkedIn) s'affiche sans image ni titre soigné. -->

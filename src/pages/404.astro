@@ -1,0 +1,174 @@
+---
+/**
+ * Page 404 de la marque, servie par Vercel pour toute adresse inconnue.
+ *
+ * Une seule page statique pour les trois langues : Vercel la sert telle quelle
+ * quelle que soit l'URL, sans savoir dans quelle langue on se trouvait. Les
+ * trois messages sont donc dans le HTML, et un court script n'affiche que
+ * celui de la langue de l'adresse (/fr, /ar, /en), sinon du choix mémorisé
+ * (cookie `lang`), sinon de l'appareil, avec l'anglais en repli, comme le
+ * Layout. Sans JavaScript, les trois restent visibles l'un sous l'autre.
+ *
+ * Volontairement sans le Layout : il interroge Sanity et Shopify (prévente,
+ * menu, panier) et son en-tête serait dans une seule langue. Ici, le logo,
+ * les polices et la palette du site, et les liens qui servent.
+ */
+import { type Locale, locales, localePath, isRtl, fallbackLocale, useTranslations } from "../i18n";
+import { COFFRET_HANDLE } from "../lib/coffret";
+
+const blocks = locales.map((lang: Locale) => {
+  const t = useTranslations(lang);
+  return {
+    lang,
+    title: t("notFound.title"),
+    text: t("notFound.text"),
+    links: [
+      { href: localePath(lang, "/parfums"), label: t("nav.parfums") },
+      { href: localePath(lang, `/coffrets/${COFFRET_HANDLE}`), label: t("maison.discoveryTitle") },
+      { href: localePath(lang, "/maison"), label: t("nav.maison") },
+      { href: localePath(lang, "/contact"), label: t("contact.title") },
+      { href: localePath(lang, "/"), label: t("nav.home") },
+    ],
+  };
+});
+---
+
+<!doctype html>
+<html lang={fallbackLocale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>404 | Maison Reflet</title>
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="preload" href="/fonts/ppneuemontreal-medium.woff2" as="font" type="font/woff2" crossorigin />
+    <script is:inline define:vars={{ langs: locales, fallback: fallbackLocale }}>
+      try {
+        var fromPath = location.pathname.match(/^\/(fr|ar|en)(?=\/|$)/);
+        var saved = document.cookie.match(/(?:^|;\s*)lang=([a-z]+)/);
+        var want = fromPath ? fromPath[1] : saved && langs.indexOf(saved[1]) !== -1 ? saved[1] : null;
+        if (!want) {
+          var prefs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+          for (var i = 0; i < prefs.length && !want; i++) {
+            var base = String(prefs[i] || "").toLowerCase().split("-")[0];
+            if (langs.indexOf(base) !== -1) want = base;
+          }
+        }
+        want = want || fallback;
+        document.documentElement.lang = want;
+        document.documentElement.dir = want === "ar" ? "rtl" : "ltr";
+        document.documentElement.setAttribute("data-lang", want);
+      } catch (_) {}
+    </script>
+    <style is:global>
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/fonts/ppneuemontreal-book.woff2") format("woff2");
+        font-weight: 400; font-style: normal; font-display: swap;
+      }
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/fonts/ppneuemontreal-medium.woff2") format("woff2");
+        font-weight: 500; font-style: normal; font-display: swap;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; }
+      body {
+        min-height: 100svh;
+        display: flex;
+        flex-direction: column;
+        background: #f1eee9;
+        color: #150e0a;
+        font-family: "PP Neue Montreal", system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: inherit; }
+      /* Un seul message quand la langue est connue ; les trois sinon. */
+      html[data-lang="fr"] .nf-block:not([lang="fr"]),
+      html[data-lang="ar"] .nf-block:not([lang="ar"]),
+      html[data-lang="en"] .nf-block:not([lang="en"]) { display: none; }
+    </style>
+  </head>
+  <body>
+    <header class="nf-head">
+      <a href="/" aria-label="Maison Reflet">
+        <img src="/brand/logo.svg" alt="Maison Reflet" width="238" height="28" />
+      </a>
+    </header>
+    <main class="nf-main">
+      <p class="nf-code" aria-hidden="true">404</p>
+      {
+        blocks.map((b) => (
+          <section class="nf-block" lang={b.lang} dir={isRtl(b.lang) ? "rtl" : "ltr"}>
+            <h1>{b.title}</h1>
+            <p>{b.text}</p>
+            <ul>
+              {b.links.map((l) => (
+                <li>
+                  <a href={l.href}>{l.label}</a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      }
+    </main>
+  </body>
+</html>
+
+<style>
+  .nf-head {
+    display: flex;
+    justify-content: center;
+    padding: 26px 20px;
+    border-bottom: 0.8px solid rgba(0, 0, 0, 0.1);
+  }
+  .nf-head img { height: 28px; width: auto; display: block; }
+  .nf-main {
+    flex: 1;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 72px clamp(20px, 4.44vw, 64px) 96px;
+  }
+  .nf-code {
+    margin: 0 0 16px;
+    color: #812538;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+  }
+  .nf-block + .nf-block { margin-top: 56px; padding-top: 40px; border-top: 0.8px solid rgba(0, 0, 0, 0.1); }
+  h1 {
+    margin: 0 0 16px;
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 500;
+    line-height: 1.15;
+    text-transform: uppercase;
+  }
+  .nf-block p { margin: 0 0 28px; max-width: 520px; opacity: 0.8; }
+  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px; }
+  /* Coins carrés, comme tous les CTA du site. */
+  li a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 20px;
+    background: #e7dfd0;
+    font-weight: 500;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: opacity 0.15s;
+  }
+  li a:hover { opacity: 0.85; }
+  li a:focus-visible { outline: 2px solid #150e0a; outline-offset: 2px; }
+  @media (max-width: 720px) {
+    .nf-main { padding-top: 48px; }
+    .nf-head { padding: 20px; }
+    .nf-head img { height: 22px; }
+  }
+</style>
