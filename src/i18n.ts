@@ -187,11 +187,11 @@ const ui = {
     "home.pillars.character.text": "Des twists singuliers qui donnent à chaque création sa propre identité",
     "maison.inspiration.title": "Une inspiration,\nun reflet,\nune nouvelle expression",
     "maison.inspiration.body":
-      "Nous ne nous contentons pas de reproduire les parfums qui nous inspirent. Nous les réinterprétons. Chaque création Maison Reflet part d'une direction olfactive reconnaissable, que nous remodelons ensuite à travers des ingrédients soigneusement choisis, de nouveaux accords et notre propre vision créative. Certaines compositions gagnent en profondeur. D'autres deviennent plus fraîches, plus douces, plus chaudes ou plus intenses. Chaque parfum reste familier au cœur, tout en exprimant un caractère qui lui est propre.",
+      "Chaque Reflet est une création originale de la Maison, composée autour d'un accord que vous connaissez déjà. Nous partons d'une direction olfactive reconnaissable, que nous remodelons ensuite à travers des ingrédients soigneusement choisis, de nouveaux accords et notre propre vision créative. Certaines compositions gagnent en profondeur. D'autres deviennent plus fraîches, plus douces, plus chaudes ou plus intenses. Chaque parfum reste familier au cœur, tout en exprimant un caractère qui lui est propre.",
     "maison.twist.title": "Le twist,\nce qui fait notre\ndifférence",
     "maison.reflections": "Découvrir les Reflets",
     "maison.twist.body":
-      "Un twist, c'est le détail qui change tout.\nCela peut être un ingrédient inattendu, un contraste plus marqué, une texture plus moderne ou un équilibre différent entre fraîcheur, chaleur et profondeur.\nNotre approche vous permet de redécouvrir les parfums que vous aimez déjà à travers une nouvelle interprétation.\n\nPas une copie.\nPas un substitut.\nUne nouvelle façon de vivre un parfum familier.",
+      "Un twist, c'est le détail qui change tout.\nCela peut être un ingrédient inattendu, un contraste plus marqué, une texture plus moderne ou un équilibre différent entre fraîcheur, chaleur et profondeur.\nNotre approche vous permet de redécouvrir les parfums que vous aimez déjà à travers une nouvelle interprétation.\n\nUne création originale de la Maison.\nUne nouvelle façon de vivre un parfum familier.",
     "maison.tradition.title": "Entre tradition\net modernité",
     "maison.faqTitle": "Questions fréquentes",
     "maison.discoveryTitle": "Le coffret découverte",
@@ -545,11 +545,11 @@ const ui = {
     "home.pillars.character.text": "لمسات مميزة تمنح كل إبداع هويته الخاصة",
     "maison.inspiration.title": "إلهام. انعكاس. تعبير جديد.",
     "maison.inspiration.body":
-      "نحن لا نكتفي بإعادة إنتاج العطور التي تلهمنا، بل نعيد تفسيرها. تبدأ كل إبداعات Maison Reflet من توقيع عطري معروف، نعيد تشكيله عبر مكوّنات مُنتقاة بعناية وتناغمات جديدة ورؤيتنا الإبداعية الخاصة. بعض التركيبات تزداد عمقًا، وأخرى تصبح أكثر انتعاشًا أو نعومة أو دفئًا أو كثافة. يبقى كل عطر مألوفًا في جوهره، مع تعبيره عن شخصية خاصة به.",
-    "maison.twist.title": "لمسة خاصة على الأيقونات، يحدّدها اختلافنا",
+      "كل انعكاس إبداع أصيل من الدار، مركّب حول تناغم تعرفونه مسبقًا. ننطلق من توقيع عطري معروف، نعيد تشكيله عبر مكوّنات مُنتقاة بعناية وتناغمات جديدة ورؤيتنا الإبداعية الخاصة. بعض التركيبات تزداد عمقًا، وأخرى تصبح أكثر انتعاشًا أو نعومة أو دفئًا أو كثافة. يبقى كل عطر مألوفًا في جوهره، مع تعبيره عن شخصية خاصة به.",
+    "maison.twist.title": "اللمسة،\nما يصنع\nاختلافنا",
     "maison.reflections": "اكتشفوا الانعكاسات",
     "maison.twist.body":
-      "اللمسة هي التفصيل الذي يغيّر كل شيء.\nقد تكون مكوّنًا غير متوقّع، أو تباينًا أقوى، أو قوامًا أكثر عصرية، أو توازنًا مختلفًا بين الانتعاش والدفء والعمق.\nيتيح لكم نهجنا إعادة اكتشاف العطور التي تحبّونها أصلًا من خلال قراءة جديدة.\n\nإبداع خاص بالدار، لا إعادة إنتاج.\nطريقة جديدة لعيش عطر مألوف.",
+      "اللمسة هي التفصيل الذي يغيّر كل شيء.\nقد تكون مكوّنًا غير متوقّع، أو تباينًا أقوى، أو قوامًا أكثر عصرية، أو توازنًا مختلفًا بين الانتعاش والدفء والعمق.\nيتيح لكم نهجنا إعادة اكتشاف العطور التي تحبّونها أصلًا من خلال قراءة جديدة.\n\nإبداع أصيل من الدار.\nطريقة جديدة لعيش عطر مألوف.",
     "maison.tradition.title": "بين التقليد والحداثة",
     "maison.faqTitle": "الأسئلة الشائعة",
     "maison.discoveryTitle": "علبة الاكتشاف",
@@ -902,15 +902,15 @@ const ui = {
     "home.pillars.character.text": "Distinctive twists that give every creation its own identity",
     "maison.inspiration.title": "An inspiration,\na reflection,\na new expression",
     "maison.inspiration.body":
-      "We do not simply reproduce the fragrances that inspire us. We reinterpret them. Each Maison Reflet creation begins with a recognisable olfactory direction, which we then reshape through carefully selected ingredients, new accords and our own creative vision. Some compositions gain depth. Others become fresher, smoother, warmer or more intense. Every fragrance remains familiar at heart, while expressing a character of its own.",
+      "Each Reflet is an original creation of the House, composed around an accord you already know. We start from a recognisable olfactory direction, which we then reshape through carefully selected ingredients, new accords and our own creative vision. Some compositions gain depth. Others become fresher, smoother, warmer or more intense. Every fragrance remains familiar at heart, while expressing a character of its own.",
     "maison.twist.title": "The twist,\nwhat makes us\ndifferent",
     "maison.reflections": "Meet the Reflets",
     "maison.twist.body":
-      "A twist is the detail that changes everything.\nIt can be an unexpected ingredient, a stronger contrast, a more modern texture or a different balance between freshness, warmth and depth.\nOur approach allows you to rediscover the fragrances you already love through a new interpretation.\n\nNot a copy.\nNot a replacement.\nA new way to experience a familiar scent.",
+      "A twist is the detail that changes everything.\nIt can be an unexpected ingredient, a stronger contrast, a more modern texture or a different balance between freshness, warmth and depth.\nOur approach allows you to rediscover the fragrances you already love through a new interpretation.\n\nAn original creation of the House.\nA new way to experience a familiar scent.",
     "maison.tradition.title": "Between tradition\nand modernity",
     "maison.faqTitle": "Frequently asked questions",
     "maison.discoveryTitle": "The Discovery Set",
-    "maison.discoveryBody": "The Discovery Set gathers six samples, with a {credit} AED credit towards your first full-size bottle.",
+    "maison.discoveryBody": "The Discovery Set gathers six samples, with a {credit} AED credit towards your next full-size bottle.",
     "maison.tradition.body":
       "Maison Reflet brings together the precision of traditional perfumery and a contemporary approach to fragrance. We work closely with experienced perfumers and trusted partners to develop compositions that are expressive, elegant and made for today. From the fragrance formula to the bottle, every detail is considered to create a complete sensory experience.",
     "maison.story.title": "Our story",
