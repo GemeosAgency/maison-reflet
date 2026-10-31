@@ -20,6 +20,7 @@
  * la même image : l'assombrissement et le CTA fonctionnent quand même.
  */
 import { preventeCard } from "../lib/prevente-cards";
+import { priceA11y } from "../lib/price-a11y";
 
 interface Props {
   name: string;
@@ -68,6 +69,7 @@ import { withName } from "../i18n";
 // Prévente ouverte : « PRÉCOMMANDE » en jaune remplace la pastille, et
 // « Prix de lancement » coiffe le prix barré.
 const prevente = await preventeCard(Astro.params.lang, Boolean(compare));
+const a11y = priceA11y(Astro.params.lang);
 const badge = prevente?.badge ?? badgeProp;
 ---
 
@@ -93,9 +95,10 @@ const badge = prevente?.badge ?? badgeProp;
     <div class="product-card-row">
       {inspired ? <p class="product-card-inspired">{withName(inspiredByLabel, inspired)}</p> : <span></span>}
       <p class="product-card-price" translate="no">
-        {prevente?.launchLabel && <span class="product-card-launch">{prevente.launchLabel}</span>}
-        <s class="price-was" data-money-compare={variantId} hidden={!compare}>{compare}</s>
-        <span data-money={variantId}>{price}</span>
+        {/* L'étiquette visible est redite, à sa place, par le texte masqué devant le prix (lib/price-a11y.ts). */}
+        {prevente?.launchLabel && <span class="product-card-launch" aria-hidden={compare ? "true" : undefined}>{prevente.launchLabel}</span>}
+        <s class="price-was" data-money-compare={variantId} hidden={!compare}><span class="sr-only">{a11y.was}</span><span data-money-amount>{compare}</span></s>
+        <span class="sr-only sr-launch">{a11y.now}</span><span data-money={variantId}>{price}</span>
       </p>
     </div>
     <div class="product-card-add-wrap">
@@ -109,7 +112,7 @@ const badge = prevente?.badge ?? badgeProp;
       >
         <span data-reco-add-label>{addLabel}</span>
         <span class="product-card-add-prices" translate="no">
-          <s data-money-compare={variantId} hidden={!compare}>{compare}</s>
+          <s data-money-compare={variantId} hidden={!compare} aria-hidden="true">{compare}</s>
           <span data-money={variantId}>{price}</span>
         </span>
       </button>
@@ -216,7 +219,7 @@ const badge = prevente?.badge ?? badgeProp;
   }
   .product-card-add:hover { background: var(--paper); }
   .product-card-add-prices { display: inline-flex; align-items: baseline; gap: 12px; white-space: nowrap; }
-  .product-card-add-prices s { margin: 0; font-weight: 400; opacity: 0.55; }
+  .product-card-add-prices s { margin: 0; font-weight: 400; opacity: 0.62; }
   .product-card-add:disabled { opacity: 0.6; }
 
   @media (max-width: 900px) {

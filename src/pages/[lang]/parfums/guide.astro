@@ -23,6 +23,7 @@ import { type Locale, locales, localePath, useTranslations, withName } from "../
 import { REFLET_UNIVERSE, UNIVERSE_LABELS, universeLabel, type UniverseKey } from "../../../lib/universes";
 import { GUIDE_MANIFESTO, GUIDE_REFLETS } from "../../../lib/guide";
 import { LAYERING, accordAudioPath, duosFor } from "../../../lib/layering";
+import { priceA11y } from "../../../lib/price-a11y";
 
 export function getStaticPaths() {
   return locales.map((lang) => ({ params: { lang } }));
@@ -32,6 +33,7 @@ const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
 // Prévente ouverte : le bandeau coffret dit « Précommander », pas « Acheter maintenant ».
 const prevente = await getPrevente();
+const a11y = priceA11y(lang);
 // Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
 const tc = await avecAvoir(t);
 
@@ -257,7 +259,7 @@ const duos = LAYERING.map((d) => ({
                 )}
                 <LumaListen lang={lang} handle={r.handle} name={r.name} />
                 <div class="guide-col-foot">
-                  <span class="guide-col-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
+                  <span class="guide-col-price"><s data-money-compare={r.variantId} hidden={!r.compare}><span class="sr-only">{a11y.was}</span><span data-money-amount>{r.compare}</span></s><span class="sr-only sr-launch">{a11y.now}</span><span data-money={r.variantId}>{r.price}</span></span>
                   <a class="guide-link" href={r.href}>{t("guide.discover")}</a>
                 </div>
               </div>
@@ -364,7 +366,7 @@ const duos = LAYERING.map((d) => ({
               <LumaListen lang={lang} handle={r.handle} name={r.name} label={t("menu.listenPortrait")} />
             </div>
             <div class="guide-col-foot">
-              <span class="guide-col-price"><s data-money-compare={r.variantId} hidden={!r.compare}>{r.compare}</s><span data-money={r.variantId}>{r.price}</span></span>
+              <span class="guide-col-price"><s data-money-compare={r.variantId} hidden={!r.compare}><span class="sr-only">{a11y.was}</span><span data-money-amount>{r.compare}</span></s><span class="sr-only sr-launch">{a11y.now}</span><span data-money={r.variantId}>{r.price}</span></span>
               <a class="guide-link" href={r.href}>{t("guide.discover")}</a>
             </div>
           </article>
@@ -601,7 +603,7 @@ const duos = LAYERING.map((d) => ({
                   >
                     <span data-layering-label>{t("layering.addBoth")}</span>
                     <span>
-                      <s data-money-compare={`${first.variantId},${second.variantId}`} hidden={!totalWas}>{totalWas}</s>
+                      <s data-money-compare={`${first.variantId},${second.variantId}`} hidden={!totalWas} aria-hidden="true">{totalWas}</s>
                       <span data-money={`${first.variantId},${second.variantId}`}>{total}</span>
                     </span>
                   </button>
@@ -798,7 +800,7 @@ const duos = LAYERING.map((d) => ({
   /* Les filtres : trois groupes, des pastilles ; l'active passe en encre. */
   .guide-filters { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px 40px; }
   .guide-filter-group { display: flex; flex-direction: column; gap: 10px; }
-  .guide-filter-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.5; }
+  .guide-filter-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.62; }
   .guide-chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .guide-chip {
     padding: 8px 14px;
@@ -870,7 +872,7 @@ const duos = LAYERING.map((d) => ({
   .guide-col-name { margin: 0; font-size: 22px; font-weight: 400; line-height: 1.1; }
   .guide-col-name a { text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color 0.25s ease; }
   .guide-col:hover .guide-col-name a { text-decoration-color: rgba(21, 14, 10, 0.4); }
-  .guide-col-inspired { margin: 0; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; }
+  .guide-col-inspired { margin: 0; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.62; }
   .guide-col-mats { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: flex-start; align-content: flex-start; gap: 4px; }
   .guide-col-mats li { padding: 4px 9px; border: 1px solid rgba(21, 14, 10, 0.18); border-radius: 100px; font-size: 11px; line-height: 1.2; white-space: nowrap; }
   .guide-col-moment { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 1.4; }
@@ -886,6 +888,8 @@ const duos = LAYERING.map((d) => ({
   .guide-col-listen :global(.listen-time) { display: none; }
   .guide-col-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid rgba(21, 14, 10, 0.12); font-size: 14px; }
   .guide-col-price { opacity: 0.7; }
+  /* 0,7 x 0,6 donnait 2,7:1 au prix barré : 0,7 x 0,86 le remonte à 4,7:1. */
+  .guide-col-price s[data-money-compare] { opacity: 0.86; }
   .guide-none { margin: 0; font-size: 16px; line-height: 1.4; }
   .guide-none[hidden] { display: none; }
   .guide-none-cta { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }

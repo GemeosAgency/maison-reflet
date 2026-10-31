@@ -94,10 +94,10 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
   })}
 />
 
-<div class="cdr" data-region-drawer aria-hidden="true">
+<div class="cdr" data-region-drawer aria-hidden="true" inert>
   <div class="cdr-backdrop" data-region-close></div>
-  <aside class="cdr-panel" role="dialog" aria-modal="true" aria-label={t("region.title")}>
-    <button type="button" class="cdr-close" data-region-close aria-label={t("cart.close")}>
+  <div class="cdr-panel" role="dialog" aria-modal="true" aria-label={t("region.title")}>
+    <button type="button" class="cdr-close" data-region-close aria-label={t("product.close")}>
       <img src="/brand/close.svg" alt="" width="16" height="16" />
     </button>
 
@@ -172,7 +172,7 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
       <ShippingPromise lang={lang} />
       <p class="cdr-note" data-region-note>{currencyNote}</p>
     </footer>
-  </aside>
+  </div>
 </div>
 
 {/*
@@ -204,6 +204,7 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
   } from "../lib/country";
   import { countryName, countryPill } from "../lib/markets";
   import { initShippingPromises, type RegionI18n } from "../lib/shipping-promise";
+  import { restoreFocus, setDialogOpen, trapTab } from "../lib/dialog";
 
   const i18n: RegionI18n = JSON.parse(
     document.getElementById("region-i18n")?.textContent || "{}"
@@ -258,9 +259,9 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
 
   function open() {
     if (!drawer) return;
-    lastFocused = document.activeElement as HTMLElement | null;
+    if (!drawer.classList.contains("is-open")) lastFocused = document.activeElement as HTMLElement | null;
     drawer.classList.add("is-open");
-    drawer.setAttribute("aria-hidden", "false");
+    setDialogOpen(drawer, true);
     document.body.style.overflow = "hidden";
     search?.focus();
     // La ligne du pays courant doit être visible sans chercher.
@@ -270,11 +271,11 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
   }
 
   function close() {
-    if (!drawer) return;
+    if (!drawer?.classList.contains("is-open")) return;
     drawer.classList.remove("is-open");
-    drawer.setAttribute("aria-hidden", "true");
+    setDialogOpen(drawer, false);
     document.body.style.overflow = "";
-    lastFocused?.focus();
+    restoreFocus(lastFocused);
   }
 
   for (const trigger of document.querySelectorAll<HTMLElement>("[data-region-open]")) {
@@ -287,7 +288,9 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
     el.addEventListener("click", close);
   }
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && drawer?.classList.contains("is-open")) close();
+    if (!drawer?.classList.contains("is-open")) return;
+    if (e.key === "Escape") close();
+    else trapTab(drawer, e);
   });
 
   /* ---------------- Recherche ---------------- */

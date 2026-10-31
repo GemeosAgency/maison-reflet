@@ -10,6 +10,7 @@
  */
 import Tip from "./Tip.astro";
 import type { ResponsiveImage } from "../lib/sanity";
+import { priceA11y } from "../lib/price-a11y";
 
 interface Props {
   title: string;
@@ -28,6 +29,7 @@ interface Props {
 
 const { title, description, priceLabel, compareLabel = null, href, img, ctaLabel, creditLabel = null, creditNote = null, tipLabel = null } =
   Astro.props;
+const a11y = priceA11y(Astro.params.lang);
 ---
 
 <section class="dset">
@@ -52,11 +54,11 @@ const { title, description, priceLabel, compareLabel = null, href, img, ctaLabel
       creditLabel && (
         <p class="dset-credit">
           <span>{creditLabel}</span>
-          {creditNote && <Tip text={creditNote} label={tipLabel ?? ""} />}
+          {creditNote && <Tip text={creditNote} label={tipLabel ?? ""} about={creditLabel} />}
         </p>
       )
     }
-    <p class="dset-price">{compareLabel && <s data-money-compare="">{compareLabel}</s>}{priceLabel}</p>
+    <p class="dset-price">{compareLabel && <><s data-money-compare=""><span class="sr-only">{a11y.was}</span>{compareLabel}</s><span class="sr-only">{a11y.now}</span></>}{priceLabel}</p>
     <a class="dset-cta" href={href}>
       <span>{ctaLabel}</span>
       {/* Même tracé que /brand/arrow-right.svg, en ligne pour prendre la couleur du bouton. */}

@@ -51,9 +51,9 @@ import type { Locale } from "../../i18n";
 
 {
   hasContent && (
-    <div class="pyr" data-pyramid-drawer aria-hidden="true">
+    <div class="pyr" data-pyramid-drawer aria-hidden="true" inert>
       <div class="pyr-backdrop" data-pyramid-close />
-      <aside class="pyr-panel" role="dialog" aria-modal="true" aria-label={title}>
+      <div class="pyr-panel" role="dialog" aria-modal="true" aria-label={title}>
         <button type="button" class="pyr-close" data-pyramid-close aria-label={closeLabel}>
           <img src="/brand/close.svg" alt="" width="16" height="16" />
         </button>
@@ -84,26 +84,30 @@ import type { Locale } from "../../i18n";
             </p>
           )}
         </div>
-      </aside>
+      </div>
     </div>
   )
 }
 
 <script>
+  import { setDialogOpen, trapTab } from "../../lib/dialog";
   const drawer = document.querySelector<HTMLElement>("[data-pyramid-drawer]");
   if (drawer) {
     const open = () => {
       drawer.classList.add("is-open");
-      drawer.setAttribute("aria-hidden", "false");
+      setDialogOpen(drawer, true);
       document.body.style.overflow = "hidden";
-      drawer.querySelector<HTMLButtonElement>("[data-pyramid-close]")?.focus();
+      // La croix, et non le voile : lui aussi porte `data-pyramid-close`, mais
+      // il n'est pas focalisable, et le focus restait derrière le tiroir.
+      drawer.querySelector<HTMLButtonElement>("button[data-pyramid-close]")?.focus({ focusVisible: false } as FocusOptions);
     };
     // Le focus revient là où l'on a cliqué, pas systématiquement sur la rangée
     // du panneau : le tiroir s'ouvre aussi depuis les colonnes du triptyque.
     let ouvreur: HTMLElement | null = null;
     const close = () => {
+      if (!drawer.classList.contains("is-open")) return;
       drawer.classList.remove("is-open");
-      drawer.setAttribute("aria-hidden", "true");
+      setDialogOpen(drawer, false);
       document.body.style.overflow = "";
       (ouvreur ?? document.querySelector<HTMLButtonElement>("[data-pyramid-open]"))?.focus();
     };
@@ -125,7 +129,9 @@ import type { Locale } from "../../i18n";
       el.addEventListener("click", close);
     }
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && drawer.classList.contains("is-open")) close();
+      if (!drawer.classList.contains("is-open")) return;
+      if (e.key === "Escape") close();
+      else trapTab(drawer, e);
     });
   }
 </script>

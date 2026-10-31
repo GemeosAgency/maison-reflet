@@ -89,7 +89,7 @@ const prevente = await getPrevente();
   </button>
 </div>
 
-<div class="luma" data-luma aria-hidden="true">
+<div class="luma" data-luma aria-hidden="true" inert>
   <div class="luma-backdrop" data-luma-close></div>
   <aside class="luma-panel" role="dialog" aria-modal="true" aria-label={t("luma.open")}>
     <span class="luma-handle" aria-hidden="true"></span>
@@ -143,6 +143,7 @@ const prevente = await getPrevente();
   import { addToCart, loadCart, type CartUpdatedEvent } from "../lib/cart";
   import type { ShopifyCart } from "../lib/shopify";
   import { anonId } from "../lib/site-events";
+  import { restoreFocus, setDialogOpen, trapTab } from "../lib/dialog";
 
   type Card = {
     handle: string;
@@ -256,9 +257,9 @@ const prevente = await getPrevente();
     let lastFocused: HTMLElement | null = null;
 
     function open() {
-      lastFocused = document.activeElement as HTMLElement | null;
+      if (!root!.classList.contains("is-open")) lastFocused = document.activeElement as HTMLElement | null;
       root!.classList.add("is-open");
-      root!.setAttribute("aria-hidden", "false");
+      setDialogOpen(root!, true);
       document.body.style.overflow = "hidden";
       input!.focus();
       void hydrate();
@@ -272,10 +273,11 @@ const prevente = await getPrevente();
       }
     }
     function close() {
+      if (!root!.classList.contains("is-open")) return;
       root!.classList.remove("is-open");
-      root!.setAttribute("aria-hidden", "true");
+      setDialogOpen(root!, false);
       document.body.style.overflow = "";
-      lastFocused?.focus();
+      restoreFocus(lastFocused);
       pill.show();
     }
     /** Par où le visiteur est entré (header, fiche produit…) : voyage avec chaque tour, pour le suivi. */
@@ -411,20 +413,7 @@ const prevente = await getPrevente();
     document.addEventListener("keydown", (e) => {
       if (!root!.classList.contains("is-open")) return;
       if (e.key === "Escape") return close();
-      if (e.key !== "Tab") return;
-      const focusable = Array.from(
-        panel!.querySelectorAll<HTMLElement>('button, a[href], input, [tabindex]:not([tabindex="-1"])')
-      ).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
+      trapTab(panel!, e);
     });
 
     /* ---------------- Contexte de la page ---------------- */
@@ -1210,6 +1199,8 @@ const prevente = await getPrevente();
   .luma-input:disabled { opacity: 0.6; }
   /* Le focus dans la charte, jamais le bleu du navigateur — visible au clavier, en encre. */
   .luma-input:focus { outline: none; border-color: var(--ink); }
+  /* La bordure seule (1 px qui fonce) ne suffisait pas à voir le focus : un contour franc en plus, au clavier. */
+  .luma-input:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
   .luma-chip:focus-visible,
   .luma-send:focus-visible,
   .luma-close:focus-visible,

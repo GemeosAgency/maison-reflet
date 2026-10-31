@@ -18,6 +18,7 @@
  */
 import type { ResponsiveImage } from "../lib/sanity";
 import { preventeCard } from "../lib/prevente-cards";
+import { priceA11y } from "../lib/price-a11y";
 
 interface Props {
   name: string;
@@ -56,6 +57,7 @@ const {
 
 // Prévente ouverte : « PRÉCOMMANDE » en jaune remplace la pastille (voir prevente-cards).
 const prevente = await preventeCard(Astro.params.lang, Boolean(compare));
+const a11y = priceA11y(Astro.params.lang);
 const badge = prevente?.badge ?? badgeProp;
 
 const SIZES = "(max-width: 560px) 100vw, (max-width: 900px) 50vw, 20vw";
@@ -113,12 +115,14 @@ const hasAdd = Boolean(variantId && addLabel);
     }
   </div>
   <div class="ptile-meta">
-    <h3 translate="no">{name}{size && <span class="ptile-size">{size}</span>}</h3>
+    {/* Une vraie espace avant la contenance (on entendait « NEW OUD75 ML ») ; <bdi> garde « 75 ML » dans l'ordre en arabe. */}
+    <h3 translate="no">{name}{size && <> <span class="ptile-size"><bdi>{size}</bdi></span></>}</h3>
     {subtitle && <p class="ptile-subtitle">{subtitle}</p>}
     <p class="ptile-price" translate="no">
-      {prevente?.launchLabel && <span class="ptile-launch">{prevente.launchLabel}</span>}
-      <s class="price-was" data-money-compare={variantId} hidden={!compare}>{compare}</s>
-      <span data-money={variantId}>{price}</span>
+      {/* L'étiquette visible est redite, à sa place, par le texte masqué devant le prix (lib/price-a11y.ts). */}
+      {prevente?.launchLabel && <span class="ptile-launch" aria-hidden={compare ? "true" : undefined}>{prevente.launchLabel}</span>}
+      <s class="price-was" data-money-compare={variantId} hidden={!compare}><span class="sr-only">{a11y.was}</span><span data-money-amount>{compare}</span></s>
+      <span class="sr-only sr-launch">{a11y.now}</span><span data-money={variantId}>{price}</span>
     </p>
   </div>
 </div>
@@ -222,7 +226,8 @@ const hasAdd = Boolean(variantId && addLabel);
     line-height: 1.2;
   }
   .ptile-size {
-    margin-inline-start: 8px;
+    /* 4 px + l'espace du texte : les 8 px d'origine. */
+    margin-inline-start: 4px;
     font-size: 0.82em;
     font-weight: 400;
     white-space: nowrap;

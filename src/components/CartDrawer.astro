@@ -210,7 +210,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
           <div class="cart-coffret-body">
             <p class="cart-coffret-kicker">
               <span data-cart-coffret-args></span>
-              <Tip text={tc("coffret.creditNote")} label={t("product.tipOpen")} align="fin" />
+              <Tip text={tc("coffret.creditNote")} label={t("product.tipOpen")} about={coffretUpsell.title} align="fin" />
             </p>
             <p class="cart-coffret-title">{coffretUpsell.title}</p>
             <div class="cart-coffret-cta">
@@ -260,7 +260,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         <a class="cart-drawer-checkout" data-cart-drawer-checkout href="#">{prevente.active ? t("prevente.checkout") : t("cart.checkout")}</a>
         {preventeLine && (
           <span class="cart-drawer-checkout-tip">
-            <Tip text={`${preventeLine}. ${t("prevente.cartNote")}`} label={t("product.tipOpen")} align="fin" />
+            <Tip text={`${preventeLine}. ${t("prevente.cartNote")}`} label={t("product.tipOpen")} about={prevente.active ? t("prevente.checkout") : t("cart.checkout")} align="fin" />
           </span>
         )}
       </div>
@@ -280,7 +280,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         <li data-cart-perk-coffret hidden>
           <img src="/brand/reassurance-echantillons.svg" alt="" width="20" height="20" />
           <span>{tc("cart.coffretCredit")}</span>
-          <Tip text={tc("coffret.creditNote")} label={t("product.tipOpen")} align="fin" />
+          <Tip text={tc("coffret.creditNote")} label={t("product.tipOpen")} about={tc("cart.coffretCredit")} align="fin" />
         </li>
         <li><img src="/brand/reassurance-paiement.svg" alt="" width="20" height="20" /> {t("cart.perkSecure")}</li>
       </ul>

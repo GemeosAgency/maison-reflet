@@ -58,10 +58,16 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
           <svg class="listen-pause" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9h-2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
           <span class="listen-eq" aria-hidden="true"><i></i><i></i><i></i></span>
         </button>
-        {/* Le corps de la pilule est le curseur : clic, glissé, flèches. */}
-        <div class="listen-body" data-listen-seek role="slider" tabindex="0" aria-label={t("luma.seek")} aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <span class="listen-label">{label}</span>
-          {note && <Tip text={note} label={t("product.tipOpen")} />}
+        {/*
+          Le corps de la pilule est le curseur : clic, glissé, flèches. Le rôle
+          « slider » est porté par le libellé seul : le « ? » est un bouton, et
+          un bouton ne peut pas vivre dans un autre contrôle (lecteurs d'écran).
+        */}
+        <div class="listen-body" data-listen-seek>
+          <span class="listen-slider" data-listen-slider role="slider" tabindex="0" aria-label={t("luma.seek")} aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span class="listen-label">{label}</span>
+          </span>
+          {note && <Tip text={note} label={t("product.tipOpen")} about={label} />}
           <span class="listen-time" data-listen-time aria-hidden="true">0:00 / –:––</span>
         </div>
       </div>
@@ -81,7 +87,8 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
     const fill = root.querySelector<HTMLElement>("[data-listen-fill]");
     const time = root.querySelector<HTMLElement>("[data-listen-time]");
     const seek = root.querySelector<HTMLElement>("[data-listen-seek]");
-    if (!audio || !pill || !btn || !fill || !time || !seek) continue;
+    const slider = root.querySelector<HTMLElement>("[data-listen-slider]");
+    if (!audio || !pill || !btn || !fill || !time || !seek || !slider) continue;
     const render = () => {
       const playing = !audio.paused && !audio.ended;
       const started = audio.currentTime > 0;
@@ -90,8 +97,8 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
       btn.setAttribute("aria-pressed", String(playing));
       const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
       fill.style.width = `${pct}%`;
-      seek.setAttribute("aria-valuenow", String(Math.round(pct)));
-      seek.setAttribute("aria-valuetext", `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`);
+      slider.setAttribute("aria-valuenow", String(Math.round(pct)));
+      slider.setAttribute("aria-valuetext", `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`);
       time.textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
     };
     const play = () => {
@@ -168,8 +175,7 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
     };
     seek.addEventListener("pointerup", endSeek);
     seek.addEventListener("pointercancel", endSeek);
-    seek.addEventListener("keydown", (e) => {
-      if (surTip(e)) return;
+    slider.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         toggle();
@@ -235,8 +241,10 @@ const trackId = handle ?? src?.match(/\/accords\/([a-z0-9-]+)\.mp3/)?.[1] ?? nul
   /* La pastille est déjà pleine : au survol elle se fonce un peu, rien de plus. */
   .listen:hover .listen-icon, .is-playing .listen-icon { background: color-mix(in srgb, var(--rose) 88%, var(--ink)); }
   .listen-body { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; align-self: stretch; touch-action: none; }
-  .listen-body:focus { outline: none; }
-  .listen-body:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 4px; border-radius: 100px; }
+  .listen-slider { min-width: 0; display: flex; }
+  .listen-slider:focus { outline: none; }
+  /* L'anneau de focus garde la forme d'avant : autour de tout le corps de la pilule. */
+  .listen-body:has(.listen-slider:focus-visible) { outline: 1.5px solid var(--ink); outline-offset: 4px; border-radius: 100px; }
   .listen-label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
   .listen-time { margin-inline-start: auto; flex-shrink: 0; font-size: 14px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
   .listen-pause, .listen-eq { display: none; }

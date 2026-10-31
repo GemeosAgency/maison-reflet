@@ -241,7 +241,9 @@ export async function hydratePrices(root: ParentNode = document): Promise<void> 
       return sum + Number(c && Number(c.amount) > Number(p.amount) ? c.amount : p.amount);
     }, 0);
     const show = was > now;
-    if (show) node.textContent = formatPrice(String(was), prices.get(list[0])!.currencyCode, locale);
+    // Seul le montant change : « Prix normal : », masqué dans le même <s>, reste (lib/price-a11y.ts).
+    const cible = node.querySelector<HTMLElement>("[data-money-amount]") ?? node;
+    if (show) cible.textContent = formatPrice(String(was), prices.get(list[0])!.currencyCode, locale);
     node.hidden = !show;
   }
 

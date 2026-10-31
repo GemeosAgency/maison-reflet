@@ -33,13 +33,14 @@ const SIZES = "(max-width: 900px) 100vw, 34vw";
 
 <section class="pillars">
   <div class="pillars-head">
-    <h2>
+    <h2 id="pillars-title">
       {title1}<br />
       {title2}
     </h2>
     <p>{subtitle}</p>
   </div>
-  <div class="pillars-grid full-bleed">
+  {/* Sur mobile, une bande qui défile : elle doit se faire défiler au clavier aussi (voir le script). */}
+  <div class="pillars-grid full-bleed" role="region" aria-labelledby="pillars-title" data-pillars-grid>
     {
       pillars.map((p) => (
         <div class="pillar">
@@ -132,6 +133,7 @@ const SIZES = "(max-width: 900px) 100vw, 34vw";
       scrollbar-width: none;
     }
     .pillars-grid::-webkit-scrollbar { display: none; }
+    .pillars-grid:focus-visible { outline: 1.5px solid var(--ink); outline-offset: -2px; }
     .pillar {
       flex: 0 0 calc(100vw - 32px);
       aspect-ratio: 4 / 5;
@@ -140,3 +142,17 @@ const SIZES = "(max-width: 900px) 100vw, 34vw";
     }
   }
 </style>
+
+<script>
+  // La bande ne défile que sur mobile : elle n'entre dans l'ordre de tabulation
+  // (flèches pour la faire défiler) que lorsqu'il y a vraiment de quoi défiler.
+  const bande = document.querySelector<HTMLElement>("[data-pillars-grid]");
+  if (bande) {
+    const regler = () => {
+      if (bande.scrollWidth > bande.clientWidth + 1) bande.tabIndex = 0;
+      else bande.removeAttribute("tabindex");
+    };
+    regler();
+    addEventListener("resize", regler, { passive: true });
+  }
+</script>
