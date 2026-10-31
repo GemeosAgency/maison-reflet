@@ -3,7 +3,12 @@
  * appel qui ne bloque rien et n'échoue jamais visiblement. L'identifiant est
  * aléatoire, posé dans le navigateur (localStorage `mr_anon`) — pas un email,
  * pas une adresse IP ; il ne sert qu'à compter des parcours.
+ *
+ * Les appareils de l'équipe (`?internal=1`) n'envoient rien : leurs visites ne
+ * faussent plus la tour de contrôle.
  */
+import { isInternalDevice } from "./attribution";
+
 const KEY = "mr_anon";
 
 export function anonId(): string {
@@ -55,6 +60,7 @@ export function trackPageView(): void {
 }
 
 export function trackSite(name: string, props: Record<string, unknown> = {}): void {
+  if (isInternalDevice()) return;
   try {
     const body = JSON.stringify({ name, props, anon: anonId(), path: window.location.pathname, locale: document.documentElement.lang || null });
     if (navigator.sendBeacon) {

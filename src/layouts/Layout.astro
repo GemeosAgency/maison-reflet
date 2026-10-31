@@ -240,14 +240,27 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         />
       ))
     }
+    {/*
+      klaviyo.js n'est pas chargé sur un appareil de l'équipe (`?internal=1`,
+      mémorisé par attribution.ts ; `?internal=0` le retire) : sinon son suivi
+      onsite (Active on Site, pages vues) comptait nos propres visites. Lu ici,
+      avant le module d'attribution, d'où la relecture de l'URL.
+    */}
     {
       klaviyoCompanyId && (
-        <script
-          is:inline
-          async
-          type="text/javascript"
-          src={`https://static.klaviyo.com/onsite/js/${klaviyoCompanyId}/klaviyo.js`}
-        />
+        <script is:inline define:vars={{ klaviyoSrc: `https://static.klaviyo.com/onsite/js/${klaviyoCompanyId}/klaviyo.js` }}>
+          var internal = false;
+          try {
+            var flag = new URLSearchParams(location.search).get("internal");
+            internal = flag === "1" || (flag !== "0" && localStorage.getItem("maison-reflet:internal") === "1");
+          } catch (_) {}
+          if (!internal) {
+            var s = document.createElement("script");
+            s.async = true;
+            s.src = klaviyoSrc;
+            document.head.appendChild(s);
+          }
+        </script>
       )
     }
     <title>{title} | Maison Reflet</title>
