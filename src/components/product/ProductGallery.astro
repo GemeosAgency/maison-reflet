@@ -399,7 +399,8 @@ function isFull(i: number, count: number): boolean {
   .plightbox-nav:hover { opacity: 1; }
   .plightbox-prev { grid-column: 1; }
   .plightbox-next { grid-column: 3; }
-  [dir="rtl"] .plightbox-nav svg { transform: scaleX(-1); }
+  /* :global : `dir` est posé sur <html>, hors de la portée du composant ; sans lui la règle ne visait rien. */
+  :global([dir="rtl"]) .plightbox-nav svg { transform: scaleX(-1); }
   .plightbox.is-single .plightbox-nav { visibility: hidden; }
   /* La rangée de vignettes : toutes les photos, la courante pleine et soulignée d'encre. */
   .plightbox-thumbs {

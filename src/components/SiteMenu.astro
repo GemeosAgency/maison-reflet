@@ -1406,7 +1406,7 @@ const maisonHref = localePath(lang, "/maison");
   .mega-fig-dot::before { background: rgba(21, 14, 10, 0.14); transition: background-color 0.2s ease; }
   .mega-fig-dot:hover::before { background: rgba(21, 14, 10, 0.3); }
   .mega-fig-dot::after { background: var(--ink); transform: scaleX(0); transform-origin: 0 50%; }
-  [dir="rtl"] .mega-fig-dot::after { transform-origin: 100% 50%; }
+  :global([dir="rtl"]) .mega-fig-dot::after { transform-origin: 100% 50%; }
   .mega-fig-dot.is-done::after { transform: scaleX(1); }
   .mega-fig-dot.is-current::after { animation: mega-dot 2300ms linear forwards; }
   @keyframes mega-dot {
