@@ -1558,9 +1558,10 @@ const maisonHref = localePath(lang, "/maison");
     gap: 16px;
   }
   .msheet-settings { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 13px; }
-  .msheet-region { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+  /* Cibles tactiles de 44 px de haut autour de textes de 13 px, rendues par la marge. */
+  .msheet-region { border: 0; background: none; padding: 14px 0; margin: -14px 0; font: inherit; font-size: 13px; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
   .msheet-langs { list-style: none; margin: 0; padding: 0; display: flex; gap: 14px; }
-  .msheet-langs a { opacity: 0.6; }
+  .msheet-langs a { display: inline-block; padding: 14px 4px; margin: -14px -4px; opacity: 0.6; }
   .msheet-langs a[aria-current="true"] { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
 
   /* Sous 1100 px, la colonne Coffrets ne tenait plus (coupée à droite) : elle

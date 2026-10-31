@@ -120,6 +120,8 @@ const cards = ordered
   )
 }
 <section class:list={["pgrid full-bleed", { "is-row": layout === "row" }]}>
+  {/* Sans titre (catalogue), les cartes en h3 suivaient directement le h1 : un titre de section, pour les lecteurs d'écran seulement. */}
+  {!title && <h2 class="sr-only">{t("menu.reflets")}</h2>}
   {
     cards.map((p) => (
       <ProductCard

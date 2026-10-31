@@ -57,7 +57,7 @@ const a11y = priceA11y(Astro.params.lang);
   {creditLabel && (
     <p class="pdisc-credit">
       <span>{creditLabel}</span>
-      {creditNote && <Tip text={creditNote} label={tipLabel ?? ""} align="fin" />}
+      {creditNote && <Tip text={creditNote} label={tipLabel ?? ""} about={creditLabel} align="fin" />}
     </p>
   )}
 </div>

@@ -1199,6 +1199,8 @@ const prevente = await getPrevente();
   .luma-input:disabled { opacity: 0.6; }
   /* Le focus dans la charte, jamais le bleu du navigateur — visible au clavier, en encre. */
   .luma-input:focus { outline: none; border-color: var(--ink); }
+  /* La bordure seule (1 px qui fonce) ne suffisait pas à voir le focus : un contour franc en plus, au clavier. */
+  .luma-input:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
   .luma-chip:focus-visible,
   .luma-send:focus-visible,
   .luma-close:focus-visible,

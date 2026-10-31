@@ -10,17 +10,25 @@
  * `align` décide du bord d'accrochage : « centre » par défaut, « fin » quand la
  * bulle est trop près du bord droit pour être centrée (c'est le cas dans la
  * pilule d'écoute, où le point est le dernier élément de la ligne).
+ *
+ * `about` nomme le sujet de la bulle : cinq « ? » sur une fiche, tous lus
+ * « En savoir plus », ne disaient pas lequel on ouvrait. Le nom devient
+ * « En savoir plus : Échantillon offert ».
  */
 interface Props {
   text: string;
   label: string;
+  about?: string | null;
   align?: "centre" | "fin";
 }
-const { text, label, align = "centre" } = Astro.props;
+const { text, label, about, align = "centre" } = Astro.props;
+const lang = Astro.params.lang;
+const sep = lang === "fr" ? "\u00a0: " : ": ";
+const name = about ? `${label}${sep}${about}` : label;
 ---
 
 <span class:list={["tip", `is-${align}`]} data-tip>
-  <button type="button" class="tip-btn" data-tip-btn aria-expanded="false" aria-label={label}>?</button>
+  <button type="button" class="tip-btn" data-tip-btn aria-expanded="false" aria-label={name}>?</button>
   <span class="tip-box" role="tooltip">{text}</span>
 </span>
 
@@ -80,13 +88,19 @@ const { text, label, align = "centre" } = Astro.props;
 
 <style>
   .tip { position: relative; display: inline-flex; flex-shrink: 0; }
+  /*
+   * Le bouton mesure 24 px (cible minimale, WCAG 2.5.8) ; le cercle visible
+   * reste à 17 px, dessiné par ::before, et la marge négative rend les 7 px
+   * gagnés : la ligne qui l'accueille ne bouge pas.
+   */
   .tip-btn {
     position: relative;
-    width: 17px;
-    height: 17px;
+    width: 24px;
+    height: 24px;
+    margin: -3.5px;
     padding: 0;
-    border: 1px solid rgba(21, 14, 10, 0.3);
-    border-radius: 50%;
+    /* Largeur nulle : la couleur ne sert qu'au cercle (::before), qui en hérite. */
+    border: 0 solid rgba(21, 14, 10, 0.3);
     background: transparent;
     color: var(--muted, rgba(21, 14, 10, 0.62));
     font: inherit;
@@ -96,10 +110,19 @@ const { text, label, align = "centre" } = Astro.props;
     cursor: pointer;
     transition: border-color 0.2s, color 0.2s;
   }
-  /* La cible tactile atteint 45 px sans agrandir le petit cercle visible. */
-  .tip-btn::after { content: ""; position: absolute; inset: -14px; }
+  .tip-btn::before {
+    content: "";
+    position: absolute;
+    inset: 3.5px;
+    border: 1px solid;
+    border-color: inherit;
+    border-radius: 50%;
+    transition: border-color 0.2s;
+  }
+  /* La cible tactile atteint 44 px sans agrandir le petit cercle visible. */
+  .tip-btn::after { content: ""; position: absolute; inset: -10px; }
   .tip-btn:hover { border-color: var(--ink); color: var(--ink); }
-  .tip-btn:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+  .tip-btn:focus-visible { outline: 1.5px solid var(--ink); outline-offset: -2px; border-radius: 50%; }
   .tip-box {
     position: absolute;
     bottom: calc(100% + 10px);
