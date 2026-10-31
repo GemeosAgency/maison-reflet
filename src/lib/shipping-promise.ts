@@ -73,6 +73,8 @@ export function promiseFor(country: Country): Promise2Lines {
   const rate = formatMoney(shippingRate(country.zone, currency), currency, locale);
   const free = formatMoney(freeShippingThreshold(currency), currency, locale);
   const freeFrom = t("shipping.freeFrom", { amount: free });
+  // Virgule arabe en arabe : « 25 د.إ.، مجاني… », pas « 25 د.إ., مجاني… ».
+  const comma = locale === "ar" ? "، " : ", ";
 
   /*
    * Prévente : rien ne part avant la date d'expédition, donc ni « livré
@@ -87,7 +89,7 @@ export function promiseFor(country: Country): Promise2Lines {
         shipOn: t("prevente.shipOn"),
         shipSoon: t("prevente.shipSoon"),
       }),
-      sub: `${t("shipping.days", { min: transit.min, max: transit.max })} · ${rate}, ${freeFrom}`,
+      sub: `${t("shipping.days", { min: transit.min, max: transit.max })} · ${rate}${comma}${freeFrom}`,
       urgent: false,
     };
   }
@@ -106,14 +108,14 @@ export function promiseFor(country: Country): Promise2Lines {
       sub: `${t("shipping.restOfUae", {
         min: UAE_DELIVERY_DAYS.min,
         max: UAE_DELIVERY_DAYS.max,
-      })} · ${rate}, ${freeFrom}`,
+      })} · ${rate}${comma}${freeFrom}`,
       urgent: sameDay.open,
     };
   }
 
   return {
     main: t("shipping.toCountry", { country: countryName(country.code, locale) }),
-    sub: `${t("shipping.days", { min: days.min, max: days.max })} · ${rate}, ${freeFrom}`,
+    sub: `${t("shipping.days", { min: days.min, max: days.max })} · ${rate}${comma}${freeFrom}`,
     urgent: false,
   };
 }
