@@ -505,7 +505,7 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
     text-overflow: ellipsis;
     text-transform: uppercase;
   }
-  .pbuy-size { margin-inline-start: 6px; color: var(--muted, rgba(21, 14, 10, 0.56)); }
+  .pbuy-size { margin-inline-start: 6px; color: var(--muted, rgba(21, 14, 10, 0.62)); }
   /* Le nom et la contenance restent en lettres latines en arabe : la ligne se
      lit donc de gauche à droite, sinon la marge passe du mauvais côté et
      « BOIS ALERT75 ML » se colle. Alignée à droite pour suivre la page. */
@@ -632,6 +632,8 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   .ppanel-add-prices { display: inline-flex; align-items: baseline; gap: 10px; white-space: nowrap; }
   .ppanel-add-was { opacity: 0.7; }
   .pbuy-was { margin-inline-end: 6px; font-size: 0.875em; }
+  /* Sur le bordeaux du bouton, 0,6 donnait 4,1:1. */
+  .pbuy-add .pbuy-was { opacity: 0.72; }
   /* ---- prévente ---- */
   .ppanel-prevente-badge {
     align-self: flex-start;
@@ -646,7 +648,7 @@ const hasPyramid = pyramidImg !== null || noteLevels.some((l) => l.notes.length 
   }
   .ppanel-priceline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 4px; }
   .ppanel-priceline-now { font-size: 24px; line-height: 1.2; font-weight: 500; white-space: nowrap; }
-  .ppanel-priceline-was { font-size: 18px; opacity: 0.55; text-decoration-thickness: 1px; white-space: nowrap; }
+  .ppanel-priceline-was { font-size: 18px; opacity: 0.62; text-decoration-thickness: 1px; white-space: nowrap; }
   .ppanel-priceline-was[hidden] { display: none; }
   .ppanel-launch {
     padding: 5px 9px;

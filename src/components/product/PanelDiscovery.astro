@@ -97,7 +97,7 @@ const a11y = priceA11y(Astro.params.lang);
     font-size: 11px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--muted, rgba(21, 14, 10, 0.56));
+    color: var(--muted, rgba(21, 14, 10, 0.62));
   }
   .pdisc-row {
     display: grid;
@@ -118,9 +118,11 @@ const a11y = priceA11y(Astro.params.lang);
   .pdisc-name { font-size: 15px; line-height: 1.25; }
   .pdisc-price {
     font-size: 13px;
-    color: var(--muted, rgba(21, 14, 10, 0.56));
+    color: var(--muted, rgba(21, 14, 10, 0.62));
     font-variant-numeric: tabular-nums;
   }
+  /* Déjà en gris : l'opacité commune des prix barrés le rendait illisible (2,2:1). Le trait suffit à le distinguer. */
+  .pdisc-price s[data-money-compare] { opacity: 1; }
   .pdisc-cta {
     flex: none;
     padding: 9px 14px;
