@@ -103,7 +103,7 @@ const ui = {
     "cart.coffretPushCredit": "{credit} AED d'avoir",
     "cart.coffretPushShipping": "· livraison offerte",
     "coffret.creditNote":
-      "En achetant le coffret, vous recevez par e-mail un avoir de {credit} AED, valable 90 jours sur le Reflet de votre choix.",
+      "En achetant le coffret, vous recevez par e-mail un avoir de {credit} AED, valable {days} jours sur le Reflet de votre choix.",
     "coffret.creditAmount": "{credit} AED",
     "coffret.creditHeadline": "d'avoir sur votre prochain flacon",
     "product.discoverSet": "Découvrir le coffret",
@@ -468,7 +468,7 @@ const ui = {
     "cart.coffretPushCredit": "رصيد {credit} درهمًا",
     "cart.coffretPushShipping": "· توصيل مجاني",
     "coffret.creditNote":
-      "عند شراء العلبة، يصلكم بالبريد الإلكتروني رصيد بقيمة {credit} درهمًا، صالح لمدة 90 يومًا على الانعكاس الذي تختارونه.",
+      "عند شراء العلبة، يصلكم بالبريد الإلكتروني رصيد بقيمة {credit} درهمًا، صالح لمدة {days} يومًا على الانعكاس الذي تختارونه.",
     "coffret.creditAmount": "{credit} درهمًا",
     "coffret.creditHeadline": "رصيد لزجاجتكم القادمة",
     "product.discoverSet": "اكتشفوا العلبة",
@@ -828,7 +828,7 @@ const ui = {
     "cart.coffretPushCredit": "{credit} AED of credit",
     "cart.coffretPushShipping": "· free delivery",
     "coffret.creditNote":
-      "Buying the set earns you a {credit} AED credit by email, valid for 90 days on the Reflet of your choice.",
+      "Buying the set earns you a {credit} AED credit by email, valid for {days} days on the Reflet of your choice.",
     "coffret.creditAmount": "{credit} AED",
     "coffret.creditHeadline": "of credit towards your next bottle",
     "product.discoverSet": "Discover the set",

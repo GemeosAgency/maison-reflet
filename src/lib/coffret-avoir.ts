@@ -4,11 +4,14 @@
  * (160 barré) et l'avoir suit (Sandro, 30 oct.) ; à la fin de la prévente, le
  * prix Shopify repasse à 160 et les textes avec, sans rien retoucher.
  *
- * Les textes portent le jeton « {credit} » (i18n.ts) ; `avecAvoir` rend une
- * fonction de traduction qui le remplit. Module serveur : il lit Shopify.
+ * Les textes portent les jetons « {credit} » et « {days} » (i18n.ts) ;
+ * `avecAvoir` rend une fonction de traduction qui les remplit, la durée
+ * suivant l'interrupteur de prévente (150 jours, 90 ensuite). Module serveur :
+ * il lit Shopify et Sanity.
  */
-import { AVOIR_AED, COFFRET_HANDLE } from "./coffret";
+import { AVOIR_AED, COFFRET_HANDLE, validiteJours } from "./coffret";
 import { getAllProducts, getPrimaryVariant } from "./shopify";
+import { getPrevente } from "./sanity";
 import type { UIKey } from "../i18n";
 
 let montantOnce: Promise<number> | null = null;
@@ -25,6 +28,7 @@ export function montantAvoir(): Promise<number> {
 }
 
 export async function avecAvoir(t: (key: UIKey) => string): Promise<(key: UIKey) => string> {
-  const montant = String(await montantAvoir());
-  return (key) => t(key).replaceAll("{credit}", montant);
+  const [montant, prevente] = await Promise.all([montantAvoir().then(String), getPrevente()]);
+  const jours = String(validiteJours(prevente.active));
+  return (key) => t(key).replaceAll("{credit}", montant).replaceAll("{days}", jours);
 }

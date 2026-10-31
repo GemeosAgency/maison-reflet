@@ -3,7 +3,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { adminDb } from "../../../lib/admin/db";
 import { isTestHost } from "../../../lib/admin/env";
 import { getAllProducts } from "../../../lib/shopify";
-import { AVOIR_AED, COFFRET_HANDLE, MINIMUM_AED, REFLETS, VALIDITE_JOURS, codeAvoir, finValidite } from "../../../lib/coffret";
+import { AVOIR_AED, COFFRET_HANDLE, MINIMUM_AED, REFLETS, codeAvoir, finValidite, validiteJours } from "../../../lib/coffret";
 import { clientDeCommande, creerAvoir, desactiverAvoir, idsProduits } from "../../../lib/shopify-admin";
 
 // Rendu à la demande (fonction serverless Vercel), pas prégénéré.
@@ -117,7 +117,9 @@ async function emettreAvoirCoffret(order: ShopifyOrderWebhook) {
   }
 
   const code = codeAvoir(clientId, AVOIR_SEL);
-  const fin = finValidite();
+  // Commande passée en prévente : le panier l'a marquée (attribut « Prévente », cart.ts).
+  const jours = validiteJours((order.note_attributes ?? []).some((a) => a.name === "Prévente"));
+  const fin = finValidite(jours);
   const devise = order.currency ?? "AED";
   const produits = await idsProduits(REFLETS);
   const etat = await creerAvoir({
@@ -164,7 +166,7 @@ async function emettreAvoirCoffret(order: ShopifyOrderWebhook) {
               currency: devise,
               minimum: MINIMUM_AED,
               expires_at: fin.toISOString(),
-              valid_days: VALIDITE_JOURS,
+              valid_days: jours,
               order_name: order.name ?? null,
             },
             value: montant,

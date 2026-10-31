@@ -25,6 +25,17 @@ export const MINIMUM_AED = 320;
 
 export const VALIDITE_JOURS = 90;
 
+/**
+ * Pendant la prévente, le coffret part sous 2 mois environ : 90 jours comptés
+ * dès l'achat n'en laisseraient qu'un pour choisir après réception. L'avoir
+ * d'un coffret acheté en prévente vaut donc 150 jours (Sandro, 31 oct.).
+ */
+export const VALIDITE_JOURS_PREVENTE = 150;
+
+export function validiteJours(prevente: boolean): number {
+  return prevente ? VALIDITE_JOURS_PREVENTE : VALIDITE_JOURS;
+}
+
 /** Le handle Shopify du coffret qui déclenche l'avoir. */
 export const COFFRET_HANDLE = "sample-box";
 
@@ -57,8 +68,8 @@ export function codeAvoir(compte: number | string, sel: string): string {
   return `REFLET${base}`;
 }
 
-export function finValidite(depuis = new Date()): Date {
+export function finValidite(jours = VALIDITE_JOURS, depuis = new Date()): Date {
   const d = new Date(depuis);
-  d.setDate(d.getDate() + VALIDITE_JOURS);
+  d.setDate(d.getDate() + jours);
   return d;
 }
