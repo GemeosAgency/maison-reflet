@@ -18,7 +18,7 @@ import LumaListen from "../../../components/LumaListen.astro";
 import DiscoverySetBanner from "../../../components/DiscoverySetBanner.astro";
 import { COFFRET_HANDLE } from "../../../lib/coffret";
 import { formatPrice, getAllProducts, getCompareAtLabel, getCompareAtPrice, getDisplayPrice, getPrimaryVariant, isCoffret, shopifyImage } from "../../../lib/shopify";
-import { getCoffrets, getInspiredByMap, getParfumContent, responsiveImage } from "../../../lib/sanity";
+import { getCoffrets, getInspiredByMap, getParfumContent, getPrevente, responsiveImage } from "../../../lib/sanity";
 import { type Locale, locales, localePath, useTranslations, withName } from "../../../i18n";
 import { REFLET_UNIVERSE, UNIVERSE_LABELS, universeLabel, type UniverseKey } from "../../../lib/universes";
 import { GUIDE_MANIFESTO, GUIDE_REFLETS } from "../../../lib/guide";
@@ -30,6 +30,8 @@ export function getStaticPaths() {
 
 const lang = Astro.params.lang as Locale;
 const t = useTranslations(lang);
+// Prévente ouverte : le bandeau coffret dit « Précommander », pas « Acheter maintenant ».
+const prevente = await getPrevente();
 // Montant de l'avoir du coffret : son prix pratiqué (120 en prévente), voir coffret-avoir.
 const tc = await avecAvoir(t);
 
@@ -623,7 +625,7 @@ const duos = LAYERING.map((d) => ({
         compareLabel={discovery.compare}
         href={discovery.href}
         img={discovery.img}
-        ctaLabel={t("home.hero.cta")}
+        ctaLabel={prevente.active ? t("prevente.add") : t("home.hero.cta")}
         creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
         creditNote={discovery.handle === COFFRET_HANDLE ? tc("coffret.creditNote") : null}
         tipLabel={t("product.tipOpen")}

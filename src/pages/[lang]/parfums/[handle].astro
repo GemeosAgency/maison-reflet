@@ -514,7 +514,7 @@ const productJsonLd = {
         compareLabel={discovery.compare}
         href={discovery.href}
         img={discovery.img}
-        ctaLabel={t("home.hero.cta")}
+        ctaLabel={prevente.active ? t("prevente.add") : t("home.hero.cta")}
         creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
         creditNote={discovery.handle === COFFRET_HANDLE ? tc("coffret.creditNote") : null}
         tipLabel={t("product.tipOpen")}

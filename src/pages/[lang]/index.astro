@@ -154,6 +154,41 @@ const reassurances = (await getReassurances(lang)).map((r) => ({
 // comme pour "La Maison" — vide tant que rien n'y est attaché.
 const homePage = await getPageBySlug("home", lang);
 
+/*
+ * Ligne d'offre du héros (audit du 31 oct. : rien sur le prix au-dessus de la
+ * ligne de flottaison). Les chiffres viennent de Shopify, jamais d'ici : prix
+ * pratiqué et prix normal barré des Reflets, prix du coffret découverte. Les
+ * Reflets n'y figurent que s'ils partagent le même prix (sinon « 320 AED »
+ * mentirait pour l'un d'eux) ; le coffret, que s'il existe.
+ */
+const perfumePrices = perfumes.map((p) => ({
+  variantId: getPrimaryVariant(p).id,
+  price: getDisplayPrice(p),
+  compare: getCompareAtLabel(p, intlLocale(lang)),
+}));
+const samePrice =
+  perfumePrices.length > 0 &&
+  perfumePrices.every((p) => p.price.amount === perfumePrices[0].price.amount && p.compare === perfumePrices[0].compare);
+const coffretOffer = (() => {
+  const sp = coffretProducts.find((p) => p.handle === COFFRET_HANDLE);
+  const titre = coffretContent.find((c) => c.shopifyHandle === COFFRET_HANDLE)?.titre;
+  if (!sp || !titre) return null;
+  const variant = getPrimaryVariant(sp);
+  return { titre, variantId: variant.id, price: formatPrice(variant.price.amount, variant.price.currencyCode, intlLocale(lang)) };
+})();
+const heroOffer = {
+  reflets: samePrice
+    ? {
+        // « Prix de lancement » seulement s'il y a un prix normal à barrer.
+        label: prevente.active && perfumePrices[0].compare ? t("prevente.launchPrice") : t("menu.reflets"),
+        variantId: perfumePrices[0].variantId,
+        price: formatPrice(perfumePrices[0].price.amount, perfumePrices[0].price.currencyCode, intlLocale(lang)),
+        compare: prevente.active ? perfumePrices[0].compare : null,
+      }
+    : null,
+  coffret: coffretOffer,
+};
+
 
 /*
  * Héros scindé en deux volets (node 11101:6088). Les photos sont statiques
@@ -166,7 +201,9 @@ const heroPanels = [
     title1: t("home.hero.title1"),
     title2: t("home.hero.title2"),
     text: t("home.hero.text"),
-    cta: t("home.hero.cta"),
+    // Pendant la prévente, on précommande : « Acheter maintenant » promettait
+    // un flacon livré tout de suite.
+    cta: prevente.active ? t("prevente.add") : t("home.hero.cta"),
     href: localePath(lang, "/parfums"),
     img: "hero-left",
   },
@@ -222,6 +259,29 @@ const heroPanels = [
               </h2>
             )}
             <p>{panel.text}</p>
+            {i === 0 && (heroOffer.reflets || heroOffer.coffret) && (
+              <p class="hero-offer">
+                {heroOffer.reflets && (
+                  <span class="hero-offer-item">
+                    {heroOffer.reflets.label}{" "}
+                    <span data-money={heroOffer.reflets.variantId}>{heroOffer.reflets.price}</span>
+                    {heroOffer.reflets.compare && (
+                      <>
+                        {" "}
+                        <s data-money-compare={heroOffer.reflets.variantId}>{heroOffer.reflets.compare}</s>
+                      </>
+                    )}
+                  </span>
+                )}
+                {heroOffer.reflets && heroOffer.coffret && <span class="hero-offer-sep" aria-hidden="true">·</span>}
+                {heroOffer.coffret && (
+                  <span class="hero-offer-item">
+                    {heroOffer.coffret.titre}{" "}
+                    <span data-money={heroOffer.coffret.variantId}>{heroOffer.coffret.price}</span>
+                  </span>
+                )}
+              </p>
+            )}
           </div>
           <div class="hero-cta-wrap">
             <span class="btn-square">
@@ -274,8 +334,10 @@ const heroPanels = [
         {t("home.story.title1")}<br />
         {t("home.story.title2")}
       </h2>
+      {/* La première phrase du récit (home.story.p1) est déjà le texte du
+          volet droit du héros : la répéter ici faisait lire deux fois le même
+          paragraphe sur l'accueil (audit du 31 oct.). */}
       <div class="story-copy">
-        <p>{t("home.story.p1")}</p>
         <p>{t("home.story.p2")}</p>
         <p>{t("home.story.p3")}</p>
       </div>
@@ -298,7 +360,7 @@ const heroPanels = [
         compareLabel={discovery.compare}
         href={discovery.href}
         img={discovery.img}
-        ctaLabel={t("home.hero.cta")}
+        ctaLabel={prevente.active ? t("prevente.add") : t("home.hero.cta")}
         creditLabel={discovery.handle === COFFRET_HANDLE ? t("coffret.creditShort") : null}
         creditNote={discovery.handle === COFFRET_HANDLE ? tc("coffret.creditNote") : null}
         tipLabel={t("product.tipOpen")}
@@ -420,21 +482,27 @@ const heroPanels = [
     line-height: 1.2;
   }
   .hero-text p { margin: 0; font-size: 18px; line-height: 1.32; letter-spacing: -0.36px; }
-  /* Le CTA n'apparaît qu'au survol (curseur dessiné dans la maquette sur le
-     volet de droite) — même mécanique que la tuile produit. Le volet entier
-     étant un lien, le bouton est un <span> : pas de lien imbriqué. */
+  /* Ligne d'offre : prix de lancement et coffret, sous le texte du volet gauche. */
+  .hero-text .hero-offer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    margin-top: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+  .hero-offer s { opacity: 0.72; font-weight: 400; }
+  .hero-offer-item { white-space: nowrap; }
+  /* Le CTA était réservé au survol (maquette) : en ordinateur, le héros ne
+     montrait donc aucun bouton au premier regard (audit du 31 oct.). Il est
+     désormais toujours visible. Le volet entier étant un lien, le bouton est
+     un <span> : pas de lien imbriqué. */
   .hero-cta-wrap {
     position: relative;
     z-index: 2;
-    max-height: 0;
-    opacity: 0;
-    overflow: hidden;
-    transition:
-      max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-      opacity 0.3s ease;
   }
-  .hero-panel:hover .hero-cta-wrap,
-  .hero-panel:focus-visible .hero-cta-wrap { max-height: 48px; opacity: 1; }
 
   /* En-têtes de section (node 10573:5818 : 96 px au-dessus, 40 px en dessous) */
   .section-head {
@@ -506,8 +574,7 @@ const heroPanels = [
     .hero-panel { flex: none; aspect-ratio: 4 / 5; min-height: 420px; padding: 24px; }
     .hero-text h1, .hero-text h2 { font-size: 26px; }
     .hero-text p { font-size: 16px; }
-    /* Pas de survol au doigt : le CTA reste visible. */
-    .hero-cta-wrap { max-height: none; opacity: 1; overflow: visible; }
+    .hero-text .hero-offer { font-size: 14px; }
     .section-head { padding: 56px var(--gutter-x) 32px; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
     .bestsellers-grid { flex-wrap: wrap; }
     .bestsellers-grid :global(.product-card) { flex: 1 1 45%; aspect-ratio: 358.5 / 528; }
@@ -520,7 +587,4 @@ const heroPanels = [
     .story-img { flex: none; max-width: none; aspect-ratio: 3 / 2; }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .hero-cta-wrap { transition: none; }
-  }
 </style>
