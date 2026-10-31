@@ -25,6 +25,14 @@ export type Prevente = {
 
 export const PREVENTE_OFF: Prevente = { active: false, shipDate: null };
 
+/**
+ * Délai d'expédition annoncé tant que la date n'est pas fixée : « sous 2 mois
+ * environ » (validé par Sandro, 31 oct.). C'est le chiffre écrit dans les textes
+ * `prevente.*` d'i18n.ts ; Luma le lit ici pour dire ce que dit le site. À
+ * changer en même temps que ces textes.
+ */
+export const PREVENTE_DELAI_MOIS = 2;
+
 const LOCALE_TAGS: Record<Locale, string> = { fr: "fr-FR", en: "en-GB", ar: "ar-AE" };
 
 /** « 1er décembre » / « 1 December » / « ١ ديسمبر » — sans l'année, qui est sous-entendue. */

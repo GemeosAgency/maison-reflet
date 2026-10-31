@@ -22,9 +22,12 @@ import { REFLETS, COFFRETS } from "../src/lib/luma/collection.ts";
  */
 const PRIX_CONNUS = [
   320,
+  120,
   160,
-  2200,
+  1800,
   15,
+  // Seuil de livraison offerte, que allowedNumbers() ajoute aussi.
+  400,
   ...[...REFLETS, ...COFFRETS]
     .flatMap((p) => [p.essence, "twistOf" in p ? p.twistOf : ""])
     .join(" ")
@@ -64,27 +67,28 @@ const INTERDITS = [
 /** Copie approuvée : doit passer intacte. */
 const AUTORISES = [
   // Section 11 — Référence citée
-  "Alors regardez Melting Mango. C'est la signature de Baccarat Rouge 540, safran, ambre, cette addiction en fond, avec une ouverture mangue que l'original n'a pas. Plus juteux, plus vivant, même tenue. Si vous voulez vous éloigner un peu plus, Bois Alert garde le safran et le jasmin mais bascule vers le bois.",
+  "Alors regardez Melting Mango. C'est la signature de Baccarat Rouge 540, safran, ambre, cette addiction en fond, avec une ouverture mangue que l'original n'a pas. Plus juteux, plus vivant. Si vous voulez vous éloigner un peu plus, Bois Alert garde le safran et le jasmin mais bascule vers le bois.",
   // Section 11 — Indécis
   "Alors commençons simplement. Vous êtes plutôt chaud et gourmand, boisé et net, cuir et soir, ou frais et fruité ?",
   "Ultra Cuir. Un cuir franc, adouci par l'iris, avec une framboise qui éclaire l'ouverture. C'est notre réinterprétation de Tuscan Leather. Si vous préférez le sentir avant de choisir, le coffret découverte réunit les six en 2 ml.",
   // Section 11 — Cadeau
-  "Pour un homme qui porte déjà de l'oud, New Oud est un oud moderne, fruité en ouverture, très élégant. Si vous ne connaissez pas ses goûts, Les 6 Reflets est le grand geste : la collection complète, chaque flacon numéroté. Et le coffret découverte lui laisse choisir lui-même.",
-  "2 200 AED. Un flacon seul est à 320 AED.",
+  "Pour un homme qui porte déjà de l'oud, New Oud est un oud moderne, fruité en ouverture, très élégant. Si vous ne connaissez pas ses goûts, Les 6 Reflets est le grand geste : la collection complète, les six en 75 ml. Et le coffret découverte lui laisse choisir lui-même.",
+  // Le prix de l'exemple vient du catalogue (1 800 AED au 31 octobre 2026).
+  "1 800 AED. Un flacon seul est à 320 AED.",
   // Section 11 — Comparaison
   "Deux douceurs, deux heures du jour. Minuit Bourbon est la nuit : tonka, vanille bourbon, tenu par du cuir. Fifth Season est le matin : mandarine, fruits exotiques, un fond lacté. La question est simple : vous voulez qu'on s'approche, ou vous voulez de la lumière ?",
   // Section 11 — Réduction (la réponse correcte à une demande de remise)
-  "La Maison n'en pratique pas. Votre première commande vient avec un cadeau, et les échantillons sont offerts. Si vous hésitez, le coffret découverte est la meilleure façon d'entrer.",
+  "La Maison n'en pratique pas. Un flacon de 75 ml vient avec un échantillon de 2 ml offert, du Reflet de votre choix. Si vous hésitez, le coffret découverte est la meilleure façon d'entrer.",
   // Section 8 — Tenue, sans chiffre
-  "Ce sont des concentrations hautes, pensées pour la chaleur du Golfe. Le mieux est de le sentir sur votre peau : le coffret découverte est fait pour ça.",
+  "Ce sont des eaux de parfum, composées pour la présence et le sillage ; la tenue varie selon la peau et le climat. Le mieux est de le sentir sur votre peau : le coffret découverte est fait pour ça.",
   // Réassurances de la section 5 — « offerte » ne doit pas déclencher « offre »
-  "La livraison est offerte, les échantillons sont offerts, et votre première commande vient avec un cadeau.",
+  "La livraison est offerte dès 400 AED, et un échantillon de 2 ml est offert avec chaque flacon de 75 ml.",
   // Section 4 — vocabulaire de marque contenant « codes »
   "Les codes de courtoisie du Golfe comptent autant que le parfum lui-même.",
   // Sortie de secours
   "Je suis la conseillère de la Maison. Posez-moi tout ce que vous voulez sur les parfums.",
   // Prix connus, écrits avec une espace fine comme sur le site
-  "Les 6 Reflets sont à 2 200 AED, le flacon de 75 ml à 320 AED et l'échantillon de 2 ml à 15 AED.",
+  "Les 6 Reflets sont à 1 800 AED, le flacon de 75 ml à 320 AED et l'échantillon de 2 ml à 15 AED.",
 ];
 
 let echecs = 0;
@@ -119,7 +123,8 @@ const CHIFFRES = [
   [true, "Il ne reste que 400 flacons de cette série."],
   [false, "Le flacon de 75 ml est à 320 AED."],
   [false, "Le coffret réunit les six en 2 ml, pour 160 AED."],
-  [false, "Les 6 Reflets, 2 200 AED."],
+  [false, "Les 6 Reflets, 1 800 AED."],
+  [true, "Les 6 Reflets, 2 200 AED."],
 ];
 for (const [doitEchouer, texte] of CHIFFRES) {
   const v = checkNumbers(texte, PRIX_CONNUS);
