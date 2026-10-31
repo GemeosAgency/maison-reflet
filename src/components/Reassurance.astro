@@ -2,12 +2,23 @@
 /**
  * Bandeau réassurance (icône + texte), pleine largeur — réutilisé par la page
  * produit (sélection propre à chaque parfum) et la home (bibliothèque complète).
+ *
+ * Une ligne Sanity peut porter le jeton « {amount} » (« Livraison offerte / dès
+ * {amount} ») : il reçoit le seuil de livraison offerte de markets.ts, celui du
+ * panier. Le HTML est cuit en AED, marché primaire, et `hydrateShippingThresholds`
+ * (country.ts) le réécrit dans la devise du pays choisi, comme le bandeau promo.
  */
+import type { Locale } from "../i18n";
+import { DEFAULT_COUNTRY, formatMoney, freeShippingThreshold, getCountry } from "../lib/markets";
+
 interface Props {
   items: { icone: string | null; lignes: string[] }[];
 }
 
 const { items } = Astro.props;
+const lang = (Astro.params.lang ?? "fr") as Locale;
+const { currency } = getCountry(DEFAULT_COUNTRY);
+const threshold = formatMoney(freeShippingThreshold(currency), currency, lang);
 ---
 
 {
@@ -21,7 +32,11 @@ const { items } = Astro.props;
             <p>
               {r.lignes.map((ligne) => (
                 <>
-                  {ligne}
+                  {ligne.includes("{amount}") ? (
+                    <span data-free-shipping-threshold={ligne}>{ligne.replace("{amount}", threshold)}</span>
+                  ) : (
+                    ligne
+                  )}
                   <br />
                 </>
               ))}
