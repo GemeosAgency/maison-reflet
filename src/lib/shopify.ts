@@ -723,7 +723,7 @@ export async function addCartLine(
  * C'est ce qui permet de changer l'échantillon offert en une seule mutation,
  * au lieu d'un retrait suivi d'un ajout.
  */
-export type CartLineUpdateInput = { id: string; quantity: number; merchandiseId?: string };
+export type CartLineUpdateInput = { id: string; quantity: number; merchandiseId?: string; attributes?: CartAttributeInput[] };
 
 /** Modifie la quantité d'une ou plusieurs lignes d'un panier existant */
 export async function updateCartLines(

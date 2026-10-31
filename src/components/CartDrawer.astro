@@ -346,6 +346,7 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     setVariantQuantity,
     swapCartLine,
     trackCheckoutDeparture,
+    markLaunchPrices,
     visibleQuantity,
   } from "../lib/cart";
   import { formatPrice, type ShopifyCart } from "../lib/shopify";
@@ -449,9 +450,17 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
   let lastFocusedBeforeCart: HTMLElement | null = null;
 
   // InitiateCheckout Meta + rafraîchissement des ids publicitaires du panier,
-  // sans bloquer la navigation vers le checkout (voir lib/cart.ts).
-  checkoutLink?.addEventListener("click", () => {
+  // sans bloquer la navigation vers le checkout (voir lib/cart.ts). La mention
+  // « Prix de lancement » est posée sur les lignes avant de partir, 1,5 s au
+  // plus : passé ce délai, le checkout part sans elle.
+  checkoutLink?.addEventListener("click", (event) => {
     trackCheckoutDeparture(currentCart);
+    const href = checkoutLink.href;
+    if (!currentCart || href.endsWith("#") || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+    event.preventDefault();
+    Promise.race([markLaunchPrices(currentCart, pageLocale()), new Promise((r) => setTimeout(r, 1500))]).finally(() => {
+      window.location.href = href;
+    });
   });
 
   function openDrawer() {

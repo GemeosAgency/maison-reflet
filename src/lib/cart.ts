@@ -512,6 +512,49 @@ export function trackCheckoutDeparture(cart: ShopifyCart | null) {
   }
 }
 
+const LAUNCH_LABEL: Record<string, { key: string; instead: string }> = {
+  fr: { key: "Prix de lancement", instead: "au lieu de" },
+  en: { key: "Launch price", instead: "instead of" },
+  ar: { key: "سعر الإطلاق", instead: "بدلًا من" },
+};
+
+const money = (amount: number, currency: string) =>
+  `${Number.isInteger(amount) ? amount : amount.toFixed(2)} ${currency}`;
+
+/**
+ * Prix de lancement visible au checkout. Le checkout Shopify n'affiche pas le
+ * prix barré : sans rien, le client voit 320 AED là où le site annonçait
+ * « économisez 60 AED ». Juste avant le départ, chaque ligne remisée reçoit
+ * un attribut visible (sans « _ ») que Shopify écrit sous l'article, au
+ * checkout comme dans les e-mails : « Prix de lancement : 320 AED au lieu de
+ * 380 AED ». Aucun prix ne change (Sandro, 31 oct.).
+ *
+ * Posé au départ et non à l'ajout : une même variante portant des attributs
+ * différents ferait deux lignes. Ne jette jamais : le checkout part quoi qu'il
+ * arrive (voir le délai dans CartDrawer).
+ */
+export async function markLaunchPrices(cart: ShopifyCart | null, lang: string): Promise<void> {
+  if (!cart) return;
+  const label = LAUNCH_LABEL[lang] ?? LAUNCH_LABEL.en;
+  const lines = paidLines(cart).flatMap((line) => {
+    const was = Number(line.cost.compareAtAmountPerQuantity?.amount);
+    const now = Number(line.cost.totalAmount.amount) / line.quantity;
+    if (!(was > now)) return [];
+    const currency = line.cost.totalAmount.currencyCode;
+    return [{
+      id: line.id,
+      quantity: line.quantity,
+      attributes: [{ key: label.key, value: `${money(now, currency)} ${label.instead} ${money(was, currency)}` }],
+    }];
+  });
+  if (!lines.length) return;
+  try {
+    await updateCartLines(cart.id, lines);
+  } catch {
+    // le checkout part sans la mention plutôt que pas du tout
+  }
+}
+
 /**
  * Câble tous les boutons `[data-add-to-cart]` de la page (cartes produit,
  * cartes coffret…) via délégation d'événement sur `document`. Un seul appel
