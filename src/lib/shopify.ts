@@ -528,6 +528,16 @@ export type CartAttributeInput = { key: string; value: string };
  * publicitaires _fbp/_fbc à travers le saut de domaine du checkout (voir
  * cart.ts et api/webhooks/shopify-orders.ts). Préfixe "_" = masqué au client
  * dans le récapitulatif de commande.
+ *
+ * Langue du checkout : c'est le `@inContext(language)` de CETTE mutation qui la
+ * fixe (doc Shopify « Support multiple languages », étape 3). Le contexte par
+ * défaut porte la langue de la page (country.ts, `<html lang>`), donc un panier
+ * né sur /fr ou /ar part déjà en FR ou AR. Tant que ces langues ne sont pas
+ * publiées dans Shopify (Paramètres > Langues, puis marché Émirats), l'API se
+ * rabat sans erreur sur l'anglais : `extensions.context.language` vaut « EN »
+ * et le checkout s'ouvre en /en-ae (vérifié le 31 oct.). Rien à changer ici le
+ * jour où elles le sont. Limite connue : un panier créé en anglais garde
+ * l'anglais si le visiteur change ensuite de langue.
  */
 export async function createCart(
   lines: CartLineInput[],
