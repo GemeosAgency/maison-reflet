@@ -40,5 +40,8 @@ if (!Astro.cookies.has(COUNTRY_COOKIE)) {
   }
 }
 
-return Astro.redirect(localePath(locale, "/"), 302);
+// Toute la query string suit la redirection : un lien de bio Instagram
+// (?utm_source=…, fbclid) ou ?internal=1 arrivent intacts sur la page de
+// langue, où attribution.ts les lit. Sans ça, la pub perdait sa source.
+return Astro.redirect(localePath(locale, "/") + Astro.url.search, 302);
 ---

@@ -17,10 +17,18 @@ export function isRtl(locale: Locale): boolean {
   return locale === "ar";
 }
 
-/** Préfixe une route interne avec la langue : localePath("ar", "/parfums") => "/ar/parfums" */
+/**
+ * Préfixe une route interne avec la langue : localePath("ar", "/parfums") => "/ar/parfums/".
+ *
+ * Toujours avec la barre finale : c'est la forme que servent les pages
+ * statiques (dossier/index.html), celle des canoniques et du sitemap. Sans
+ * elle, /fr et /fr/ répondaient tous deux en 200 et le hreflang pointait une
+ * autre URL que le canonical (audit du 30 oct.) ; vercel.json redirige
+ * désormais la forme sans barre vers celle-ci.
+ */
 export function localePath(locale: Locale, path = "/"): string {
   const clean = path === "/" ? "" : path.startsWith("/") ? path : `/${path}`;
-  return `/${locale}${clean}`;
+  return `/${locale}${clean}`.replace(/\/?$/, "/");
 }
 
 /** Libellés d'interface (le contenu éditorial vient de Sanity, lui). */

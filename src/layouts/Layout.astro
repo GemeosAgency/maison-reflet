@@ -80,7 +80,9 @@ const initialPill = countryPill(initialCountry, lang);
 const base = Astro.site ?? new URL(Astro.url.origin);
 const absolute = (path: string) => new URL(path, base).href;
 
-const canonical = absolute(Astro.url.pathname);
+// Toujours avec la barre finale, comme les liens internes (localePath) et le
+// sitemap : une seule forme d'URL par page.
+const canonical = absolute(Astro.url.pathname.replace(/\/?$/, "/"));
 const socialImage = absolute(ogImage ?? "/brand/logo-email.png");
 
 // og:locale attend une balise de type "fr_FR" et non "fr".
@@ -166,7 +168,11 @@ const klaviyoCompanyId = import.meta.env.PUBLIC_KLAVIYO_COMPANY_ID;
         var saved = document.cookie.match(/(?:^|;\s*)lang=([a-z]+)/);
         var want = saved && langs.indexOf(saved[1]) !== -1 ? saved[1] : null;
         var internal = document.referrer.indexOf(location.origin + "/") === 0;
-        var bot = /bot|crawl|spider|slurp|lighthouse|headless|preview/i.test(navigator.userAgent);
+        // Robots : « bot » couvre Googlebot, AdsBot, Storebot… mais pas les
+        // outils de Google sans ce mot : Google-InspectionTool (test en direct
+        // de la Search Console, redirigé de /ar vers /en jusqu'ici), GoogleOther,
+        // Google-Read-Aloud, ni les aperçus de liens des réseaux sociaux.
+        var bot = /bot|crawl|spider|slurp|lighthouse|headless|preview|inspectiontool|googleother|google-|-google|facebookexternalhit|whatsapp/i.test(navigator.userAgent);
 
         if (!want && !internal) {
           var prefs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
