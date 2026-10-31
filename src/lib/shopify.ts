@@ -305,6 +305,37 @@ const PRODUCT_FRAGMENT = /* GraphQL */ `
   }
 `;
 
+/**
+ * Devise que Shopify pratique RÉELLEMENT pour chaque pays livré, lue au build.
+ * markets.ts décrit la devise visée par marché (EUR, GBP…) ; tant que les
+ * marchés n'ont pas leur devise côté Shopify (il faut Shopify Payments), tout
+ * se paie en AED et le sélecteur de pays doit le dire. Le jour où les devises
+ * existent, il bascule au déploiement suivant. Échec : objet vide, le site
+ * retombe sur markets.ts.
+ */
+export async function getPracticedCurrencies(): Promise<Record<string, string>> {
+  const query = /* GraphQL */ `
+    query PracticedCurrencies {
+      localization {
+        availableCountries {
+          isoCode
+          currency {
+            isoCode
+          }
+        }
+      }
+    }
+  `;
+  try {
+    const data = await shopifyFetch<{
+      localization: { availableCountries: { isoCode: string; currency: { isoCode: string } }[] };
+    }>(query);
+    return Object.fromEntries(data.localization.availableCountries.map((c) => [c.isoCode, c.currency.isoCode]));
+  } catch {
+    return {};
+  }
+}
+
 /** Récupère tous les produits de la collection "Les 6 Reflets" (ou toute la boutique si pas de collection dédiée) */
 export async function getAllProducts(first = 20, context?: ShopifyContext) {
   const query = /* GraphQL */ `

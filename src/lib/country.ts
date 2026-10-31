@@ -87,8 +87,21 @@ let activeCurrency: string | null = null;
 
 const CURRENCY_CACHE_PREFIX = "maison-reflet:currency:";
 
+/** Devise facturée par Shopify lue au build (CountryDrawer), sinon celle visée par markets.ts. */
+let practicedOnce: Record<string, string> | null = null;
+function practicedCurrency(code: string): string {
+  if (!practicedOnce) {
+    try {
+      practicedOnce = JSON.parse(document.getElementById("region-currencies")?.textContent || "{}");
+    } catch {
+      practicedOnce = {};
+    }
+  }
+  return practicedOnce?.[code] ?? getCountry(code).currency;
+}
+
 export function getActiveCurrency(): string {
-  return activeCurrency ?? selectedCountry().currency;
+  return activeCurrency ?? practicedCurrency(selectedCountryCode());
 }
 
 export async function resolveCurrency(code = selectedCountryCode()): Promise<string> {
@@ -127,8 +140,8 @@ export async function resolveCurrency(code = selectedCountryCode()): Promise<str
       /* rien à mémoriser : on redemandera au prochain changement */
     }
   } catch {
-    // Hors ligne ou quota : la devise attendue du marché reste le meilleur pari.
-    activeCurrency = getCountry(code).currency;
+    // Hors ligne ou quota : la devise lue au build reste le meilleur pari.
+    activeCurrency = practicedCurrency(code);
   }
   return activeCurrency;
 }

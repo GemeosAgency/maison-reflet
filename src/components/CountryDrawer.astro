@@ -31,6 +31,7 @@ import {
   countryPill,
 } from "../lib/markets";
 import ShippingPromise from "./ShippingPromise.astro";
+import { getPracticedCurrencies } from "../lib/shopify";
 
 interface Props {
   lang: Locale;
@@ -65,6 +66,13 @@ const groups = GROUP_ORDER.map((group) => ({
     .sort((a, b) => a.name.localeCompare(b.name, intlLocale(lang))),
 })).filter((g) => g.countries.length > 0);
 
+// Devise réellement facturée par pays (AED partout tant que les marchés n'ont pas la leur).
+const practiced = await getPracticedCurrencies();
+const groupsShown = groups.map((g) => ({
+  ...g,
+  countries: g.countries.map((c) => ({ ...c, currency: practiced[c.code] ?? c.currency })),
+}));
+
 const initial = getCountry(DEFAULT_COUNTRY);
 const currencyNote = t("region.currencyNote").replace("{currency}", initial.currency);
 const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIES.length));
@@ -92,6 +100,13 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
     "prevente.shipOn": t("prevente.shipOn"),
     "prevente.shipSoon": t("prevente.shipSoon"),
   })}
+/>
+
+<script
+  type="application/json"
+  id="region-currencies"
+  is:inline
+  set:html={JSON.stringify(practiced)}
 />
 
 <div class="cdr" data-region-drawer aria-hidden="true" inert>
@@ -137,7 +152,7 @@ const shippedCount = t("region.shippedCount").replace("{count}", String(COUNTRIE
 
       <div class="cdr-list" data-region-list>
         {
-          groups.map((g) => (
+          groupsShown.map((g) => (
             <div class="cdr-group" data-region-group>
               <p class="cdr-group-title">{g.label}</p>
               {g.countries.map((c) => (
