@@ -226,9 +226,16 @@ const productJsonLd = {
     url: productUrl,
     price: Number(variant.price.amount),
     priceCurrency: variant.price.currencyCode,
-    availability: variant.availableForSale
-      ? "https://schema.org/InStock"
-      : "https://schema.org/OutOfStock",
+    // Prévente ouverte (interrupteur Sanity, lib/prevente.ts) : le flacon se
+    // commande mais ne part pas tout de suite, c'est une précommande.
+    availability: !variant.availableForSale
+      ? "https://schema.org/OutOfStock"
+      : prevente.active
+        ? "https://schema.org/PreOrder"
+        : "https://schema.org/InStock",
+    ...(prevente.active && variant.availableForSale && prevente.shipDate
+      ? { availabilityStarts: prevente.shipDate }
+      : {}),
   },
 };
 ---
