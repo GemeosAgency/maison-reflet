@@ -82,4 +82,12 @@ const { items } = Astro.props;
   @media (max-width: 900px) {
     .reassurance-inner { flex-wrap: wrap; justify-content: center; padding: 32px 20px; gap: 32px; }
   }
+  /* Téléphone : deux par ligne. Une seule colonne de quatre prenait presque
+     deux écrans pour quatre pictos. */
+  @media (max-width: 560px) {
+    .reassurance-inner { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 16px; padding: 40px 20px; }
+    .reassurance-item { width: auto; gap: 12px; }
+    .reassurance-item img { width: 32px; height: 32px; }
+    .reassurance-item p { font-size: 13px; }
+  }
 </style>

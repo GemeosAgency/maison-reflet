@@ -79,11 +79,17 @@ const { title, text, img } = Astro.props;
        560px fixes et une largeur fluide, l'image était étirée dès qu'on
        quittait 1440px de viewport. */
     aspect-ratio: 1296 / 560;
+    position: relative;
     border: 1px solid var(--ink);
     background: var(--sand);
     overflow: hidden;
   }
+  /* En absolu et non en height: 100% : Safari ne résout pas un pourcentage
+     contre une hauteur tirée d'aspect-ratio, et laissait une bande vide sous
+     la photo sur iPhone. */
   .twist-img img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;

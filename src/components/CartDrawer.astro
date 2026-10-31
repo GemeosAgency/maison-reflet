@@ -458,7 +458,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     drawer.classList.add("is-open");
     drawer.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
-    closeBtn?.focus();
+    // Focus posé pour le clavier, sans anneau : Safari le dessinait à chaque ouverture.
+    closeBtn?.focus({ focusVisible: false } as FocusOptions);
   }
   function closeDrawer() {
     if (!drawer?.classList.contains("is-open")) return;
@@ -973,6 +974,8 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
         ? grouped.map(lineHtml).join("")
         : `<p class="cart-empty">${I18N.empty}</p>`;
     }
+    // Panier vide : le pied (sous-total à 0, bouton de paiement) disparaît.
+    drawer?.classList.toggle("is-empty", grouped.length === 0);
 
     // Livraison offerte
     const currency = cart?.cost.subtotalAmount.currencyCode ?? getActiveCurrency();
@@ -1289,6 +1292,10 @@ const FREE_SHIPPING_THRESHOLD = freeShippingThreshold(getCountry(DEFAULT_COUNTRY
     position: absolute; top: 8px; right: 8px; z-index: 3; border: 0; background: transparent;
     width: 44px; height: 44px; padding: 14px; cursor: pointer; line-height: 0;
   }
+  /* Le focus posé à l'ouverture ne doit pas dessiner l'anneau bleu de Safari. */
+  .cart-drawer-close:focus { outline: none; }
+  .cart-drawer-close:focus-visible { outline: 1.5px solid var(--ink); outline-offset: -4px; }
+  .cart-drawer.is-empty .cart-drawer-footer { display: none; }
   .cart-drawer-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 32px; display: flex; flex-direction: column; gap: 24px; }
   .cart-drawer-divider { height: 1px; background: rgba(21, 14, 10, 0.12); flex-shrink: 0; }
   /* Le bas du sac, contre le bouton de paiement, est aux suggestions (l'accord du parfumeur, sinon

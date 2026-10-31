@@ -937,7 +937,8 @@ const prevente = await getPrevente();
     background: var(--ink);
     color: var(--bg);
     border-radius: 999px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    /* Le filet clair la détache du pied de page, encre sur encre sinon. */
+    box-shadow: 0 0 0 1px rgba(247, 245, 242, 0.28), 0 10px 30px rgba(0, 0, 0, 0.18);
     opacity: 0;
     transform: translate(-50%, 12px);
     transition: opacity 0.35s ease, transform 0.35s ease;

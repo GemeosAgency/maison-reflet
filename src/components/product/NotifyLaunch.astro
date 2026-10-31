@@ -27,6 +27,12 @@ interface Props {
 const { lang, handle, name, priceLabel, kind = "parfum" } = Astro.props;
 const t = useTranslations(lang);
 const fill = (s: string) => s.replace("{name}", name).replace("{price}", priceLabel);
+// « Vous hésitez encore ? » / « Être prévenu au lancement » : la question
+// tombe sur téléphone, où le tout passait sur deux lignes (Sandro, 31 oct.).
+const openLabel = t("notify.open");
+const cut = openLabel.search(/[?؟]\s/);
+const openAsk = cut > 0 ? openLabel.slice(0, cut + 1) : "";
+const openAction = cut > 0 ? openLabel.slice(cut + 2) : openLabel;
 ---
 
 <div class="notify" data-notify data-handle={handle} data-name={name}>
@@ -34,7 +40,7 @@ const fill = (s: string) => s.replace("{name}", name).replace("{price}", priceLa
     <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
       <path d="M5.5 13.5V9a4.5 4.5 0 0 1 9 0v4.5l1.5 1.5H4z M8.2 17a1.9 1.9 0 0 0 3.6 0" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" />
     </svg>
-    {t("notify.open")}
+    <span>{openAsk && <span class="notify-ask">{openAsk} </span>}{openAction}</span>
   </button>
 
   <form class="notify-box" data-notify-form hidden novalidate>
@@ -247,6 +253,10 @@ const fill = (s: string) => s.replace("{name}", name).replace("{price}", priceLa
   .notify-consent { margin: 0; font-size: 12px; line-height: 1.33; opacity: 0.6; }
   .notify-done { flex-direction: row; gap: 12px; }
   .notify-done svg { flex-shrink: 0; margin-top: 1px; color: var(--ink); }
+
+  @media (max-width: 560px) {
+    .notify-ask { display: none; }
+  }
 
   @media (max-width: 899px) {
     .notify-fields { flex-direction: column; }

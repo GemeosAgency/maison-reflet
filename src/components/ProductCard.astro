@@ -71,10 +71,10 @@ const badge = prevente?.badge ?? badgeProp;
   <div class="product-card-overlay" aria-hidden="true"></div>
   {badge && <span class:list={["product-card-badge", { "is-prevente": prevente }]}>{badge}</span>}
   <div class="product-card-meta">
-    <h3>{name}</h3>
+    <h3 translate="no">{name}</h3>
     <div class="product-card-row">
       {inspired ? <p class="product-card-inspired">{withName(inspiredByLabel, inspired)}</p> : <span></span>}
-      <p class="product-card-price">
+      <p class="product-card-price" translate="no">
         {prevente?.launchLabel && <span class="product-card-launch">{prevente.launchLabel}</span>}
         <s class="price-was" data-money-compare={variantId} hidden={!compare}>{compare}</s>
         <span data-money={variantId}>{price}</span>
@@ -90,7 +90,7 @@ const badge = prevente?.badge ?? badgeProp;
         data-error-label={errorLabel}
       >
         <span data-reco-add-label>{addLabel}</span>
-        <span class="product-card-add-prices">
+        <span class="product-card-add-prices" translate="no">
           <s data-money-compare={variantId} hidden={!compare}>{compare}</s>
           <span data-money={variantId}>{price}</span>
         </span>
@@ -204,6 +204,50 @@ const badge = prevente?.badge ?? badgeProp;
     .product-card-meta { inset-inline: 16px; bottom: 16px; }
     .product-card-row { flex-direction: column; gap: 2px; }
     .product-card-price { text-align: start; }
+  }
+
+  /*
+   * Carte étroite (deux colonnes sur téléphone, ~190 px) : les tailles de la
+   * maquette (18/16) y faisaient passer le twist sur deux lignes et le bloc
+   * entier montait sur le flacon (Sandro, 31 oct.). On mesure la carte et non
+   * l'écran : le catalogue, une carte par ligne au même écran, garde ses tailles.
+   */
+  .product-card { container-type: inline-size; }
+  @container (max-width: 300px) {
+    .product-card-badge { padding: 7px 8px; font-size: 11px; }
+    .product-card-meta { inset-inline: 12px; bottom: 12px; }
+    .product-card-meta h3 { font-size: 15px; }
+    .product-card-row { margin-top: 2px; letter-spacing: 0.3px; }
+    .product-card-inspired { font-size: 13px; line-height: 1.35; }
+    .product-card-price { font-size: 14px; line-height: 1.35; }
+    .product-card-launch { margin-top: 4px; font-size: 10px; line-height: 14px; letter-spacing: 0.6px; }
+    .price-was { margin-inline-end: 5px; }
+  }
+  /* Le texte occupe alors le bas du flacon : le voile clair monte plus haut et
+     se fait plus dense, sinon l'encre se lit sur le verre. */
+  @container (max-width: 300px) {
+    .product-card-veil {
+      background: linear-gradient(
+        to bottom,
+        rgba(241, 238, 233, 0) 52%,
+        rgba(241, 238, 233, 0.7) 76%,
+        rgba(241, 238, 233, 0.86) 100%
+      );
+    }
+  }
+
+  /* Pas de survol au doigt. iOS garde un :hover après un tap : la carte
+     restait à moitié dans l'état survolé, CTA tronqué compris. Au doigt, la
+     carte reste la photo, et le tap mène à la fiche. */
+  @media (hover: none) {
+    .product-card-add-wrap { display: none; }
+    .product-card:hover .product-card-img-base { opacity: 1; }
+    .product-card:hover .product-card-img-hover { opacity: 0; }
+    .product-card:hover .product-card-overlay { opacity: 0; }
+    .product-card:hover .product-card-veil { opacity: 1; }
+    .product-card:hover .product-card-meta { color: var(--ink); }
+    .product-card:hover .product-card-price,
+    .product-card:hover .product-card-launch { opacity: 1; }
   }
 
   @media (prefers-reduced-motion: reduce) {

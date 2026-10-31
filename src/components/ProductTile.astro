@@ -113,9 +113,9 @@ const hasAdd = Boolean(variantId && addLabel);
     }
   </div>
   <div class="ptile-meta">
-    <h3>{name}{size && <span class="ptile-size">{size}</span>}</h3>
+    <h3 translate="no">{name}{size && <span class="ptile-size">{size}</span>}</h3>
     {subtitle && <p class="ptile-subtitle">{subtitle}</p>}
-    <p class="ptile-price">
+    <p class="ptile-price" translate="no">
       {prevente?.launchLabel && <span class="ptile-launch">{prevente.launchLabel}</span>}
       <s class="price-was" data-money-compare={variantId} hidden={!compare}>{compare}</s>
       <span data-money={variantId}>{price}</span>
