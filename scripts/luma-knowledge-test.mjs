@@ -88,7 +88,17 @@ const sa = buildKnowledge({ products: PRODUCTS, parfums: DOCS, country: getCount
 check("devise = celle des prix, pas du marché espéré", sa.logistics.currency === "AED");
 check("seuil et frais dans la devise pratiquée : 400 / 70", sa.logistics.freeShippingThreshold === 400 && sa.logistics.shippingRate === 70);
 check("délais Golfe 3-5, pas de jour même", sa.allowedDelays.join("-") === "3-5" && sa.logistics.sameDayDubai === null);
-check("nom du coffret localisé (en)", sa.products.at(-1).name === "Discovery box", sa.products.at(-1).name);
+check("nom du coffret localisé (en), comme sur le site", sa.products.at(-1).name === "Discovery Set", sa.products.at(-1).name);
+
+console.log("\nFixtures — prévente ouverte, sans date (Arabie saoudite)");
+const pv = buildKnowledge({ products: PRODUCTS, parfums: DOCS, country: getCountry("SA"), locale: "fr", prevente: { active: true, shipDate: null } });
+check("délai de prévente du site accepté", checkNumbers("Expédié sous 2 mois environ, puis livré en 3 à 5 jours ouvrés.", pv.allowedNumbers, pv.allowedDelays).length === 0);
+check("autre délai de prévente refusé", checkNumbers("Expédié sous 6 semaines.", pv.allowedNumbers, pv.allowedDelays).length > 0);
+check("hors prévente, « 2 mois » refusé (SA)", checkNumbers("Expédié sous 2 mois.", sa.allowedNumbers, sa.allowedDelays).length > 0);
+const { buildCatalogueBlock } = await import("../src/lib/luma/persona.ts");
+const bloc = buildCatalogueBlock(pv);
+check("bloc catalogue : prévente sous 2 mois, sans « arrivée des premiers flacons »", bloc.includes("sous 2 mois environ") && !bloc.includes("arrivée des premiers flacons"));
+check("bloc catalogue : ni cadeau de commande ni flacon numéroté", !/cadeau pour la première commande|numérot/.test(bloc));
 
 console.log("\nFixtures — garde-fous nourris par la connaissance");
 check("prix connu accepté", checkNumbers("Le 75 ml est à 320 AED, le coffret à 160 AED.", ae.allowedNumbers, ae.allowedDelays).length === 0);

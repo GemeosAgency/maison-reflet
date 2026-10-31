@@ -107,7 +107,7 @@ export const COFFRETS = [
   {
     handle: "sample-box",
     name: "Coffret découverte",
-    nameEn: "Discovery box",
+    nameEn: "Discovery Set",
     nameAr: "علبة الاكتشاف",
     essence: "6 × 2 ml. L'outil central pour les indécis.",
   },
@@ -204,14 +204,15 @@ export const UNIVERSES = [
 /**
  * Réassurances, telles qu'affichées sur le site (section 5). Luma peut les
  * citer, « mais pas les détailler au-delà de ce que le site dit » — d'où des
- * formules nues, sans chiffre ni condition.
+ * formules nues, sans chiffre : les montants (seuil de la livraison offerte)
+ * sont dans le bloc logistique du marché. Le « cadeau pour la première
+ * commande » a été retiré le 31 octobre 2026 : il n'existe pas sur le site.
  */
 export const REASSURANCES = [
-  "livraison offerte",
+  "livraison offerte dès le seuil indiqué ci-dessus",
   "paiement sécurisé",
   "service client réactif",
-  "échantillons offerts",
-  "cadeau pour la première commande",
+  "échantillon de 2 ml offert avec chaque flacon de 75 ml acheté seul, à choisir au panier",
 ];
 
 /** Seule porte de sortie que Luma propose (section 5). */

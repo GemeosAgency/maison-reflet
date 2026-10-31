@@ -53,7 +53,7 @@ const mainLabel = prevente.active
   : t("shipping.sameDayClosed");
 const subLabel = `${t(prevente.active ? "shipping.days" : "shipping.restOfUae")
   .replace("{min}", String(days.min))
-  .replace("{max}", String(days.max))} · ${rate}, ${t("shipping.freeFrom").replace("{amount}", free)}`;
+  .replace("{max}", String(days.max))} · ${rate}${lang === "ar" ? "، " : ", "}${t("shipping.freeFrom").replace("{amount}", free)}`;
 ---
 
 <div

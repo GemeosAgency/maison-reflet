@@ -45,7 +45,7 @@ import {
   REFLET_BRIEFS,
   type RefletBrief,
 } from "./collection";
-import { PREVENTE_OFF, type Prevente } from "../prevente";
+import { PREVENTE_DELAI_MOIS, PREVENTE_OFF, type Prevente } from "../prevente";
 
 export type KnowledgeVariant = {
   id: string;
@@ -117,7 +117,7 @@ export type Knowledge = {
   allowedHandles: string[];
   /** Nombres que Luma a le droit d'écrire — le contrat de `checkNumbers`. */
   allowedNumbers: number[];
-  /** Délais que Luma a le droit de promettre — ceux du site pour ce marché. */
+  /** Délais que Luma a le droit de promettre — ceux du site pour ce marché, et celui de la prévente. */
   allowedDelays: number[];
 };
 
@@ -176,7 +176,11 @@ export function buildKnowledge({
     contactEmail: CONTACT_EMAIL,
     allowedHandles: items.map((p) => p.handle),
     allowedNumbers: allowedNumbers(items, logistics),
-    allowedDelays: [deliveryDays.min, deliveryDays.max],
+    // Prévente sans date : « sous 2 mois environ », le délai que le site affiche.
+    allowedDelays:
+      prevente.active && !prevente.shipDate
+        ? [deliveryDays.min, deliveryDays.max, PREVENTE_DELAI_MOIS]
+        : [deliveryDays.min, deliveryDays.max],
   };
 }
 
